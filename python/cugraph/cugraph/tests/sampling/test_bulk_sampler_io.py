@@ -11,11 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
-import cudf
 import os
 import shutil
 
+import pytest
+
+import cudf
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 from cugraph.utilities.utils import create_directory_with_overwrite
 
@@ -38,7 +39,7 @@ def test_bulk_sampler_io(scratch_dir):
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io")
     create_directory_with_overwrite(samples_path)
 
-    write_samples(results, offsets, 1, samples_path)
+    write_samples(results, offsets, None, 1, samples_path)
 
     assert len(os.listdir(samples_path)) == 2
 

@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from pylibcugraph.structure.graph_primtypes cimport *
-from pylibcugraph.structure.graph_utilities cimport *
 
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
@@ -30,10 +29,3 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
         const GraphCSRView[VT,ET,WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +
-
-cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-    cdef void call_wcc[vertex_t, weight_t](
-        const handle_t &handle,
-        const graph_container_t &g,
-        vertex_t *identifiers) except +
-

@@ -16,14 +16,14 @@ from tempfile import NamedTemporaryFile
 import math
 
 import numpy as np
-import cudf
-from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
-import cupy
 
 from cugraph.testing import get_resultset
 import pytest
 
+import cudf
+import cupy
 import cugraph
+from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 
 CONNECTED_GRAPH = """1,5,3

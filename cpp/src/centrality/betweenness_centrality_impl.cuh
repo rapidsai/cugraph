@@ -647,6 +647,35 @@ edge_betweenness_centrality(
                             do_expensive_check);
   }
 
+  std::optional<weight_t> scale_factor{std::nullopt};
+
+  if (normalized) {
+    weight_t n   = static_cast<weight_t>(graph_view.number_of_vertices());
+    scale_factor = n * (n - 1);
+  } else if (graph_view.is_symmetric())
+    scale_factor = weight_t{2};
+
+  if (scale_factor) {
+    if (graph_view.number_of_vertices() > 1) {
+      if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+        (*scale_factor) *= static_cast<weight_t>(num_sources) /
+                           static_cast<weight_t>(graph_view.number_of_vertices());
+      }
+
+      auto firsts         = centralities.view().value_firsts();
+      auto counts         = centralities.view().edge_counts();
+      auto mutable_firsts = centralities.mutable_view().value_firsts();
+      for (size_t k = 0; k < counts.size(); k++) {
+        thrust::transform(
+          handle.get_thrust_policy(),
+          firsts[k],
+          firsts[k] + counts[k],
+          mutable_firsts[k],
+          [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
+      }
+    }
+  }
+
   return centralities;
 }
 

@@ -1179,6 +1179,45 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
 
+/*
+ * @brief Compute the shortest distances from the given origins to all the given destinations.
+ *
+ * This algorithm is designed for large diameter graphs. For small diameter graphs, running the
+ * cugraph::sssp function in a sequentially executed loop might be faster. This algorithms currently
+ * works only for single-GPU (we are not aware of large diameter graphs that won't fit in a single
+ * GPU).
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param origins An array of origins (starting vertices) to find shortest distances. There should
+ * be no duplicates in @p origins.
+ * @param destinations An array of destinations (end vertices) to find shortest distances. There
+ * should be no duplicates in @p destinations.
+ * @param cutoff Any destinations farther than @p cutoff will be marked as unreachable.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return A vector of size @p origins.size() * @p destinations.size(). The i'th element of the
+ * returned vector is the shortest distance from the (i / @p destinations.size())'th origin to the
+ * (i % @p destinations.size())'th destination.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> od_shortest_distances(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  raft::device_span<vertex_t const> origins,
+  raft::device_span<vertex_t const> destinations,
+  weight_t cutoff         = std::numeric_limits<weight_t>::max(),
+  bool do_expensive_check = false);
+
 /**
  * @brief Compute PageRank scores.
  *

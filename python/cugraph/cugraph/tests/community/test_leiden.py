@@ -15,12 +15,12 @@ import gc
 import time
 
 import pytest
-
 import networkx as nx
+
 import cugraph
 import cudf
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
+from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.datasets import karate_asymmetric
 
 from cudf.testing.testing import assert_series_equal
 
@@ -179,7 +179,7 @@ def cugraph_louvain(G):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_leiden(graph_file):
     edgevals = True
 
@@ -192,7 +192,7 @@ def test_leiden(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_leiden_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)

@@ -18,18 +18,20 @@ import gc
 import pytest
 import cupy as cp
 import numpy as np
-from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
-from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
-from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+import pandas as pd
+import networkx as nx
+import networkx.algorithms.centrality.betweenness as nxacb
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
-import cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import cudf
 import cugraph
-from cugraph.testing import utils, get_resultset
-from cugraph.experimental import datasets
+from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.testing import utils, get_resultset, DEFAULT_DATASETS, SMALL_DATASETS
 
 
 # =============================================================================
@@ -285,8 +287,8 @@ def get_cu_graph_nx_results_and_params(
 # =============================================================================
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
-DATASETS = [pytest.param(d) for d in datasets.DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DEFAULT_DATASETS]
+SMALL_DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
 # Call gen_fixture_params_product() to caluculate the cartesian product of
@@ -303,7 +305,7 @@ graph_fixture_params = gen_fixture_params_product(
 )
 
 small_graph_fixture_params = gen_fixture_params_product(
-    (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
+    (SMALL_DATASETS, "ds"), (DIRECTED, "dirctd")
 )
 
 
@@ -315,7 +317,7 @@ single_algo_test_fixture_params = gen_fixture_params_product(
 )
 
 single_small_graph_fixture_params = gen_fixture_params_product(
-    ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
+    ([SMALL_DATASETS[0]], "ds"), (DIRECTED, "dirctd")
 )
 
 
@@ -452,7 +454,7 @@ def test_bfs_invalid_start(dataset_nxresults_startvertex_spc, cugraph_input_type
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    graph_file = datasets.DATASETS[0]
+    graph_file = DEFAULT_DATASETS[0]
     dataset_path = graph_file.get_path()
 
     input_cugraph_graph = graph_file.get_graph(ignore_weights=True)

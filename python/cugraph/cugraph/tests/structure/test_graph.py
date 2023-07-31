@@ -12,43 +12,29 @@
 # limitations under the License.
 
 import gc
-
 import time
 
-import pandas as pd
 import pytest
-
+import pandas as pd
 import scipy
+import networkx as nx
+
+import cupy
 import cudf
-from cudf.testing.testing import assert_frame_equal
 import cugraph
 from cugraph.testing import utils
 from cudf.testing import assert_series_equal
-
-import cupy
+from cudf.testing.testing import assert_frame_equal
 
 # MG
-import cugraph.dask as dcg
-from cugraph.dask.common.mg_utils import is_single_gpu
-from dask_cuda import LocalCUDACluster
-from dask.distributed import Client
 import dask_cudf
-
-from pylibcugraph import bfs as pylibcugraph_bfs
+import cugraph.dask as dcg
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 from pylibcugraph import ResourceHandle
-
+from pylibcugraph import bfs as pylibcugraph_bfs
 from cugraph.dask.traversal.bfs import convert_to_cudf
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 # =============================================================================
@@ -774,9 +760,12 @@ def test_create_graph_with_edge_ids(graph_file):
         edge_attr=["2", "id", "etype"],
     )
 
-    H = G.to_undirected()
     assert G.is_directed()
-    assert not H.is_directed()
+
+    # 'edge_ids are not supported for undirected graph"
+    with pytest.raises(ValueError):
+        G.to_undirected()
+    # assert not H.is_directed()
 
 
 @pytest.mark.sg

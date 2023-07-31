@@ -15,21 +15,22 @@ import gc
 import random
 
 import pytest
-from cudf.testing import assert_series_equal
-
-import cugraph
-import cudf
 import networkx as nx
+
+import cudf
+import cugraph
+from cudf.testing import assert_series_equal
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
+from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
+
 
 # =============================================================================
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
-DATASETS = [pytest.param(d) for d in DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DEFAULT_DATASETS]
+SMALL_DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 
 
 # =============================================================================
@@ -207,7 +208,7 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
@@ -219,7 +220,7 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
     max_depth = random.randint(2, 10)
@@ -243,7 +244,7 @@ def test_random_walks_coalesced(graph_file, directed):
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded_0(graph_file, directed):
     max_depth = random.randint(2, 10)
@@ -291,7 +292,7 @@ def test_random_walks_padded_1():
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 def test_random_walks_nx(graph_file):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 

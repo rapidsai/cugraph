@@ -13,24 +13,22 @@
 
 import gc
 
-import numpy as np
 import pytest
+import numpy as np
 import pandas as pd
-import cupy as cp
+
+import cudf
 import cupyx
+import cugraph
+import cupy as cp
 from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
-import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
-
-import cugraph
-from cugraph.testing import utils, get_resultset
-from cugraph.experimental import datasets
+from cugraph.testing import utils, get_resultset, UNDIRECTED_DATASETS, SMALL_DATASETS
 
 
 # Map of cuGraph input types to the expected output type for cuGraph
@@ -170,7 +168,7 @@ def networkx_call(graph_file, source, edgevals=True):
 # FIXME: tests with datasets like 'netscience' which has a weight column different
 # than than 1's fail because it looks like netwokX doesn't consider weights during
 # the computation.
-DATASETS = [pytest.param(d) for d in datasets.DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 SOURCES = [pytest.param(1)]
 fixture_params = gen_fixture_params_product((DATASETS, "ds"), (SOURCES, "src"))
 fixture_params_single_dataset = gen_fixture_params_product(
@@ -417,7 +415,7 @@ def test_sssp_networkx_edge_attr():
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    graph_file = datasets.DATASETS[0]
+    graph_file = SMALL_DATASETS[0]
     dataset_path = graph_file.get_path()
     input_cugraph_graph = graph_file.get_graph()
     input_coo_matrix = utils.create_obj_from_csv(
@@ -486,7 +484,7 @@ def test_scipy_api_compat():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_sssp_csr_graph(graph_file):
     df = graph_file.get_edgelist()
 
@@ -528,7 +526,7 @@ def test_sssp_csr_graph(graph_file):
 
 @pytest.mark.sg
 def test_sssp_unweighted_graph():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = SMALL_DATASETS[0]
     G = karate.get_graph(ignore_weights=True)
 
     error_msg = (

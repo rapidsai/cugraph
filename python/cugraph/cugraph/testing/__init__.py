@@ -11,6 +11,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
-
 from cugraph.testing.resultset import get_resultset
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_DATASET_ROOT_DIR
+from cugraph.datasets import (
+    cyber,
+    dolphins,
+    karate,
+    karate_disjoint,
+    polbooks,
+    netscience,
+    small_line,
+    small_tree,
+    email_Eu_core,
+    toy_graph,
+    toy_graph_undirected,
+)
+
+#
+# Moved Dataset Batches
+#
+
+UNDIRECTED_DATASETS = [karate, dolphins]
+SMALL_DATASETS = [karate, dolphins, polbooks]
+WEIGHTED_DATASETS = [
+    dolphins,
+    karate,
+    karate_disjoint,
+    netscience,
+    polbooks,
+    small_line,
+    small_tree,
+]
+ALL_DATASETS = [
+    dolphins,
+    karate,
+    karate_disjoint,
+    polbooks,
+    netscience,
+    small_line,
+    small_tree,
+    email_Eu_core,
+    toy_graph,
+    toy_graph_undirected,
+]
+DEFAULT_DATASETS = [dolphins, netscience, karate_disjoint]
