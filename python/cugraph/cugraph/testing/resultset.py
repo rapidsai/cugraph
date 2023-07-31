@@ -15,11 +15,10 @@ from tempfile import NamedTemporaryFile
 import random
 from pathlib import Path
 
-# import cupy as cp
 import numpy as np
+import networkx as nx
 
 import cudf
-import networkx as nx
 import cugraph
 from cugraph.experimental.datasets import (
     dolphins,
@@ -58,9 +57,9 @@ def get_resultset(category, **kwargs):
         single_mapping[2 * i] = argvals[i]
     for i in np.arange(mapping_length):
         mappings = mappings[mappings[query_cols[i]] == single_mapping[i]]
-    # results_filename = category + "-" + mappings.head(1)["UUID"].values_host[0]
     # values_host is used instead of values bc strings aren't saved/possible on device
-    results_filename = mappings.head(1)["UUID"].values_host[0]
+    results_filename = category + "-" + mappings.head(1)["UUID"].values_host[0]
+    # results_filename = mappings.head(1)["UUID"].values_host[0]
     results_filename = results_filename + ".csv"
     # Ignore for now -> Assumption is the filename already has the alg category
     path = results_dir / results_filename
@@ -341,7 +340,7 @@ def generate_results():
         traversal_mappings = cudf.concat(
             [traversal_mappings, temp_mapping], axis=0, ignore_index=True
         )
-        res.to_csv(results_dir / (temp_filename + ".csv"), index=False)
+        res.to_csv(results_dir / ("traversal-" + temp_filename + ".csv"), index=False)
     traversal_mappings.to_csv(
         results_dir / "traversal_mappings.csv", index=False, sep=" "
     )

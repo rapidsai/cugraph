@@ -16,13 +16,12 @@ from tempfile import NamedTemporaryFile
 import math
 
 import numpy as np
-
-from cugraph.testing import get_resultset
 import pytest
 
 import cudf
 import cupy
 import cugraph
+from cugraph.testing import get_resultset
 from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 

@@ -13,14 +13,9 @@
 
 import gc
 
-# import random
-
 import pytest
 import cupy as cp
 import numpy as np
-import pandas as pd
-import networkx as nx
-import networkx.algorithms.centrality.betweenness as nxacb
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
