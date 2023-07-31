@@ -22,6 +22,9 @@
 
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
 
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
@@ -35,27 +38,45 @@
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <gtest/gtest.h>
 
 #include <random>
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
-    vertex_t v0,
-    vertex_t v1,
-    edge_t v0_prop /* out degree */,
-    edge_t v1_prop /* out degree */,
+    vertex_t a,
+    vertex_t b,
+    weight_t weight_a /* weighted out degree */,
+    weight_t weight_b /* weighted out degree */,
     raft::device_span<vertex_t const> intersection,
-    std::byte, /* dummy */
-    std::byte  /* dummy */
-  ) const
+    raft::device_span<weight_t const> intersected_properties_a,
+    raft::device_span<weight_t const> intersected_properties_b) const
   {
-    return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
+    weight_t min_weight_a_intersect_b = weight_t{0};
+    weight_t max_weight_a_intersect_b = weight_t{0};
+    weight_t sum_of_intersected_a     = weight_t{0};
+    weight_t sum_of_intersected_b     = weight_t{0};
+
+    for (size_t k = 0; k < intersection.size(); k++) {
+      min_weight_a_intersect_b += min(intersected_properties_a[k], intersected_properties_b[k]);
+      max_weight_a_intersect_b += max(intersected_properties_a[k], intersected_properties_b[k]);
+      sum_of_intersected_a += intersected_properties_a[k];
+      sum_of_intersected_b += intersected_properties_b[k];
+    }
+
+    weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
+    weight_t sum_of_uniq_b = weight_b - sum_of_intersected_b;
+
+    max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
+
+    return thrust::make_tuple(min_weight_a_intersect_b, max_weight_a_intersect_b);
   }
 };
 
@@ -94,11 +115,28 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_timer.start("MG Construct graph");
     }
 
+    constexpr bool store_transposed = false;
+    constexpr bool multi_gpu        = true;
+
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                               weight_t>>
+      mg_edge_weight{std::nullopt};
+
     std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
-    std::tie(mg_graph, std::ignore, mg_renumber_map) =
+
+    constexpr bool test_weighted    = true;
+    constexpr bool renumber         = true;
+    constexpr bool drop_self_loops  = false;
+    constexpr bool drop_multi_edges = true;
+
+    std::tie(mg_graph, mg_edge_weight, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, false, true);
+        *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
+
+    auto mg_graph_view       = mg_graph.view();
+    auto mg_edge_weight_view = (*mg_edge_weight).view();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -106,8 +144,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
-
-    auto mg_graph_view = mg_graph.view();
 
     // 2. run MG per_v_pair_transform_dst_nbr_intersection primitive
 
@@ -120,6 +156,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         prims_usecase.num_vertex_pairs / comm_size +
           (static_cast<size_t>(comm_rank) < prims_usecase.num_vertex_pairs % comm_size ? 1 : 0),
         handle_->get_stream());
+
     thrust::tabulate(
       handle_->get_thrust_policy(),
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
@@ -150,7 +187,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                  std::nullopt,
                  h_vertex_partition_range_lasts);
 
-    auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
+    auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
     auto mg_out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
@@ -160,14 +197,17 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_timer.start("MG per_v_pair_transform_dst_nbr_intersection");
     }
 
+    rmm::device_uvector<weight_t> mg_out_weight_sums =
+      compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
+
     cugraph::per_v_pair_transform_dst_nbr_intersection(
       *handle_,
       mg_graph_view,
-      cugraph::edge_dummy_property_t{}.view(),
+      mg_edge_weight_view,
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-      mg_out_degrees.begin(),
-      intersection_op_t<vertex_t, edge_t>{},
+      mg_out_weight_sums.begin(),
+      intersection_op_t<vertex_t, edge_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(mg_result_buffer));
 
     if (cugraph::test::g_perf) {
@@ -206,17 +246,26 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                       std::get<1>(mg_vertex_pair_buffer).size());
 
       auto mg_aggregate_result_buffer =
-        cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(0, handle_->get_stream());
+        cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+          0, handle_->get_stream());
       std::get<0>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
         *handle_, std::get<0>(mg_result_buffer).data(), std::get<0>(mg_result_buffer).size());
       std::get<1>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
         *handle_, std::get<1>(mg_result_buffer).data(), std::get<1>(mg_result_buffer).size());
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                 weight_t>>
+        sg_edge_weight{std::nullopt};
+
+      std::tie(sg_graph, sg_edge_weight, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
         mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        mg_edge_weight
+          ? std::make_optional(mg_edge_weight_view)
+          : std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                               (*mg_renumber_map).size()),
         false);
@@ -224,19 +273,21 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
-          cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
-        auto sg_out_degrees = sg_graph_view.compute_out_degrees(*handle_);
+        auto sg_result_buffer =
+          cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+            cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
+
+        rmm::device_uvector<weight_t> sg_out_weight_sums =
+          compute_out_weight_sums(*handle_, sg_graph_view, (*sg_edge_weight).view());
 
         cugraph::per_v_pair_transform_dst_nbr_intersection(
           *handle_,
           sg_graph_view,
-          cugraph::edge_dummy_property_t{}.view(),
+          (*sg_edge_weight).view(),
           cugraph::get_dataframe_buffer_begin(
             mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-          cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-          sg_out_degrees.begin(),
-          intersection_op_t<vertex_t, edge_t>{},
+          cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered
+          */), sg_out_weight_sums.begin(),  intersection_op_t<vertex_t, edge_t, weight_t>{},
           cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 
         bool valid = thrust::equal(handle_->get_thrust_policy(),
@@ -327,7 +378,7 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024}, true}),
+    ::testing::Values(Prims_Usecase{size_t{10}, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 

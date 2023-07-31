@@ -175,7 +175,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e ."
+    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e"
 fi
 
 # Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
@@ -302,6 +302,22 @@ if buildAll || hasArg pylibcugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
+        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
+        # install -e" command, resulting in a broken editable wheel. Continue
+        # to use "setup.py bdist_ext --inplace" for a develop build until
+        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
+        if hasArg --pydevelop; then
+            cd ${REPODIR}/python/pylibcugraph
+            python setup.py build_ext \
+                   --inplace \
+                   -- \
+                   -DFIND_CUGRAPH_CPP=ON \
+                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+                   -- \
+                   -j${PARALLEL_LEVEL:-1}
+            cd -
+        fi
         SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
@@ -313,6 +329,22 @@ if buildAll || hasArg cugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
+        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
+        # install -e" command, resulting in a broken editable wheel. Continue
+        # to use "setup.py bdist_ext --inplace" for a develop build until
+        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
+        if hasArg --pydevelop; then
+            cd ${REPODIR}/python/cugraph
+            python setup.py build_ext \
+                   --inplace \
+                   -- \
+                   -DFIND_CUGRAPH_CPP=ON \
+                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+                   -- \
+                   -j${PARALLEL_LEVEL:-1}
+            cd -
+        fi
         SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
