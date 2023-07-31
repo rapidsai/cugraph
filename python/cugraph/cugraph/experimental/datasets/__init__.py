@@ -24,7 +24,7 @@ from pathlib import Path
 
 
 meta_path = Path(__file__).parent / "metadata"
-
+dining_prefs = Dataset(meta_path / "dining_prefs.yaml")
 karate = Dataset(meta_path / "karate.yaml")
 karate_data = Dataset(meta_path / "karate_data.yaml")
 karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
