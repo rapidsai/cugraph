@@ -146,6 +146,12 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                    start_vertices_->size_,
                    handle_.get_stream());
 
+        if constexpr (multi_gpu) {
+          start_vertices =
+            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(start_vertices));
+        }
+
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           start_vertices.data(),
@@ -155,11 +161,6 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        if constexpr (multi_gpu) {
-          start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
-        }
       } else {
         start_vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),

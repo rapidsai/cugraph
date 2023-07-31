@@ -15,12 +15,12 @@ import gc
 import random
 
 import pytest
-import dask_cudf
-from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
+import dask_cudf
 import cugraph.dask as dcg
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================

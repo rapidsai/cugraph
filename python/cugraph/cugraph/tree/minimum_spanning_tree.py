@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -91,8 +91,8 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import netscience
-    >>> G = netscience.get_graph(fetch=True)
+    >>> from cugraph.datasets import netscience
+    >>> G = netscience.get_graph(download=True)
     >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
@@ -134,8 +134,8 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import netscience
-    >>> G = netscience.get_graph(fetch=True)
+    >>> from cugraph.datasets import netscience
+    >>> G = netscience.get_graph(download=True)
     >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """
