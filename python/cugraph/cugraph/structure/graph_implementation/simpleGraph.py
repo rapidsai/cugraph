@@ -223,7 +223,7 @@ class simpleGraphImpl:
         self.input_df = elist
         self.weight_column = weight
         self.source_columns = source
-        self.destination_columns = source
+        self.destination_columns = destination
 
         # Renumbering
         self.renumber_map = None
