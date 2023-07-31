@@ -138,7 +138,7 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
     G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
-    
+
     if "weight" in df_G.columns:
         df_G = df_G.rename(columns={"weight": "wgt"})
 
