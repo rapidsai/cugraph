@@ -1,45 +1,45 @@
-hashable_dict_repr,filename
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('start_vertex', '16'))",traversal-13794012085099560.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'dolphins'), ('graph_directed', 'False'), ('start_vertex', '16'))",traversal-20996818816802203.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('start_vertex', '16'))",traversal-7863939874314132.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'dolphins'), ('graph_directed', 'False'), ('start_vertex', '16'))",traversal-6028686672229212.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('start_vertex', '16'))",traversal-6102329022496213.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'dolphins'), ('graph_directed', 'False'), ('start_vertex', '16'))",traversal-24559072556563332.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('start_vertex', '16'))",traversal-25432193970951106.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'dolphins'), ('graph_directed', 'False'), ('start_vertex', '16'))",traversal-35983514138250487.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'netscience'), ('graph_directed', 'True'), ('start_vertex', '1237'))",traversal-29053032045714712.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'netscience'), ('graph_directed', 'False'), ('start_vertex', '1237'))",traversal-10209535434255476.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'netscience'), ('graph_directed', 'True'), ('start_vertex', '1237'))",traversal-33225028299752134.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'netscience'), ('graph_directed', 'False'), ('start_vertex', '1237'))",traversal-457988537373597.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'netscience'), ('graph_directed', 'True'), ('start_vertex', '1237'))",traversal-16852839384883684.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'netscience'), ('graph_directed', 'False'), ('start_vertex', '1237'))",traversal-25977799875707499.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'netscience'), ('graph_directed', 'True'), ('start_vertex', '1237'))",traversal-22884663737948621.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'netscience'), ('graph_directed', 'False'), ('start_vertex', '1237'))",traversal-1014939923221900.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'True'), ('start_vertex', '19'))",traversal-6076307202060871.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'False'), ('start_vertex', '19'))",traversal-17701312393774934.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'True'), ('start_vertex', '19'))",traversal-30452085807441890.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'False'), ('start_vertex', '19'))",traversal-24566330077712845.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'True'), ('start_vertex', '19'))",traversal-18005711098893413.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'False'), ('start_vertex', '19'))",traversal-35853313043454625.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'True'), ('start_vertex', '19'))",traversal-24760070215193007.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'karate-disjoint'), ('graph_directed', 'False'), ('start_vertex', '19'))",traversal-9148021614037858.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('start_vertex', '7'))",traversal-22026915197979443.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', 'None'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('start_vertex', '7'))",traversal-24542947045216202.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('start_vertex', '7'))",traversal-34595993037949685.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '1'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('start_vertex', '7'))",traversal-2684007979152506.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('start_vertex', '7'))",traversal-23382061985704026.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '5'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('start_vertex', '7'))",traversal-23806279448496695.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('start_vertex', '7'))",traversal-1198291124021810.csv
-"(('algo', 'single_source_shortest_path_length'), ('cutoff', '18'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('start_vertex', '7'))",traversal-7700395001688692.csv
-"(('algo', 'bfs_edges'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('source', '7'))",traversal-12211229035620551.csv
-"(('algo', 'bfs_edges'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('source', '7'))",traversal-26769783379741560.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('source', '1'))",traversal-11196971449711926.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('source', '1'), ('test', 'data_type_conversion'))",traversal-8862356193854587.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('source', '1'))",traversal-21489979096431321.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'dolphins'), ('graph_directed', 'True'), ('source', '1'), ('test', 'data_type_conversion'))",traversal-5509948256545934.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'polbooks'), ('graph_directed', 'True'), ('source', '1'))",traversal-30541863852431260.csv
-"(('algo', 'single_source_dijkstra_path_length'), ('graph_dataset', 'polbooks'), ('graph_directed', 'True'), ('source', '1'), ('test', 'data_type_conversion'))",traversal-17637631058920707.csv
-"(('algo', 'sssp_nonnative'), ('graph_dataset', 'karate'), ('graph_directed', 'True'), ('source', '1'))",traversal-10237264400944458.csv
-"(('algo', 'sssp_nonnative'), ('graph_dataset', 'karate'), ('graph_directed', 'False'), ('source', '1'))",traversal-20257532223395364.csv
-"(('algo', 'sssp_nonnative'), ('test', 'network_edge_attr'))",traversal-9867286825871764.csv
-"(('algo', 'shortest_path_length'), ('graph_dataset', 'DISCONNECTED'), ('graph_directed', 'True'), ('source', '1'), ('weight', 'weight'))",traversal-7136448615947447.csv
+UUID algo arg1 arg1val arg2 arg2val arg3 arg3val arg4 arg4val arg5 arg5val arg6 arg6val arg7 arg7val arg8 arg8val arg9 arg9val
+431063157185576 single_source_shortest_path_length cutoff None graph_dataset dolphins graph_directed True start_vertex 16          
+656150055689627 single_source_shortest_path_length cutoff None graph_dataset dolphins graph_directed False start_vertex 16          
+245745928001428 single_source_shortest_path_length cutoff 1 graph_dataset dolphins graph_directed True start_vertex 16          
+188398733063004 single_source_shortest_path_length cutoff 1 graph_dataset dolphins graph_directed False start_vertex 16          
+190697381576149 single_source_shortest_path_length cutoff 5 graph_dataset dolphins graph_directed True start_vertex 16          
+767470587558788 single_source_shortest_path_length cutoff 5 graph_dataset dolphins graph_directed False start_vertex 16          
+794754027574210 single_source_shortest_path_length cutoff 18 graph_dataset dolphins graph_directed True start_vertex 16          
+1124485822090487 single_source_shortest_path_length cutoff 18 graph_dataset dolphins graph_directed False start_vertex 16          
+907905196596504 single_source_shortest_path_length cutoff None graph_dataset netscience graph_directed True start_vertex 1237          
+319050385288308 single_source_shortest_path_length cutoff None graph_dataset netscience graph_directed False start_vertex 1237          
+1038281390523078 single_source_shortest_path_length cutoff 1 graph_dataset netscience graph_directed True start_vertex 1237          
+14314120729501 single_source_shortest_path_length cutoff 1 graph_dataset netscience graph_directed False start_vertex 1237          
+526650785538532 single_source_shortest_path_length cutoff 5 graph_dataset netscience graph_directed True start_vertex 1237          
+811808371982955 single_source_shortest_path_length cutoff 5 graph_dataset netscience graph_directed False start_vertex 1237          
+715146362591693 single_source_shortest_path_length cutoff 18 graph_dataset netscience graph_directed True start_vertex 1237          
+31714534985100 single_source_shortest_path_length cutoff 18 graph_dataset netscience graph_directed False start_vertex 1237          
+189882724201031 single_source_shortest_path_length cutoff None graph_dataset karate-disjoint graph_directed True start_vertex 19          
+553165838223190 single_source_shortest_path_length cutoff None graph_dataset karate-disjoint graph_directed False start_vertex 19          
+951630488463330 single_source_shortest_path_length cutoff 1 graph_dataset karate-disjoint graph_directed True start_vertex 19          
+767697247244749 single_source_shortest_path_length cutoff 1 graph_dataset karate-disjoint graph_directed False start_vertex 19          
+562676383765605 single_source_shortest_path_length cutoff 5 graph_dataset karate-disjoint graph_directed True start_vertex 19          
+1120419326843553 single_source_shortest_path_length cutoff 5 graph_dataset karate-disjoint graph_directed False start_vertex 19          
+773751608857007 single_source_shortest_path_length cutoff 18 graph_dataset karate-disjoint graph_directed True start_vertex 19          
+285876289784674 single_source_shortest_path_length cutoff 18 graph_dataset karate-disjoint graph_directed False start_vertex 19          
+688340850412339 single_source_shortest_path_length cutoff None graph_dataset karate graph_directed True start_vertex 7          
+766965872267210 single_source_shortest_path_length cutoff None graph_dataset karate graph_directed False start_vertex 7          
+1081121981713141 single_source_shortest_path_length cutoff 1 graph_dataset karate graph_directed True start_vertex 7          
+83873432859770 single_source_shortest_path_length cutoff 1 graph_dataset karate graph_directed False start_vertex 7          
+730687934441562 single_source_shortest_path_length cutoff 5 graph_dataset karate graph_directed True start_vertex 7          
+743945746483767 single_source_shortest_path_length cutoff 5 graph_dataset karate graph_directed False start_vertex 7          
+37447363258930 single_source_shortest_path_length cutoff 18 graph_dataset karate graph_directed True start_vertex 7          
+240638103958132 single_source_shortest_path_length cutoff 18 graph_dataset karate graph_directed False start_vertex 7          
+381600612247751 bfs_edges graph_dataset karate graph_directed True source 7            
+836556098128760 bfs_edges graph_dataset karate graph_directed False source 7            
+349902694645046 single_source_dijkstra_path_length graph_dataset karate graph_directed True source 1            
+276948497384571 single_source_dijkstra_path_length graph_dataset karate graph_directed True source 1 test data_type_conversion          
+671563943115481 single_source_dijkstra_path_length graph_dataset dolphins graph_directed True source 1            
+172188670880910 single_source_dijkstra_path_length graph_dataset dolphins graph_directed True source 1 test data_type_conversion          
+954435445708700 single_source_dijkstra_path_length graph_dataset polbooks graph_directed True source 1            
+551177413608707 single_source_dijkstra_path_length graph_dataset polbooks graph_directed True source 1 test data_type_conversion          
+319914331540810 sssp_nonnative graph_dataset karate graph_directed True source 1            
+633044963923492 sssp_nonnative graph_dataset karate graph_directed False source 1            
+308351777319316 sssp_nonnative test network_edge_attr                
+223015853235383 shortest_path_length graph_dataset DISCONNECTED graph_directed True source 1 weight weight          

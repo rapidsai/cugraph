@@ -42,14 +42,27 @@ def add_resultset(result_data_dictionary, **kwargs):
 
 
 def get_resultset(category, **kwargs):
-    # THIS IS CALLED IN TESTS
     hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
     mappings_path = results_dir / (category + "_mappings.csv")
-    mappings = cudf.read_csv(mappings_path)
-    results_filename = mappings[
-        mappings["hashable_dict_repr"] == str(hashable_dict_repr)
-    ]["filename"].iloc[0]
-    # The assumption is that results_filename already includes the algorithm category
+    # Had to set dtype=str to prevent 1s being converted to True
+    mappings = cudf.read_csv(mappings_path, sep=" ", dtype=str)
+    colnames = mappings.columns
+    query_cols = [t for t in colnames][1:]
+    dict_repr = dict(hashable_dict_repr)
+    argnames, argvals = [t for t in dict_repr.keys()], [t for t in dict_repr.values()]
+    mapping_length = 2 * len(argvals) - 1
+    single_mapping = np.empty(mapping_length, dtype=object)
+    single_mapping[0] = argvals[0]
+    for i in np.arange(1, len(argvals)):
+        single_mapping[2 * i - 1] = argnames[i]
+        single_mapping[2 * i] = argvals[i]
+    for i in np.arange(mapping_length):
+        mappings = mappings[mappings[query_cols[i]] == single_mapping[i]]
+    # results_filename = category + "-" + mappings.head(1)["UUID"].values_host[0]
+    # values_host is used instead of values bc strings aren't saved/possible on device
+    results_filename = mappings.head(1)["UUID"].values_host[0]
+    results_filename = results_filename + ".csv"
+    # Ignore for now -> Assumption is the filename already has the alg category
     path = results_dir / results_filename
     # path = Path("https://data.rapids.ai/cugraph/results/" / path
     return cudf.read_csv(path)
@@ -258,17 +271,80 @@ traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)""
 
 def generate_results():
     random.seed(24)
-    traversal_mappings = cudf.DataFrame(columns=["hashable_dict_repr", "filename"])
+    # traversal_mappings = cudf.DataFrame(columns=["hashable_dict_repr", "filename"])
+    traversal_mappings = cudf.DataFrame(
+        columns=[
+            "UUID",
+            "algo",
+            "arg1",
+            "arg1val",
+            "arg2",
+            "arg2val",
+            "arg3",
+            "arg3val",
+            "arg4",
+            "arg4val",
+            "arg5",
+            "arg5val",
+            "arg6",
+            "arg6val",
+            "arg7",
+            "arg7val",
+            "arg8",
+            "arg8val",
+            "arg9",
+            "arg9val",
+        ]
+    )
     # Generating ALL results files
     for temp in _resultsets:
         res = _resultsets[temp].get_cudf_dataframe()
         # Currently, only traversal results files are generated
-        temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
+        # temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
+        temp_filename = str(random.getrandbits(50))
+        temp_dict = dict(temp)
+        argnames, argvals = [t for t in temp_dict.keys()], [
+            t for t in temp_dict.values()
+        ]
+        single_mapping = np.empty(20, dtype=object)
+        dict_length = len(argnames)
+        single_mapping[0] = temp_filename
+        single_mapping[1] = argvals[0]
+        for i in np.arange(1, dict_length):
+            single_mapping[2 * i] = argnames[i]
+            single_mapping[2 * i + 1] = argvals[i]
         temp_mapping = cudf.DataFrame(
-            [[str(temp), temp_filename]], columns=["hashable_dict_repr", "filename"]
+            [single_mapping],
+            columns=[
+                "UUID",
+                "algo",
+                "arg1",
+                "arg1val",
+                "arg2",
+                "arg2val",
+                "arg3",
+                "arg3val",
+                "arg4",
+                "arg4val",
+                "arg5",
+                "arg5val",
+                "arg6",
+                "arg6val",
+                "arg7",
+                "arg7val",
+                "arg8",
+                "arg8val",
+                "arg9",
+                "arg9val",
+            ],
         )
         traversal_mappings = cudf.concat(
             [traversal_mappings, temp_mapping], axis=0, ignore_index=True
         )
-        res.to_csv(results_dir / temp_filename, index=False)
-    traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)
+        res.to_csv(results_dir / (temp_filename + ".csv"), index=False)
+    traversal_mappings.to_csv(
+        results_dir / "traversal_mappings.csv", index=False, sep=" "
+    )
+
+
+generate_results()

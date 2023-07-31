@@ -11,6 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+# from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 from cugraph.testing.resultset import get_resultset
