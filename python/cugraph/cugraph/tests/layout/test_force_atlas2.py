@@ -19,7 +19,13 @@ import cugraph
 from cugraph.internals import GraphBasedDimRedCallback
 from sklearn.manifold import trustworthiness
 import scipy.io
-from cugraph.experimental.datasets import karate, polbooks, dolphins, netscience, dining_prefs
+from cugraph.experimental.datasets import (
+    karate,
+    polbooks,
+    dolphins,
+    netscience,
+    dining_prefs,
+)
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -43,10 +49,10 @@ def cugraph_call(
     strong_gravity_mode,
     gravity,
     callback=None,
-    renumber=False
+    renumber=False,
 ):
     G = cugraph.Graph()
-    if cu_M['src'] is not int or cu_M['dst'] is not int:
+    if cu_M["src"] is not int or cu_M["dst"] is not int:
         renumber = True
     else:
         renumber = False
@@ -76,7 +82,13 @@ def cugraph_call(
     return pos
 
 
-DATASETS = [(karate, 0.70), (polbooks, 0.75), (dolphins, 0.66), (netscience, 0.66), (dining_prefs, 0.50)]
+DATASETS = [
+    (karate, 0.70),
+    (polbooks, 0.75),
+    (dolphins, 0.66),
+    (netscience, 0.66),
+    (dining_prefs, 0.50),
+]
 
 
 MAX_ITERATIONS = [500]
