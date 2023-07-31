@@ -26,7 +26,7 @@ def _compare_graphs(nxG, cuG, has_wt=True):
 
     cu_df = cuG.view_edge_list().to_pandas()
     if has_wt is True:
-        cu_df = cu_df.drop(columns=["weights"])
+        cu_df = cu_df.drop(columns=["weight"])
 
     out_of_order = cu_df[cu_df["src"] > cu_df["dst"]]
     if len(out_of_order) > 0:
