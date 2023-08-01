@@ -56,7 +56,7 @@ def force_atlas2(input_graph,
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
-    # this code allows handling of graphs that have been renumbered
+    # this code allows handling of renumbered graphs
     if input_graph.is_renumbered():
         num_verts = input_graph.renumber_map.df_internal_to_external['id'].max()+1
     else:
