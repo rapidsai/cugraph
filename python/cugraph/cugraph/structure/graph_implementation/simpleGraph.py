@@ -224,7 +224,7 @@ class simpleGraphImpl:
         self.weight_column = weight
         self.source_columns = source
         self.destination_columns = destination
-        
+
         # Renumbering
         self.renumber_map = None
         self.store_transposed = store_transposed
@@ -447,10 +447,7 @@ class simpleGraphImpl:
         # is not consistant with the SG API.
         if not self.properties.directed:
             # Extract the upper triangular matrix from the renumebred edges
-            edgelist_df = edgelist_df[
-                edgelist_df[srcCol]
-                <= edgelist_df[dstCol]
-            ]
+            edgelist_df = edgelist_df[edgelist_df[srcCol] <= edgelist_df[dstCol]]
             edgelist_df = edgelist_df.reset_index(drop=True)
         self.properties.edge_count = len(edgelist_df)
 

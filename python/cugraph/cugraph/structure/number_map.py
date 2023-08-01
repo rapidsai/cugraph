@@ -690,7 +690,6 @@ class NumberMap:
 
         if len(self.implementation.col_names) == 1:
             col_names = col_names[0]
-        
 
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)

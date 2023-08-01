@@ -72,9 +72,10 @@ class Graph:
                 else:
                     weights = None
                 self.from_cudf_edgelist(
-                    elist, source=m_graph.source_columns,
+                    elist,
+                    source=m_graph.source_columns,
                     destination=m_graph.destination_columns,
-                    edge_attr=weights
+                    edge_attr=weights,
                 )
             else:
                 raise TypeError(
