@@ -42,7 +42,7 @@ def load_disk_features(meta: dict, node_type: str, replication_factor: int = 1):
             return disk_features[full_path]
         disk_features[full_path] = np.load(
             full_path,
-            #mmap_mode='r'
+            mmap_mode='r'
         )
         return disk_features[full_path]
 
@@ -52,7 +52,7 @@ def load_disk_features(meta: dict, node_type: str, replication_factor: int = 1):
             return disk_features[full_path]
         disk_features[full_path] = np.load(
             full_path,
-            #mmap_mode='r'
+            mmap_mode='r'
         )
         return disk_features[full_path]
 
@@ -63,7 +63,7 @@ def init_pytorch_worker(device_id: int) -> None:
 
     rmm.reinitialize(
         devices=[device_id],
-        pool_allocator=True,
+        pool_allocator=False,
         maximum_pool_size=28e9,
     )
 
@@ -94,7 +94,8 @@ def train_epoch(model, loader, optimizer):
         data = data.to_homogeneous()
 
         num_batches += 1
-        if iter_i % 20 == 1:
+        #if iter_i % 20 == 1:
+        if iter_i >= 1:
             print(f"iteration {iter_i}")
             print(f"num sampled nodes: {num_sampled_nodes}")
             print(f"num sampled edges: {num_sampled_edges}")
@@ -303,7 +304,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             num_neighbors={('paper','cites','paper'):output_meta['fanout']},
             replace=False,
             is_sorted=True,
-            disjoint=True,
+            disjoint=False,
         )
         print('done creating loader')
         # loader was patched to record the feature extraction time

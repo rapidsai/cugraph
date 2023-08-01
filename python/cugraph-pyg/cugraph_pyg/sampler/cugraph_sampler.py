@@ -149,7 +149,7 @@ def _sampler_output_from_sampling_results(
         node_type = graph_store.node_types[0]
         if not isinstance(node_type, str):
             raise ValueError("Node types must be strings")
-        noi_index = {node_type: torch.as_tensor(renumber_map.values, device="cuda")}
+        noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 
         edge_type = graph_store.edge_types[0]
         if (
@@ -189,7 +189,6 @@ def _sampler_output_from_sampling_results(
             .drop_duplicates()
             .sort_index()
         )
-        del sampling_results_hop_0
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
         noi_index = graph_store._get_vertex_groups_from_sample(

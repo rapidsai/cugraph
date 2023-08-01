@@ -34,6 +34,9 @@ class CuGraphSAGE(nn.Module):
                 None
             )
 
+            print('max node id:', edge[0].max(), edge[1].max())
+            print('x shape:', x.shape[0])
+
             s = x.shape[0]
             edge_csc = CuGraphSAGEConv.to_csc(edge, (s, s))
 

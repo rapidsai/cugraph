@@ -29,6 +29,7 @@ from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_re
 from typing import Union, Tuple, Sequence, List, Dict
 
 torch_geometric = import_optional("torch_geometric")
+torch = import_optional("torch")
 InputNodes = (
     Sequence
     if isinstance(torch_geometric, MissingModule)
@@ -259,9 +260,15 @@ class EXPERIMENTAL__BulkSampleLoader:
             }
 
             raw_sample_data = cudf.read_parquet(parquet_path)
+            print(parquet_path)
             if "map" in raw_sample_data.columns:
-                self.__renumber_map = raw_sample_data["map"]
+                map_end = raw_sample_data["map"].iloc[(end_inclusive - self.__start_inclusive + 1)]
+                self.__renumber_map = torch.as_tensor(
+                    raw_sample_data["map"].iloc[0:map_end],
+                    device='cuda'
+                )
                 raw_sample_data.drop("map", axis=1, inplace=True)
+                print('renumber_map:', self.__renumber_map)
             else:
                 self.__renumber_map = None
 
@@ -272,12 +279,16 @@ class EXPERIMENTAL__BulkSampleLoader:
         self._total_read_time += (end_time_read_data - start_time_read_data)
 
         # Pull the next set of sampling results out of the dataframe in memory
+        start_time_convert = perf_counter()
         f = self.__data["batch_id"] == self.__next_batch
         if self.__renumber_map is not None:
             i = self.__next_batch - self.__start_inclusive
-            ix = self.__renumber_map.iloc[[i, i + 1]]
-            ix_start, ix_end = ix.iloc[0], ix.iloc[1]
-            current_renumber_map = self.__renumber_map.iloc[ix_start:ix_end]
+            print('i:', i)
+            print(self.__renumber_map[[i,i+1]])
+            ix_start,ix_end = self.__renumber_map[[i,i+1]].tolist()
+            current_renumber_map = self.__renumber_map[ix_start:ix_end]
+            print(len(current_renumber_map))
+            
             if len(current_renumber_map) != ix_end - ix_start:
                 raise ValueError("invalid renumber map")
         else:

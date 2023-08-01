@@ -160,7 +160,7 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:D
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], unique_sources=False, carry_over_sources=False, deduplicate_sources=True, persist=False):
+def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], prior_sources_behavior=None, deduplicate_sources=True, renumber=False, persist=False):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -168,13 +168,13 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         output_path=output_path,
         graph=G,
         fanout_vals=fanout,
-        unique_sources=unique_sources,
-        carry_over_sources=carry_over_sources,
+        prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
         with_replacement=False,
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
+        renumber=renumber,
         log_level=logging.INFO,
     )
 
@@ -402,9 +402,9 @@ def benchmark_cugraph_bulk_sampling(
                                     labeled_percentage=0.001,
                                     persist=False,
                                     add_edge_types=False,
-                                    unique_sources=False,
-                                    carry_over_sources=False,
-                                    deduplicate_sources=False):
+                                    prior_sources_behavior=None,
+                                    deduplicate_sources=False,
+                                    renumber=False,):
     """
     Entry point for the benchmark.
 
@@ -439,12 +439,12 @@ def benchmark_cugraph_bulk_sampling(
     add_edge_types: bool
         Whether to add edge types to the edgelist.
         Defaults to False.
-    unique_sources: bool
-        If True, sources are not allowed to reappear as sources in future hops.
-    carry_over_sources: bool
-        If True, sources from previous hops are always carried over to the next hop.
+    prior_sources_behavior: bool
+        Behavior of prior sources.
     deduplicate_sources: bool
         If True, the source list is deduplicated before performing sampling.
+    renumber: bool
+        If True, will renumber and add the renumber map to results.
     """
     print(dataset)
     if dataset[0:4] == 'rmat':
@@ -502,9 +502,9 @@ def benchmark_cugraph_bulk_sampling(
             seeds_per_call=seeds_per_call,
             batches_per_partition=batches_per_partition,
             fanout=fanout,
-            unique_sources=unique_sources,
-            carry_over_sources=carry_over_sources,
+            prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
+            renumber=renumber,
             persist=persist,
         )
         mean_execution_time += execution_time
@@ -635,7 +635,7 @@ def get_args():
     parser.add_argument(
         '--reverse_edges',
         action='store_true',
-        help='Whether to reverse the edges for DGL (defaults to False).  Should be True for DGL, False for PyG.',
+        help='Whether to reverse the edges for DGL (defaults to False).  Should be True for both DGL and PyG.',
         required=False,
         default=False,
     )
@@ -671,27 +671,26 @@ def get_args():
         required=False,
         default=False,
     )
-
     parser.add_argument(
-        '--unique_sources',
-        action='store_true',
-        help='If true, sources are not allowed to reappear as sources in future hops',
+        '--prior_sources_behavior',
+        type=str,
+        help='Options: default, carryover, exclude',
         required=False,
-        default=False,
-    )
-
-    parser.add_argument(
-        '--carry_over_sources',
-        action='store_true',
-        help='If true, sources from previous hops are carried over to the next hop',
-        required=False,
-        default=False,
+        default='default',
     )
 
     parser.add_argument(
         '--deduplicate_sources',
         action='store_true',
         help='If true, sources are deduplicated before calling sampling',
+        required=False,
+        default=False,
+    )
+
+    parser.add_argument(
+        '--renumber',
+        action='store_true',
+        help='If true, will renumber the sources and add the renumber map to the sampling results',
         required=False,
         default=False,
     )
@@ -721,6 +720,11 @@ if __name__ == "__main__":
         else:
             replication_factor = 1
 
+        prior_sources_behavior = (
+            None if args.prior_sources_behavior == 'default'
+            else args.prior_sources_behavior
+        )
+
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
@@ -749,9 +753,9 @@ if __name__ == "__main__":
                             replication_factor=replication_factor,
                             persist=args.persist,
                             add_edge_types=args.add_edge_types,
-                            unique_sources=args.unique_sources,
-                            carry_over_sources=args.carry_over_sources,
+                            prior_sources_behavior=prior_sources_behavior,
                             deduplicate_sources=args.deduplicate_sources,
+                            renumber=args.renumber,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
