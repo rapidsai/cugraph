@@ -138,7 +138,7 @@ for ds in DATASETS_SMALL:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
-        # stest_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
+        # test_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
         vertices = cudf.Series(nx_paths.keys())
         distances = cudf.Series(nx_paths.values())
         add_resultset(
