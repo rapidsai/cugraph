@@ -665,16 +665,32 @@ class NumberMap:
             for nm in self.implementation.col_names:
                 mapping[nm] = nm + "_" + column_name
             col_names = list(mapping.values())
-            # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
-            # but there is no way to retrieve it with the current API
-            if column_name in [self.renumbered_src_col_name, "src"]:
-                self.internal_to_external_col_names.update(
-                    dict(zip(col_names, self.input_src_col_names))
-                )
-            elif column_name in [self.renumbered_dst_col_name, "dst"]:
-                self.internal_to_external_col_names.update(
-                    dict(zip(col_names, self.input_dst_col_names))
-                )
+
+        if isinstance(self.input_src_col_names, list):
+            input_src_col_names = self.input_src_col_names.copy()
+            input_dst_col_names = self.input_dst_col_names.copy()
+        else:
+            # Assuming the src and dst columns are of the same length
+            # if they are lists.
+            input_src_col_names = [input_src_col_names]
+            input_dst_col_names = [input_dst_col_names]
+        if not isinstance(col_names, list):
+            col_names = [col_names]
+
+        # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
+        # but there is no way to retrieve it with the current API
+        if column_name in [self.renumbered_src_col_name, "src"]:
+            self.internal_to_external_col_names.update(
+                dict(zip(col_names, input_src_col_names))
+            )
+        elif column_name in [self.renumbered_dst_col_name, "dst"]:
+            self.internal_to_external_col_names.update(
+                dict(zip(col_names, input_dst_col_names))
+            )
+
+        if len(self.implementation.col_names) == 1:
+            col_names = col_names[0]
+        
 
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)
@@ -693,7 +709,9 @@ class NumberMap:
             df = df.map_partitions(lambda df: df.rename(columns=mapping, copy=False))
         else:
             df = df.rename(columns=mapping, copy=False)
-        # FIXME: This parameter is not working as expected
+        # FIXME: This parameter is not working as expected as it oesn't return
+        # the unrenumbered column names: leverage 'self.internal_to_external_col_names'
+        # instead.
         if get_column_names:
             return df, col_names
         else:

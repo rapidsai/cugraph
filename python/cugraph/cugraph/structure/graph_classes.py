@@ -68,11 +68,13 @@ class Graph:
             if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
                 if m_graph.is_weighted():
-                    weights = "weights"
+                    weights = m_graph.weight_column
                 else:
                     weights = None
                 self.from_cudf_edgelist(
-                    elist, source="src", destination="dst", edge_attr=weights
+                    elist, source=m_graph.source_columns,
+                    destination=m_graph.destination_columns,
+                    edge_attr=weights
                 )
             else:
                 raise TypeError(

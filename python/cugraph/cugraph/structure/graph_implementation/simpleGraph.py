@@ -96,6 +96,7 @@ class simpleGraphImpl:
     def __init__(self, properties):
         # Structure
         self.edgelist = None
+        self.input_df = None
         self.adjlist = None
         self.transposedadjlist = None
         self.renumber_map = None
@@ -110,7 +111,7 @@ class simpleGraphImpl:
         self.batch_transposed_adjlists = None
 
         self.source_columns = None
-        self.detination_columns = None
+        self.destination_columns = None
         self.vertex_columns = None
         self.weight_column = None
 
@@ -218,13 +219,12 @@ class simpleGraphImpl:
             elist = input_df.compute().reset_index(drop=True)
         else:
             raise TypeError("input should be a cudf.DataFrame or a dask_cudf dataFrame")
-
         # Original, unmodified input dataframe.
         self.input_df = elist
         self.weight_column = weight
         self.source_columns = source
         self.destination_columns = destination
-
+        
         # Renumbering
         self.renumber_map = None
         self.store_transposed = store_transposed
@@ -415,18 +415,14 @@ class simpleGraphImpl:
             self.edgelist = self.EdgeList(src, dst, weights)
 
         edgelist_df = self.edgelist.edgelist_df
+        srcCol = self.source_columns
+        dstCol = self.destination_columns
 
-        # FIXME: When renumbered, the MG API uses renumbered col names which
-        # is not consistant with the SG API.
-        if not self.properties.directed:
-            # Extract the upper triangular matrix from the renumebred edges
-            edgelist_df = edgelist_df[
-                edgelist_df[simpleGraphImpl.srcCol]
-                <= edgelist_df[simpleGraphImpl.dstCol]
-            ]
-            edgelist_df = edgelist_df.reset_index(drop=True)
+        if isinstance(srcCol, list) and len(srcCol) == 1:
+            srcCol = srcCol[0]
+            dstCol = dstCol[0]
 
-        # FIXME: No need to un-renumber as it is expensive.
+        # FIXME: Need to un-renumber if vertices are non integer or multi column
         if self.properties.renumbered:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
@@ -434,12 +430,29 @@ class simpleGraphImpl:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.dstCol
             )
+            print("the mapping = ", self.renumber_map.internal_to_external_col_names)
+            edgelist_df = edgelist_df.rename(
+                columns=self.renumber_map.internal_to_external_col_names
+            )
+        else:
+            # When the graph is created from adjacency list, 'self.input_df',
+            # 'self.source_columns' and 'self.destination_columns' are Nont
+            if self.input_df is not None:
+                edgelist_df = self.input_df
+            if srcCol is None and dstCol is None:
+                srcCol = simpleGraphImpl.srcCol
+                dstCol = simpleGraphImpl.dstCol
 
+        # FIXME: When renumbered, the MG API uses renumbered col names which
+        # is not consistant with the SG API.
+        if not self.properties.directed:
+            # Extract the upper triangular matrix from the renumebred edges
+            edgelist_df = edgelist_df[
+                edgelist_df[srcCol]
+                <= edgelist_df[dstCol]
+            ]
+            edgelist_df = edgelist_df.reset_index(drop=True)
         self.properties.edge_count = len(edgelist_df)
-
-        edgelist_df = edgelist_df.rename(
-            columns=self.renumber_map.internal_to_external_col_names
-        )
 
         # If there is no 'wgt' column, nothing will happen
         wgtCol = simpleGraphImpl.edgeWeightCol
@@ -1196,7 +1209,6 @@ class simpleGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        # FIXME: The user needs to get the edges with original column names
         return self.view_edge_list()[self.vertex_columns]
 
     def nodes(self):

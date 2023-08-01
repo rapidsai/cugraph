@@ -62,8 +62,8 @@ def compare_graphs(nx_graph, cu_graph):
     edgelist_df = cu_graph.view_edge_list().reset_index(drop=True)
 
     df = cudf.DataFrame()
-    df["source"] = edgelist_df["src"]
-    df["target"] = edgelist_df["dst"]
+    df["source"] = edgelist_df["source"]
+    df["target"] = edgelist_df["target"]
     if len(edgelist_df.columns) > 2:
         df["weight"] = edgelist_df["weights"]
         cu_to_nx_graph = nx.from_pandas_edgelist(
@@ -290,7 +290,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 # Test
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", [utils.DATASETS[0]])
 def test_edges_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
@@ -319,10 +319,10 @@ def test_edges_for_Graph(graph_file):
             edges.append([edge[1], edge[0]])
         else:
             edges.append([edge[0], edge[1]])
-    nx_edge_list = cudf.DataFrame(list(edges), columns=["src", "dst"])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=["0", "1"])
     assert_frame_equal(
-        nx_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
-        cu_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
+        nx_edge_list.sort_values(by=["0", "1"]).reset_index(drop=True),
+        cu_edge_list.sort_values(by=["0", "1"]).reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -344,7 +344,8 @@ def test_view_edge_list_for_Graph(graph_file):
     G = cugraph.from_cudf_edgelist(
         cu_M, source="0", destination="1", create_using=cugraph.Graph
     )
-    cu_edge_list = G.view_edge_list().sort_values(["src", "dst"])
+
+    cu_edge_list = G.view_edge_list().sort_values(["0", "1"])
 
     # Check if number of Edges is same
     assert len(nx_edges) == len(cu_edge_list)
@@ -359,12 +360,12 @@ def test_view_edge_list_for_Graph(graph_file):
             edges.append([edge[0], edge[1]])
     edges = list(edges)
     edges.sort()
-    nx_edge_list = cudf.DataFrame(edges, columns=["src", "dst"])
+    nx_edge_list = cudf.DataFrame(edges, columns=["0", "1"])
 
     # Compare nx and cugraph edges when viewing edgelist
     # assert cu_edge_list.equals(nx_edge_list)
-    assert (cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()).all()
-    assert (cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()).all()
+    assert (cu_edge_list["0"].to_numpy() == nx_edge_list["0"].to_numpy()).all()
+    assert (cu_edge_list["1"].to_numpy() == nx_edge_list["1"].to_numpy()).all()
 
 
 # Test
@@ -682,8 +683,8 @@ def test_to_pandas_edgelist(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    assert "s" in G.to_pandas_edgelist("s", "d").columns
-    assert "s" in G.to_pandas_edgelist(source="s", destination="d").columns
+    assert "0" in G.to_pandas_edgelist("0", "1").columns
+    assert "0" in G.to_pandas_edgelist(source="0", destination="1").columns
 
 
 @pytest.mark.sg

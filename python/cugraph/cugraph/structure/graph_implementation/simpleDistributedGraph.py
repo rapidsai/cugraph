@@ -423,9 +423,10 @@ class simpleDistributedGraphImpl:
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
 
-        edgelist_df = edgelist_df.rename(
-            columns=self.renumber_map.internal_to_external_col_names
-        )
+        if self.properties.renumbered:
+            edgelist_df = edgelist_df.rename(
+                columns=self.renumber_map.internal_to_external_col_names
+            )
 
         # If there is no 'wgt' column, nothing will happen
         edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})
