@@ -28,9 +28,13 @@ from cugraph_nx import interface
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": 0}},
         {"edge_attrs": {"x": None}},
+        {"edge_attrs": {"x": cnx.convert.REQUIRED}},
+        {"edge_attrs": {"x": ...}},  # sugar for REQUIRED
         {"edge_attrs": "x"},
         {"node_attrs": {"x": 0}},
         {"node_attrs": {"x": None}},
+        {"node_attrs": {"x": cnx.convert.REQUIRED}},
+        {"node_attrs": {"x": ...}},  # sugar for REQUIRED
         {"node_attrs": "x"},
     ],
 )
@@ -55,6 +59,11 @@ def test_convert():
         {"edge_attrs": {"x": 0}},
         {"edge_attrs": {"x": None}, "node_attrs": {"bar": None}},
         {"edge_attrs": "x", "edge_dtypes": int},
+        {
+            "edge_attrs": {"x": cnx.convert.REQUIRED},
+            "node_attrs": {"foo": cnx.convert.REQUIRED},
+        },
+        {"edge_attrs": {"x": ...}, "node_attrs": {"foo": ...}},  # sugar for REQUIRED
     ]:
         # All edges have "x" attribute, so all kwargs are equivalent
         cG = cnx.from_networkx(G, **kwargs)
@@ -67,6 +76,9 @@ def test_convert():
         assert G.number_of_nodes() == cG.number_of_nodes() == H.number_of_nodes() == 2
         assert G.number_of_edges() == cG.number_of_edges() == H.number_of_edges() == 1
         assert G.adj == H.adj
+
+    with pytest.raises(KeyError, match="bar"):
+        cnx.from_networkx(G, node_attrs={"bar": ...})
 
     # Structure-only graph (no edge attributes)
     cG = cnx.from_networkx(G, preserve_node_attrs=True)
@@ -107,6 +119,15 @@ def test_convert():
         cp.testing.assert_array_equal(cG.edge_values["x"][cG.edge_masks["x"]], [2, 2])
     H = cnx.to_networkx(cG)
     assert list(H.edges(data=True)) == [(0, 1, {"x": 2}), (0, 2, {})]
+
+    with pytest.raises(KeyError, match="x"):
+        cnx.from_networkx(G, edge_attrs={"x": cnx.convert.REQUIRED})
+    with pytest.raises(KeyError, match="x"):
+        cnx.from_networkx(G, edge_attrs={"x": ...})
+    with pytest.raises(KeyError, match="bar"):
+        cnx.from_networkx(G, node_attrs={"bar": cnx.convert.REQUIRED})
+    with pytest.raises(KeyError, match="bar"):
+        cnx.from_networkx(G, node_attrs={"bar": ...})
 
     # Now for something more complicated...
     G = nx.Graph()

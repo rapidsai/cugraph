@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import itertools
+import operator as op
 from collections import Counter
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
@@ -32,6 +33,8 @@ __all__ = [
 ]
 
 concat = itertools.chain.from_iterable
+# A "required" attribute is one that all edges or nodes must have or KeyError is raised
+REQUIRED = ...
 
 
 def from_networkx(
@@ -108,11 +111,19 @@ def from_networkx(
         preserve_node_attrs = True
         preserve_graph_attrs = True
 
-    if edge_attrs is not None and not isinstance(edge_attrs, Mapping):
-        edge_attrs = {edge_attrs: 1}
+    if edge_attrs is not None:
+        if isinstance(edge_attrs, Mapping):
+            # Copy so we don't mutate the original
+            edge_attrs = dict(edge_attrs)
+        else:
+            edge_attrs = {edge_attrs: 1}
 
-    if node_attrs is not None and not isinstance(node_attrs, Mapping):
-        node_attrs = {node_attrs: None}
+    if node_attrs is not None:
+        if isinstance(node_attrs, Mapping):
+            # Copy so we don't mutate the original
+            node_attrs = dict(node_attrs)
+        else:
+            node_attrs = {node_attrs: None}
 
     if graph.__class__ in {nx.Graph, nx.DiGraph}:
         # This is a NetworkX private attribute, but is much faster to use
@@ -123,8 +134,6 @@ def from_networkx(
         adj = {k: dict(v) for k, v in adj.items()}
 
     N = len(adj)
-    has_missing_edge_data = set()
-    missing_edge_attrs = set()
     if (
         not preserve_edge_attrs
         and not edge_attrs
@@ -135,13 +144,13 @@ def from_networkx(
     elif preserve_edge_attrs:
         # Using comprehensions should be just as fast starting in Python 3.11
         attr_sets = set(map(frozenset, concat(map(dict.values, adj.values()))))
-        attrs = set().union(*attr_sets)
-        edge_attrs = dict.fromkeys(attrs)
+        attrs = frozenset.union(*attr_sets)
+        edge_attrs = dict.fromkeys(attrs, REQUIRED)
         if len(attr_sets) > 1:
-            counts = Counter(concat(attr_sets))
-            has_missing_edge_data = {
-                key for key, val in counts.items() if val != len(attr_sets)
-            }
+            # Determine which edges have missing data
+            for attr, count in Counter(concat(attr_sets)).items():
+                if count != len(attr_sets):
+                    edge_attrs[attr] = None
     elif None in edge_attrs.values():
         # Required edge attributes have a default of None in `edge_attrs`
         # Verify all edge attributes are present!
@@ -156,47 +165,37 @@ def from_networkx(
                 for rowdata in adj.values()
                 for edgedata in rowdata.values()
             )
-            if not next(it):
-                if any(it):
-                    # Some edges have attribute
-                    has_missing_edge_data.add(attr)
-                elif len(edge_attrs) == 1:
-                    # No edges have attribute
-                    edge_attrs = None
-                else:
-                    # No edges have attribute
-                    missing_edge_attrs.add(attr)
-            elif not all(it):
-                # Some edges have attribute
-                has_missing_edge_data.add(attr)
-            # Else all edges have data
+            if next(it):
+                if all(it):
+                    # All edges have data
+                    edge_attrs[attr] = REQUIRED
+                # Else some edges have attribute (default already None)
+            elif not any(it):
+                # No edges have attribute
+                del edge_attrs[attr]
+            # Else some edges have attribute (default already None)
         else:
             attr_sets = set(
                 map(required.intersection, concat(map(dict.values, adj.values())))
             )
-            missing_edge_attrs = required - set().union(*attr_sets)
-            if len(attr_sets) != 1:
-                # Required attributes are missing _some_ data
-                counts = Counter(concat(attr_sets))
-                has_missing_edge_data.update(
-                    key for key, val in counts.items() if val != len(attr_sets)
-                )
-            elif len(missing_edge_attrs) == len(edge_attrs):
-                edge_attrs = None
+            for attr in required - frozenset.union(*attr_sets):
+                # No edges have these attributes
+                del edge_attrs[attr]
+            for attr in frozenset.intersection(*attr_sets):
+                # All edges have these attributes
+                edge_attrs[attr] = REQUIRED
 
-    has_missing_node_data = set()
-    missing_node_attrs = set()
     if N == 0:
         node_attrs = None
     elif preserve_node_attrs:
         attr_sets = set(map(frozenset, graph._node.values()))
-        attrs = set().union(*attr_sets)
-        node_attrs = dict.fromkeys(attrs)
+        attrs = frozenset.union(*attr_sets)
+        node_attrs = dict.fromkeys(attrs, REQUIRED)
         if len(attr_sets) > 1:
-            counts = Counter(concat(attr_sets))
-            has_missing_node_data = {
-                key for key, val in counts.items() if val != len(attr_sets)
-            }
+            # Determine which nodes have missing data
+            for attr, count in Counter(concat(attr_sets)).items():
+                if count != len(attr_sets):
+                    node_attrs[attr] = None
     elif node_attrs and None in node_attrs.values():
         # Required node attributes have a default of None in `node_attrs`
         # Verify all node attributes are present!
@@ -207,31 +206,23 @@ def from_networkx(
             # Fast path for the common case of a single attribute with no default
             [attr] = required
             it = (attr in nodedata for nodedata in graph._node.values())
-            if not next(it):
-                if any(it):
-                    # Some nodes have attribute
-                    has_missing_node_data.add(attr)
-                elif len(node_attrs) == 1:
-                    # No nodes have attribute
-                    node_attrs = None
-                else:
-                    # No nodes have attribute
-                    missing_node_attrs.add(attr)
-            elif not all(it):
-                # Some nodes have attribute
-                has_missing_node_data.add(attr)
-            # Else all nodes have data
+            if next(it):
+                if all(it):
+                    # All nodes have data
+                    node_attrs[attr] = REQUIRED
+                # Else some nodes have attribute (default already None)
+            elif not any(it):
+                # No nodes have attribute
+                del node_attrs[attr]
+            # Else some nodes have attribute (default already None)
         else:
             attr_sets = set(map(required.intersection, graph._node.values()))
-            missing_node_attrs = required - set().union(*attr_sets)
-            if len(attr_sets) != 1:
-                # Required attributes are missing _some_ data
-                counts = Counter(concat(attr_sets))
-                has_missing_node_data.update(
-                    key for key, val in counts.items() if val != len(attr_sets)
-                )
-            elif len(missing_node_attrs) == len(node_attrs):
-                node_attrs = None
+            for attr in required - frozenset.union(*attr_sets):
+                # No nodes have these attributes
+                del node_attrs[attr]
+            for attr in frozenset.intersection(*attr_sets):
+                # All nodes have these attributes
+                node_attrs[attr] = REQUIRED
 
     key_to_id = dict(zip(adj, range(N)))
     col_iter = concat(adj.values())
@@ -249,10 +240,8 @@ def from_networkx(
         elif not isinstance(edge_dtypes, Mapping):
             edge_dtypes = dict.fromkeys(edge_attrs, edge_dtypes)
         for edge_attr, edge_default in edge_attrs.items():
-            if edge_attr in missing_edge_attrs:
-                continue
             dtype = edge_dtypes.get(edge_attr)
-            if edge_default is None and edge_attr in has_missing_edge_data:
+            if edge_default is None:
                 vals = []
                 append = vals.append
                 iter_mask = (
@@ -269,11 +258,15 @@ def from_networkx(
                 edge_values[edge_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
             else:
-                if edge_default is None:
-                    iter_values = (
-                        edgedata[edge_attr]
-                        for rowdata in adj.values()
-                        for edgedata in rowdata.values()
+                if edge_default is REQUIRED:
+                    # Using comprehensions should be fast starting in Python 3.11
+                    # iter_values = (
+                    #     edgedata[edge_attr]
+                    #     for rowdata in adj.values()
+                    #     for edgedata in rowdata.values()
+                    # )
+                    iter_values = map(
+                        op.itemgetter(edge_attr), concat(map(dict.values, adj.values()))
                     )
                 else:
                     iter_values = (
@@ -304,11 +297,9 @@ def from_networkx(
         elif not isinstance(node_dtypes, Mapping):
             node_dtypes = dict.fromkeys(node_attrs, node_dtypes)
         for node_attr, node_default in node_attrs.items():
-            if node_attr in missing_node_attrs:
-                continue
             # Iterate over `adj` to ensure consistent order
             dtype = node_dtypes.get(node_attr)
-            if node_default is None and node_attr in has_missing_node_data:
+            if node_default is None:
                 vals = []
                 append = vals.append
                 iter_mask = (
@@ -324,7 +315,7 @@ def from_networkx(
                 node_values[node_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
             else:
-                if node_default is None:
+                if node_default is REQUIRED:
                     iter_values = (nodes[node_id][node_attr] for node_id in adj)
                 else:
                     iter_values = (
