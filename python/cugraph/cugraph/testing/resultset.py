@@ -231,7 +231,6 @@ invalid_paths = {
     "disconnected": [("1", "10"), ("1", "8")],
 }
 
-# CONNECTED_GRAPH
 with NamedTemporaryFile(mode="w+", suffix=".csv") as graph_tf:
     graph_tf.writelines(DISCONNECTED_GRAPH)
     graph_tf.seek(0)
