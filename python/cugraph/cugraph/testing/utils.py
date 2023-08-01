@@ -426,5 +426,5 @@ class ResultSet:
         self._data_dictionary = data_dictionary
 
     def get_cudf_dataframe(self):
-        # THIS IS CALLED IN RESULTS GENERATION BEFORE WRITING ALL RESULTS TO FILES
+        # This is called in testing/resultset.py before writing all results to files
         return cudf.DataFrame(self._data_dictionary)
