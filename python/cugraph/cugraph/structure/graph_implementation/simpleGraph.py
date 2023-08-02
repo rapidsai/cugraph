@@ -239,9 +239,10 @@ class simpleGraphImpl:
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            # Use renumber_map to figure out if the python renumbering occured
+            # Use renumber_map to figure out if the python renumbering occured.
             self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
+            # Capture the internal column names in NumberMap.
             self.renumber_map.implementation.src_col_names = simpleGraphImpl.srcCol
             self.renumber_map.implementation.dst_col_names = simpleGraphImpl.dstCol
         else:
