@@ -24,20 +24,16 @@ ATOL = 1e-6
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 @pytest.mark.parametrize("max_num_neighbors", [8, None])
 @pytest.mark.parametrize("use_edge_attr", [True, False])
+@pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
 def test_gat_conv_equality(
-    bias, bipartite, concat, heads, max_num_neighbors, use_edge_attr
+    bias, bipartite, concat, heads, max_num_neighbors, use_edge_attr, graph, request
 ):
     pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import GATConv
 
-    edge_index = torch.tensor(
-        [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-        ],
-    ).cuda()
-    size = (10, 10)
+    edge_index, size = request.getfixturevalue(graph)
+    edge_index = edge_index.cuda()
 
     if bipartite:
         in_channels = (5, 3)

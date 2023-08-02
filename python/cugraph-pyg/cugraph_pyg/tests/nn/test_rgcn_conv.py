@@ -23,7 +23,10 @@ ATOL = 1e-6
 @pytest.mark.parametrize("max_num_neighbors", [8, None])
 @pytest.mark.parametrize("num_bases", [1, 2, None])
 @pytest.mark.parametrize("root_weight", [True, False])
-def test_rgcn_conv_equality(aggr, bias, max_num_neighbors, num_bases, root_weight):
+@pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+def test_rgcn_conv_equality(
+    aggr, bias, max_num_neighbors, num_bases, root_weight, graph, request
+):
     pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import FastRGCNConv as RGCNConv
@@ -31,14 +34,9 @@ def test_rgcn_conv_equality(aggr, bias, max_num_neighbors, num_bases, root_weigh
     in_channels, out_channels, num_relations = (4, 2, 3)
     kwargs = dict(aggr=aggr, bias=bias, num_bases=num_bases, root_weight=root_weight)
 
-    edge_index = torch.tensor(
-        [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-        ],
-    ).cuda()
-    size = (10, 10)
-    edge_type = torch.tensor([1, 2, 1, 0, 2, 1, 2, 0, 2, 2, 1, 1, 1, 2, 2]).cuda()
+    edge_index, size = request.getfixturevalue(graph)
+    edge_index = edge_index.cuda()
+    edge_type = torch.randint(num_relations, (edge_index.size(1),)).cuda()
 
     x = torch.rand(size[0], in_channels, device="cuda")
     csc, edge_type_perm = CuGraphRGCNConv.to_csc(edge_index, size, edge_type)

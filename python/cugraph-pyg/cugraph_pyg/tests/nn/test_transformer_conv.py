@@ -21,13 +21,17 @@ ATOL = 1e-6
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
-def test_transformer_conv_equality(bipartite, concat, heads):
+@pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+def test_transformer_conv_equality(bipartite, concat, heads, graph, request):
     pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import TransformerConv
 
+    edge_index, size = request.getfixturevalue(graph)
+    edge_index = edge_index.cuda()
+    csc = CuGraphTransformerConv.to_csc(edge_index, size)
+
     out_channels = 2
-    size = (10, 10)
     kwargs = dict(concat=concat, bias=False, root_weight=False)
 
     if bipartite:
@@ -39,14 +43,6 @@ def test_transformer_conv_equality(bipartite, concat, heads):
     else:
         in_channels = 5
         x = torch.rand(size[0], in_channels, device="cuda")
-
-    edge_index = torch.tensor(
-        [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9, 3, 4, 5],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 6],
-        ],
-        device="cuda",
-    )
 
     conv1 = TransformerConv(in_channels, out_channels, heads, **kwargs).cuda()
     conv2 = CuGraphTransformerConv(in_channels, out_channels, heads, **kwargs).cuda()
@@ -60,7 +56,6 @@ def test_transformer_conv_equality(bipartite, concat, heads):
         conv2.lin_value.bias.data = conv1.lin_value.bias.data.detach().clone()
 
     out1 = conv1(x, edge_index)
-    csc = CuGraphTransformerConv.to_csc(edge_index, size)
     out2 = conv2(x, csc)
 
     assert torch.allclose(out1, out2, atol=ATOL)
