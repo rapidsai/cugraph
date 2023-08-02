@@ -33,7 +33,6 @@ from cugraph.testing.mg_utils import enable_spilling
 
 disk_features = {}
 
-
 def load_disk_features(meta: dict, node_type: str, replication_factor: int = 1):
     node_type_path = os.path.join(meta['dataset_dir'], meta['dataset'], 'npy', node_type)
     
