@@ -678,8 +678,6 @@ class NumberMap:
         if not isinstance(col_names, list):
             col_names = [col_names]
 
-        # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
-        # but there is no way to retrieve it with the current API
         if column_name in [
             self.renumbered_src_col_name,
             self.implementation.src_col_names,
