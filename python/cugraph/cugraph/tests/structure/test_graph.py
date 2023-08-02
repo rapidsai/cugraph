@@ -899,7 +899,7 @@ def test_graph_creation_edges(graph_file, directed, renumber):
     )
 
     G = cugraph.Graph(directed=directed)
-    
+
     if renumber:
         # trigger renumbering by passing a list of vertex column
         srcCol = [srcCol]
@@ -907,9 +907,8 @@ def test_graph_creation_edges(graph_file, directed, renumber):
         vertexCol = srcCol + dstCol
     else:
         vertexCol = [srcCol, dstCol]
-    G.from_cudf_edgelist(
-        input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
-    
+    G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+
     columns = vertexCol.copy()
     columns.append(wgtCol)
 
@@ -917,12 +916,13 @@ def test_graph_creation_edges(graph_file, directed, renumber):
     edges = G.edges().loc[:, vertexCol]
 
     assert_frame_equal(
-        edge_list_view.drop(columns=wgtCol).sort_values(
-            by=vertexCol).reset_index(drop=True),
+        edge_list_view.drop(columns=wgtCol)
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True),
         edges.sort_values(by=vertexCol).reset_index(drop=True),
         check_dtype=False,
     )
-    
+
     if directed:
         assert_frame_equal(
             edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),
