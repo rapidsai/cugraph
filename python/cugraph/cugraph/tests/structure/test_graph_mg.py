@@ -338,7 +338,7 @@ def test_mg_select_random_vertices(
     assert len(join) == len(sampled_vertices)
 
 
-@pytest.mark.sg
+@pytest.mark.mg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize(
     "edge_props",
