@@ -48,3 +48,4 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph.sh
+.git@2023.7.1.git@2023.7.1.git@2023.7.1.git@2023.7.1
