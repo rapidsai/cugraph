@@ -147,10 +147,10 @@ class Tests_RenumberSampledEdgelist
       cugraph::renumber_sampled_edgelist(
         handle,
         std::move(renumbered_edgelist_srcs),
+        std::move(renumbered_edgelist_dsts),
         edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
                           (*edgelist_hops).data(), (*edgelist_hops).size())
                       : std::nullopt,
-        std::move(renumbered_edgelist_dsts),
         label_offsets
           ? std::make_optional<
               std::tuple<raft::device_span<label_t const>, raft::device_span<size_t const>>>(
