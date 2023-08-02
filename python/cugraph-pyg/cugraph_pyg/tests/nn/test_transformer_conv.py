@@ -13,21 +13,19 @@
 
 import pytest
 
-try:
-    from torch_geometric.nn import TransformerConv
-except ModuleNotFoundError:
-    pytest.skip("PyG not available", allow_module_level=True)
-
-from cugraph.utilities.utils import import_optional
 from cugraph_pyg.nn import TransformerConv as CuGraphTransformerConv
 
-torch = import_optional("torch")
+ATOL = 1e-6
 
 
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 def test_transformer_conv_equality(bipartite, concat, heads):
+    pytest.importorskip("torch_geometric", reason="PyG not available")
+    import torch
+    from torch_geometric.nn import TransformerConv
+
     out_channels = 2
     size = (10, 10)
     kwargs = dict(concat=concat, bias=False, root_weight=False)
@@ -65,27 +63,25 @@ def test_transformer_conv_equality(bipartite, concat, heads):
     csc = CuGraphTransformerConv.to_csc(edge_index, size)
     out2 = conv2(x, csc)
 
-    atol = 1e-6
-
-    assert torch.allclose(out1, out2, atol=atol)
+    assert torch.allclose(out1, out2, atol=ATOL)
 
     grad_output = torch.rand_like(out1)
     out1.backward(grad_output)
     out2.backward(grad_output)
 
     assert torch.allclose(
-        conv1.lin_query.weight.grad, conv2.lin_query.weight.grad, atol=atol
+        conv1.lin_query.weight.grad, conv2.lin_query.weight.grad, atol=ATOL
     )
     assert torch.allclose(
-        conv1.lin_key.weight.grad, conv2.lin_key.weight.grad, atol=atol
+        conv1.lin_key.weight.grad, conv2.lin_key.weight.grad, atol=ATOL
     )
     assert torch.allclose(
-        conv1.lin_value.weight.grad, conv2.lin_value.weight.grad, atol=atol
+        conv1.lin_value.weight.grad, conv2.lin_value.weight.grad, atol=ATOL
     )
     assert torch.allclose(
-        conv1.lin_query.bias.grad, conv2.lin_query.bias.grad, atol=atol
+        conv1.lin_query.bias.grad, conv2.lin_query.bias.grad, atol=ATOL
     )
-    assert torch.allclose(conv1.lin_key.bias.grad, conv2.lin_key.bias.grad, atol=atol)
+    assert torch.allclose(conv1.lin_key.bias.grad, conv2.lin_key.bias.grad, atol=ATOL)
     assert torch.allclose(
-        conv1.lin_value.bias.grad, conv2.lin_value.bias.grad, atol=atol
+        conv1.lin_value.bias.grad, conv2.lin_value.bias.grad, atol=ATOL
     )

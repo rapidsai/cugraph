@@ -13,36 +13,27 @@
 
 import pytest
 
-from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph_pyg.nn import SAGEConv as CuGraphSAGEConv
-
-torch_geometric = import_optional("torch_geometric")
 
 ATOL = 1e-6
 
 
-@pytest.mark.skipif(
-    isinstance(torch_geometric, MissingModule), reason="torch_geometric not available"
-)
 @pytest.mark.parametrize("aggr", ["sum", "mean", "min", "max"])
 @pytest.mark.parametrize("bias", [True, False])
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("max_num_neighbors", [8, None])
 @pytest.mark.parametrize("normalize", [True, False])
 @pytest.mark.parametrize("root_weight", [True, False])
+@pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
 def test_sage_conv_equality(
-    aggr, bias, bipartite, max_num_neighbors, normalize, root_weight
+    aggr, bias, bipartite, max_num_neighbors, normalize, root_weight, graph, request
 ):
+    pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import SAGEConv
 
-    edge_index = torch.tensor(
-        [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-        ],
-    ).cuda()
-    size = (10, 10)
+    edge_index, size = request.getfixturevalue(graph)
+    edge_index = edge_index.cuda()
     csc = CuGraphSAGEConv.to_csc(edge_index, size)
 
     if bipartite:

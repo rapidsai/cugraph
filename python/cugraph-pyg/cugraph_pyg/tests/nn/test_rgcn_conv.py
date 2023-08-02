@@ -13,23 +13,18 @@
 
 import pytest
 
-from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph_pyg.nn import RGCNConv as CuGraphRGCNConv
-
-torch_geometric = import_optional("torch_geometric")
 
 ATOL = 1e-6
 
 
-@pytest.mark.skipif(
-    isinstance(torch_geometric, MissingModule), reason="torch_geometric not available"
-)
 @pytest.mark.parametrize("aggr", ["add", "sum", "mean"])
 @pytest.mark.parametrize("bias", [True, False])
 @pytest.mark.parametrize("max_num_neighbors", [8, None])
 @pytest.mark.parametrize("num_bases", [1, 2, None])
 @pytest.mark.parametrize("root_weight", [True, False])
 def test_rgcn_conv_equality(aggr, bias, max_num_neighbors, num_bases, root_weight):
+    pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import FastRGCNConv as RGCNConv
 
