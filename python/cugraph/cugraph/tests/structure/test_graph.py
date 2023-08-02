@@ -878,3 +878,64 @@ def test_graph_creation_edge_properties(graph_file, edge_props):
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source="0", destination="1", **prop_keys)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+def test_graph_creation_edges(graph_file, directed, renumber):
+    # Verifies that the input dataframe passed the user is the same
+    # retrieved from the graph when the graph is directed
+    srcCol = "source"
+    dstCol = "target"
+    wgtCol = "weight"
+    input_df = cudf.read_csv(
+        graph_file,
+        delimiter=" ",
+        names=[srcCol, dstCol, wgtCol],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
+
+    G = cugraph.Graph(directed=directed)
+    
+    if renumber:
+        # trigger renumbering by passing a list of vertex column
+        srcCol = [srcCol]
+        dstCol = [dstCol]
+        vertexCol = srcCol + dstCol
+    else:
+        vertexCol = [srcCol, dstCol]
+    G.from_cudf_edgelist(
+        input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+    
+    columns = vertexCol.copy()
+    columns.append(wgtCol)
+
+    edge_list_view = G.view_edge_list().loc[:, columns]
+    edges = G.edges().loc[:, vertexCol]
+
+    assert_frame_equal(
+        edge_list_view.drop(columns=wgtCol).sort_values(
+            by=vertexCol).reset_index(drop=True),
+        edges.sort_values(by=vertexCol).reset_index(drop=True),
+        check_dtype=False,
+    )
+    
+    if directed:
+        assert_frame_equal(
+            edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),
+            input_df.sort_values(by=vertexCol).reset_index(drop=True),
+            check_dtype=False,
+        )
+    else:
+        # If the graph is undirected, ensures that only the upper triangular
+        # matrix of the adjacency matrix is returned
+        if isinstance(srcCol, list):
+            srcCol = srcCol[0]
+            dstCol = dstCol[0]
+        is_upper_triangular = edge_list_view[srcCol] <= edge_list_view[dstCol]
+        is_upper_triangular = list(set(is_upper_triangular.values_host))
+        assert len(is_upper_triangular) == 1
+        assert is_upper_triangular[0]
