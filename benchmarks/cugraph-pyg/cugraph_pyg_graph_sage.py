@@ -31,6 +31,7 @@ from typing import Union, List
 from models_cugraph import CuGraphSAGE
 from cugraph.testing.mg_utils import enable_spilling
 
+
 disk_features = {}
 
 
