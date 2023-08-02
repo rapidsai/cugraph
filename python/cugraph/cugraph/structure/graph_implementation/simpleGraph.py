@@ -47,8 +47,8 @@ class simpleGraphImpl:
     class EdgeList:
         def __init__(
             self,
-            source: str,
-            destination: str,
+            source: cudf.Series,
+            destination: cudf.Series,
             edge_attr: Union[cudf.DataFrame, Dict[str, cudf.DataFrame]] = None,
         ):
             self.edgelist_df = cudf.DataFrame()
@@ -430,14 +430,13 @@ class simpleGraphImpl:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.dstCol
             )
-            print("the mapping = ", self.renumber_map.internal_to_external_col_names)
             edgelist_df = edgelist_df.rename(
                 columns=self.renumber_map.internal_to_external_col_names
             )
         else:
             # When the graph is created from adjacency list, 'self.input_df',
             # 'self.source_columns' and 'self.destination_columns' are Nont
-            if self.input_df is not None:
+            if edgelist_df is None:
                 edgelist_df = self.input_df
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol

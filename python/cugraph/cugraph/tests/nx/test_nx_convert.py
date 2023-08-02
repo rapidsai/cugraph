@@ -25,6 +25,7 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     assert nxG.number_of_edges() == cuG.number_of_edges()
 
     cu_df = cuG.view_edge_list().to_pandas()
+    cu_df = cu_df.rename(columns={"0": "src", "1": "dst"})
     if has_wt is True:
         cu_df = cu_df.drop(columns=["weight"])
 
@@ -72,12 +73,11 @@ def test_networkx_compatibility(graph_file):
 
     # create a cuGraph Directed Graph
     gdf = cudf.from_pandas(M)
-    gdf = gdf.rename(columns={"weight": "weights"})
     cuG = cugraph.from_cudf_edgelist(
         gdf,
         source="0",
         destination="1",
-        edge_attr="weights",
+        edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
     )
 

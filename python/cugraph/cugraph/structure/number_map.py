@@ -141,6 +141,8 @@ class NumberMap:
             self, ddf, src_col_names, dst_col_names, id_type, store_transposed
         ):
             self.col_names = NumberMap.compute_vals(src_col_names)
+            self.src_col_names = src_col_names
+            self.dst_col_names = dst_col_names
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
             self.val_types["count"] = np.int32
             self.id_type = id_type
@@ -515,13 +517,6 @@ class NumberMap:
         renumber_map.input_src_col_names = src_col_names
         renumber_map.input_dst_col_names = dst_col_names
         if not isinstance(renumber_map.input_src_col_names, list):
-            """
-            FIXME: Add mapping for multicolumn vertices.
-            renumber_map.internal_to_external_col_names = {
-                renumber_map.renumbered_src_col_name: renumber_map.input_src_col_names,
-                renumber_map.renumbered_dst_col_name: renumber_map.input_dst_col_names
-            }
-            """
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
 
@@ -672,8 +667,8 @@ class NumberMap:
         else:
             # Assuming the src and dst columns are of the same length
             # if they are lists.
-            input_src_col_names = [input_src_col_names]
-            input_dst_col_names = [input_dst_col_names]
+            input_src_col_names = [self.input_src_col_names]
+            input_dst_col_names = [self.input_dst_col_names]
         if not isinstance(col_names, list):
             col_names = [col_names]
 
