@@ -242,6 +242,8 @@ class simpleGraphImpl:
             # Use renumber_map to figure out if the python renumbering occured
             self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
+            self.renumber_map.implementation.src_col_names = simpleGraphImpl.srcCol
+            self.renumber_map.implementation.src_col_names = simpleGraphImpl.dstCol
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")

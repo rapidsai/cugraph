@@ -25,6 +25,8 @@ class NumberMap:
     class SingleGPU:
         def __init__(self, df, src_col_names, dst_col_names, id_type, store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
+            # FIXME: rename the next two attributes to its singular conterpart as there
+            # is only one 'src' and 'dst' col name
             self.src_col_names = src_col_names
             self.dst_col_names = dst_col_names
             self.df = df
@@ -525,6 +527,10 @@ class NumberMap:
         # renumbered_dst_col_name)
         renumber_map.set_renumbered_col_names(src_col_names, dst_col_names, df.columns)
 
+        # FIXME: Remove 'src_col_names' and 'dst_col_names' from this initialization as
+        # those will capture 'simpleGraph.srcCol' and 'simpleGraph.dstCol'.
+        # In fact the input src and dst col names are already captured in
+        # 'renumber_map.input_src_col_names' and 'renumber_map.input_dst_col_names'.
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
                 df,
@@ -674,11 +680,13 @@ class NumberMap:
 
         # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
         # but there is no way to retrieve it with the current API
-        if column_name in [self.renumbered_src_col_name, "src"]:
+        if column_name in [self.renumbered_src_col_name,
+                           self.implementation.src_col_names]:
             self.internal_to_external_col_names.update(
                 dict(zip(col_names, input_src_col_names))
             )
-        elif column_name in [self.renumbered_dst_col_name, "dst"]:
+        elif column_name in [self.renumbered_dst_col_name,
+                             self.implementation.dst_col_names]:
             self.internal_to_external_col_names.update(
                 dict(zip(col_names, input_dst_col_names))
             )
