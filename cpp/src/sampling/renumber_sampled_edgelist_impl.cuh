@@ -49,8 +49,8 @@ template <typename vertex_t, typename label_index_t>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_index_t>>>
 compute_renumber_map(raft::handle_t const& handle,
                      raft::device_span<vertex_t const> edgelist_srcs,
-                     std::optional<raft::device_span<int32_t const>> edgelist_hops,
                      raft::device_span<vertex_t const> edgelist_dsts,
+                     std::optional<raft::device_span<int32_t const>> edgelist_hops,
                      std::optional<raft::device_span<size_t const>> label_offsets)
 {
   auto approx_edges_to_sort_per_iteration =
@@ -452,8 +452,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 renumber_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  std::optional<raft::device_span<int32_t const>> edgelist_hops,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<raft::device_span<int32_t const>> edgelist_hops,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<size_t const>>>
     label_offsets,
   bool do_expensive_check)
@@ -504,8 +504,8 @@ renumber_sampled_edgelist(
   auto [renumber_map, renumber_map_label_indices] = compute_renumber_map<vertex_t, label_index_t>(
     handle,
     raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-    edgelist_hops,
     raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
+    edgelist_hops,
     label_offsets ? std::make_optional<raft::device_span<size_t const>>(std::get<1>(*label_offsets))
                   : std::nullopt);
 
