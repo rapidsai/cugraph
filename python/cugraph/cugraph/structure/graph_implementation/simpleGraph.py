@@ -437,12 +437,17 @@ class simpleGraphImpl:
             )
         else:
             # When the graph is created from adjacency list, 'self.input_df',
-            # 'self.source_columns' and 'self.destination_columns' are Nont
+            # 'self.source_columns' and 'self.destination_columns' are None
             if edgelist_df is None:
                 edgelist_df = self.input_df
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol
                 dstCol = simpleGraphImpl.dstCol
+            elif not set(self.vertex_columns).issubset(set(edgelist_df.columns)):
+                # Get the original column names passed by the user.
+                edgelist_df = edgelist_df.rename(
+                    columns={
+                        simpleGraphImpl.srcCol: srcCol, simpleGraphImpl.dstCol: dstCol})
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
         # is not consistant with the SG API.

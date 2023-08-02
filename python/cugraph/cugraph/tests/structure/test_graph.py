@@ -290,7 +290,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 # Test
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [utils.DATASETS[0]])
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_edges_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
