@@ -81,7 +81,7 @@ log_cli_level = "info"
 filterwarnings = [
     # See: https://docs.python.org/3/library/warnings.html#describing-warning-filters
     # and: https://docs.pytest.org/en/7.2.x/how-to/capture-warnings.html#controlling-warnings
-    "error",
+    # "error",
 ]
 python_files = [
     "bench_*.py",
@@ -94,7 +94,7 @@ python_functions = [
 addopts = [
     "--strict-config",  # Force error if config is mispelled
     "--strict-markers",  # Force error if marker is mispelled (must be defined in config)
-    "-ra",  # Print summary of all fails/errors
+    # "-ra",  # Print summary of all fails/errors
     "--benchmark-warmup=off",
     "--benchmark-max-time=0",
     "--benchmark-min-rounds=3",

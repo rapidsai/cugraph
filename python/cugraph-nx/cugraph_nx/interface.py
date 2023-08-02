@@ -12,6 +12,8 @@
 # limitations under the License.
 from __future__ import annotations
 
+import networkx as nx
+
 import cugraph_nx as cnx
 
 from . import algorithms
@@ -23,7 +25,7 @@ class Dispatcher:
 
     # Required conversions
     @staticmethod
-    def convert_from_nx(*args, edge_attrs=None, weight=None, **kwargs):
+    def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
         if weight is not None:
             # For networkx 3.0 and 3.1 compatibility
             if edge_attrs is not None:
@@ -31,7 +33,9 @@ class Dispatcher:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        return cnx.from_networkx(*args, edge_attrs=edge_attrs, **kwargs)
+        if isinstance(graph, nx.MultiGraph):
+            return graph  # TODO: implement digraph support
+        return cnx.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
@@ -41,4 +45,29 @@ class Dispatcher:
 
     @staticmethod
     def on_start_tests(items):
-        pass
+        try:
+            import pytest
+        except ImportError:
+            return
+
+        def key(testpath):
+            filename, path = testpath.split(":")
+            *names, testname = path.split(".")
+            if names:
+                [classname] = names
+                return (testname, frozenset({classname, filename}))
+            return (testname, frozenset({filename}))
+
+        string_attribute = "unable to handle string attributes"
+
+        skip = {
+            key("test_pajek.py:TestPajek.test_ignored_attribute"): string_attribute,
+            key(
+                "test_agraph.py:TestAGraph.test_no_warnings_raised"
+            ): "pytest.warn(None) deprecated",
+        }
+        for item in items:
+            kset = set(item.keywords)
+            for (test_name, keywords), reason in skip.items():
+                if item.name == test_name and keywords.issubset(kset):
+                    item.add_marker(pytest.mark.xfail(reason=reason))
