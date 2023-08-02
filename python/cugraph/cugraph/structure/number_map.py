@@ -680,13 +680,17 @@ class NumberMap:
 
         # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
         # but there is no way to retrieve it with the current API
-        if column_name in [self.renumbered_src_col_name,
-                           self.implementation.src_col_names]:
+        if column_name in [
+            self.renumbered_src_col_name,
+            self.implementation.src_col_names,
+        ]:
             self.internal_to_external_col_names.update(
                 dict(zip(col_names, input_src_col_names))
             )
-        elif column_name in [self.renumbered_dst_col_name,
-                             self.implementation.dst_col_names]:
+        elif column_name in [
+            self.renumbered_dst_col_name,
+            self.implementation.dst_col_names,
+        ]:
             self.internal_to_external_col_names.update(
                 dict(zip(col_names, input_dst_col_names))
             )
