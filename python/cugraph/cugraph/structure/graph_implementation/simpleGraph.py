@@ -447,7 +447,10 @@ class simpleGraphImpl:
                 # Get the original column names passed by the user.
                 edgelist_df = edgelist_df.rename(
                     columns={
-                        simpleGraphImpl.srcCol: srcCol, simpleGraphImpl.dstCol: dstCol})
+                        simpleGraphImpl.srcCol: srcCol,
+                        simpleGraphImpl.dstCol: dstCol,
+                    }
+                )
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
         # is not consistant with the SG API.
