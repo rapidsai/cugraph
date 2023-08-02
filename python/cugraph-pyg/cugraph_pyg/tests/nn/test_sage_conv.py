@@ -20,6 +20,7 @@ torch_geometric = import_optional("torch_geometric")
 
 ATOL = 1e-6
 
+
 @pytest.mark.skipif(
     isinstance(torch_geometric, MissingModule), reason="torch_geometric not available"
 )
