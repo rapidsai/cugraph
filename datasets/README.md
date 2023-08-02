@@ -9,12 +9,15 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 | karate        | 34    | 156   | No       | No       |
 | dolphin       | 62    | 318   | No       | No       |
 | netscience    | 1,589 | 5,484 | No       | Yes      |
+| dining_prefs  | 26    | 52    | Yes      | Yes      |
 
 **karate** : The graph "karate" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977.
 
 **dolphin** : The graph dolphins contains an undirected social network of frequent associations between 62 dolphins in a community living off Doubtful Sound, New Zealand, as compiled by Lusseau et al. (2003).
 
 **netscience** : The graph netscience contains a coauthorship network of scientists working on network theory and experiment, as compiled by M. Newman in May 2006.
+
+**dining_prefs** : The graph dining_prefs contains dining partner preferences from a classic social network dataset originated by J. L. Moreno (1960). The Sociometry Reader. The Free Press, Glencoe, Illinois, pg.35
 
 
 
