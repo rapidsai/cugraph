@@ -430,16 +430,19 @@ class simpleGraphImpl:
                 if len(srcCol) == 1:
                     srcCol = srcCol[0]
                     dstCol = dstCol[0]
-                    if self.input_df[srcCol].dtype not in [np.int32, np.int64] or self.input_df[
-                        dstCol].dtype not in [np.int32, np.int64]:
+                    if self.input_df[srcCol].dtype not in [
+                        np.int32,
+                        np.int64,
+                    ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                         # hypergraph case
                         use_initial_input_df = False
                 else:
                     use_initial_input_df = False
-        
-            elif self.input_df[srcCol].dtype not in [np.int32, np.int64] or self.input_df[
-                dstCol
-            ].dtype not in [np.int32, np.int64]:
+
+            elif self.input_df[srcCol].dtype not in [
+                np.int32,
+                np.int64,
+            ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                 use_initial_input_df = False
         else:
             use_initial_input_df = False
@@ -466,18 +469,19 @@ class simpleGraphImpl:
                     columns=self.renumber_map.internal_to_external_col_names
                 )
                 # extract the upper triangular part
-                edgelist_df = edgelist_df[
-                    edgelist_df[srcCol] <= edgelist_df[dstCol]]
+                edgelist_df = edgelist_df[edgelist_df[srcCol] <= edgelist_df[dstCol]]
             else:
                 edgelist_df = edgelist_df[
-                    edgelist_df[
-                        simpleGraphImpl.srcCol] <= edgelist_df[simpleGraphImpl.dstCol]]
+                    edgelist_df[simpleGraphImpl.srcCol]
+                    <= edgelist_df[simpleGraphImpl.dstCol]
+                ]
         elif not use_initial_input_df and self.properties.renumbered:
             # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
                 edgelist_df = edgelist_df[
-                    edgelist_df[
-                        simpleGraphImpl.srcCol] <= edgelist_df[simpleGraphImpl.dstCol]]
+                    edgelist_df[simpleGraphImpl.srcCol]
+                    <= edgelist_df[simpleGraphImpl.dstCol]
+                ]
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
             )
@@ -496,7 +500,10 @@ class simpleGraphImpl:
                 if srcCol is not None and dstCol is not None:
                     edgelist_df = edgelist_df.rename(
                         columns={
-                            simpleGraphImpl.srcCol: srcCol, simpleGraphImpl.dstCol: dstCol})
+                            simpleGraphImpl.srcCol: srcCol,
+                            simpleGraphImpl.dstCol: dstCol,
+                        }
+                    )
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
         # is not consistant with the SG API.
@@ -505,10 +512,10 @@ class simpleGraphImpl:
 
         wgtCol = simpleGraphImpl.edgeWeightCol
         edgelist_df = edgelist_df.rename(
-            columns={wgtCol: self.weight_column}).reset_index(drop=True)
+            columns={wgtCol: self.weight_column}
+        ).reset_index(drop=True)
 
         return edgelist_df
-
 
     def delete_edge_list(self):
         """
