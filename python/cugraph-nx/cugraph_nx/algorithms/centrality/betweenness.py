@@ -37,7 +37,7 @@ def betweenness_centrality(
         include_endpoints=endpoints,
         do_expensive_check=False,
     )
-    return G._nodes_to_dict(node_ids, values)
+    return G._nodearrays_to_dict(node_ids, values)
 
 
 @networkx_api
@@ -60,4 +60,4 @@ def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=No
         src_ids = src_ids[mask]
         dst_ids = dst_ids[mask]
         values = 2 * values[mask]
-    return G._edges_to_dict(src_ids, dst_ids, values)
+    return G._edgearrays_to_dict(src_ids, dst_ids, values)

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         Dtype,
         EdgeTuple,
         EdgeValue,
+        IndexValue,
         NodeKey,
         NodeValue,
     )
@@ -40,14 +41,15 @@ networkx_api = cnx.utils.networkx_api(api=nx.Graph)
 
 
 class Graph:
-    row_indices: cp.ndarray
-    col_indices: cp.ndarray
-    edge_values: dict[AttrKey, cp.ndarray]
+    # We store edge data in COO format with {row,col}_indices and edge_values.
+    row_indices: cp.ndarray[IndexValue]
+    col_indices: cp.ndarray[IndexValue]
+    edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
     edge_masks: dict[AttrKey, cp.ndarray[bool]]
-    node_values: dict[AttrKey, cp.ndarray]
+    node_values: dict[AttrKey, cp.ndarray[NodeValue]]
     node_masks: dict[AttrKey, cp.ndarray[bool]]
-    key_to_id: dict[NodeKey, int] | None
-    _id_to_key: dict[int, NodeKey] | None
+    key_to_id: dict[NodeKey, IndexValue] | None
+    _id_to_key: dict[IndexValue, NodeKey] | None
     _N: int
     graph: dict
 
@@ -63,15 +65,15 @@ class Graph:
     def from_coo(
         cls,
         N: int,
-        row_indices: cp.ndarray,
-        col_indices: cp.ndarray,
-        edge_values: dict[AttrKey, cp.ndarray] | None = None,
+        row_indices: cp.ndarray[IndexValue],
+        col_indices: cp.ndarray[IndexValue],
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
-        key_to_id: dict[NodeKey, int] | None = None,
-        id_to_key: dict[int, NodeKey] | None = None,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
         self = object.__new__(cls)
@@ -109,15 +111,15 @@ class Graph:
     @classmethod
     def from_csr(
         cls,
-        indptr: cp.ndarray,
-        col_indices: cp.ndarray,
-        edge_values: dict[AttrKey, cp.ndarray] | None = None,
+        indptr: cp.ndarray[IndexValue],
+        col_indices: cp.ndarray[IndexValue],
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
-        key_to_id: dict[NodeKey, int] | None = None,
-        id_to_key: dict[int, NodeKey] | None = None,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -141,15 +143,15 @@ class Graph:
     @classmethod
     def from_csc(
         cls,
-        indptr: cp.ndarray,
-        row_indices: cp.ndarray,
-        edge_values: dict[AttrKey, cp.ndarray] | None = None,
+        indptr: cp.ndarray[IndexValue],
+        row_indices: cp.ndarray[IndexValue],
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
-        key_to_id: dict[NodeKey, int] | None = None,
-        id_to_key: dict[int, NodeKey] | None = None,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -174,16 +176,16 @@ class Graph:
     def from_dcsr(
         cls,
         N: int,
-        compressed_rows: cp.ndarray,
-        indptr: cp.ndarray,
-        col_indices: cp.ndarray,
-        edge_values: dict[AttrKey, cp.ndarray] | None = None,
+        compressed_rows: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        col_indices: cp.ndarray[IndexValue],
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
-        key_to_id: dict[NodeKey, int] | None = None,
-        id_to_key: dict[int, NodeKey] | None = None,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
         row_indices = cp.array(
@@ -207,16 +209,16 @@ class Graph:
     def from_dcsc(
         cls,
         N: int,
-        compressed_cols: cp.ndarray,
-        indptr: cp.ndarray,
-        row_indices: cp.ndarray,
-        edge_values: dict[AttrKey, cp.ndarray] | None = None,
+        compressed_cols: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        row_indices: cp.ndarray[IndexValue],
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
-        key_to_id: dict[NodeKey, int] | None = None,
-        id_to_key: dict[int, NodeKey] | None = None,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
         col_indices = cp.array(
@@ -289,7 +291,7 @@ class Graph:
         return {key: val.dtype for key, val in self.node_values.items()}
 
     @property
-    def id_to_key(self) -> dict[int, NodeKey] | None:
+    def id_to_key(self) -> dict[IndexValue, NodeKey] | None:
         if self.key_to_id is None:
             return None
         if self._id_to_key is None:
@@ -482,7 +484,12 @@ class Graph:
         return rv
 
     def _get_plc_graph(
-        self, edge_attr: AttrKey = None, *, store_transposed: bool = False
+        self,
+        edge_attr: AttrKey | None = None,
+        edge_default: EdgeValue | None = None,
+        edge_dtype: Dtype | None = None,
+        *,
+        store_transposed: bool = False,
     ):
         if edge_attr is None:
             edge_array = None
@@ -491,12 +498,22 @@ class Graph:
         elif edge_attr not in self.edge_masks:
             edge_array = self.edge_values[edge_attr]
         elif not self.edge_masks[edge_attr].all():
-            raise NotImplementedError("Missing edge attributes is not yet implemented")
+            if edge_default is None:
+                raise NotImplementedError(
+                    "Missing edge attributes is not yet implemented"
+                )
+            edge_array = cp.where(
+                self.edge_masks[edge_attr], self.edge_values[edge_attr], edge_default
+            )
         else:
             # Mask is all True; don't need anymore
             del self.edge_masks[edge_attr]
             edge_array = self.edge_values[edge_attr]
         # Should we cache PLC graph?
+        if edge_dtype is not None:
+            edge_dtype = np.dtype(edge_dtype)
+            if edge_array.dtype != edge_dtype:
+                edge_array = edge_array.astype(edge_dtype)
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -511,16 +528,19 @@ class Graph:
             do_expensive_check=False,
         )
 
-    def _nodes_to_dict(
-        self, node_ids: cp.ndarray, values: cp.ndarray
+    def _nodearrays_to_dict(
+        self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]
     ) -> dict[NodeKey, NodeValue]:
         it = zip(node_ids.tolist(), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
             return {id_to_key[key]: val for key, val in it}
         return dict(it)
 
-    def _edges_to_dict(
-        self, src_ids: cp.ndarray, dst_ids: cp.ndarray, values: cp.ndarray
+    def _edgearrays_to_dict(
+        self,
+        src_ids: cp.ndarray[IndexValue],
+        dst_ids: cp.ndarray[IndexValue],
+        values: cp.ndarray[EdgeValue],
     ) -> dict[EdgeTuple, EdgeValue]:
         it = zip(zip(src_ids.tolist(), dst_ids.tolist()), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
@@ -529,3 +549,37 @@ class Graph:
                 for (src_id, dst_id), val in it
             }
         return dict(it)
+
+    def _dict_to_nodearrays(
+        self,
+        d: dict[NodeKey, NodeValue],
+        dtype: Dtype | None = None,
+    ) -> tuple[cp.ndarray[IndexValue], cp.ndarray[NodeValue]]:
+        if self.key_to_id is None:
+            indices_iter = d
+        else:
+            indices_iter = map(self.key_to_id.__getitem__, d)
+        node_ids = cp.fromiter(indices_iter, np.int32)
+        if dtype is None:
+            values = cp.array(list(d.values()))
+        else:
+            values = cp.fromiter(d.values(), dtype)
+        return node_ids, values
+
+    # def _dict_to_nodearray(
+    #     self,
+    #     d: dict[NodeKey, NodeValue] | cp.ndarray[NodeValue],
+    #     default: NodeValue | None = None,
+    #     dtype: Dtype | None = None,
+    # ) -> cp.ndarray[NodeValue]:
+    #     if isinstance(d, cp.ndarray):
+    #         if d.shape[0] != len(self):
+    #             raise ValueError
+    #         return d
+    #     if default is None:
+    #         val_iter = map(d.__getitem__, self)
+    #     else:
+    #         val_iter = (d.get(node, default) for node in self)
+    #     if dtype is None:
+    #         return cp.array(list(val_iter))
+    #     return cp.fromiter(val_iter, dtype)

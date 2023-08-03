@@ -347,7 +347,8 @@ def from_networkx(
 
 
 def _iter_attr_dicts(
-    values: dict[AttrKey, cp.ndarray], masks: dict[AttrKey, cp.ndarray]
+    values: dict[AttrKey, cp.ndarray[EdgeValue | NodeValue]],
+    masks: dict[AttrKey, cp.ndarray[bool]],
 ):
     full_attrs = list(values.keys() - masks.keys())
     if full_attrs:

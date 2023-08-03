@@ -21,4 +21,5 @@ NodeKey = TypeVar("NodeKey", bound=Hashable)
 EdgeTuple = tuple[NodeKey, NodeKey]
 EdgeValue = TypeVar("EdgeValue")
 NodeValue = TypeVar("NodeValue")
+IndexValue = TypeVar("IndexValue")
 Dtype = TypeVar("Dtype")
