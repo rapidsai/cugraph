@@ -177,6 +177,8 @@ class Tests_RenumberSampledEdgelist
         size_t edgelist_end_offset =
           label_offsets ? std::get<1>(*label_offsets).element(i + 1, handle.get_stream())
                         : usecase.num_sampled_edges;
+        if (edgelist_start_offset == edgelist_end_offset) continue;
+
         auto this_label_org_edgelist_srcs =
           raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
                                             edgelist_end_offset - edgelist_start_offset);
