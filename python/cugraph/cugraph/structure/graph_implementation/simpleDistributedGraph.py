@@ -407,6 +407,11 @@ class simpleDistributedGraphImpl:
                 srcCol = self.renumber_map.renumbered_src_col_name
                 dstCol = self.renumber_map.renumbered_dst_col_name
 
+            if isinstance(srcCol, list) and len(srcCol) == 1:
+                srcCol = self.renumber_map.renumbered_src_col_name
+                dstCol = self.renumber_map.renumbered_dst_col_name
+                edgelist_df = self.edgelist.edgelist_df
+
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]
             ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
