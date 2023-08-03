@@ -413,7 +413,7 @@ class simpleDistributedGraphImpl:
                 dstCol = self.renumber_map.renumbered_dst_col_name
                 edgelist_df = self.edgelist.edgelist_df
                 # unrenumber before extracting the upper triangular part
-                if len(srcCol) == 1:
+                if len(self.source_columns) == 1:
                     edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
                     edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
                 else:
