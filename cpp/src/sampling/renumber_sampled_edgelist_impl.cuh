@@ -45,6 +45,170 @@ namespace cugraph {
 
 namespace {
 
+// output sorted by (primary key:label_index, secondary key:vertex)
+template <typename vertex_t, typename label_index_t>
+std::tuple<std::optional<rmm::device_uvector<label_index_t>> /* label indices */,
+           rmm::device_uvector<vertex_t> /* vertices */,
+           std::optional<rmm::device_uvector<int32_t>> /* minimum hops for the vertices */,
+           std::optional<rmm::device_uvector<size_t>> /* label offsets for the output */>
+compute_min_hop_for_unique_label_vertex_pairs(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> vertices,
+  std::optional<raft::device_span<int32_t const>> hops,
+  std::optional<raft::device_span<label_index_t const>> label_indices,
+  std::optional<raft::device_span<size_t const>> label_offsets)
+{
+  auto approx_edges_to_sort_per_iteration =
+    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
+    (1 << 20) /* tuning parameter */;  // for segmented sort
+
+  if (label_indices) {
+    auto num_labels = (*label_offsets).size() - 1;
+
+    rmm::device_uvector<label_index_t> tmp_label_indices((*label_indices).size(),
+                                                         handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*label_indices).begin(),
+                 (*label_indices).end(),
+                 tmp_label_indices.begin());
+
+    rmm::device_uvector<vertex_t> tmp_vertices(0, handle.get_stream());
+    std::optional<rmm::device_uvector<int32_t>> tmp_hops{std::nullopt};
+
+    if (hops) {
+      tmp_vertices.resize(vertices.size(), handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(), vertices.begin(), vertices.end(), tmp_vertices.begin());
+      tmp_hops = rmm::device_uvector<int32_t>((*hops).size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(), (*hops).begin(), (*hops).end(), (*tmp_hops).begin());
+
+      auto triplet_first = thrust::make_zip_iterator(
+        tmp_label_indices.begin(), tmp_vertices.begin(), (*tmp_hops).begin());
+      thrust::sort(
+        handle.get_thrust_policy(), triplet_first, triplet_first + tmp_label_indices.size());
+      auto key_first   = thrust::make_zip_iterator(tmp_label_indices.begin(), tmp_vertices.begin());
+      auto num_uniques = static_cast<size_t>(
+        thrust::distance(key_first,
+                         thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                              key_first,
+                                                              key_first + tmp_label_indices.size(),
+                                                              (*tmp_hops).begin()))));
+      tmp_label_indices.resize(num_uniques, handle.get_stream());
+      tmp_vertices.resize(num_uniques, handle.get_stream());
+      (*tmp_hops).resize(num_uniques, handle.get_stream());
+      tmp_label_indices.shrink_to_fit(handle.get_stream());
+      tmp_vertices.shrink_to_fit(handle.get_stream());
+      (*tmp_hops).shrink_to_fit(handle.get_stream());
+    } else {
+      rmm::device_uvector<vertex_t> segment_sorted_vertices(vertices.size(), handle.get_stream());
+
+      rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
+
+      auto [h_label_offsets, h_edge_offsets] =
+        detail::compute_offset_aligned_edge_chunks(handle,
+                                                   (*label_offsets).data(),
+                                                   num_labels,
+                                                   vertices.size(),
+                                                   approx_edges_to_sort_per_iteration);
+      auto num_chunks = h_label_offsets.size() - 1;
+
+      for (size_t i = 0; i < num_chunks; ++i) {
+        size_t tmp_storage_bytes{0};
+
+        auto offset_first =
+          thrust::make_transform_iterator((*label_offsets).data() + h_label_offsets[i],
+                                          detail::shift_left_t<size_t>{h_edge_offsets[i]});
+        cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
+                                           tmp_storage_bytes,
+                                           vertices.begin() + h_edge_offsets[i],
+                                           segment_sorted_vertices.begin() + h_edge_offsets[i],
+                                           h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                           h_label_offsets[i + 1] - h_label_offsets[i],
+                                           offset_first,
+                                           offset_first + 1,
+                                           handle.get_stream());
+
+        if (tmp_storage_bytes > d_tmp_storage.size()) {
+          d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
+        }
+
+        cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
+                                           tmp_storage_bytes,
+                                           vertices.begin() + h_edge_offsets[i],
+                                           segment_sorted_vertices.begin() + h_edge_offsets[i],
+                                           h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                           h_label_offsets[i + 1] - h_label_offsets[i],
+                                           offset_first,
+                                           offset_first + 1,
+                                           handle.get_stream());
+      }
+      d_tmp_storage.resize(0, handle.get_stream());
+      d_tmp_storage.shrink_to_fit(handle.get_stream());
+
+      auto pair_first =
+        thrust::make_zip_iterator(tmp_label_indices.begin(), segment_sorted_vertices.begin());
+      auto num_uniques = static_cast<size_t>(thrust::distance(
+        pair_first,
+        thrust::unique(
+          handle.get_thrust_policy(), pair_first, pair_first + tmp_label_indices.size())));
+      tmp_label_indices.resize(num_uniques, handle.get_stream());
+      segment_sorted_vertices.resize(num_uniques, handle.get_stream());
+      tmp_label_indices.shrink_to_fit(handle.get_stream());
+      segment_sorted_vertices.shrink_to_fit(handle.get_stream());
+
+      tmp_vertices = std::move(segment_sorted_vertices);
+    }
+
+    rmm::device_uvector<size_t> tmp_label_offsets(num_labels + 1, handle.get_stream());
+    tmp_label_offsets.set_element_to_zero_async(0, handle.get_stream());
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        tmp_label_indices.begin(),
+                        tmp_label_indices.end(),
+                        thrust::make_counting_iterator(size_t{0}),
+                        thrust::make_counting_iterator(num_labels),
+                        tmp_label_offsets.begin() + 1);
+
+    return std::make_tuple(std::move(tmp_label_indices),
+                           std::move(tmp_vertices),
+                           std::move(tmp_hops),
+                           std::move(tmp_label_offsets));
+  } else {
+    rmm::device_uvector<vertex_t> tmp_vertices(vertices.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), vertices.begin(), vertices.end(), tmp_vertices.begin());
+
+    if (hops) {
+      rmm::device_uvector<int32_t> tmp_hops((*hops).size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(), (*hops).begin(), (*hops).end(), tmp_hops.begin());
+
+      auto pair_first = thrust::make_zip_iterator(
+        tmp_vertices.begin(), tmp_hops.begin());  // vertex is a primary key, hop is a secondary key
+      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_vertices.size());
+      tmp_vertices.resize(
+        thrust::distance(tmp_vertices.begin(),
+                         thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                              tmp_vertices.begin(),
+                                                              tmp_vertices.end(),
+                                                              tmp_hops.begin()))),
+        handle.get_stream());
+      tmp_hops.resize(tmp_vertices.size(), handle.get_stream());
+
+      return std::make_tuple(
+        std::nullopt, std::move(tmp_vertices), std::move(tmp_hops), std::nullopt);
+    } else {
+      thrust::sort(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
+      tmp_vertices.resize(
+        thrust::distance(
+          tmp_vertices.begin(),
+          thrust::unique(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end())),
+        handle.get_stream());
+      tmp_vertices.shrink_to_fit(handle.get_stream());
+
+      return std::make_tuple(std::nullopt, std::move(tmp_vertices), std::nullopt, std::nullopt);
+    }
+  }
+}
+
 template <typename vertex_t, typename label_index_t>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_index_t>>>
 compute_renumber_map(raft::handle_t const& handle,
@@ -63,382 +227,236 @@ compute_renumber_map(raft::handle_t const& handle,
       detail::expand_sparse_offsets(*label_offsets, label_index_t{0}, handle.get_stream());
   }
 
-  std::optional<rmm::device_uvector<label_index_t>> unique_label_src_pair_label_indices{
-    std::nullopt};
-  rmm::device_uvector<vertex_t> unique_label_src_pair_vertices(
-    0, handle.get_stream());  // sorted by (label, hop, src)
-  std::optional<rmm::device_uvector<vertex_t>> sorted_srcs{
-    std::nullopt};            // sorted by (label, src), relevant only when edgelist_hops is valid
-  {
-    if (label_offsets) {
-      rmm::device_uvector<label_index_t> label_indices((*edgelist_label_indices).size(),
-                                                       handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   (*edgelist_label_indices).begin(),
-                   (*edgelist_label_indices).end(),
-                   label_indices.begin());
+  auto [unique_label_src_pair_label_indices,
+        unique_label_src_pair_vertices,
+        unique_label_src_pair_hops,
+        unique_label_src_pair_label_offsets] =
+    compute_min_hop_for_unique_label_vertex_pairs(
+      handle,
+      edgelist_srcs,
+      edgelist_hops,
+      edgelist_label_indices ? std::make_optional<raft::device_span<label_index_t const>>(
+                                 (*edgelist_label_indices).data(), (*edgelist_label_indices).size())
+                             : std::nullopt,
+      label_offsets);
 
-      if (edgelist_hops) {
-        rmm::device_uvector<vertex_t> srcs(edgelist_srcs.size(), handle.get_stream());
-        thrust::copy(
-          handle.get_thrust_policy(), edgelist_srcs.begin(), edgelist_srcs.end(), srcs.begin());
-
-        rmm::device_uvector<int32_t> hops((*edgelist_hops).size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     (*edgelist_hops).begin(),
-                     (*edgelist_hops).end(),
-                     hops.begin());
-        auto triplet_first =
-          thrust::make_zip_iterator(label_indices.begin(), srcs.begin(), hops.begin());
-        thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
-        auto num_uniques = static_cast<size_t>(
-          thrust::distance(triplet_first,
-                           thrust::unique(handle.get_thrust_policy(),
-                                          triplet_first,
-                                          triplet_first + srcs.size(),
-                                          [] __device__(auto lhs, auto rhs) {
-                                            return (thrust::get<0>(lhs) == thrust::get<0>(rhs)) &&
-                                                   (thrust::get<1>(lhs) == thrust::get<1>(rhs));
-                                          })));
-        label_indices.resize(num_uniques, handle.get_stream());
-        srcs.resize(num_uniques, handle.get_stream());
-        hops.resize(num_uniques, handle.get_stream());
-        label_indices.shrink_to_fit(handle.get_stream());
-        srcs.shrink_to_fit(handle.get_stream());
-        hops.shrink_to_fit(handle.get_stream());
-
-        auto num_labels = (*label_offsets).size() - 1;
-        rmm::device_uvector<size_t> tmp_label_offsets(num_labels + 1, handle.get_stream());
-        tmp_label_offsets.set_element_to_zero_async(0, handle.get_stream());
-        thrust::upper_bound(handle.get_thrust_policy(),
-                            label_indices.begin(),
-                            label_indices.end(),
-                            thrust::make_counting_iterator(size_t{0}),
-                            thrust::make_counting_iterator(num_labels),
-                            tmp_label_offsets.begin() + 1);
-
-        unique_label_src_pair_label_indices = std::move(label_indices);
-        sorted_srcs = rmm::device_uvector<vertex_t>(srcs.size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(), srcs.begin(), srcs.end(), (*sorted_srcs).begin());
-
-        rmm::device_uvector<vertex_t> segment_sorted_srcs(srcs.size(), handle.get_stream());
-
-        rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
-
-        auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
-          handle,
-          tmp_label_offsets.data(),
-          static_cast<size_t>(tmp_label_offsets.size() - 1),
-          hops.size(),
-          approx_edges_to_sort_per_iteration);
-        auto num_chunks = h_label_offsets.size() - 1;
-        size_t max_chunk_size{0};
-        for (size_t i = 0; i < num_chunks; ++i) {
-          max_chunk_size = std::max(max_chunk_size,
-                                    static_cast<size_t>(h_edge_offsets[i + 1] - h_edge_offsets[i]));
-        }
-        rmm::device_uvector<int32_t> segment_sorted_hops(max_chunk_size, handle.get_stream());
-
-        for (size_t i = 0; i < num_chunks; ++i) {
-          size_t tmp_storage_bytes{0};
-
-          auto offset_first =
-            thrust::make_transform_iterator(tmp_label_offsets.data() + h_label_offsets[i],
-                                            detail::shift_left_t<size_t>{h_edge_offsets[i]});
-          cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
-                                              tmp_storage_bytes,
-                                              hops.begin() + h_edge_offsets[i],
-                                              segment_sorted_hops.begin(),
-                                              srcs.begin() + h_edge_offsets[i],
-                                              segment_sorted_srcs.begin() + h_edge_offsets[i],
-                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                              h_label_offsets[i + 1] - h_label_offsets[i],
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
-
-          if (tmp_storage_bytes > d_tmp_storage.size()) {
-            d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
-          }
-
-          cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
-                                              tmp_storage_bytes,
-                                              hops.begin() + h_edge_offsets[i],
-                                              segment_sorted_hops.begin(),
-                                              srcs.begin() + h_edge_offsets[i],
-                                              segment_sorted_srcs.begin() + h_edge_offsets[i],
-                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                              h_label_offsets[i + 1] - h_label_offsets[i],
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
-        }
-
-        unique_label_src_pair_vertices = std::move(segment_sorted_srcs);
-      } else {
-        rmm::device_uvector<vertex_t> segment_sorted_srcs(edgelist_srcs.size(),
-                                                          handle.get_stream());
-
-        rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
-
-        auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
-          handle,
-          (*label_offsets).data(),
-          static_cast<size_t>((*label_offsets).size() - 1),
-          edgelist_srcs.size(),
-          approx_edges_to_sort_per_iteration);
-        auto num_chunks = h_label_offsets.size() - 1;
-
-        for (size_t i = 0; i < num_chunks; ++i) {
-          size_t tmp_storage_bytes{0};
-
-          auto offset_first =
-            thrust::make_transform_iterator((*label_offsets).data() + h_label_offsets[i],
-                                            detail::shift_left_t<size_t>{h_edge_offsets[i]});
-          cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
-                                             tmp_storage_bytes,
-                                             edgelist_srcs.begin() + h_edge_offsets[i],
-                                             segment_sorted_srcs.begin() + h_edge_offsets[i],
-                                             h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                             h_label_offsets[i + 1] - h_label_offsets[i],
-                                             offset_first,
-                                             offset_first + 1,
-                                             handle.get_stream());
-
-          if (tmp_storage_bytes > d_tmp_storage.size()) {
-            d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
-          }
-
-          cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
-                                             tmp_storage_bytes,
-                                             edgelist_srcs.begin() + h_edge_offsets[i],
-                                             segment_sorted_srcs.begin() + h_edge_offsets[i],
-                                             h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                             h_label_offsets[i + 1] - h_label_offsets[i],
-                                             offset_first,
-                                             offset_first + 1,
-                                             handle.get_stream());
-        }
-        d_tmp_storage.resize(0, handle.get_stream());
-        d_tmp_storage.shrink_to_fit(handle.get_stream());
-
-        auto pair_first =
-          thrust::make_zip_iterator(label_indices.begin(), segment_sorted_srcs.begin());
-        auto num_uniques = static_cast<size_t>(thrust::distance(
-          pair_first,
-          thrust::unique(
-            handle.get_thrust_policy(), pair_first, pair_first + label_indices.size())));
-        label_indices.resize(num_uniques, handle.get_stream());
-        segment_sorted_srcs.resize(num_uniques, handle.get_stream());
-        label_indices.shrink_to_fit(handle.get_stream());
-        segment_sorted_srcs.shrink_to_fit(handle.get_stream());
-
-        unique_label_src_pair_label_indices = std::move(label_indices);
-        unique_label_src_pair_vertices      = std::move(segment_sorted_srcs);
-      }
-    } else {
-      rmm::device_uvector<vertex_t> srcs(edgelist_srcs.size(), handle.get_stream());
-      thrust::copy(
-        handle.get_thrust_policy(), edgelist_srcs.begin(), edgelist_srcs.end(), srcs.begin());
-
-      if (edgelist_hops) {
-        rmm::device_uvector<int32_t> hops((*edgelist_hops).size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     (*edgelist_hops).begin(),
-                     (*edgelist_hops).end(),
-                     hops.begin());
-
-        auto pair_first = thrust::make_zip_iterator(
-          srcs.begin(), hops.begin());  // src is a primary key, hop is a secondary key
-        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
-        srcs.resize(
-          thrust::distance(srcs.begin(),
-                           thrust::get<0>(thrust::unique_by_key(
-                             handle.get_thrust_policy(), srcs.begin(), srcs.end(), hops.begin()))),
-          handle.get_stream());
-        hops.resize(srcs.size(), handle.get_stream());
-
-        sorted_srcs = rmm::device_uvector<vertex_t>(srcs.size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(), srcs.begin(), srcs.end(), (*sorted_srcs).begin());
-
-        thrust::sort_by_key(handle.get_thrust_policy(), hops.begin(), hops.end(), srcs.begin());
-      } else {
-        thrust::sort(handle.get_thrust_policy(), srcs.begin(), srcs.end());
-        srcs.resize(
-          thrust::distance(srcs.begin(),
-                           thrust::unique(handle.get_thrust_policy(), srcs.begin(), srcs.end())),
-          handle.get_stream());
-        srcs.shrink_to_fit(handle.get_stream());
-      }
-
-      unique_label_src_pair_vertices = std::move(srcs);
-    }
-  }
-
-  std::optional<rmm::device_uvector<label_index_t>> unique_label_dst_pair_label_indices{
-    std::nullopt};
-  rmm::device_uvector<vertex_t> unique_label_dst_pair_vertices(0, handle.get_stream());
-  {
-    rmm::device_uvector<vertex_t> dsts(edgelist_dsts.size(), handle.get_stream());
-    thrust::copy(
-      handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), dsts.begin());
-    if (label_offsets) {
-      rmm::device_uvector<label_index_t> label_indices((*edgelist_label_indices).size(),
-                                                       handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   (*edgelist_label_indices).begin(),
-                   (*edgelist_label_indices).end(),
-                   label_indices.begin());
-
-      rmm::device_uvector<vertex_t> segment_sorted_dsts(dsts.size(), handle.get_stream());
-
-      rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
-
-      auto [h_label_offsets, h_edge_offsets] =
-        detail::compute_offset_aligned_edge_chunks(handle,
-                                                   (*label_offsets).data(),
-                                                   static_cast<size_t>((*label_offsets).size() - 1),
-                                                   dsts.size(),
-                                                   approx_edges_to_sort_per_iteration);
-      auto num_chunks = h_label_offsets.size() - 1;
-
-      for (size_t i = 0; i < num_chunks; ++i) {
-        size_t tmp_storage_bytes{0};
-
-        auto offset_first =
-          thrust::make_transform_iterator((*label_offsets).data() + h_label_offsets[i],
-                                          detail::shift_left_t<size_t>{h_edge_offsets[i]});
-        cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
-                                           tmp_storage_bytes,
-                                           dsts.begin() + h_edge_offsets[i],
-                                           segment_sorted_dsts.begin() + h_edge_offsets[i],
-                                           h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                           h_label_offsets[i + 1] - h_label_offsets[i],
-                                           offset_first,
-                                           offset_first + 1,
-                                           handle.get_stream());
-
-        if (tmp_storage_bytes > d_tmp_storage.size()) {
-          d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
-        }
-
-        cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
-                                           tmp_storage_bytes,
-                                           dsts.begin() + h_edge_offsets[i],
-                                           segment_sorted_dsts.begin() + h_edge_offsets[i],
-                                           h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                           h_label_offsets[i + 1] - h_label_offsets[i],
-                                           offset_first,
-                                           offset_first + 1,
-                                           handle.get_stream());
-      }
-      dsts.resize(0, handle.get_stream());
-      d_tmp_storage.resize(0, handle.get_stream());
-      dsts.shrink_to_fit(handle.get_stream());
-      d_tmp_storage.shrink_to_fit(handle.get_stream());
-
-      auto pair_first =
-        thrust::make_zip_iterator(label_indices.begin(), segment_sorted_dsts.begin());
-      auto num_uniques = static_cast<size_t>(thrust::distance(
-        pair_first,
-        thrust::unique(handle.get_thrust_policy(), pair_first, pair_first + label_indices.size())));
-      label_indices.resize(num_uniques, handle.get_stream());
-      segment_sorted_dsts.resize(num_uniques, handle.get_stream());
-      label_indices.shrink_to_fit(handle.get_stream());
-      segment_sorted_dsts.shrink_to_fit(handle.get_stream());
-
-      unique_label_dst_pair_label_indices = std::move(label_indices);
-      unique_label_dst_pair_vertices      = std::move(segment_sorted_dsts);
-    } else {
-      thrust::sort(handle.get_thrust_policy(), dsts.begin(), dsts.end());
-      dsts.resize(
-        thrust::distance(dsts.begin(),
-                         thrust::unique(handle.get_thrust_policy(), dsts.begin(), dsts.end())),
-        handle.get_stream());
-      dsts.shrink_to_fit(handle.get_stream());
-
-      unique_label_dst_pair_vertices = std::move(dsts);
-    }
-  }
+  auto [unique_label_dst_pair_label_indices,
+        unique_label_dst_pair_vertices,
+        unique_label_dst_pair_hops,
+        unique_label_dst_pair_label_offsets] =
+    compute_min_hop_for_unique_label_vertex_pairs(
+      handle,
+      edgelist_dsts,
+      edgelist_hops,
+      edgelist_label_indices ? std::make_optional<raft::device_span<label_index_t const>>(
+                                 (*edgelist_label_indices).data(), (*edgelist_label_indices).size())
+                             : std::nullopt,
+      label_offsets);
 
   edgelist_label_indices = std::nullopt;
 
   if (label_offsets) {
-    auto label_src_pair_first = thrust::make_zip_iterator(
-      (*unique_label_src_pair_label_indices).begin(),
-      edgelist_hops ? (*sorted_srcs).begin() : unique_label_src_pair_vertices.begin());
-    auto label_dst_pair_first = thrust::make_zip_iterator(
-      (*unique_label_dst_pair_label_indices).begin(), unique_label_dst_pair_vertices.begin());
-    rmm::device_uvector<label_index_t> output_label_indices(
-      (*unique_label_dst_pair_label_indices).size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> output_vertices((*unique_label_dst_pair_label_indices).size(),
-                                                  handle.get_stream());
-    auto output_label_dst_pair_first =
-      thrust::make_zip_iterator(output_label_indices.begin(), output_vertices.begin());
-    auto output_label_dst_pair_last =
-      thrust::set_difference(handle.get_thrust_policy(),
-                             label_dst_pair_first,
-                             label_dst_pair_first + (*unique_label_dst_pair_label_indices).size(),
-                             label_src_pair_first,
-                             label_src_pair_first + (*unique_label_src_pair_label_indices).size(),
-                             output_label_dst_pair_first);
+    auto num_labels = (*label_offsets).size() - 1;
 
-    sorted_srcs = std::nullopt;
-    output_label_indices.resize(
-      thrust::distance(output_label_dst_pair_first, output_label_dst_pair_last),
-      handle.get_stream());
-    output_vertices.resize(output_label_indices.size(), handle.get_stream());
-    output_label_indices.shrink_to_fit(handle.get_stream());
-    output_vertices.shrink_to_fit(handle.get_stream());
-    unique_label_dst_pair_label_indices = std::move(output_label_indices);
-    unique_label_dst_pair_vertices      = std::move(output_vertices);
+    rmm::device_uvector<vertex_t> renumber_map(0, handle.get_stream());
+    rmm::device_uvector<label_index_t> renumber_map_label_indices(0, handle.get_stream());
 
-    rmm::device_uvector<label_index_t> merged_label_indices(
+    renumber_map.reserve(
       (*unique_label_src_pair_label_indices).size() + (*unique_label_dst_pair_label_indices).size(),
       handle.get_stream());
-    rmm::device_uvector<vertex_t> merged_vertices(merged_label_indices.size(), handle.get_stream());
-    auto label_src_triplet_first =
-      thrust::make_zip_iterator((*unique_label_src_pair_label_indices).begin(),
-                                thrust::make_constant_iterator(uint8_t{0}),
-                                unique_label_src_pair_vertices.begin());
-    auto label_dst_triplet_first =
-      thrust::make_zip_iterator((*unique_label_dst_pair_label_indices).begin(),
-                                thrust::make_constant_iterator(uint8_t{1}),
-                                unique_label_dst_pair_vertices.begin());
-    thrust::merge(
-      handle.get_thrust_policy(),
-      label_src_triplet_first,
-      label_src_triplet_first + (*unique_label_src_pair_label_indices).size(),
-      label_dst_triplet_first,
-      label_dst_triplet_first + (*unique_label_dst_pair_label_indices).size(),
-      thrust::make_zip_iterator(
-        merged_label_indices.begin(), thrust::make_discard_iterator(), merged_vertices.begin()));
+    renumber_map_label_indices.reserve(renumber_map.capacity(), handle.get_stream());
 
-    return std::make_tuple(std::move(merged_vertices), std::move(merged_label_indices));
+    auto num_chunks = (edgelist_srcs.size() + (approx_edges_to_sort_per_iteration - 1)) /
+                      approx_edges_to_sort_per_iteration;
+    auto chunk_size = (num_labels + (num_chunks - 1)) / num_chunks;
+
+    size_t copy_offset{0};
+    for (size_t i = 0; i < num_chunks; ++i) {
+      auto src_start_offset =
+        (*unique_label_src_pair_label_offsets).element(chunk_size * i, handle.get_stream());
+      auto src_end_offset =
+        (*unique_label_src_pair_label_offsets)
+          .element(std::min(chunk_size * (i + 1), num_labels), handle.get_stream());
+      auto dst_start_offset =
+        (*unique_label_dst_pair_label_offsets).element(chunk_size * i, handle.get_stream());
+      auto dst_end_offset =
+        (*unique_label_dst_pair_label_offsets)
+          .element(std::min(chunk_size * (i + 1), num_labels), handle.get_stream());
+
+      rmm::device_uvector<label_index_t> merged_label_indices(
+        (src_end_offset - src_start_offset) + (dst_end_offset - dst_start_offset),
+        handle.get_stream());
+      rmm::device_uvector<vertex_t> merged_vertices(merged_label_indices.size(),
+                                                    handle.get_stream());
+      rmm::device_uvector<int8_t> merged_flags(merged_label_indices.size(), handle.get_stream());
+
+      if (edgelist_hops) {
+        rmm::device_uvector<int32_t> merged_hops(merged_label_indices.size(), handle.get_stream());
+        auto src_quad_first =
+          thrust::make_zip_iterator((*unique_label_src_pair_label_indices).begin(),
+                                    unique_label_src_pair_vertices.begin(),
+                                    (*unique_label_src_pair_hops).begin(),
+                                    thrust::make_constant_iterator(int8_t{0}));
+        auto dst_quad_first =
+          thrust::make_zip_iterator((*unique_label_dst_pair_label_indices).begin(),
+                                    unique_label_dst_pair_vertices.begin(),
+                                    (*unique_label_dst_pair_hops).begin(),
+                                    thrust::make_constant_iterator(int8_t{1}));
+        thrust::merge(handle.get_thrust_policy(),
+                      src_quad_first + src_start_offset,
+                      src_quad_first + src_end_offset,
+                      dst_quad_first + dst_start_offset,
+                      dst_quad_first + dst_end_offset,
+                      thrust::make_zip_iterator(merged_label_indices.begin(),
+                                                merged_vertices.begin(),
+                                                merged_hops.begin(),
+                                                merged_flags.begin()));
+
+        auto unique_key_first =
+          thrust::make_zip_iterator(merged_label_indices.begin(), merged_vertices.begin());
+        merged_label_indices.resize(
+          thrust::distance(
+            unique_key_first,
+            thrust::get<0>(thrust::unique_by_key(
+              handle.get_thrust_policy(),
+              unique_key_first,
+              unique_key_first + merged_label_indices.size(),
+              thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
+          handle.get_stream());
+        merged_vertices.resize(merged_label_indices.size(), handle.get_stream());
+        merged_hops.resize(merged_label_indices.size(), handle.get_stream());
+        merged_flags.resize(merged_label_indices.size(), handle.get_stream());
+        auto sort_key_first = thrust::make_zip_iterator(
+          merged_label_indices.begin(), merged_hops.begin(), merged_flags.begin());
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            sort_key_first,
+                            sort_key_first + merged_label_indices.size(),
+                            merged_vertices.begin());
+      } else {
+        auto src_triplet_first =
+          thrust::make_zip_iterator((*unique_label_src_pair_label_indices).begin(),
+                                    unique_label_src_pair_vertices.begin(),
+                                    thrust::make_constant_iterator(int8_t{0}));
+        auto dst_triplet_first =
+          thrust::make_zip_iterator((*unique_label_dst_pair_label_indices).begin(),
+                                    unique_label_dst_pair_vertices.begin(),
+                                    thrust::make_constant_iterator(int8_t{1}));
+        thrust::merge(
+          handle.get_thrust_policy(),
+          src_triplet_first + src_start_offset,
+          src_triplet_first + src_end_offset,
+          dst_triplet_first + dst_start_offset,
+          dst_triplet_first + dst_end_offset,
+          thrust::make_zip_iterator(
+            merged_label_indices.begin(), merged_vertices.begin(), merged_flags.begin()));
+
+        auto unique_key_first =
+          thrust::make_zip_iterator(merged_label_indices.begin(), merged_vertices.begin());
+        merged_label_indices.resize(
+          thrust::distance(
+            unique_key_first,
+            thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                 unique_key_first,
+                                                 unique_key_first + merged_label_indices.size(),
+                                                 merged_flags.begin()))),
+          handle.get_stream());
+        merged_vertices.resize(merged_label_indices.size(), handle.get_stream());
+        merged_flags.resize(merged_label_indices.size(), handle.get_stream());
+        auto sort_key_first =
+          thrust::make_zip_iterator(merged_label_indices.begin(), merged_flags.begin());
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            sort_key_first,
+                            sort_key_first + merged_label_indices.size(),
+                            merged_vertices.begin());
+      }
+
+      renumber_map.resize(copy_offset + merged_vertices.size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   merged_vertices.begin(),
+                   merged_vertices.end(),
+                   renumber_map.begin() + copy_offset);
+      renumber_map_label_indices.resize(copy_offset + merged_label_indices.size(),
+                                        handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   merged_label_indices.begin(),
+                   merged_label_indices.end(),
+                   renumber_map_label_indices.begin() + copy_offset);
+
+      copy_offset += merged_vertices.size();
+    }
+
+    renumber_map.shrink_to_fit(handle.get_stream());
+    renumber_map_label_indices.shrink_to_fit(handle.get_stream());
+
+    return std::make_tuple(std::move(renumber_map), std::move(renumber_map_label_indices));
   } else {
-    rmm::device_uvector<vertex_t> output_vertices(unique_label_dst_pair_vertices.size(),
-                                                  handle.get_stream());
-    auto output_last = thrust::set_difference(
-      handle.get_thrust_policy(),
-      unique_label_dst_pair_vertices.begin(),
-      unique_label_dst_pair_vertices.end(),
-      edgelist_hops ? (*sorted_srcs).begin() : unique_label_src_pair_vertices.begin(),
-      edgelist_hops ? (*sorted_srcs).end() : unique_label_src_pair_vertices.end(),
-      output_vertices.begin());
+    if (edgelist_hops) {
+      rmm::device_uvector<vertex_t> merged_vertices(
+        unique_label_src_pair_vertices.size() + unique_label_dst_pair_vertices.size(),
+        handle.get_stream());
+      rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
+      rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
+      auto src_triplet_first = thrust::make_zip_iterator(unique_label_src_pair_vertices.begin(),
+                                                         (*unique_label_src_pair_hops).begin(),
+                                                         thrust::make_constant_iterator(int8_t{0}));
+      auto dst_triplet_first = thrust::make_zip_iterator(unique_label_dst_pair_vertices.begin(),
+                                                         (*unique_label_dst_pair_hops).begin(),
+                                                         thrust::make_constant_iterator(int8_t{1}));
+      thrust::merge(handle.get_thrust_policy(),
+                    src_triplet_first,
+                    src_triplet_first + unique_label_src_pair_vertices.size(),
+                    dst_triplet_first,
+                    dst_triplet_first + unique_label_dst_pair_vertices.size(),
+                    thrust::make_zip_iterator(
+                      merged_vertices.begin(), merged_hops.begin(), merged_flags.begin()));
 
-    sorted_srcs = std::nullopt;
+      unique_label_src_pair_vertices.resize(0, handle.get_stream());
+      unique_label_src_pair_vertices.shrink_to_fit(handle.get_stream());
+      unique_label_src_pair_hops = std::nullopt;
+      unique_label_dst_pair_vertices.resize(0, handle.get_stream());
+      unique_label_dst_pair_vertices.shrink_to_fit(handle.get_stream());
+      unique_label_dst_pair_hops = std::nullopt;
 
-    auto num_unique_srcs = unique_label_src_pair_vertices.size();
-    auto renumber_map    = std::move(unique_label_src_pair_vertices);
-    renumber_map.resize(
-      renumber_map.size() + thrust::distance(output_vertices.begin(), output_last),
-      handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 output_vertices.begin(),
-                 output_last,
-                 renumber_map.begin() + num_unique_srcs);
+      merged_vertices.resize(
+        thrust::distance(merged_vertices.begin(),
+                         thrust::get<0>(thrust::unique_by_key(
+                           handle.get_thrust_policy(),
+                           merged_vertices.begin(),
+                           merged_vertices.end(),
+                           thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
+        handle.get_stream());
+      merged_hops.resize(merged_vertices.size(), handle.get_stream());
+      merged_flags.resize(merged_vertices.size(), handle.get_stream());
 
-    return std::make_tuple(std::move(renumber_map), std::nullopt);
+      auto sort_key_first = thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          sort_key_first,
+                          sort_key_first + merged_hops.size(),
+                          merged_vertices.begin());
+
+      return std::make_tuple(std::move(merged_vertices), std::nullopt);
+    } else {
+      rmm::device_uvector<vertex_t> output_vertices(unique_label_dst_pair_vertices.size(),
+                                                    handle.get_stream());
+      auto output_last = thrust::set_difference(handle.get_thrust_policy(),
+                                                unique_label_dst_pair_vertices.begin(),
+                                                unique_label_dst_pair_vertices.end(),
+                                                unique_label_src_pair_vertices.begin(),
+                                                unique_label_src_pair_vertices.end(),
+                                                output_vertices.begin());
+
+      auto num_unique_srcs = unique_label_src_pair_vertices.size();
+      auto renumber_map    = std::move(unique_label_src_pair_vertices);
+      renumber_map.resize(
+        renumber_map.size() + thrust::distance(output_vertices.begin(), output_last),
+        handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   output_vertices.begin(),
+                   output_last,
+                   renumber_map.begin() + num_unique_srcs);
+
+      return std::make_tuple(std::move(renumber_map), std::nullopt);
+    }
   }
 }
 
