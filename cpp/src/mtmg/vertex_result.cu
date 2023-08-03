@@ -19,7 +19,6 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <detail/graph_partition_utils.cuh>
-#include <mtmg/xxx.cuh>
 
 #include <thrust/gather.h>
 
@@ -33,8 +32,6 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
   raft::device_span<vertex_t const> vertices,
   cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view)
 {
-  std::cout << "inside vertex_result_t::gather" << std::endl;
-
   auto my_graph_view = graph_view.get_pointer(handle);
 
   rmm::device_uvector<vertex_t> local_vertices(vertices.size(), handle.get_stream());
@@ -60,15 +57,8 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
   auto const minor_comm_size =
     handle.raft_handle().get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
 
-  sleep(handle.raft_handle().get_comms().get_rank());
-  std::cout << "first shuffle, rank = " << handle.raft_handle().get_comms().get_rank() << std::endl;
-  raft::print_device_vector("from vertex_partition_range_lasts",
-                            d_vertex_partition_range_lasts.data(),
-                            d_vertex_partition_range_lasts.size(),
-                            std::cout);
-
   std::forward_as_tuple(local_vertices, std::tie(vertex_gpu, vertex_pos), std::ignore) =
-    groupby_gpu_id_and_shuffle_kv_pairs2(
+    groupby_gpu_id_and_shuffle_kv_pairs(
       handle.raft_handle().get_comms(),
       local_vertices.begin(),
       local_vertices.end(),
@@ -83,10 +73,6 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
   //
   //  Now gather
   //
-  std::cout << "after first shuffle, rank = " << handle.raft_handle().get_comms().get_rank()
-            << ", local size = " << local_vertices.size() << std::endl;
-  RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-
   rmm::device_uvector<result_t> tmp_result(local_vertices.size(), handle.get_stream());
 
   auto pointer = this->get_pointer(handle);
@@ -105,22 +91,12 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
                  pointer->begin(),
                  tmp_result.begin());
 
-  RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-  sleep(handle.raft_handle().get_comms().get_rank());
-  std::cout << "second shuffle, rank = " << handle.raft_handle().get_comms().get_rank()
-            << std::endl;
-  raft::print_device_vector("  vertex_gpu", vertex_gpu.data(), vertex_gpu.size(), std::cout);
-  raft::print_device_vector(
-    "  local_vertices", local_vertices.data(), local_vertices.size(), std::cout);
-  raft::print_device_vector("  vertex_pos", vertex_pos.data(), vertex_pos.size(), std::cout);
-  raft::print_device_vector("  tmp_result", tmp_result.data(), tmp_result.size(), std::cout);
-
   //
   // Shuffle back
   //
   std::forward_as_tuple(
     std::ignore, std::tie(local_vertices, vertex_pos, tmp_result), std::ignore) =
-    groupby_gpu_id_and_shuffle_kv_pairs2(
+    groupby_gpu_id_and_shuffle_kv_pairs(
       handle.raft_handle().get_comms(),
       vertex_gpu.begin(),
       vertex_gpu.end(),
@@ -128,22 +104,14 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
       [] __device__(int gpu) { return gpu; },
       handle.get_stream());
 
-  RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
   //
   // Finally, reorder result
   //
-  std::cout << "scatter, rank = " << handle.raft_handle().get_comms().get_rank() << std::endl;
-
   thrust::scatter(handle.raft_handle().get_thrust_policy(),
                   tmp_result.begin(),
                   tmp_result.end(),
                   vertex_pos.begin(),
                   result.begin());
-
-  sleep(handle.raft_handle().get_comms().get_rank());
-  std::cout << "after scatter, rank = " << handle.raft_handle().get_comms().get_rank() << std::endl;
-  raft::print_device_vector("  vertices", vertices.data(), vertices.size(), std::cout);
-  raft::print_device_vector("  result", result.data(), result.size(), std::cout);
 
   return result;
 }
