@@ -25,21 +25,14 @@ namespace detail {
 
 struct jaccard_functor_t {
   template <typename weight_t>
-  weight_t __device__ compute_score(weight_t cardinality_a,
-                                    weight_t cardinality_b,
-                                    weight_t cardinality_a_intersect_b) const
-  {
-    return cardinality_a_intersect_b / (cardinality_a + cardinality_b - cardinality_a_intersect_b);
-  }
-};
-
-struct weighted_jaccard_functor_t {
-  template <typename weight_t>
   weight_t __device__ compute_score(weight_t weight_a,
                                     weight_t weight_b,
-                                    weight_t min_weight_a_intersect_b) const
+                                    weight_t weight_a_intersect_b,
+                                    weight_t weight_a_union_b) const
   {
-    return min_weight_a_intersect_b / (weight_a + weight_b - min_weight_a_intersect_b);
+    return weight_a_union_b <= std::numeric_limits<weight_t>::min()
+             ? weight_t{0}
+             : weight_a_intersect_b / weight_a_union_b;
   }
 };
 
@@ -55,20 +48,12 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  if (!edge_weight_view)
-    return detail::similarity(handle,
-                              graph_view,
-                              edge_weight_view,
-                              vertex_pairs,
-                              detail::jaccard_functor_t{},
-                              do_expensive_check);
-  else
-    return detail::similarity(handle,
-                              graph_view,
-                              edge_weight_view,
-                              vertex_pairs,
-                              detail::weighted_jaccard_functor_t{},
-                              do_expensive_check);
+  return detail::similarity(handle,
+                            graph_view,
+                            edge_weight_view,
+                            vertex_pairs,
+                            detail::jaccard_functor_t{},
+                            do_expensive_check);
 }
 
 }  // namespace cugraph

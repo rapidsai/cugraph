@@ -385,6 +385,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
 
 ###################################################################################################
+# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
+
+###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
@@ -628,6 +632,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
+    # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION tests -------------------------
+    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
+    prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
+    target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
@@ -635,6 +645,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+
+    ###############################################################################################
+    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
     # - MG SIMILARITY tests -----------------------------------------------------------------------
