@@ -18,6 +18,7 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
@@ -25,9 +26,12 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
+#include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
@@ -229,11 +233,11 @@ class Tests_RenumberSampledEdgelist
                                                });
         ASSERT_TRUE(num_renumber_errors == 0) << "Renumber error in edge list destinations.";
 
-        // check the invariants in renumber_map (1. vertices appeared in edge list sources should
-        // have a smaller renumbered vertex ID than the vertices appear only in edge list
-        // destinations, 2. edge list source vertices with a smaller minimum hop number should have
-        // a smaller renumbered vertex ID than the edge list source vertices with a larger hop
-        // number)
+        // Check the invariants in renumber_map
+        // Say we found the minimum (primary key:hop, secondary key:flag) pairs for every unique
+        // vertices, where flag is 0 for sources and 1 for destinations. Then, vertices with smaller
+        // (hop, flag) pairs should be renumbered to smaller numbers than vertices with larger (hop,
+        // flag) pairs.
 
         rmm::device_uvector<vertex_t> unique_srcs(this_label_org_edgelist_srcs.size(),
                                                   handle.get_stream());
@@ -277,27 +281,35 @@ class Tests_RenumberSampledEdgelist
                      this_label_org_edgelist_dsts.begin(),
                      this_label_org_edgelist_dsts.end(),
                      unique_dsts.begin());
-        thrust::sort(handle.get_thrust_policy(), unique_dsts.begin(), unique_dsts.end());
-        unique_dsts.resize(
-          thrust::distance(
-            unique_dsts.begin(),
-            thrust::unique(handle.get_thrust_policy(), unique_dsts.begin(), unique_dsts.end())),
-          handle.get_stream());
+        std::optional<rmm::device_uvector<int32_t>> unique_dst_hops =
+          this_label_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
+                                       (*this_label_edgelist_hops).size(), handle.get_stream())
+                                   : std::nullopt;
+        if (this_label_edgelist_hops) {
+          thrust::copy(handle.get_thrust_policy(),
+                       (*this_label_edgelist_hops).begin(),
+                       (*this_label_edgelist_hops).end(),
+                       (*unique_dst_hops).begin());
 
-        unique_dsts.resize(
-          thrust::distance(
-            unique_dsts.begin(),
-            thrust::remove_if(handle.get_thrust_policy(),
-                              unique_dsts.begin(),
-                              unique_dsts.end(),
-                              [sorted_unique_srcs = raft::device_span<vertex_t const>(
-                                 unique_srcs.data(), unique_srcs.size())] __device__(auto dst) {
-                                return thrust::binary_search(thrust::seq,
-                                                             sorted_unique_srcs.begin(),
-                                                             sorted_unique_srcs.end(),
-                                                             dst);
-                              })),
-          handle.get_stream());
+          auto pair_first =
+            thrust::make_zip_iterator(unique_dsts.begin(), (*unique_dst_hops).begin());
+          thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + unique_dsts.size());
+          unique_dsts.resize(
+            thrust::distance(unique_dsts.begin(),
+                             thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                  unique_dsts.begin(),
+                                                                  unique_dsts.end(),
+                                                                  (*unique_dst_hops).begin()))),
+            handle.get_stream());
+          (*unique_dst_hops).resize(unique_dsts.size(), handle.get_stream());
+        } else {
+          thrust::sort(handle.get_thrust_policy(), unique_dsts.begin(), unique_dsts.end());
+          unique_dsts.resize(
+            thrust::distance(
+              unique_dsts.begin(),
+              thrust::unique(handle.get_thrust_policy(), unique_dsts.begin(), unique_dsts.end())),
+            handle.get_stream());
+        }
 
         rmm::device_uvector<vertex_t> sorted_org_vertices(this_label_renumber_map.size(),
                                                           handle.get_stream());
@@ -316,51 +328,56 @@ class Tests_RenumberSampledEdgelist
                             sorted_org_vertices.end(),
                             matching_renumbered_vertices.begin());
 
-        auto max_src_renumbered_vertex = thrust::transform_reduce(
-          handle.get_thrust_policy(),
-          unique_srcs.begin(),
-          unique_srcs.end(),
-          [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                   sorted_org_vertices.size()),
-           matching_renumbered_vertices = raft::device_span<vertex_t const>(
-             matching_renumbered_vertices.data(),
-             matching_renumbered_vertices.size())] __device__(vertex_t src) {
-            auto it = thrust::lower_bound(
-              thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), src);
-            return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-          },
-          std::numeric_limits<vertex_t>::lowest(),
-          thrust::maximum<vertex_t>{});
-
-        auto min_dst_renumbered_vertex = thrust::transform_reduce(
-          handle.get_thrust_policy(),
-          unique_dsts.begin(),
-          unique_dsts.end(),
-          [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                   sorted_org_vertices.size()),
-           matching_renumbered_vertices = raft::device_span<vertex_t const>(
-             matching_renumbered_vertices.data(),
-             matching_renumbered_vertices.size())] __device__(vertex_t dst) {
-            auto it = thrust::lower_bound(
-              thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), dst);
-            return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-          },
-          std::numeric_limits<vertex_t>::max(),
-          thrust::minimum<vertex_t>{});
-
-        ASSERT_TRUE(max_src_renumbered_vertex < min_dst_renumbered_vertex)
-          << "Invariants violated, a source vertex is renumbered to a non-smaller value than a "
-             "vertex that appear only in the edge list destinations.";
-
         if (this_label_edgelist_hops) {
+          rmm::device_uvector<vertex_t> merged_vertices(unique_srcs.size() + unique_dsts.size(),
+                                                        handle.get_stream());
+          rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
+          rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
+
+          auto src_triplet_first =
+            thrust::make_zip_iterator(unique_srcs.begin(),
+                                      (*unique_src_hops).begin(),
+                                      thrust::make_constant_iterator(int8_t{0}));
+          auto dst_triplet_first =
+            thrust::make_zip_iterator(unique_dsts.begin(),
+                                      (*unique_dst_hops).begin(),
+                                      thrust::make_constant_iterator(int8_t{1}));
+          thrust::merge(handle.get_thrust_policy(),
+                        src_triplet_first,
+                        src_triplet_first + unique_srcs.size(),
+                        dst_triplet_first,
+                        dst_triplet_first + unique_dsts.size(),
+                        thrust::make_zip_iterator(
+                          merged_vertices.begin(), merged_hops.begin(), merged_flags.begin()));
+          merged_vertices.resize(
+            thrust::distance(
+              merged_vertices.begin(),
+              thrust::get<0>(thrust::unique_by_key(
+                handle.get_thrust_policy(),
+                merged_vertices.begin(),
+                merged_vertices.end(),
+                thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
+            handle.get_stream());
+          merged_hops.resize(merged_vertices.size(), handle.get_stream());
+          merged_flags.resize(merged_vertices.size(), handle.get_stream());
+
+          auto sort_key_first =
+            thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin());
           thrust::sort_by_key(handle.get_thrust_policy(),
-                              (*unique_src_hops).begin(),
-                              (*unique_src_hops).end(),
-                              unique_srcs.begin());
-          rmm::device_uvector<vertex_t> min_vertices(usecase.num_hops, handle.get_stream());
-          rmm::device_uvector<vertex_t> max_vertices(usecase.num_hops, handle.get_stream());
-          auto unique_renumbered_src_first = thrust::make_transform_iterator(
-            unique_srcs.begin(),
+                              sort_key_first,
+                              sort_key_first + merged_hops.size(),
+                              merged_vertices.begin());
+
+          auto num_unique_keys = thrust::count_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(merged_hops.size()),
+            cugraph::detail::is_first_in_run_t<decltype(sort_key_first)>{sort_key_first});
+          rmm::device_uvector<vertex_t> min_vertices(num_unique_keys, handle.get_stream());
+          rmm::device_uvector<vertex_t> max_vertices(num_unique_keys, handle.get_stream());
+
+          auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
+            merged_vertices.begin(),
             [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
                                                                      sorted_org_vertices.size()),
              matching_renumbered_vertices = raft::device_span<vertex_t const>(
@@ -372,32 +389,27 @@ class Tests_RenumberSampledEdgelist
                                                                    it)];
             });
 
-          auto this_label_num_unique_hops = static_cast<size_t>(
-            thrust::distance(min_vertices.begin(),
-                             thrust::get<1>(thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                                  (*unique_src_hops).begin(),
-                                                                  (*unique_src_hops).end(),
-                                                                  unique_renumbered_src_first,
-                                                                  thrust::make_discard_iterator(),
-                                                                  min_vertices.begin(),
-                                                                  thrust::equal_to<vertex_t>{},
-                                                                  thrust::minimum<vertex_t>{}))));
-          min_vertices.resize(this_label_num_unique_hops, handle.get_stream());
-
           thrust::reduce_by_key(handle.get_thrust_policy(),
-                                (*unique_src_hops).begin(),
-                                (*unique_src_hops).end(),
-                                unique_renumbered_src_first,
+                                sort_key_first,
+                                sort_key_first + merged_hops.size(),
+                                renumbered_merged_vertex_first,
+                                thrust::make_discard_iterator(),
+                                min_vertices.begin(),
+                                thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
+                                thrust::minimum<vertex_t>{});
+          thrust::reduce_by_key(handle.get_thrust_policy(),
+                                sort_key_first,
+                                sort_key_first + merged_hops.size(),
+                                renumbered_merged_vertex_first,
                                 thrust::make_discard_iterator(),
                                 max_vertices.begin(),
-                                thrust::equal_to<vertex_t>{},
+                                thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
                                 thrust::maximum<vertex_t>{});
-          max_vertices.resize(this_label_num_unique_hops, handle.get_stream());
 
           auto num_violations =
             thrust::count_if(handle.get_thrust_policy(),
                              thrust::make_counting_iterator(size_t{1}),
-                             thrust::make_counting_iterator(this_label_num_unique_hops),
+                             thrust::make_counting_iterator(min_vertices.size()),
                              [min_vertices = raft::device_span<vertex_t const>(min_vertices.data(),
                                                                                min_vertices.size()),
                               max_vertices = raft::device_span<vertex_t const>(
@@ -406,8 +418,61 @@ class Tests_RenumberSampledEdgelist
                              });
 
           ASSERT_TRUE(num_violations == 0)
-            << "Invariant violated, a vertex with a smaller hop is renumbered to a non-smaller "
-               "value than a vertex with a larger hop.";
+            << "Invariant violated, a vertex with a smaller (hop,flag) pair is renumbered to a "
+               "larger value than a vertex with a larger (hop, flag) pair.";
+        } else {
+          unique_dsts.resize(
+            thrust::distance(
+              unique_dsts.begin(),
+              thrust::remove_if(handle.get_thrust_policy(),
+                                unique_dsts.begin(),
+                                unique_dsts.end(),
+                                [sorted_unique_srcs = raft::device_span<vertex_t const>(
+                                   unique_srcs.data(), unique_srcs.size())] __device__(auto dst) {
+                                  return thrust::binary_search(thrust::seq,
+                                                               sorted_unique_srcs.begin(),
+                                                               sorted_unique_srcs.end(),
+                                                               dst);
+                                })),
+            handle.get_stream());
+
+          auto max_src_renumbered_vertex = thrust::transform_reduce(
+            handle.get_thrust_policy(),
+            unique_srcs.begin(),
+            unique_srcs.end(),
+            [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                     sorted_org_vertices.size()),
+             matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               matching_renumbered_vertices.data(),
+               matching_renumbered_vertices.size())] __device__(vertex_t src) {
+              auto it = thrust::lower_bound(
+                thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), src);
+              return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(),
+                                                                   it)];
+            },
+            std::numeric_limits<vertex_t>::lowest(),
+            thrust::maximum<vertex_t>{});
+
+          auto min_dst_renumbered_vertex = thrust::transform_reduce(
+            handle.get_thrust_policy(),
+            unique_dsts.begin(),
+            unique_dsts.end(),
+            [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                     sorted_org_vertices.size()),
+             matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               matching_renumbered_vertices.data(),
+               matching_renumbered_vertices.size())] __device__(vertex_t dst) {
+              auto it = thrust::lower_bound(
+                thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), dst);
+              return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(),
+                                                                   it)];
+            },
+            std::numeric_limits<vertex_t>::max(),
+            thrust::minimum<vertex_t>{});
+
+          ASSERT_TRUE(max_src_renumbered_vertex < min_dst_renumbered_vertex)
+            << "Invariants violated, a source vertex is renumbered to a non-smaller value than a "
+               "vertex that appear only in the edge list destinations.";
         }
       }
     }
