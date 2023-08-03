@@ -71,19 +71,19 @@ def test_sage_conv_equality(
     assert torch.allclose(
         conv1.lin_l.weight.grad,
         conv2.lin.weight.grad[:, :in_channels_src],
-        atol=1e-6,
+        atol=ATOL,
     )
 
     if root_weight:
         assert torch.allclose(
             conv1.lin_r.weight.grad,
             conv2.lin.weight.grad[:, in_channels_src:],
-            atol=1e-6,
+            atol=ATOL,
         )
 
     if bias:
         assert torch.allclose(
             conv1.lin_l.bias.grad,
             conv2.lin.bias.grad,
-            atol=1e-6,
+            atol=ATOL,
         )

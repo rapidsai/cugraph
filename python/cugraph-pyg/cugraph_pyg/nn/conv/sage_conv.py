@@ -14,12 +14,12 @@
 from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
+from pylibcugraphops.pytorch.operators import agg_concat_n2n
 
 from .base import BaseConv
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
-ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class SAGEConv(BaseConv):
@@ -27,16 +27,17 @@ class SAGEConv(BaseConv):
     Large Graphs" <https://arxiv.org/abs/1706.02216>`_ paper.
 
     .. math::
-        \mathbf{h}_i^{k+1} = \mathbf{W}_{\mathrm{self}} \mathbf{h}_i^{k}
-        + \mathbf{W}_{\mathrm{neigh}}  \bigoplus_{j \in \mathcal{N}(i)}
-        \hat\mathbf{h}_j^k
+        \mathbf{x}^{\prime}_i = \mathbf{W}_1 \mathbf{x}_i + \mathbf{W}_2 \cdot
+        \mathrm{mean}_{j \in \mathcal{N(i)}} \mathbf{x}_j
 
-    If `project = True`, neighbor's vector will first be fed through a
-    fully-connected neural network via:
+    If :obj:`project = True`, then :math:`\mathbf{x}_j` will first get
+    projected via
 
     .. math::
-        \hat \mathbf{h}_j^k \leftarrow \sigma ( \mathbf{W}_{\mathrm{proj}}
-        \hat\mathbf{h}_j^k + \mathbf{b})
+        \mathbf{x}_j \leftarrow \sigma ( \mathbf{W}_3 \mathbf{x}_j +
+        \mathbf{b})
+
+    as described in Eq. (3) of the paper.
 
     Args:
         in_channels (int or tuple): Size of each input sample. A tuple
@@ -129,7 +130,7 @@ class SAGEConv(BaseConv):
             else:
                 x = self.pre_lin(x).relu()
 
-        out = ops_torch.operators.agg_concat_n2n(x, graph, self.aggr)
+        out = agg_concat_n2n(x, graph, self.aggr)
 
         if self.root_weight:
             out = self.lin(out)

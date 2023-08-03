@@ -14,18 +14,28 @@
 from typing import Optional, Tuple
 
 from cugraph.utilities.utils import import_optional
+from pylibcugraphops.pytorch.operators import agg_hg_basis_n2n_post
 
 from .base import BaseConv
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
-ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class RGCNConv(BaseConv):  # pragma: no cover
     r"""The relational graph convolutional operator from the `"Modeling
     Relational Data with Graph Convolutional Networks"
     <https://arxiv.org/abs/1703.06103>`_ paper.
+
+    .. math::
+        \mathbf{x}^{\prime}_i = \mathbf{\Theta}_{\textrm{root}} \cdot
+        \mathbf{x}_i + \sum_{r \in \mathcal{R}} \sum_{j \in \mathcal{N}_r(i)}
+        \frac{1}{|\mathcal{N}_r(i)|} \mathbf{\Theta}_r \cdot \mathbf{x}_j,
+
+    where :math:`\mathcal{R}` denotes the set of relations, *i.e.* edge types.
+    Edge type needs to be a one-dimensional :obj:`torch.long` tensor which
+    stores a relation identifier
+    :math:`\in \{ 0, \ldots, |\mathcal{R}| - 1\}` for each edge.
 
     Args:
         in_channels (int): Size of each input sample.
@@ -109,7 +119,7 @@ class RGCNConv(BaseConv):  # pragma: no cover
             csc, edge_type, self.num_relations, max_num_neighbors=max_num_neighbors
         )
 
-        out = ops_torch.operators.agg_hg_basis_n2n_post(
+        out = agg_hg_basis_n2n_post(
             x,
             self.comp,
             graph,
