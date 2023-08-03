@@ -395,6 +395,7 @@ class simpleDistributedGraphImpl:
 
         edgelist_df = self.input_df
         is_string_dtype = False
+        is_multi_column = False
         wgtCol = simpleDistributedGraphImpl.edgeWeightCol
         if not self.properties.directed:
             srcCol = self.source_columns
@@ -407,13 +408,16 @@ class simpleDistributedGraphImpl:
                 srcCol = self.renumber_map.renumbered_src_col_name
                 dstCol = self.renumber_map.renumbered_dst_col_name
 
-            if isinstance(srcCol, list) and len(srcCol) == 1:
+            if isinstance(srcCol, list):
                 srcCol = self.renumber_map.renumbered_src_col_name
                 dstCol = self.renumber_map.renumbered_dst_col_name
                 edgelist_df = self.edgelist.edgelist_df
                 # unrenumber before extracting the upper triangular part
-                edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
-                edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+                if len(srcCol) == 1:
+                    edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
+                    edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+                else:
+                    is_multi_column = True
 
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]
@@ -426,7 +430,7 @@ class simpleDistributedGraphImpl:
                 # will be halved.
                 edgelist_df[wgtCol] /= 2
 
-        if is_string_dtype:
+        if is_string_dtype or is_multi_column:
             # unrenumber the vertices
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
