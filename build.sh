@@ -387,10 +387,7 @@ if hasArg cugraph-nx; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-nx
     else
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            cd ${REPODIR}/python/cugraph-nx
-            python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-nx
     fi
 fi
 
