@@ -939,3 +939,49 @@ def test_graph_creation_edges(graph_file, directed, renumber):
         is_upper_triangular = list(set(is_upper_triangular.values_host))
         assert len(is_upper_triangular) == 1
         assert is_upper_triangular[0]
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", [utils.DATASETS_SMALL[0]])
+@pytest.mark.parametrize("directed", [False])
+def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
+    srcCol = ["src_0", "src_1"]
+    dstCol = ["dst_0", "dst_1"]
+    wgtCol = "weight"
+    vertexCol = srcCol + dstCol
+    columns = vertexCol.copy()
+    columns.append(wgtCol)
+
+    input_df = cudf.read_csv(
+        graph_file,
+        delimiter=" ",
+        names=[srcCol[0], dstCol[0], wgtCol],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
+    input_df["src_1"] = input_df["src_0"] + 1000
+    input_df["dst_1"] = input_df["dst_0"] + 1000
+
+    G = cugraph.Graph(directed=directed)
+    G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+
+    input_df = input_df.loc[:, columns]
+    edge_list_view = G.view_edge_list().loc[:, columns]
+    print("\nedgelist view = \n", edge_list_view.head())
+    print("\nedges = \n", G.edges().head())
+    edges = G.edges().loc[:, vertexCol]
+
+    assert_frame_equal(
+        edge_list_view.drop(columns=wgtCol)
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True),
+        edges.sort_values(by=vertexCol).reset_index(drop=True),
+        check_dtype=False,
+    )
+
+    if directed:
+        assert_frame_equal(
+            edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),
+            input_df.sort_values(by=vertexCol).reset_index(drop=True),
+            check_dtype=False,
+        )

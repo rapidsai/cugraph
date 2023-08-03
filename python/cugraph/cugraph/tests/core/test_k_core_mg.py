@@ -83,9 +83,12 @@ def input_expected_output(dask_client, input_combo):
     )
     sg_k_core_results = sg_k_core_graph.view_edge_list()
     # FIXME: The result will come asymetric. Symmetrize the results
+    srcCol = sg_k_core_graph.source_columns
+    dstCol = sg_k_core_graph.destination_columns
+    wgtCol = sg_k_core_graph.weight_column
     sg_k_core_results = (
-        symmetrize_df(sg_k_core_results, "src", "dst", "weights")
-        .sort_values(["src", "dst"])
+        symmetrize_df(sg_k_core_results, srcCol, dstCol, wgtCol)
+        .sort_values([srcCol, dstCol])
         .reset_index(drop=True)
     )
 

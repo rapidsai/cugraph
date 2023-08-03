@@ -69,8 +69,8 @@ def input_expected_output(dask_client, input_combo):
     if start_list:
         # sample k nodes from the cuGraph graph
         k = random.randint(1, 10)
-        srcs = G.view_edge_list()["src"]
-        dsts = G.view_edge_list()["dst"]
+        srcs = G.view_edge_list()[G.source_columns]
+        dsts = G.view_edge_list()[G.destination_columns]
         nodes = cudf.concat([srcs, dsts]).drop_duplicates()
         start_list = nodes.sample(k)
     else:
