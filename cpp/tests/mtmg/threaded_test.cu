@@ -161,9 +161,9 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    std::cout << "load sg graph" << std::endl;
+    std::cout << "load sg edge list" << std::endl;
 
-    // Load SG graph
+    // Load SG edge list
     auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
         handle, multithreaded_usecase.test_weighted, false, false);
@@ -248,6 +248,15 @@ class Tests_Multithreaded
 
         edgelist.get_pointer(thread_handle)->finalize_buffer(thread_handle);
         edgelist.get_pointer(thread_handle)->consolidate_and_shuffle(thread_handle, true);
+
+        raft::print_device_vector(" edgelist_majors",
+                                  edgelist.get_pointer(thread_handle)->get_dst()[0].data(),
+                                  edgelist.get_pointer(thread_handle)->get_dst()[0].size(),
+                                  std::cout);
+        raft::print_device_vector(" edgelist_minors",
+                                  edgelist.get_pointer(thread_handle)->get_src()[0].data(),
+                                  edgelist.get_pointer(thread_handle)->get_src()[0].size(),
+                                  std::cout);
 
         cugraph::mtmg::
           create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, multi_gpu>(
