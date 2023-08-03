@@ -391,18 +391,25 @@ def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
 
     sG = cugraph.Graph(directed=directed)
     mG = cugraph.Graph(directed=directed)
-    sG.from_cudf_edgelist(
-        df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
-    mG.from_dask_cudf_edgelist(
-        ddf, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+    sG.from_cudf_edgelist(df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+    mG.from_dask_cudf_edgelist(ddf, source=srcCol, destination=dstCol, edge_attr=wgtCol)
 
     columns = vertexCol.copy()
     columns.append(wgtCol)
-    
-    sG_edgelist_view = sG.view_edge_list().sort_values(
-        by=vertexCol).reset_index(drop=True).loc[:, columns]
-    mG_edgelist_view = mG.view_edge_list().compute().sort_values(
-        by=vertexCol).reset_index(drop=True).loc[:, columns]
+
+    sG_edgelist_view = (
+        sG.view_edge_list()
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True)
+        .loc[:, columns]
+    )
+    mG_edgelist_view = (
+        mG.view_edge_list()
+        .compute()
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True)
+        .loc[:, columns]
+    )
 
     assert sG.number_of_nodes() == mG.number_of_nodes()
     assert sG.number_of_edges() == mG.number_of_edges()
