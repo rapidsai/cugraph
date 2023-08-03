@@ -942,8 +942,8 @@ def test_graph_creation_edges(graph_file, directed, renumber):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [utils.DATASETS_SMALL[0]])
-@pytest.mark.parametrize("directed", [False])
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", [True, False])
 def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
     srcCol = ["src_0", "src_1"]
     dstCol = ["dst_0", "dst_1"]
@@ -967,8 +967,6 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
 
     input_df = input_df.loc[:, columns]
     edge_list_view = G.view_edge_list().loc[:, columns]
-    print("\nedgelist view = \n", edge_list_view.head())
-    print("\nedges = \n", G.edges().head())
     edges = G.edges().loc[:, vertexCol]
 
     assert_frame_equal(
@@ -978,7 +976,6 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
         edges.sort_values(by=vertexCol).reset_index(drop=True),
         check_dtype=False,
     )
-
     if directed:
         assert_frame_equal(
             edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),

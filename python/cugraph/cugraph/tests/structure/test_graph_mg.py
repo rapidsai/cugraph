@@ -363,3 +363,47 @@ def test_graph_creation_edge_properties(dask_client, graph_file, edge_props):
 
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(df, source="0", destination="1", **prop_keys)
+
+
+@pytest.mark.parametrize("directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+@pytest.mark.parametrize("graph_file", datasets)
+def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
+    srcCol = "src"
+    dstCol = "dst"
+    wgtCol = "wgt"
+    df = cudf.read_csv(
+        graph_file,
+        delimiter=" ",
+        names=[srcCol, dstCol, wgtCol],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
+
+    if renumber:
+        # trigger renumbering by passing a list of vertex column
+        srcCol = [srcCol]
+        dstCol = [dstCol]
+        vertexCol = srcCol + dstCol
+    else:
+        vertexCol = [srcCol, dstCol]
+
+    sG = cugraph.Graph(directed=directed)
+    mG = cugraph.Graph(directed=directed)
+    sG.from_cudf_edgelist(
+        df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+    mG.from_dask_cudf_edgelist(
+        ddf, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+
+    columns = vertexCol.copy()
+    columns.append(wgtCol)
+    
+    sG_edgelist_view = sG.view_edge_list().sort_values(
+        by=vertexCol).reset_index(drop=True).loc[:, columns]
+    mG_edgelist_view = mG.view_edge_list().compute().sort_values(
+        by=vertexCol).reset_index(drop=True).loc[:, columns]
+
+    assert sG.number_of_nodes() == mG.number_of_nodes()
+    assert sG.number_of_edges() == mG.number_of_edges()
+    assert_frame_equal(sG_edgelist_view, mG_edgelist_view, check_dtype=False)
