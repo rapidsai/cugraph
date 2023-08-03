@@ -395,6 +395,7 @@ class simpleDistributedGraphImpl:
 
         edgelist_df = self.input_df
         is_string_dtype = False
+        wgtCol = simpleDistributedGraphImpl.edgeWeightCol
         if not self.properties.directed:
             srcCol = self.source_columns
             dstCol = self.destination_columns
@@ -411,7 +412,6 @@ class simpleDistributedGraphImpl:
             ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
 
             edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
-            wgtCol = simpleDistributedGraphImpl.edgeWeightCol
             if wgtCol in edgelist_df.columns:
                 # FIXME: This breaks if there are are multi edges as those will
                 # be dropped during the symmetrization step and the original 'weight'
