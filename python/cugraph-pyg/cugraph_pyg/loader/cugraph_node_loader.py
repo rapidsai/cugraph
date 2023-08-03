@@ -283,11 +283,8 @@ class EXPERIMENTAL__BulkSampleLoader:
         f = self.__data["batch_id"] == self.__next_batch
         if self.__renumber_map is not None:
             i = self.__next_batch - self.__start_inclusive
-            print('i:', i)
-            print(self.__renumber_map[[i,i+1]])
             ix_start,ix_end = self.__renumber_map[[i,i+1]].tolist()
             current_renumber_map = self.__renumber_map[ix_start:ix_end]
-            print(len(current_renumber_map))
             
             if len(current_renumber_map) != ix_end - ix_start:
                 raise ValueError("invalid renumber map")

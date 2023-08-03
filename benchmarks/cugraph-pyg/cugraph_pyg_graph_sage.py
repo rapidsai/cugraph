@@ -94,8 +94,7 @@ def train_epoch(model, loader, optimizer):
         data = data.to_homogeneous()
 
         num_batches += 1
-        #if iter_i % 20 == 1:
-        if iter_i >= 1:
+        if iter_i % 20 == 1:
             print(f"iteration {iter_i}")
             print(f"num sampled nodes: {num_sampled_nodes}")
             print(f"num sampled edges: {num_sampled_edges}")
@@ -305,6 +304,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             replace=False,
             is_sorted=True,
             disjoint=False,
+            num_workers=2,
         )
         print('done creating loader')
         # loader was patched to record the feature extraction time
