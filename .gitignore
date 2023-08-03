@@ -100,3 +100,4 @@ _text
 
 # clang tooling
 compile_commands.json
+.clangd/
