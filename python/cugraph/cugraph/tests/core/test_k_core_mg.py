@@ -147,7 +147,9 @@ def test_dask_k_core(dask_client, benchmark, input_expected_output):
     expected_k_core_results = input_expected_output["sg_k_core_results"]
 
     k_core_results = (
-        k_core_results.compute().sort_values(["src", "dst"]).reset_index(drop=True)
+        k_core_results.compute().sort_values(
+            ["src", "dst"]).reset_index(drop=True).rename(
+                columns={"weights": "weight"})
     )
 
     assert_frame_equal(
