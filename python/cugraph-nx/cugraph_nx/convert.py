@@ -61,13 +61,19 @@ def from_networkx(
         Dict that maps edge attributes to default values if missing in ``G``.
         If None, then no edge attributes will be converted.
         If default value is None, then missing values are handled with a mask.
-        For convenience, this may also be a single attribute with default 1.
+        A default value of ``cnx.convert.REQUIRED`` or ``...`` indicates that
+        all edges have data for this attribute, and raise `KeyError` if not.
+        For convenience, `edge_attrs` may be a single attribute with default 1;
+        for example ``edge_attrs="weight"``.
     edge_dtypes : dtype or dict, optional
     node_attrs : str or dict, optional
         Dict that maps node attributes to default values if missing in ``G``.
         If None, then no node attributes will be converted.
         If default value is None, then missing values are handled with a mask.
-        For convenience, this may also be a single attribute with no default.
+        A default value of ``cnx.convert.REQUIRED`` or ``...`` indicates that
+        all edges have data for this attribute, and raise `KeyError` if not.
+        For convenience, `node_attrs` may be a single attribute with no default;
+        for example ``node_attrs="weight"``.
     node_dtypes : dtype or dict, optional
     preserve_all_attrs : bool, default False
         If True, then equivalent to setting preserve_edge_attrs, preserve_node_attrs,
@@ -89,6 +95,19 @@ def from_networkx(
     Returns
     -------
     cugraph_nx.Graph
+
+    Notes
+    -----
+    For optimal performance, be as specific as possible about what is being converted:
+
+    1. Do you need edge values? Creating a graph with just the structure is the fastest.
+    2. Do you know the edge attribute(s) you need? Specify with `edge_attrs`.
+    3. Do you know the default values? Specify with ``edge_attrs={weight: default}``.
+    4. Do you know if all edges have values? Specify with ``edge_attrs={weight: ...}``.
+    5. Do you know the dtype of attributes? Specify with `edge_dtypes`.
+
+    Conversely, using ``preserve_edge_attrs=True`` or ``preserve_all_attrs=True`` are
+    the slowest, but are also the most flexible and generic.
 
     See Also
     --------
