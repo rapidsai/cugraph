@@ -89,4 +89,4 @@ from pylibcugraph.generate_rmat_edgelists import generate_rmat_edgelists
 
 from pylibcugraph import exceptions
 
-__version__ = "23.08.00"
+__version__ = "23.10.00"
