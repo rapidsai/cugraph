@@ -102,7 +102,7 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     gc.collect()
@@ -111,7 +111,7 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     # read_weights_in_sp=True => value column dtype is float32
     G = graph_file.get_graph()
     NM = G.to_pandas_edgelist().rename(
-        columns={"src": "0", "dst": "1", "weights": "weight"}
+        columns={"src": "0", "dst": "1", "wgt": "weight"}
     )
 
     G = nx.from_pandas_edgelist(
