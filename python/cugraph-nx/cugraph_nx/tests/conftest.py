@@ -10,8 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 def pytest_configure(config):
     # Run benchmarks (and only benchmarks) with `--bench` argument
     if config.getoption("--bench", False) or config.getoption(

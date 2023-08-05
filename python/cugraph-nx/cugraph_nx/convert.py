@@ -245,7 +245,11 @@ def from_networkx(
 
     key_to_id = dict(zip(adj, range(N)))
     col_iter = concat(adj.values())
-    if all(k == v for k, v in key_to_id.items()):
+    try:
+        no_renumber = all(k == v for k, v in key_to_id.items())
+    except Exception:
+        no_renumber = False
+    if no_renumber:
         key_to_id = None
     else:
         col_iter = map(key_to_id.__getitem__, col_iter)

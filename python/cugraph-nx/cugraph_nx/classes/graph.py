@@ -12,6 +12,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import operator as op
 from copy import deepcopy
 from typing import TYPE_CHECKING, ClassVar
 
@@ -79,13 +80,13 @@ class Graph:
         self = object.__new__(cls)
         self.row_indices = row_indices
         self.col_indices = col_indices
-        self.edge_values = {} if edge_values is None else edge_values
-        self.edge_masks = {} if edge_masks is None else edge_masks
-        self.node_values = {} if node_values is None else node_values
-        self.node_masks = {} if node_masks is None else node_masks
-        self.key_to_id = key_to_id
-        self._id_to_key = id_to_key
-        self._N = N
+        self.edge_values = {} if edge_values is None else dict(edge_values)
+        self.edge_masks = {} if edge_masks is None else dict(edge_masks)
+        self.node_values = {} if node_values is None else dict(node_values)
+        self.node_masks = {} if node_masks is None else dict(node_masks)
+        self.key_to_id = None if key_to_id is None else dict(key_to_id)
+        self._id_to_key = None if id_to_key is None else dict(id_to_key)
+        self._N = op.index(N)  # Ensure N is integral
         self.graph = self.graph_attr_dict_factory()
         self.graph.update(attr)
         size = self.row_indices.size

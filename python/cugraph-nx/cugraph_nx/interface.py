@@ -25,7 +25,9 @@ class Dispatcher:
 
     # Required conversions
     @staticmethod
-    def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
+    def convert_from_nx(
+        graph, *args, edge_attrs=None, weight=None, is_testing=False, **kwargs
+    ):
         if weight is not None:
             # For networkx 3.0 and 3.1 compatibility
             if edge_attrs is not None:
@@ -33,7 +35,7 @@ class Dispatcher:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        if isinstance(graph, nx.MultiGraph):
+        if is_testing and isinstance(graph, nx.MultiGraph):
             return graph  # TODO: implement digraph support
         return cnx.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
 
@@ -47,7 +49,7 @@ class Dispatcher:
     def on_start_tests(items):
         try:
             import pytest
-        except ImportError:
+        except ModuleNotFoundError:
             return
 
         def key(testpath):

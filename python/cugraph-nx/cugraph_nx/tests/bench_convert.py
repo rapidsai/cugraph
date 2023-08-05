@@ -20,11 +20,11 @@ import cugraph_nx as cnx
 
 try:
     import cugraph
-except ImportError:
+except ModuleNotFoundError:
     cugraph = None
 try:
     import scipy
-except ImportError:
+except ModuleNotFoundError:
     scipy = None
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -34,7 +34,7 @@ except ImportError:
 # pytest-benchmark.
 try:
     import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
+except ModuleNotFoundError:
     import pytest_benchmark
 
     gpubenchmark = pytest_benchmark.plugin.benchmark

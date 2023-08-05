@@ -1,7 +1,3 @@
-from functools import partial
-
-import networkx as nx
-
 # Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +10,9 @@ import networkx as nx
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from functools import partial
+
+import networkx as nx
 from networkx.utils.decorators import not_implemented_for
 
 __all__ = ["not_implemented_for", "networkx_api"]
