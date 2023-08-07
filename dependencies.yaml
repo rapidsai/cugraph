@@ -308,7 +308,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - cython>=0.29,<0.30
+          - cython>=3.0.0
           - &pylibraft pylibraft==23.10.*
           - &rmm rmm==23.10.*
           - scikit-build>=0.13.1
