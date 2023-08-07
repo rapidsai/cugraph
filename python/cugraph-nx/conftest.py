@@ -17,5 +17,12 @@ def pytest_addoption(parser):
         "--bench",
         action="store_true",
         default=False,
-        help="Run benchmarks (sugar for --benchmark-enable) and skip other tests",
+        help="Run benchmarks (sugar for --benchmark-enable) and skip other tests"
+        " (to run both benchmarks AND tests, use --all)",
+    )
+    parser.addoption(
+        "--all",
+        action="store_true",
+        default=False,
+        help="Run benchmarks AND tests (unlike --bench, which only runs benchmarks)",
     )

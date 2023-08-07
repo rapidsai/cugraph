@@ -39,6 +39,7 @@ dependencies = [
 test = [
     "pytest",
     "pytest-benchmark",
+    "pytest-mpl",
 ]
 
 [project.urls]

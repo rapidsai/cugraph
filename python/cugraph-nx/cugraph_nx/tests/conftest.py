@@ -11,15 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 def pytest_configure(config):
-    # Run benchmarks (and only benchmarks) with `--bench` argument
-    if config.getoption("--bench", False) or config.getoption(
+    if config.getoption("--all", False):
+        # Run benchmarks AND tests
+        config.option.benchmark_skip = False
+        config.option.benchmark_enable = True
+    elif config.getoption("--bench", False) or config.getoption(
         "--benchmark-enable", False
     ):
+        # Run benchmarks (and only benchmarks) with `--bench` argument
         config.option.benchmark_skip = False
         config.option.benchmark_enable = True
         if not config.option.keyword:
             config.option.keyword = "bench_"
     else:
+        # Run only tests
         config.option.benchmark_skip = True
         config.option.benchmark_enable = False
         if not config.option.keyword:
