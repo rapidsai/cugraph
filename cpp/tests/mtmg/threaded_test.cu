@@ -109,7 +109,7 @@ class Tests_Multithreaded
     cugraph::mtmg::resource_manager_t resource_manager;
 
     std::for_each(gpu_list.begin(), gpu_list.end(), [&resource_manager](int gpu_id) {
-      resource_manager.register_local_gpu(gpu_id, gpu_id);
+      resource_manager.register_local_gpu(gpu_id, rmm::cuda_device_id{gpu_id});
     });
 
     ncclUniqueId instance_manager_id;

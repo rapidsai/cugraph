@@ -18,11 +18,14 @@
 
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/mtmg/instance_manager.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/std_comms.hpp>
 
+#include <rmm/cuda_device.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/device/pool_memory_resource.hpp>
 
 #include <execution>
 
@@ -60,7 +63,7 @@ class resource_manager_t {
    * @param rank       The rank to assign to the local GPU
    * @param device_id  The device_id corresponding to this rank
    */
-  void register_local_gpu(int rank, int device_id)
+  void register_local_gpu(int rank, rmm::cuda_device_id device_id)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
@@ -70,9 +73,24 @@ class resource_manager_t {
     int num_gpus_this_node;
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_this_node));
 
-    CUGRAPH_EXPECTS((device_id >= 0) && (device_id < num_gpus_this_node), "device id out of range");
+    CUGRAPH_EXPECTS((device_id.value() >= 0) && (device_id.value() < num_gpus_this_node),
+                    "device id out of range");
 
-    local_rank_map_[rank] = device_id;
+    local_rank_map_.insert(std::pair(rank, device_id));
+
+    cudaSetDevice(device_id.value());
+
+    // FIXME: I should pass in RMM parameters here?
+    auto const [free, total] = rmm::detail::available_device_memory();
+    auto const min_alloc =
+      rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
+
+    auto per_device_it = per_device_rmm_resources_.insert(
+      std::pair{rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
+    // rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(std::make_shared<rmm::mr::cuda_memory_resource>(),
+    // min_alloc)});
+
+    rmm::mr::set_per_device_resource(device_id, per_device_it.first->second.get());
   }
 
 #if 0
@@ -111,55 +129,62 @@ class resource_manager_t {
                         "requesting inclusion of an invalid rank");
       });
 
-    ncclGroupStart();
+    std::vector<std::shared_ptr<ncclComm_t>> nccl_comms{};
+    std::vector<std::shared_ptr<raft::handle_t>> handles{};
+    std::vector<rmm::cuda_device_id> device_ids{};
 
-    std::vector<std::shared_ptr<ncclComm_t>> nccl_comms(ranks_to_include.size());
-    std::vector<std::shared_ptr<raft::handle_t>> handles(ranks_to_include.size());
-    std::vector<int> device_ids(ranks_to_include.size());
+    nccl_comms.reserve(ranks_to_include.size());
+    handles.reserve(ranks_to_include.size());
+    device_ids.reserve(ranks_to_include.size());
+
+    // FIXME: not quite right for multi-node
+    auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(ranks_to_include.size())));
+    while (ranks_to_include.size() % gpu_row_comm_size != 0) {
+      --gpu_row_comm_size;
+    }
+
+    // FIXME: not quite right for multi-node
+    for (size_t i = 0; i < ranks_to_include.size(); ++i) {
+      int rank = ranks_to_include[i];
+      auto pos = local_rank_map_.find(rank);
+      cudaSetDevice(pos->second.value());
+
+      raft::handle_t tmp_handle;
+
+      nccl_comms.push_back(std::make_shared<ncclComm_t>());
+      handles.push_back(std::make_shared<raft::handle_t>(
+        tmp_handle, per_device_rmm_resources_.find(rank)->second.get()));
+      device_ids.push_back(pos->second);
+    }
 
     std::vector<std::thread> running_threads;
 
     for (size_t i = 0; i < ranks_to_include.size(); ++i) {
       running_threads.emplace_back([instance_manager_id,
                                     idx = i,
-                                    this,
+                                    gpu_row_comm_size,
+                                    comm_size = ranks_to_include.size(),
                                     &ranks_to_include,
-                                    &local_ranks = local_rank_map_,
+                                    &local_rank_map = local_rank_map_,
                                     &nccl_comms,
-                                    &handles,
-                                    &device_ids]() {
+                                    &handles]() {
         int rank = ranks_to_include[idx];
+        auto pos = local_rank_map.find(rank);
+        cudaSetDevice(pos->second.value());
 
-        // FIXME: not quite right for multi-node
-        auto nccl_comm = std::make_shared<ncclComm_t>();
-        auto pos       = local_ranks.find(rank);
-        cudaSetDevice(pos->second);
-        ncclCommInitRank(nccl_comm.get(), local_ranks.size(), instance_manager_id, rank);
+        std::cout << "call nccl_comms_init_rank, rank = " << idx << std::endl;
 
-        // FIXME: I should pass in RMM parameters here?
-        auto handle = std::make_shared<raft::handle_t>();
+        ncclCommInitRank(nccl_comms[idx].get(), comm_size, instance_manager_id, rank);
 
-        raft::comms::build_comms_nccl_only(handle.get(), *nccl_comm, local_ranks.size(), rank);
+        std::cout << "call build_comms_nccl_only" << std::endl;
+        raft::comms::build_comms_nccl_only(handles[idx].get(), *nccl_comms[idx], comm_size, rank);
+        std::cout << "back from build_comms_nccl_only" << std::endl;
 
-        auto& comm           = handle->get_comms();
-        auto const comm_size = comm.get_size();
-
-        auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-        while (comm_size % gpu_row_comm_size != 0) {
-          --gpu_row_comm_size;
-        }
-
-        cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
-
-        nccl_comms[idx] = nccl_comm;
-        handles[idx]    = handle;
-        device_ids[idx] = pos->second;
+        cugraph::partition_manager::init_subcomm(*handles[idx], gpu_row_comm_size);
       });
     }
 
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
-
-    ncclGroupEnd();
 
     return std::make_unique<instance_manager_t>(
       std::move(handles), std::move(nccl_comms), std::move(device_ids));
@@ -191,7 +216,10 @@ class resource_manager_t {
 
  private:
   mutable std::mutex lock_{};
-  std::map<int, int> local_rank_map_{};
+  std::map<int, rmm::cuda_device_id> local_rank_map_{};
+  // Look at making this immutable (normal)
+  mutable std::map<int, std::shared_ptr<rmm::mr::device_memory_resource>>
+    per_device_rmm_resources_{};
 
 #if 0
   //

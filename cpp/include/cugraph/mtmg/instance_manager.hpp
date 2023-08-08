@@ -37,7 +37,7 @@ class instance_manager_t {
    */
   instance_manager_t(std::vector<std::shared_ptr<raft::handle_t>>&& handles,
                      std::vector<std::shared_ptr<ncclComm_t>>&& nccl_comms,
-                     std::vector<int>&& device_ids)
+                     std::vector<rmm::cuda_device_id>&& device_ids)
     : thread_counter_{0}, raft_handle_{handles}, nccl_comms_{nccl_comms}, device_ids_{device_ids}
   {
   }
@@ -57,7 +57,7 @@ class instance_manager_t {
   {
     int local_id = thread_counter_++;
 
-    cudaSetDevice(device_ids_[local_id % raft_handle_.size()]);
+    cudaSetDevice(device_ids_[local_id % raft_handle_.size()].value());
     return handle_t(raft_handle_[local_id % raft_handle_.size()],
                     local_id / raft_handle_.size(),
                     static_cast<size_t>(local_id % raft_handle_.size()));
@@ -80,7 +80,7 @@ class instance_manager_t {
   //
   std::vector<std::shared_ptr<raft::handle_t>> raft_handle_{};
   std::vector<std::shared_ptr<ncclComm_t>> nccl_comms_{};
-  std::vector<int> device_ids_{};
+  std::vector<rmm::cuda_device_id> device_ids_{};
 };
 
 }  // namespace mtmg
