@@ -1,0 +1,29 @@
+name: email-Eu-core
+file_type: .csv
+description:
+  The network was generated using anonymized email data from a large European
+  research institution. There is an edge (u, v) in the network if person u sent
+  person v at least one email. The e-mails only represent communication between
+  institution members (the core), and the dataset does not contain incoming messages
+  from or outgoing messages to the rest of the world.
+author: Jure Leskovec
+refs:
+  - Hao Yin, Austin R. Benson, Jure Leskovec, and David F. Gleich. 'Local Higher-order Graph Clustering.' In Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. 2017.
+  - J. Leskovec, J. Kleinberg and C. Faloutsos. Graph Evolution. Densification and Shrinking Diameters. ACM Transactions on Knowledge Discovery from Data (ACM TKDD), 1(1), 2007.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: true
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 25571
+number_of_nodes: 1005
+url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv

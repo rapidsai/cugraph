@@ -13,18 +13,13 @@
 
 import gc
 import time
+
 import pytest
 import numpy as np
+import networkx as nx
 
 import cugraph
-from cugraph.experimental.datasets import DATASETS
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
+from cugraph.testing import DEFAULT_DATASETS
 
 
 # =============================================================================
@@ -34,18 +29,13 @@ def setup_function():
     gc.collect()
 
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
-
 print("Networkx version : {} ".format(nx.__version__))
 
 SOURCES = [1]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_filter_unreachable(graph_file, source):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))

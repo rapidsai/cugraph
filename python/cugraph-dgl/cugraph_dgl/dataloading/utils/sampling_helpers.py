@@ -29,130 +29,189 @@ def cast_to_tensor(ser: cudf.Series):
     return torch.as_tensor(ser.values, device="cuda")
 
 
-def _get_tensor_ls_from_sampled_df(df):
+def _split_tensor(t, split_indices):
+    """
+    Split a tensor into a list of tensors based on split_indices.
+    """
+    # TODO: Switch to something below
+    # return [t[i:j] for i, j in zip(split_indices[:-1], split_indices[1:])]
+    if split_indices.device.type != "cpu":
+        split_indices = split_indices.to("cpu")
+    return torch.tensor_split(t, split_indices)
+
+
+def _get_renumber_map(df):
+    map = df["map"]
+    df.drop(columns=["map"], inplace=True)
+
+    map_starting_offset = map.iloc[0]
+    renumber_map = map[map_starting_offset:].dropna().reset_index(drop=True)
+    renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
+    renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
+
+    # Drop all rows with NaN values
+    df.dropna(axis=0, how="all", inplace=True)
+    df.reset_index(drop=True, inplace=True)
+
+    return df, cast_to_tensor(renumber_map), cast_to_tensor(renumber_map_batch_indices)
+
+
+def _get_tensor_d_from_sampled_df(df):
     """
     Converts a sampled cuDF DataFrame into a list of tensors.
 
     Args:
         df (cudf.DataFrame): The sampled cuDF DataFrame containing columns
-        'batch_id', 'sources', 'destinations', 'edge_id', and 'hop_id'.
-
     Returns:
-        list: A list of tuples, where each tuple contains three tensors:
-              'sources', 'destinations', and 'edge_id'.
-              The tensors are split based on 'batch_id' and 'hop_id'.
-
+        dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
+    df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
     batch_id_tensor = cast_to_tensor(df["batch_id"])
+    batch_id_min = batch_id_tensor.min()
+    batch_id_max = batch_id_tensor.max()
     batch_indices = torch.arange(
-        start=batch_id_tensor.min() + 1,
-        end=batch_id_tensor.max() + 1,
+        start=batch_id_min + 1,
+        end=batch_id_max + 1,
         device=batch_id_tensor.device,
     )
-    batch_indices = torch.searchsorted(batch_id_tensor, batch_indices)
+    # TODO: Fix below
+    # batch_indices = _get_id_tensor_boundaries(batch_id_tensor)
+    batch_indices = torch.searchsorted(batch_id_tensor, batch_indices).to("cpu")
+    split_d = {i: {} for i in range(batch_id_min, batch_id_max + 1)}
 
-    split_d = {}
+    for column in df.columns:
+        if column != "batch_id":
+            t = cast_to_tensor(df[column])
+            split_t = _split_tensor(t, batch_indices)
+            for bid, batch_t in zip(split_d.keys(), split_t):
+                split_d[bid][column] = batch_t
 
-    for column in ["sources", "destinations", "edge_id", "hop_id"]:
-        if column in df.columns:
-            tensor = cast_to_tensor(df[column])
-            split_d[column] = torch.tensor_split(tensor, batch_indices.cpu())
+    split_t = _split_tensor(renumber_map, renumber_map_batch_indices)
+    for bid, batch_t in zip(split_d.keys(), split_t):
+        split_d[bid]["map"] = batch_t
+    del df
+    result_tensor_d = {}
+    for batch_id, batch_d in split_d.items():
+        hop_id_tensor = batch_d["hop_id"]
+        hop_id_min = hop_id_tensor.min()
+        hop_id_max = hop_id_tensor.max()
 
-    result_tensor_ls = []
-    for i, hop_id_tensor in enumerate(split_d["hop_id"]):
         hop_indices = torch.arange(
-            start=hop_id_tensor.min() + 1,
-            end=hop_id_tensor.max() + 1,
+            start=hop_id_min + 1,
+            end=hop_id_max + 1,
             device=hop_id_tensor.device,
         )
-        hop_indices = torch.searchsorted(hop_id_tensor, hop_indices)
-        s = torch.tensor_split(split_d["sources"][i], hop_indices.cpu())
-        d = torch.tensor_split(split_d["destinations"][i], hop_indices.cpu())
-        if "edge_id" in split_d:
-            eid = torch.tensor_split(split_d["edge_id"][i], hop_indices.cpu())
-        else:
-            eid = [None] * len(s)
+        # TODO: Fix below
+        # hop_indices = _get_id_tensor_boundaries(hop_id_tensor)
+        hop_indices = torch.searchsorted(hop_id_tensor, hop_indices).to("cpu")
+        hop_split_d = {i: {} for i in range(hop_id_min, hop_id_max + 1)}
+        for column, t in batch_d.items():
+            if column not in ["hop_id", "map"]:
+                split_t = _split_tensor(t, hop_indices)
+                for hid, ht in zip(hop_split_d.keys(), split_t):
+                    hop_split_d[hid][column] = ht
 
-        result_tensor_ls.append((x, y, z) for x, y, z in zip(s, d, eid))
-
-    return result_tensor_ls
+        result_tensor_d[batch_id] = hop_split_d
+        if "map" in batch_d:
+            result_tensor_d[batch_id]["map"] = batch_d["map"]
+    return result_tensor_d
 
 
 def create_homogeneous_sampled_graphs_from_dataframe(
     sampled_df: cudf.DataFrame,
-    total_number_of_nodes: int,
     edge_dir: str = "in",
 ):
     """
     This helper function creates DGL MFGS  for
     homogeneous graphs from cugraph sampled dataframe
+
+    Args:
+        sampled_df (cudf.DataFrame): The sampled cuDF DataFrame containing
+            columns `sources`, `destinations`, `edge_id`, `batch_id` and
+            `hop_id`.
+        edge_dir (str): Direction of edges from samples
+    Returns:
+        list: A list containing three elements:
+            - input_nodes: The input nodes for the batch.
+            - output_nodes: The output nodes for the batch.
+            - graph_per_hop_ls: A list of DGL MFGS for each hop.
     """
-    result_tensor_ls = _get_tensor_ls_from_sampled_df(sampled_df)
+    result_tensor_d = _get_tensor_d_from_sampled_df(sampled_df)
+    del sampled_df
     result_mfgs = [
         _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_perhop_ls, total_number_of_nodes, edge_dir
+            tensors_batch_d, edge_dir
         )
-        for tensors_perhop_ls in result_tensor_ls
+        for tensors_batch_d in result_tensor_d.values()
     ]
-    del result_tensor_ls
+    del result_tensor_d
     return result_mfgs
 
 
-def _create_homogeneous_sampled_graphs_from_tensors_perhop(
-    tensors_perhop_ls, total_number_of_nodes, edge_dir
-):
+def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge_dir):
+    """
+    This helper function creates sampled DGL MFGS for
+    homogeneous graphs from tensors per hop for a single
+    batch
+
+    Args:
+        tensors_batch_d (dict): A dictionary of tensors, keyed by hop_id.
+        edge_dir (str): Direction of edges from samples
+    Returns:
+        tuple: A tuple of three elements:
+            - input_nodes: The input nodes for the batch.
+            - output_nodes: The output nodes for the batch.
+            - graph_per_hop_ls: A list of DGL MFGS for each hop.
+    """
     if edge_dir not in ["in", "out"]:
         raise ValueError(f"Invalid edge_dir {edge_dir} provided")
     if edge_dir == "out":
         raise ValueError("Outwards edges not supported yet")
     graph_per_hop_ls = []
-    output_nodes = None
-    seed_nodes = None
-    for src_ids, dst_ids, edge_ids in tensors_perhop_ls:
-        # print("Creating block", flush=True)
-        block = create_homogeneous_dgl_block_from_tensors_ls(
-            src_ids=src_ids,
-            dst_ids=dst_ids,
-            edge_ids=edge_ids,
-            seed_nodes=seed_nodes,
-            total_number_of_nodes=total_number_of_nodes,
-        )
-        seed_nodes = block.srcdata[dgl.NID]
-        if output_nodes is None:
-            output_nodes = block.dstdata[dgl.NID]
-        graph_per_hop_ls.append(block)
+    seednodes = None
+    for hop_id, tensor_per_hop_d in tensors_batch_d.items():
+        if hop_id != "map":
+            block = _create_homogeneous_dgl_block_from_tensor_d(
+                tensor_per_hop_d, tensors_batch_d["map"], seednodes
+            )
+            seednodes = torch.concat(
+                [tensor_per_hop_d["sources"], tensor_per_hop_d["destinations"]]
+            )
+            graph_per_hop_ls.append(block)
 
     # default DGL behavior
     if edge_dir == "in":
         graph_per_hop_ls.reverse()
-    return seed_nodes, output_nodes, graph_per_hop_ls
+
+    input_nodes = graph_per_hop_ls[0].srcdata[dgl.NID]
+    output_nodes = graph_per_hop_ls[-1].dstdata[dgl.NID]
+    return input_nodes, output_nodes, graph_per_hop_ls
 
 
-def create_homogeneous_dgl_block_from_tensors_ls(
-    src_ids: torch.Tensor,
-    dst_ids: torch.Tensor,
-    edge_ids: Optional[torch.Tensor],
-    seed_nodes: Optional[torch.Tensor],
-    total_number_of_nodes: int,
-):
-    sampled_graph = dgl.graph(
-        (src_ids, dst_ids),
-        num_nodes=total_number_of_nodes,
+def _create_homogeneous_dgl_block_from_tensor_d(tensor_d, renumber_map, seednodes=None):
+    rs = tensor_d["sources"]
+    rd = tensor_d["destinations"]
+
+    max_src_nodes = rs.max()
+    max_dst_nodes = rd.max()
+    if seednodes is not None:
+        # If we have isolated vertices
+        # sources can be missing from seednodes
+        # so we add them
+        # to ensure all the blocks are
+        # linedup correctly
+        max_dst_nodes = max(max_dst_nodes, seednodes.max())
+
+    data_dict = {("_N", "_E", "_N"): (rs, rd)}
+    num_src_nodes = {"_N": max_src_nodes.item() + 1}
+    num_dst_nodes = {"_N": max_dst_nodes.item() + 1}
+    block = dgl.create_block(
+        data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
     )
-    if edge_ids is not None:
-        sampled_graph.edata[dgl.EID] = edge_ids
-    # TODO: Check if unique is needed
-    if seed_nodes is None:
-        seed_nodes = dst_ids.unique()
-
-    block = dgl.to_block(
-        sampled_graph,
-        dst_nodes=seed_nodes,
-        src_nodes=src_ids.unique(),
-        include_dst_in_src=True,
-    )
-    if edge_ids is not None:
-        block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
+    if "edge_id" in tensor_d:
+        block.edata[dgl.EID] = tensor_d["edge_id"]
+    block.srcdata[dgl.NID] = renumber_map[block.srcnodes()]
+    block.dstdata[dgl.NID] = renumber_map[block.dstnodes()]
     return block
 
 

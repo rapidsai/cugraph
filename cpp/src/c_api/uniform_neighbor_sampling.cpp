@@ -236,9 +236,9 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         std::tie(src, dst, renumber_map, renumber_map_offsets) = cugraph::renumber_sampled_edgelist(
           handle_,
           std::move(src),
+          std::move(dst),
           hop ? std::make_optional(raft::device_span<int32_t const>{hop->data(), hop->size()})
               : std::nullopt,
-          std::move(dst),
           std::make_optional(std::make_tuple(
             raft::device_span<label_t const>{edge_label->data(), edge_label->size()},
             raft::device_span<size_t const>{offsets->data(), offsets->size()})),

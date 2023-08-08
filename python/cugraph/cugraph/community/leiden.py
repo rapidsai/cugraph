@@ -94,8 +94,8 @@ def leiden(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> parts, modularity_score = cugraph.leiden(G)
 
     """

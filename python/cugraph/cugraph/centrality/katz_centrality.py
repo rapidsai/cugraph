@@ -105,8 +105,8 @@ def katz_centrality(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> kc = cugraph.katz_centrality(G)
 
     """

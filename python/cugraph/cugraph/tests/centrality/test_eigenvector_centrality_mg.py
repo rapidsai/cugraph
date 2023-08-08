@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import numpy as np
-import pytest
-import cugraph.dask as dcg
 import gc
-import cugraph
-import dask_cudf
+
+import pytest
+
 import cudf
+import dask_cudf
+import cugraph
+import cugraph.dask as dcg
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import DATASETS
 
