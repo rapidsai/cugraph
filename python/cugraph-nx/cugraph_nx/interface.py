@@ -16,18 +16,11 @@ import networkx as nx
 
 import cugraph_nx as cnx
 
-from . import algorithms
-
 
 class Dispatcher:
-    betweenness_centrality = algorithms.betweenness_centrality
-    edge_betweenness_centrality = algorithms.edge_betweenness_centrality
-
     # Required conversions
     @staticmethod
-    def convert_from_nx(
-        graph, *args, edge_attrs=None, weight=None, is_testing=False, **kwargs
-    ):
+    def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
         if weight is not None:
             # For networkx 3.0 and 3.1 compatibility
             if edge_attrs is not None:
@@ -35,8 +28,6 @@ class Dispatcher:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        if is_testing and isinstance(graph, nx.MultiGraph):
-            return graph  # TODO: implement digraph support
         return cnx.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
 
     @staticmethod
@@ -73,3 +64,17 @@ class Dispatcher:
             for (test_name, keywords), reason in skip.items():
                 if item.name == test_name and keywords.issubset(kset):
                     item.add_marker(pytest.mark.xfail(reason=reason))
+
+    @classmethod
+    def can_run(cls, name, args, kwargs):
+        """Can this backend run the specified algorithms with the given arguments?
+
+        This is a proposed API to add to networkx dispatching machinery and may change.
+        """
+        return (
+            hasattr(cls, name)
+            and getattr(cls, name).can_run(*args, **kwargs)
+            # We don't support MultiGraphs yet
+            and not any(isinstance(x, nx.MultiGraph) for x in args)
+            and not any(isinstance(x, nx.MultiGraph) for x in kwargs.values())
+        )

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 __all__ = ["DiGraph"]
 
-networkx_api = cnx.utils.networkx_api(api=nx.DiGraph)
+networkx_api = cnx.utils.decorators.networkx_class(nx.DiGraph)
 
 
 class DiGraph(Graph):

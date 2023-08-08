@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 __all__ = ["Graph"]
 
-networkx_api = cnx.utils.networkx_api(api=nx.Graph)
+networkx_api = cnx.utils.decorators.networkx_class(nx.Graph)
 
 
 class Graph:

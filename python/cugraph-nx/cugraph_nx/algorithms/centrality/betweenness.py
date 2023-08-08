@@ -14,12 +14,12 @@
 import pylibcugraph as plc
 
 from cugraph_nx.convert import to_graph
-from cugraph_nx.utils import networkx_api
+from cugraph_nx.utils import networkx_algorithm
 
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 
 
-@networkx_api
+@networkx_algorithm
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
 ):
@@ -40,7 +40,12 @@ def betweenness_centrality(
     return G._nodearrays_to_dict(node_ids, values)
 
 
-@networkx_api
+@betweenness_centrality._can_run
+def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
+    return weight is None
+
+
+@networkx_algorithm
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
     if weight is not None:
         raise NotImplementedError(
@@ -61,3 +66,8 @@ def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=No
         dst_ids = dst_ids[mask]
         values = 2 * values[mask]
     return G._edgearrays_to_dict(src_ids, dst_ids, values)
+
+
+@edge_betweenness_centrality._can_run
+def _(G, k=None, normalized=True, weight=None, seed=None):
+    return weight is None

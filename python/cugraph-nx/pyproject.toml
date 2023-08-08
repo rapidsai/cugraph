@@ -152,6 +152,7 @@ ignore = [
     "D203",  # 1 blank line required before class docstring (Note: conflicts with D211, which is preferred)
     "D400",  # First line should end with a period (Note: prefer D415, which also allows "?" and "!")
     "F403",  # `from .classes import *` used; unable to detect undefined names (Note: used to match networkx)
+    "N801",  # Class name ... should use CapWords convention (Note:we have a few exceptions to this)
     "N802",  # Function name ... should be lowercase
     "N803",  # Argument name ... should be lowercase (Maybe okay--except in tests)
     "N806",  # Variable ... in function should be lowercase

@@ -10,21 +10,55 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from functools import partial
+import inspect
+from functools import partial, update_wrapper
 
-import networkx as nx
 from networkx.utils.decorators import not_implemented_for
 
-__all__ = ["not_implemented_for", "networkx_api"]
+from cugraph_nx.interface import Dispatcher
+
+__all__ = ["not_implemented_for", "networkx_algorithm"]
 
 
-def networkx_api(func=None, api=None, *, name=None):
-    if func is None:
-        return partial(networkx_api, api=api, name=name)
-    if api is not None:
-        # Get the doctring from a class or module with the same function
-        func.__doc__ = getattr(api, name or func.__name__).__doc__
-    else:
-        # Get the doctring from the main networkx namespace
-        func.__doc__ = getattr(nx, name or func.__name__).__doc__
-    return func
+def networkx_class(api):
+    def inner(func):
+        func.__doc__ = getattr(api, func.__name__).__doc__
+        return func
+
+    return inner
+
+
+class networkx_algorithm:
+    def __new__(cls, func=None, *, name=None):
+        if func is None:
+            return partial(networkx_algorithm, name=name)
+        self = object.__new__(cls)
+        update_wrapper(self, func)
+        self.__defaults__ = func.__defaults__
+        self.__kwdefaults__ = func.__kwdefaults__
+        self.name = func.__name__ if name is None else name
+        self.can_run = _default_can_run
+        setattr(Dispatcher, self.name, self)
+        return self
+
+    @property
+    def __signature__(self):
+        return inspect.signature(self.__wrapped__)
+
+    def _can_run(self, func):
+        """Set the `can_run` attribute to the decorated function."""
+        self.can_run = func
+
+    def __call__(self, /, *args, **kwargs):
+        return self.__wrapped__(*args, **kwargs)
+
+    def __reduce__(self):
+        return _restore_networkx_dispatched, (self.name,)
+
+
+def _default_can_run(*args, **kwargs):
+    return True
+
+
+def _restore_networkx_dispatched(name):
+    return getattr(Dispatcher, name)
