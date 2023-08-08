@@ -26,7 +26,13 @@ from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.testing import utils, get_resultset, DEFAULT_DATASETS, SMALL_DATASETS
+from cugraph.testing import (
+    utils,
+    get_resultset,
+    load_resultset,
+    DEFAULT_DATASETS,
+    SMALL_DATASETS,
+)
 
 
 # =============================================================================
@@ -181,7 +187,7 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
         raise NotImplementedError("Invalid type for start_vertex")
 
 
-def _compare_bfs(cugraph_df, nx_distances, source):
+def _compare_bfs(cugraph_df, golden_distances, source):
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
     # It also confirms wether or not 'sp_counter' has been created by the call
@@ -213,10 +219,10 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     missing_vertex_error = 0
     distance_mismatch_error = 0
     invalid_predecessor_error = 0
-    for vertex in nx_distances:
+    for vertex in golden_distances:
         if vertex in cu_distances:
             result = cu_distances[vertex]
-            expected = nx_distances[vertex]
+            expected = golden_distances[vertex]
             if result != expected:
                 print(
                     "[ERR] Mismatch on distances: "
@@ -227,12 +233,12 @@ def _compare_bfs(cugraph_df, nx_distances, source):
                 missing_vertex_error += 1
             else:
                 pred = cu_predecessors[vertex]
-                if vertex != source and pred not in nx_distances:
+                if vertex != source and pred not in golden_distances:
                     invalid_predecessor_error += 1
                 else:
                     # The graph is unweighted thus, predecessors are 1 away
                     if vertex != source and (
-                        (nx_distances[pred] + 1 != cu_distances[vertex])
+                        (golden_distances[pred] + 1 != cu_distances[vertex])
                     ):
                         print(
                             "[ERR] Invalid on predecessors: "
@@ -257,24 +263,27 @@ def get_cu_graph_and_params(dataset, directed):
     return (G, dataset_path, dataset_name, directed)
 
 
-def get_cu_graph_nx_results_and_params(
-    seed, depth_limit, G, dataset_path, dataset_name, directed
+def get_cu_graph_golden_results_and_params(
+    seed, depth_limit, G, dataset_path, dataset_name, directed, load_results
 ):
     """
     Helper for fixtures returning Nx results and params.
     """
     start_vertex = DATASET_STARTS[dataset_name]
-    nx_values = get_resultset(
-        category="traversal",
+    golden_values = get_resultset(
+        resultset_name="traversal",
         algo="single_source_shortest_path_length",
         cutoff=str(depth_limit),
         graph_dataset=dataset_name,
         graph_directed=str(directed),
         start_vertex=str(start_vertex),
     )
-    nx_values = cudf.Series(nx_values.distance.values, index=nx_values.vertex).to_dict()
 
-    return (G, dataset_path, directed, nx_values, start_vertex, depth_limit)
+    golden_values = cudf.Series(
+        golden_values.distance.values, index=golden_values.vertex
+    ).to_dict()
+
+    return (G, dataset_path, directed, golden_values, start_vertex, depth_limit)
 
 
 # =============================================================================
@@ -316,21 +325,26 @@ single_small_graph_fixture_params = gen_fixture_params_product(
 )
 
 
+@pytest.fixture(scope="module")
+def load_traversal_results():
+    return load_resultset("traversal", None)
+
+
 # Fixtures that result in a test-per (dataset X directed/undirected)
 # combination. These return the path to the dataset, a bool indicating if a
 # directed graph is being used, and the Nx graph object.
 @pytest.fixture(scope="module", params=graph_fixture_params)
-def dataset_nx_results(request):
+def dataset_golden_results(request):
     return get_cu_graph_and_params(*request.param)
 
 
 @pytest.fixture(scope="module", params=small_graph_fixture_params)
-def small_dataset_nx_results(request):
+def small_dataset_golden_results(request):
     return get_cu_graph_and_params(*request.param)
 
 
 @pytest.fixture(scope="module", params=single_small_graph_fixture_params)
-def single_small_dataset_nx_results(request):
+def single_small_dataset_golden_results(request):
     return get_cu_graph_and_params(*request.param)
 
 
@@ -340,17 +354,24 @@ def single_small_dataset_nx_results(request):
 # results, the starting vertex for BFS, and flag if shortes path counting was
 # used.
 @pytest.fixture(scope="module", params=algo_test_fixture_params)
-def dataset_nxresults_startvertex_spc(dataset_nx_results, request):
-    return get_cu_graph_nx_results_and_params(*request.param, *dataset_nx_results)
-
-
-@pytest.fixture(scope="module", params=single_algo_test_fixture_params)
-def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_results, request):
-    return get_cu_graph_nx_results_and_params(
-        *request.param, *single_small_dataset_nx_results
+def dataset_goldenresults_startvertex_spc(
+    dataset_golden_results, load_traversal_results, request
+):
+    return get_cu_graph_golden_results_and_params(
+        *request.param, *dataset_golden_results, load_traversal_results
     )
 
 
+@pytest.fixture(scope="module", params=single_algo_test_fixture_params)
+def single_dataset_goldenresults_startvertex_spc(
+    single_small_dataset_golden_results, load_traversal_results, request
+):
+    return get_cu_graph_golden_results_and_params(
+        *request.param, *single_small_dataset_golden_results, load_traversal_results
+    )
+
+
+# FIXME: this is unused, remove?
 """@pytest.fixture(scope="module")
 def dataset_nxresults_allstartvertices_spc(small_dataset_nx_results):
 
@@ -375,7 +396,7 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_results):
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type):
+def test_bfs(gpubenchmark, dataset_goldenresults_startvertex_spc, cugraph_input_type):
     """
     Test BFS traversal on random source with distance and predecessors
     """
@@ -383,10 +404,10 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         G,
         dataset,
         directed,
-        nx_values,
+        golden_values,
         start_vertex,
         depth_limit,
-    ) = dataset_nxresults_startvertex_spc
+    ) = dataset_goldenresults_startvertex_spc
 
     if directed:
         if isinstance(cugraph_input_type, cugraph.Graph):
@@ -397,32 +418,34 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
     else:
         G_or_matrix = G
 
-    compare_bfs(gpubenchmark, G_or_matrix, nx_values, start_vertex, depth_limit)
+    compare_bfs(gpubenchmark, G_or_matrix, golden_values, start_vertex, depth_limit)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_bfs_nonnative_inputs_matrix(
-    gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type
+    gpubenchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
 ):
-    test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
+    test_bfs(
+        gpubenchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
+    )
 
 
 @pytest.mark.sg
 def test_bfs_nonnative_inputs_nx(
-    single_dataset_nxresults_startvertex_spc,
+    single_dataset_goldenresults_startvertex_spc,
 ):
     (
         _,
         _,
         directed,
-        nx_values,
+        golden_values,
         start_vertex,
         _,
-    ) = single_dataset_nxresults_startvertex_spc
+    ) = single_dataset_goldenresults_startvertex_spc
 
     cugraph_df = get_resultset(
-        category="traversal",
+        resultset_name="traversal",
         algo="bfs_edges",
         graph_dataset="karate",
         graph_directed=str(directed),
@@ -430,13 +453,13 @@ def test_bfs_nonnative_inputs_nx(
     )
 
     compare_func = _compare_bfs
-    compare_func(cugraph_df, nx_values, start_vertex)
+    compare_func(cugraph_df, golden_values, start_vertex)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs_invalid_start(dataset_nxresults_startvertex_spc, cugraph_input_type):
-    (G, _, _, _, start_vertex, depth_limit) = dataset_nxresults_startvertex_spc
+def test_bfs_invalid_start(dataset_goldenresults_startvertex_spc, cugraph_input_type):
+    (G, _, _, _, start_vertex, depth_limit) = dataset_goldenresults_startvertex_spc
 
     el = G.view_edge_list()
 

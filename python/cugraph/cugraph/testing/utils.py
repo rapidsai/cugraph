@@ -414,17 +414,3 @@ def compare_mst(mst_cugraph, mst_nx):
     print(cg_sum)
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
-
-
-default_results_download_dir = (
-    Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
-)
-
-
-class ResultSet:
-    def __init__(self, data_dictionary):
-        self._data_dictionary = data_dictionary
-
-    def get_cudf_dataframe(self):
-        # This is called in testing/resultset.py before writing all results to files
-        return cudf.DataFrame(self._data_dictionary)

@@ -28,7 +28,13 @@ from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.testing import utils, get_resultset, UNDIRECTED_DATASETS, SMALL_DATASETS
+from cugraph.testing import (
+    utils,
+    get_resultset,
+    load_resultset,
+    UNDIRECTED_DATASETS,
+    SMALL_DATASETS,
+)
 
 
 # Map of cuGraph input types to the expected output type for cuGraph
@@ -121,7 +127,7 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
     return result_dict, max_val
 
 
-def networkx_call(graph_file, source, edgevals=True):
+def networkx_call(graph_file, source, load_results, edgevals=True):
     dataset_path = graph_file.get_path()
     dataset_name = graph_file.metadata["name"]
 
@@ -129,7 +135,7 @@ def networkx_call(graph_file, source, edgevals=True):
         # FIXME: no test coverage if edgevals is False, this assertion is never reached
         assert False
         nx_paths = get_resultset(
-            category="traversal",
+            resultset_name="traversal",
             algo="single_source_shortest_path_length",
             graph_dataset=dataset_name,
             graph_directed=str(True),
@@ -140,13 +146,12 @@ def networkx_call(graph_file, source, edgevals=True):
         # not support 'weights'. It matches cuGraph result only if the weight column
         # is 1s.
         nx_paths = get_resultset(
-            category="traversal",
+            resultset_name="traversal",
             algo="single_source_dijkstra_path_length",
             graph_dataset=dataset_name,
             graph_directed=str(True),
             source=str(source),
         )
-    # nx_paths = nx_paths.drop(columns="Unnamed: 0")
     nx_paths = cudf.Series(nx_paths.distance.values, index=nx_paths.vertex).to_dict()
 
     G = graph_file.get_graph(
@@ -178,26 +183,31 @@ fixture_params_single_dataset = gen_fixture_params_product(
 
 # These fixtures will call networkx BFS algos and save the result. The networkx
 # call is only made only once per input param combination.
+@pytest.fixture(scope="module")
+def load_traversal_results():
+    return load_resultset("traversal", None)
+
+
 @pytest.fixture(scope="module", params=fixture_params)
 def dataset_source_nxresults(request):
     # request.param is a tuple of params from fixture_params. When expanded
     # with *, will be passed to networkx_call() as args (graph_file, source)
-    return networkx_call(*(request.param))
+    return networkx_call(*(request.param), load_traversal_results)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
 def single_dataset_source_nxresults(request):
-    return networkx_call(*(request.param))
+    return networkx_call(*(request.param), load_traversal_results)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
 def dataset_source_nxresults_weighted(request):
-    return networkx_call(*(request.param), edgevals=True)
+    return networkx_call(*(request.param), load_traversal_results, edgevals=True)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
 def single_dataset_source_nxresults_weighted(request):
-    return networkx_call(*(request.param), edgevals=True)
+    return networkx_call(*(request.param), load_traversal_results, edgevals=True)
 
 
 # =============================================================================
@@ -265,7 +275,7 @@ def test_sssp_nonnative_inputs_nx(single_dataset_source_nxresults, directed):
     (_, _, graph_file, source, nx_paths) = single_dataset_source_nxresults
     dataset_name = graph_file.metadata["name"]
     result = get_resultset(
-        category="traversal",
+        resultset_name="traversal",
         algo="sssp_nonnative",
         graph_dataset=dataset_name,
         graph_directed=str(directed),
@@ -369,7 +379,7 @@ def test_sssp_data_type_conversion(graph_file, source):
     pred_np = df["predecessor"].to_numpy()
     cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
     nx_paths = get_resultset(
-        category="traversal",
+        resultset_name="traversal",
         algo="single_source_dijkstra_path_length",
         graph_dataset=dataset_name,
         graph_directed=str(True),
@@ -403,10 +413,13 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 
 @pytest.mark.sg
-def test_sssp_networkx_edge_attr():
+def test_sssp_networkx_edge_attr(load_traversal_results):
     df = get_resultset(
-        category="traversal", algo="sssp_nonnative", test="network_edge_attr"
+        resultset_name="traversal", algo="sssp_nonnative", test="network_edge_attr"
     )
+    """df = get_resultset(
+        category="traversal", algo="sssp_nonnative", test="network_edge_attr"
+    )"""
     df = df.set_index("vertex")
     assert df.loc[0, "distance"] == 0
     assert df.loc[1, "distance"] == 10
