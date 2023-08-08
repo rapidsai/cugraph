@@ -152,8 +152,8 @@ class resource_manager_t {
       raft::handle_t tmp_handle;
 
       nccl_comms.push_back(std::make_shared<ncclComm_t>());
-      handles.push_back(std::make_shared<raft::handle_t>(
-        tmp_handle, per_device_rmm_resources_.find(rank)->second.get()));
+      handles.push_back(
+        std::make_shared<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
     }
 

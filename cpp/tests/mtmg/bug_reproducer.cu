@@ -35,22 +35,20 @@ int main(int argc, char** argv)
 
   int num_gpus{2};
 
+  ncclUniqueId instance_manager_id;
+  ncclGetUniqueId(&instance_manager_id);
+
   cugraph::mtmg::resource_manager_t resource_manager;
+
+  std::vector<std::thread> running_threads;
 
   resource_manager.register_local_gpu(0, rmm::cuda_device_id{0});
   resource_manager.register_local_gpu(1, rmm::cuda_device_id{1});
-
-  ncclUniqueId instance_manager_id;
-  ncclGetUniqueId(&instance_manager_id);
 
   std::cout << "create instance_manager" << std::endl;
 
   auto instance_manager = resource_manager.create_instance_manager(
     resource_manager.registered_ranks(), instance_manager_id);
-
-  std::cout << "prepare to create edges" << std::endl;
-
-  std::vector<std::thread> running_threads;
 
   for (int i = 0; i < num_gpus; ++i) {
     running_threads.emplace_back([&instance_manager]() {
