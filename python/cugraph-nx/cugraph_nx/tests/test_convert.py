@@ -197,6 +197,6 @@ def test_convert():
     with pytest.raises(
         TypeError, match="edge_attrs and weight arguments should not both be given"
     ):
-        interface.Dispatcher.convert_from_nx(G, edge_attrs={"x": 1}, weight="x")
+        interface.BackendInterface.convert_from_nx(G, edge_attrs={"x": 1}, weight="x")
     with pytest.raises(TypeError, match="Expected networkx.Graph"):
         cnx.from_networkx({})

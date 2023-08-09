@@ -15,7 +15,7 @@ from functools import partial, update_wrapper
 
 from networkx.utils.decorators import not_implemented_for
 
-from cugraph_nx.interface import Dispatcher
+from cugraph_nx.interface import BackendInterface
 
 __all__ = ["not_implemented_for", "networkx_algorithm"]
 
@@ -38,7 +38,7 @@ class networkx_algorithm:
         self.__kwdefaults__ = func.__kwdefaults__
         self.name = func.__name__ if name is None else name
         self.can_run = _default_can_run
-        setattr(Dispatcher, self.name, self)
+        setattr(BackendInterface, self.name, self)
         return self
 
     @property
@@ -61,4 +61,4 @@ def _default_can_run(*args, **kwargs):
 
 
 def _restore_networkx_dispatched(name):
-    return getattr(Dispatcher, name)
+    return getattr(BackendInterface, name)

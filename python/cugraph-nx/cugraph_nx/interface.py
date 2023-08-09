@@ -17,7 +17,7 @@ import networkx as nx
 import cugraph_nx as cnx
 
 
-class Dispatcher:
+class BackendInterface:
     # Required conversions
     @staticmethod
     def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
