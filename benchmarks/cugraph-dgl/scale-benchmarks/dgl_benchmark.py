@@ -49,7 +49,7 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
         drop_last=False,
     )
     et = time.time()
-    print(f"Time to create dataloader = {et - st:.2f} seconds")
+    print(f"Time to create dataloader = {et - st:.2f} seconds", flush=True)
     return dataloader
 
 
@@ -93,7 +93,7 @@ def main(args):
         elapsed_time = time.time() - start_time
 
         print(f"Replication factor = {replication_factor}\n"
-              f"G has {g.num_edges():,} edges and took {elapsed_time:.2f} seconds to load")
+              f"G has {g.num_edges():,} edges and took {elapsed_time:.2f} seconds to load", flush=True)
 
         train_idx = {"paper": label_data["paper"]["train_idx"]}
         y = label_data["paper"]["y"].to("cuda")
@@ -102,11 +102,11 @@ def main(args):
         [x.update({"num_edges":  g.num_edges()}) for x in r_time_ls]
         time_ls.extend(r_time_ls)
 
-        print(f"Benchmark completed for replication factor = {replication_factor}\n{'=' * 30}")
+        print(f"Benchmark completed for replication factor = {replication_factor}\n{'=' * 30}", flush=True)
 
     df = pd.DataFrame(time_ls)
     df.to_csv("dgl_e2e_benchmark.csv", index=False)
-    print(f"Benchmark completed for all replication factors\n{'=' * 30}")
+    print(f"Benchmark completed for all replication factors\n{'=' * 30}", flush=True)
 
 
 def e2e_benchmark(g, feat, y, train_idx, fanouts, batch_sizes, use_uva):
