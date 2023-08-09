@@ -53,7 +53,9 @@ def load_resultset(resultset_name, resultset_download_url):
         compressed_file_path = compressed_file_dir / "resultsets.tar.gz"
         if not compressed_file_path.exists():
             # FIXME: download a tar gz from s3 bucket
-            raise FileNotFoundError(compressed_file_path, "zipped data not found")
+            raise FileNotFoundError(
+                compressed_file_path, "downloading from s3 not implemented"
+            )
         # Currently, it expects to have at least resultsets.tar.gz
         tar = tarfile.open(str(compressed_file_path), "r:gz")
         tar.extractall(str(compressed_file_dir))

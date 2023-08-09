@@ -43,10 +43,10 @@ paths_test_data = {
     "shortest_path_length_1_5": 2.0,
     "shortest_path_length_1_3": 2.0,
     "shortest_path_length_1_6": 2.0,
-    "shortest_path_length_nx_-1_1": ValueError,
-    "shortest_path_length_nx_1_10": ValueError,
-    "shortest_path_length_nx_0_42": ValueError,
-    "shortest_path_length_nx_1_8": 3.4028235e38,
+    "shortest_path_length_-1_1": ValueError,
+    "shortest_path_length_1_10": ValueError,
+    "shortest_path_length_0_42": ValueError,
+    "shortest_path_length_1_8": 3.4028235e38,
 }
 
 
@@ -129,7 +129,7 @@ def test_shortest_path_length_invalid_source(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, -1, 1)
 
-    result = paths_test_data["shortest_path_length_nx_-1_1"]
+    result = paths_test_data["shortest_path_length_-1_1"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -146,7 +146,7 @@ def test_shortest_path_length_invalid_target(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, 1, 10)
 
-    result = paths_test_data["shortest_path_length_nx_1_10"]
+    result = paths_test_data["shortest_path_length_1_10"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -163,7 +163,7 @@ def test_shortest_path_length_invalid_vertexes(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, 0, 42)
 
-    result = paths_test_data["shortest_path_length_nx_0_42"]
+    result = paths_test_data["shortest_path_length_0_42"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -184,9 +184,9 @@ def test_shortest_path_length_no_path(graphs):
     path_1_to_8 = cugraph.shortest_path_length(cugraph_G, 1, 8)
     assert path_1_to_8 == sys.float_info.max
 
-    nx_path_1_to_8 = paths_test_data["shortest_path_length_nx_1_8"]
-    nx_path_1_to_8 = np.float32(nx_path_1_to_8)
-    assert nx_path_1_to_8 in [
+    golden_path_1_to_8 = paths_test_data["shortest_path_length_1_8"]
+    golden_path_1_to_8 = np.float32(golden_path_1_to_8)
+    assert golden_path_1_to_8 in [
         max_float_32,
         path_1_to_8,
     ]
@@ -199,7 +199,7 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     cugraph_G, cupy_df = graphs
 
     cugraph_path_1_to_all = cugraph.shortest_path_length(cugraph_G, 1)
-    nx_path_1_to_all = get_resultset(
+    golden_path_1_to_all = get_resultset(
         resultset_name="traversal",
         algo="shortest_path_length",
         graph_dataset="DISCONNECTED",
@@ -207,14 +207,6 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
         source="1",
         weight="weight",
     )
-    """nx_path_1_to_all = get_resultset(
-        category="traversal",
-        algo="shortest_path_length",
-        graph_dataset="DISCONNECTED",
-        graph_directed=str(True),
-        source="1",
-        weight="weight",
-    )"""
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 
     # Cast networkx graph on cugraph vertex column type from str to int.
@@ -222,7 +214,7 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     assert cugraph_path_1_to_all == cupy_path_1_to_all
 
     # results for vertex 8 and 9 are not returned
-    assert cugraph_path_1_to_all.shape[0] == len(nx_path_1_to_all) + 2
+    assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
     for index in range(cugraph_path_1_to_all.shape[0]):
 
         vertex = cugraph_path_1_to_all["vertex"][index].item()
@@ -235,7 +227,7 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
         else:
             assert (
                 distance
-                == nx_path_1_to_all.loc[
-                    nx_path_1_to_all.vertex == vertex
+                == golden_path_1_to_all.loc[
+                    golden_path_1_to_all.vertex == vertex
                 ].distance.iloc[0]
             )

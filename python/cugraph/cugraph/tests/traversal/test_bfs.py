@@ -90,9 +90,6 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
     if expected_return_type is cudf.DataFrame:
         return cugraph_result
 
-    # elif expected_return_type is pd.DataFrame:
-    #    return cudf.from_pandas(cugraph_result)
-
     # A CuPy/SciPy input means the return value will be a 2-tuple of:
     #   distance: cupy.ndarray
     #      ndarray of shortest distances between source and vertex.

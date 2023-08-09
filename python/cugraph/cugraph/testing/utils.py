@@ -32,8 +32,6 @@ import dask_cudf
 import cugraph
 from cugraph.dask.common.mg_utils import get_client
 
-# from cugraph.experimental.datasets import default_download_dir
-
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]

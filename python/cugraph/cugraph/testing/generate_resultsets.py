@@ -66,14 +66,11 @@ for ds in DATASETS + [karate]:
                 Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=dirctd)
                 random.seed(seed)
                 start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
-                nx_values = nx.single_source_shortest_path_length(
+                golden_values = nx.single_source_shortest_path_length(
                     Gnx, start_vertex, cutoff=depth_limit
                 )
-                """test_bfs_results[
-                    "{},{},{},{},{}".format(seed, depth_limit, ds, dirctd, start_vertex)
-                ] = nx_values"""
-                vertices = cudf.Series(nx_values.keys())
-                distances = cudf.Series(nx_values.values())
+                vertices = cudf.Series(golden_values.keys())
+                distances = cudf.Series(golden_values.values())
                 add_resultset(
                     {"vertex": vertices, "distance": distances},
                     graph_dataset=ds.metadata["name"],
@@ -82,14 +79,12 @@ for ds in DATASETS + [karate]:
                     start_vertex=str(start_vertex),
                     cutoff=str(depth_limit),
                 )
-    # test_bfs_results["{},{},starts".format(seed, ds)] = start_vertex
 
 # these are pandas dataframes
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd)
-    result = cugraph.bfs_edges(Gnx, source=7)
-    cugraph_df = cudf.from_pandas(result)
-    # test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
+    golden_result = cugraph.bfs_edges(Gnx, source=7)
+    cugraph_df = cudf.from_pandas(golden_result)
     add_resultset(
         cugraph_df,
         graph_dataset="karate",
@@ -109,10 +104,9 @@ SOURCES = [1]
 for ds in DATASETS_SMALL:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
-        nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
-        # test_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
-        vertices = cudf.Series(nx_paths.keys())
-        distances = cudf.Series(nx_paths.values())
+        golden_paths = nx.single_source_dijkstra_path_length(Gnx, source)
+        vertices = cudf.Series(golden_paths.keys())
+        distances = cudf.Series(golden_paths.values())
         add_resultset(
             {"vertex": vertices, "distance": distances},
             graph_dataset=ds.metadata["name"],
@@ -139,12 +133,9 @@ for ds in DATASETS_SMALL:
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        nx_paths_datatypeconv = nx.single_source_dijkstra_path_length(Gnx, source)
-        """test_sssp_results[
-            "nx_paths,data_type_conversion,{}".format(ds)
-        ] = nx_paths_datatypeconv"""
-        vertices_datatypeconv = cudf.Series(nx_paths_datatypeconv.keys())
-        distances_datatypeconv = cudf.Series(nx_paths_datatypeconv.values())
+        golden_paths_datatypeconv = nx.single_source_dijkstra_path_length(Gnx, source)
+        vertices_datatypeconv = cudf.Series(golden_paths_datatypeconv.keys())
+        distances_datatypeconv = cudf.Series(golden_paths_datatypeconv.values())
         add_resultset(
             {"vertex": vertices_datatypeconv, "distance": distances_datatypeconv},
             graph_dataset=ds.metadata["name"],
@@ -159,14 +150,6 @@ for dirctd in DIRECTED_GRAPH_OPTIONS:
         Gnx = utils.generate_nx_graph_from_file(
             karate.get_path(), directed=dirctd, edgevals=True
         )
-        """if dirctd:
-            test_sssp_results[
-                "nonnative_input,nx.DiGraph,{}".format(source)
-            ] = cugraph.sssp(Gnx, source)
-        else:
-            test_sssp_results[
-                "nonnative_input,nx.Graph,{}".format(source)
-            ] = cugraph.sssp(Gnx, source)"""
         add_resultset(
             cugraph.sssp(Gnx, source),
             graph_dataset="karate",
@@ -175,11 +158,10 @@ for dirctd in DIRECTED_GRAPH_OPTIONS:
             source=str(source),
         )
 
-G = nx.Graph()
-G.add_edge(0, 1, other=10)
-G.add_edge(1, 2, other=20)
-df = cugraph.sssp(G, 0, edge_attr="other")
-# test_sssp_results["network_edge_attr"] = df
+Gnx = nx.Graph()
+Gnx.add_edge(0, 1, other=10)
+Gnx.add_edge(1, 2, other=20)
+df = cugraph.sssp(Gnx, 0, edge_attr="other")
 add_resultset(df, algo="sssp_nonnative", test="network_edge_attr")
 
 # =============================================================================
@@ -221,26 +203,8 @@ add_resultset(
 )
 
 
-# Generating ALL results files
-"""random.seed(24)
-for temp in _resultsets:
-    res = _resultsets[temp].get_cudf_dataframe()
-    # Currently, only traversal results files are generated
-    temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
-    temp_mapping = cudf.DataFrame(
-        [[str(temp), temp_filename]], columns=["hashable_dict_repr", "filename"]
-    )
-    traversal_mappings = cudf.concat(
-        [traversal_mappings, temp_mapping], axis=0, ignore_index=True
-    )
-    # print(temp_filename)
-    # print("traversal_" + temp_filename)
-    res.to_csv(results_dir / temp_filename, index=False)
-traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)"""
-
-
 def generate_results():
-    # FIXME: Currently, only traversal results files are generated
+    # NOTE: Currently, only traversal result files are generated
     random.seed(24)
     traversal_mappings = cudf.DataFrame(
         columns=[
@@ -270,7 +234,6 @@ def generate_results():
     # Generating ALL results files
     for temp in _resultsets:
         res = _resultsets[temp].get_cudf_dataframe()
-        # temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
         temp_filename = str(random.getrandbits(50))
         temp_dict = dict(temp)
         argnames, argvals = [t for t in temp_dict.keys()], [
@@ -280,11 +243,7 @@ def generate_results():
         dict_length = len(argnames)
 
         single_mapping[0] = temp_filename
-        # single_mapping[1] = argvals[0]
-        # for i in np.arange(1, dict_length):
         for i in np.arange(dict_length):
-            # single_mapping[2 * i] = argnames[i]
-            # single_mapping[2 * i + 1] = argvals[i]
             single_mapping[2 * i + 1] = argnames[i]
             single_mapping[2 * i + 2] = argvals[i]
         temp_mapping = cudf.DataFrame(
