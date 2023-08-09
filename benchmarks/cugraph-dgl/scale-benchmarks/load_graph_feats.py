@@ -79,6 +79,7 @@ def load_node_labels(dataset_path, replication_factor, input_meta):
         else:
             node_data[node_type]["num_nodes"] = num_nodes_dict[node_type]
 
+    print("Loaded node labels", flush=True)
     return node_data
 
 def process_node_label(label_path, node_type, replication_factor, num_nodes_dict, input_meta):
@@ -110,9 +111,13 @@ def replicate_node_label(node_label, node_type, replication_factor, input_meta):
 
 
 def load_node_features(dataset_path, replication_factor, node_type):
+    print("Loading node features", flush=True)
     node_type_path = os.path.join(dataset_path, "npy", node_type)
     if replication_factor == 1:
         fname =  os.path.join(node_type_path, "node_feat.npy")
     else:
         fname = os.path.join(node_type_path, f"node_feat_{replication_factor}x.npy")
-    return torch.from_numpy(np.load(fname)).pin_memory()
+    
+    feat = torch.from_numpy(np.load(fname))
+    print("Loaded node features", flush=True)
+    return feat

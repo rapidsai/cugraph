@@ -50,26 +50,27 @@ def train_model(model, dataloader, opt, feat, y):
     mfg_st = time.time()
     for input_nodes, output_nodes, blocks in dataloader:
         times['mfg_creation'] += time.time() - mfg_st
+        if feat is not None:
+            fst = time.time()
+            input_nodes = input_nodes.to('cpu')
+            input_feat = feat[input_nodes]
+            input_feat = input_feat.to('cuda')
+            if isinstance(output_nodes, dict):
+                output_nodes = output_nodes['paper']
+            output_nodes = output_nodes.to(y.device)
+            y_batch = y[output_nodes].to('cuda')
+            times['feature'] += time.time() - fst
 
-        fst = time.time()
-        input_nodes = input_nodes.to('cpu')
-        input_feat = feat[input_nodes]
-        input_feat = input_feat.to('cuda')
-        if isinstance(output_nodes, dict):
-            output_nodes = output_nodes['paper']
-        y_batch = y[output_nodes]
-        times['feature'] += time.time() - fst
-
-        m_fwd_st = time.time()
-        y_hat = model(blocks, input_feat)
-        times['m_fwd'] += time.time() - m_fwd_st
-      
-        m_bkwd_st = time.time()
-        loss = F.cross_entropy(y_hat, y_batch)
-        opt.zero_grad()
-        loss.backward()
-        opt.step()
-        times['m_bkwd'] += time.time() - m_bkwd_st
+            m_fwd_st = time.time()
+            y_hat = model(blocks, input_feat)
+            times['m_fwd'] += time.time() - m_fwd_st
+        
+            m_bkwd_st = time.time()
+            loss = F.cross_entropy(y_hat, y_batch)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            times['m_bkwd'] += time.time() - m_bkwd_st
         mfg_st = time.time()
 
     print(f"Epoch time = {time.time() - epoch_st:.2f} seconds")
@@ -96,8 +97,12 @@ def analyze_time(dataloader, times, epoch_time, fanout, batch_size):
     return time_d
 
 def run_1_epoch(dataloader, feat, y, fanout, batch_size, model_backend):
-    model = create_model(feat.shape[1], 172, len(fanout), model_backend=model_backend)
-    opt = torch.optim.Adam(model.parameters(), lr=0.01)
+    if feat is not None:
+        model = create_model(feat.shape[1], 172, len(fanout), model_backend=model_backend)
+        opt = torch.optim.Adam(model.parameters(), lr=0.01)
+    else:
+        model = None
+        opt = None
     epoch_st = time.time()
     times = train_model(model, dataloader, opt, feat, y)
     epoch_time = time.time() - epoch_st

@@ -71,7 +71,12 @@ def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
         parquet_path, replication_factor, input_meta
     )
     label_data = load_node_labels(dataset_path, replication_factor, input_meta)
-    feat_data = load_node_features(dataset_path, replication_factor, node_type='paper')
+    if replication_factor <8 :
+        feat_data = load_node_features(dataset_path, replication_factor, node_type='paper')
+    else:
+        feat_data = None   
+    print("labels and features loaded ", flush=True)
+
     g = dgl.heterograph(graph_data)
 
     return g, label_data, feat_data
@@ -96,7 +101,7 @@ def main(args):
               f"G has {g.num_edges():,} edges and took {elapsed_time:.2f} seconds to load", flush=True)
 
         train_idx = {"paper": label_data["paper"]["train_idx"]}
-        y = label_data["paper"]["y"].to("cuda")
+        y = label_data["paper"]["y"]
         r_time_ls = e2e_benchmark(g, feat_data, y, train_idx, args.fanouts, args.batch_sizes, use_uva=args.use_uva)
         [x.update({"replication_factor": replication_factor}) for x in r_time_ls]
         [x.update({"num_edges":  g.num_edges()}) for x in r_time_ls]
