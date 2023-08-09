@@ -149,10 +149,7 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
-
-        # Make a copy of the input dask dataframe before doing any modification.
-        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
-
+        
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
@@ -321,6 +318,12 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
+
+        def copy_df(df, col_names):
+            df.columns = col_names
+            return df
+
+        ddf = ddf.map_partitions(lambda df: copy_df(df, ddf.columns))
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
