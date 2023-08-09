@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,8 +18,6 @@
 
 from pylibraft.common.handle cimport *
 
-
-cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-
-   cdef void init_subcomms(handle_t &handle,
-                           size_t row_comm_size)
+cdef extern from "cugraph/partition_manager.hpp" namespace "cugraph::partition_manager":
+   cdef void init_subcomm(handle_t &handle,
+                          size_t row_comm_size)

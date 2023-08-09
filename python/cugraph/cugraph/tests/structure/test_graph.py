@@ -774,9 +774,12 @@ def test_create_graph_with_edge_ids(graph_file):
         edge_attr=["2", "id", "etype"],
     )
 
-    H = G.to_undirected()
     assert G.is_directed()
-    assert not H.is_directed()
+
+    # 'edge_ids are not supported for undirected graph"
+    with pytest.raises(ValueError):
+        G.to_undirected()
+    # assert not H.is_directed()
 
 
 @pytest.mark.sg
