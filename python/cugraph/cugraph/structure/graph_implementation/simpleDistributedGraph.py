@@ -319,6 +319,8 @@ class simpleDistributedGraphImpl:
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
 
+        # FIXME: Some partitions with empty dataframe have no column names
+        # causing a metadata mismatch therefore, also copy the column names.
         def copy_df(df, col_names):
             df.columns = col_names
             return df
