@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,12 +23,12 @@ import numpy as np
 
 
 def ktruss_subgraph_float(input_graph, k, use_weights):
-    cdef GraphCOOViewFloat in_graph = get_graph_view[GraphCOOViewFloat](input_graph, use_weights)
+    cdef GraphCOOViewFloat in_graph = get_coo_float_graph_view(input_graph, use_weights)
     return coo_to_df(move(k_truss_subgraph[int,int,float](in_graph, k)))
 
 
 def ktruss_subgraph_double(input_graph, k, use_weights):
-    cdef GraphCOOViewDouble in_graph = get_graph_view[GraphCOOViewDouble](input_graph, use_weights)
+    cdef GraphCOOViewDouble in_graph = get_coo_double_graph_view(input_graph, use_weights)
     return coo_to_df(move(k_truss_subgraph[int,int,double](in_graph, k)))
 
 

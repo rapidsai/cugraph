@@ -54,7 +54,7 @@ requirements:
     {% if cuda_major == "11" %}
     - cudatoolkit
     {% endif %}
-    - cython >=0.29,<0.30
+    - cython >=3.0.0
     - libcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
     - python
