@@ -25,7 +25,6 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_device_array_t
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
