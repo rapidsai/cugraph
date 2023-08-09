@@ -559,6 +559,15 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
                                                     cugraph_type_erased_device_array_t** vertices,
                                                     cugraph_error_t** error);
 
+cugraph_error_code_t cugraph_get_num_vertices_per_hop(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* srcs,
+  const cugraph_type_erased_device_array_view_t* dsts,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const size_t num_hops,
+  cugraph_type_erased_device_array_t** result,
+  cugraph_error_t** error);
+
 #ifdef __cplusplus
 }
 #endif

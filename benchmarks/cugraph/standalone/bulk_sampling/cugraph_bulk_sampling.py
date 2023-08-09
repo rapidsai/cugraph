@@ -38,7 +38,7 @@ import re
 import os
 import gc
 from time import sleep, perf_counter
-from math import ceil
+from math import ceil, log
 
 import pandas as pd
 import numpy as np

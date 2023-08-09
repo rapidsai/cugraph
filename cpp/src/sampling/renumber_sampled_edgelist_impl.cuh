@@ -268,10 +268,12 @@ compute_renumber_map(raft::handle_t const& handle,
 
     auto num_chunks = (edgelist_srcs.size() + (approx_edges_to_sort_per_iteration - 1)) /
                       approx_edges_to_sort_per_iteration;
-    if(num_chunks < 1) {
-      num_chunks = 1;
-    }
+<<<<<<< HEAD
+    if (num_chunks < 1) { num_chunks = 1; }
     auto chunk_size = (num_labels + (num_chunks - 1)) / num_chunks;
+=======
+    auto chunk_size = (num_chunks > 0) ? ((num_labels + (num_chunks - 1)) / num_chunks) : 0;
+>>>>>>> origin/branch-23.08
 
     size_t copy_offset{0};
     for (size_t i = 0; i < num_chunks; ++i) {

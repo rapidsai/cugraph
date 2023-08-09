@@ -1988,6 +1988,12 @@ uniform_neighbor_sample(
   bool dedupe_sources                             = false,
   bool do_expensive_check                         = false);
 
+rmm::device_uvector<int32_t> get_num_vertices_per_hop(raft::handle_t const& handle_,
+                                                      rmm::device_uvector<int64_t> srcs,
+                                                      rmm::device_uvector<int64_t> dsts,
+                                                      rmm::device_uvector<int32_t> hop,
+                                                      size_t num_hops);
+
 /*
  * @brief Compute triangle counts.
  *

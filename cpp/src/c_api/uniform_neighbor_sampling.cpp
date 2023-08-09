@@ -27,6 +27,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <iostream>
 #include <raft/core/handle.hpp>
 
 namespace cugraph {
@@ -57,6 +58,50 @@ struct cugraph_sample_result_t {
 }  // namespace cugraph
 
 namespace {
+
+struct get_num_vertices_per_hop_functor : public cugraph::c_api::abstract_functor {
+  raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* srcs_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* dsts_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* hop_{nullptr};
+  size_t num_hops_{0};
+  cugraph::c_api::cugraph_type_erased_device_array_t* result_{nullptr};
+
+  get_num_vertices_per_hop_functor(cugraph_resource_handle_t const* handle,
+                                   cugraph_type_erased_device_array_view_t const* srcs,
+                                   cugraph_type_erased_device_array_view_t const* dsts,
+                                   cugraph_type_erased_device_array_view_t const* hop,
+                                   size_t num_hops)
+    : abstract_functor(),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      srcs_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(srcs)),
+      dsts_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dsts)),
+      hop_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(hop)),
+      num_hops_(num_hops)
+  {
+  }
+
+  void operator()()
+  {
+    rmm::device_uvector<int64_t> srcs(srcs_->size_, handle_.get_stream());
+
+    raft::copy(srcs.data(), srcs_->as_type<int64_t>(), srcs.size(), handle_.get_stream());
+
+    rmm::device_uvector<int64_t> dsts(dsts_->size_, handle_.get_stream());
+
+    raft::copy(dsts.data(), dsts_->as_type<int64_t>(), dsts.size(), handle_.get_stream());
+
+    rmm::device_uvector<int32_t> hop(hop_->size_, handle_.get_stream());
+
+    raft::copy(hop.data(), hop_->as_type<int32_t>(), hop.size(), handle_.get_stream());
+
+    auto num_vertices_per_hop_result = cugraph::get_num_vertices_per_hop(
+      handle_, std::move(srcs), std::move(dsts), std::move(hop), num_hops_);
+
+    result_ =
+      new cugraph::c_api::cugraph_type_erased_device_array_t(num_vertices_per_hop_result, INT32);
+  }
+};
 
 struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
@@ -745,6 +790,36 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
     cugraph::c_api::cugraph_sampling_options_t{with_replacement, return_hops},
     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_get_num_vertices_per_hop(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* srcs,
+  const cugraph_type_erased_device_array_view_t* dsts,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const size_t num_hops,
+  cugraph_type_erased_device_array_t** result,
+  cugraph_error_t** error)
+{
+  // TODO error checking
+
+  get_num_vertices_per_hop_functor functor{handle, srcs, dsts, hop, num_hops};
+
+  try {
+    *error = nullptr;
+    functor();
+
+    if (functor.error_code_ != CUGRAPH_SUCCESS) {
+      *error = reinterpret_cast<::cugraph_error_t*>(functor.error_.release());
+      return functor.error_code_;
+    }
+  } catch (std::exception const& ex) {
+    *error = reinterpret_cast<::cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
+    return CUGRAPH_UNKNOWN_ERROR;
+  }
+
+  *result = reinterpret_cast<cugraph_type_erased_device_array_t*>(functor.result_);
+  return CUGRAPH_SUCCESS;
 }
 
 cugraph_error_code_t cugraph_uniform_neighbor_sample(

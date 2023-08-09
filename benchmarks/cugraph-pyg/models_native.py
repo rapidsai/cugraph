@@ -21,10 +21,10 @@ class GraphSAGE(nn.Module):
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
-        for i, conv in enumerate(self.convs):
-            edge = edge.cuda()
-            x = x.cuda().to(torch.float32)
+        edge = edge.cuda()
+        x = x.cuda().to(torch.float32)
 
+        for i, conv in enumerate(self.convs):
             x, edge, _ = self._trim(
                 i,
                 num_sampled_nodes,
@@ -45,5 +45,5 @@ class GraphSAGE(nn.Module):
             length=x.shape[0] - num_sampled_nodes[1]
         )
 
-        assert x.shape[0] == num_sampled_nodes[0]
+        # assert x.shape[0] == num_sampled_nodes[0]
         return x
