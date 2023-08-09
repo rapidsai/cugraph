@@ -21,7 +21,7 @@
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -97,6 +97,7 @@ struct indirection_compare_less_t {
 
 template <typename GraphViewType,
           typename VertexValueInputIterator,
+          typename EdgeValueInputIterator,
           typename IntersectionOp,
           typename VertexPairIndexIterator,
           typename VertexPairIterator,
@@ -111,6 +112,8 @@ struct call_intersection_op_t {
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties0{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties1{nullptr};
   VertexPairIndexIterator major_minor_pair_index_first{};
   VertexPairIterator major_minor_pair_first{};
   VertexPairValueOutputIterator major_minor_pair_value_output_first{};
@@ -118,6 +121,8 @@ struct call_intersection_op_t {
   __device__ void operator()(size_t i) const
   {
     using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
+    using edge_property_value_t =
+      typename thrust::iterator_traits<EdgeValueInputIterator>::value_type;
 
     auto index        = *(major_minor_pair_index_first + i);
     auto pair         = *(major_minor_pair_first + index);
@@ -127,6 +132,25 @@ struct call_intersection_op_t {
     auto dst          = GraphViewType::is_storage_transposed ? major : minor;
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(
       nbr_indices + nbr_offsets[i], nbr_indices + nbr_offsets[i + 1]);
+
+    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+                       raft::device_span<edge_property_value_t const>,
+                       std::byte /* dummy */>
+      properties0{};
+
+    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+                       raft::device_span<edge_property_value_t const>,
+                       std::byte /* dummy */>
+      properties1{};
+
+    if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+      properties0 = raft::device_span<edge_property_value_t const>(
+        nbr_intersection_properties0 + nbr_offsets[i],
+        nbr_intersection_properties0 + +nbr_offsets[i + 1]);
+      properties1 = raft::device_span<edge_property_value_t const>(
+        nbr_intersection_properties1 + nbr_offsets[i],
+        nbr_intersection_properties1 + +nbr_offsets[i + 1]);
+    }
 
     property_t src_prop{};
     property_t dst_prop{};
@@ -149,8 +173,9 @@ struct call_intersection_op_t {
       src_prop          = *(vertex_property_first + src_offset);
       dst_prop          = *(vertex_property_first + dst_offset);
     }
+
     *(major_minor_pair_value_output_first + index) =
-      intersection_op(src, dst, src_prop, dst_prop, intersection);
+      intersection_op(src, dst, src_prop, dst_prop, intersection, properties0, properties1);
   }
 };
 
@@ -165,7 +190,8 @@ struct call_intersection_op_t {
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
- * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
  * variables.
@@ -176,6 +202,10 @@ struct call_intersection_op_t {
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
  * @param vertex_src_value_input Wrapper used to access vertex input property values (for the
  * vertices assigned to this process in multi-GPU).
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p intersection_op
+ * needs to access edge property values) or cugraph::edge_dummy_property_t::view() (if @p
+ * intersection_op does not access edge property values).
  * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
  * pair, property values for the first vertex, property values for the second vertex, and a list of
  * vertices in the intersection of the first & second vertices' destination neighbors and returns an
@@ -188,11 +218,13 @@ struct call_intersection_op_t {
 template <typename GraphViewType,
           typename VertexPairIterator,
           typename VertexValueInputIterator,
+          typename EdgeValueInputIterator,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
 void per_v_pair_transform_dst_nbr_intersection(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
+  EdgeValueInputIterator edge_value_input,
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
   VertexValueInputIterator vertex_value_input_first,
@@ -205,7 +237,8 @@ void per_v_pair_transform_dst_nbr_intersection(
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
-  using result_t   = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
+  using edge_property_value_t = typename EdgeValueInputIterator::value_type;
+  using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
@@ -344,16 +377,40 @@ void per_v_pair_transform_dst_nbr_intersection(
 
       // FIXME: better restrict detail::nbr_intersection input vertex pairs to a single edge
       // partition? This may provide additional performance improvement opportunities???
+
       auto chunk_vertex_pair_first = thrust::make_transform_iterator(
         chunk_vertex_pair_index_first,
-        detail::indirection_t<VertexPairIterator>{vertex_pair_first});
-      auto [intersection_offsets, intersection_indices] =
-        detail::nbr_intersection(handle,
-                                 graph_view,
-                                 chunk_vertex_pair_first,
-                                 chunk_vertex_pair_first + this_chunk_size,
-                                 std::array<bool, 2>{true, true},
-                                 do_expensive_check);
+        detail::indirection_t<size_t, VertexPairIterator>{vertex_pair_first});
+
+      rmm::device_uvector<size_t> intersection_offsets(size_t{0}, handle.get_stream());
+      rmm::device_uvector<vertex_t> intersection_indices(size_t{0}, handle.get_stream());
+      [[maybe_unused]] rmm::device_uvector<edge_property_value_t> r_nbr_intersection_properties0(
+        size_t{0}, handle.get_stream());
+      [[maybe_unused]] rmm::device_uvector<edge_property_value_t> r_nbr_intersection_properties1(
+        size_t{0}, handle.get_stream());
+
+      if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+        std::tie(intersection_offsets,
+                 intersection_indices,
+                 r_nbr_intersection_properties0,
+                 r_nbr_intersection_properties1) =
+          detail::nbr_intersection(handle,
+                                   graph_view,
+                                   edge_value_input,
+                                   chunk_vertex_pair_first,
+                                   chunk_vertex_pair_first + this_chunk_size,
+                                   std::array<bool, 2>{true, true},
+                                   do_expensive_check);
+      } else {
+        std::tie(intersection_offsets, intersection_indices) =
+          detail::nbr_intersection(handle,
+                                   graph_view,
+                                   edge_value_input,
+                                   chunk_vertex_pair_first,
+                                   chunk_vertex_pair_first + this_chunk_size,
+                                   std::array<bool, 2>{true, true},
+                                   do_expensive_check);
+      }
 
       if (unique_vertices) {
         auto vertex_value_input_for_unique_vertices_first =
@@ -362,38 +419,45 @@ void per_v_pair_transform_dst_nbr_intersection(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(size_t{0}),
           thrust::make_counting_iterator(this_chunk_size),
-          detail::call_intersection_op_t<GraphViewType,
-                                         decltype(vertex_value_input_for_unique_vertices_first),
-                                         IntersectionOp,
-                                         decltype(chunk_vertex_pair_index_first),
-                                         VertexPairIterator,
-                                         VertexPairValueOutputIterator>{
-            edge_partition,
-            thrust::make_optional<raft::device_span<vertex_t const>>((*unique_vertices).data(),
-                                                                     (*unique_vertices).size()),
-            vertex_value_input_for_unique_vertices_first,
-            intersection_op,
-            intersection_offsets.data(),
-            intersection_indices.data(),
-            chunk_vertex_pair_index_first,
-            vertex_pair_first,
-            vertex_pair_value_output_first});
+          detail::call_intersection_op_t<
+            GraphViewType,
+            decltype(vertex_value_input_for_unique_vertices_first),
+            typename decltype(r_nbr_intersection_properties0)::const_pointer,
+            IntersectionOp,
+            decltype(chunk_vertex_pair_index_first),
+            VertexPairIterator,
+            VertexPairValueOutputIterator>{edge_partition,
+                                           thrust::make_optional<raft::device_span<vertex_t const>>(
+                                             (*unique_vertices).data(), (*unique_vertices).size()),
+                                           vertex_value_input_for_unique_vertices_first,
+                                           intersection_op,
+                                           intersection_offsets.data(),
+                                           intersection_indices.data(),
+                                           r_nbr_intersection_properties0.data(),
+                                           r_nbr_intersection_properties1.data(),
+                                           chunk_vertex_pair_index_first,
+                                           vertex_pair_first,
+                                           vertex_pair_value_output_first});
       } else {
         thrust::for_each(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(this_chunk_size),
-                         detail::call_intersection_op_t<GraphViewType,
-                                                        VertexValueInputIterator,
-                                                        IntersectionOp,
-                                                        decltype(chunk_vertex_pair_index_first),
-                                                        VertexPairIterator,
-                                                        VertexPairValueOutputIterator>{
+                         detail::call_intersection_op_t<
+                           GraphViewType,
+                           VertexValueInputIterator,
+                           typename decltype(r_nbr_intersection_properties0)::const_pointer,
+                           IntersectionOp,
+                           decltype(chunk_vertex_pair_index_first),
+                           VertexPairIterator,
+                           VertexPairValueOutputIterator>{
                            edge_partition,
                            thrust::optional<raft::device_span<vertex_t const>>{thrust::nullopt},
                            vertex_value_input_first,
                            intersection_op,
                            intersection_offsets.data(),
                            intersection_indices.data(),
+                           r_nbr_intersection_properties0.data(),
+                           r_nbr_intersection_properties1.data(),
                            chunk_vertex_pair_index_first,
                            vertex_pair_first,
                            vertex_pair_value_output_first});

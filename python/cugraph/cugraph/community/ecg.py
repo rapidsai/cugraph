@@ -65,8 +65,8 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> parts = cugraph.ecg(G)
 
     """

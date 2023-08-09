@@ -11,17 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
-import cugraph.dask as dcg
 import gc
 
-# import pytest
-import cugraph
-import dask_cudf
-import cudf
+import pytest
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
+import cudf
+import dask_cudf
+import cugraph
+import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function

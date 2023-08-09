@@ -65,6 +65,7 @@ struct compute_chunk_id_t {
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgeValueInputIterator,
           typename IntersectionOp,
           typename VertexPairIterator>
 struct call_intersection_op_t {
@@ -77,6 +78,8 @@ struct call_intersection_op_t {
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties0{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties1{nullptr};
   VertexPairIterator major_minor_pair_first{};
 
   __device__ auto operator()(size_t i) const
@@ -293,8 +296,10 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                                                   GraphViewType::is_multi_gpu>(handle,
                                                                                edge_partition,
                                                                                std::nullopt,
+                                                                               std::nullopt,
                                                                                majors.data(),
                                                                                minors.data(),
+                                                                               std::nullopt,
                                                                                std::nullopt,
                                                                                segment_offsets);
 
@@ -340,6 +345,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       auto [intersection_offsets, intersection_indices] =
         detail::nbr_intersection(handle,
                                  graph_view,
+                                 cugraph::edge_dummy_property_t{}.view(),
                                  chunk_vertex_pair_first,
                                  chunk_vertex_pair_first + this_chunk_size,
                                  std::array<bool, 2>{true, true},
@@ -360,6 +366,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                        detail::call_intersection_op_t<GraphViewType,
                                                       edge_partition_src_input_device_view_t,
                                                       edge_partition_dst_input_device_view_t,
+                                                      std::nullptr_t,
                                                       IntersectionOp,
                                                       decltype(chunk_vertex_pair_first)>{
                          edge_partition,
@@ -368,6 +375,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                          intersection_op,
                          intersection_offsets.data(),
                          intersection_indices.data(),
+                         nullptr,
+                         nullptr,
                          chunk_vertex_pair_first});
 
       rmm::device_uvector<vertex_t> endpoint_vertices(size_t{0}, handle.get_stream());

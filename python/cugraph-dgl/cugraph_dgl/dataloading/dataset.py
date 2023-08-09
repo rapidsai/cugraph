@@ -31,8 +31,11 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         total_number_of_nodes: int,
-        edge_dir: bool,
+        edge_dir: str,
     ):
+        # TODO: Deprecate `total_number_of_nodes`
+        # as it is no longer needed
+        # in the next release
         self.total_number_of_nodes = total_number_of_nodes
         self.edge_dir = edge_dir
         self._current_batch_fn = None
@@ -52,7 +55,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         if fn != self._current_batch_fn:
             df = _load_sampled_file(dataset_obj=self, fn=fn)
             self._current_batches = create_homogeneous_sampled_graphs_from_dataframe(
-                df, self.total_number_of_nodes, self.edge_dir
+                df, self.edge_dir
             )
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]

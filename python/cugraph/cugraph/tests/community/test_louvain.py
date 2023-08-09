@@ -12,26 +12,17 @@
 # limitations under the License.
 
 import gc
-import time
 
+import time
 import pytest
+import networkx as nx
 
 import cugraph
 import cupyx
 import cudf
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
+from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.datasets import karate_asymmetric
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, these import community and import networkx need to be
-# relocated in the third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 try:
     import community
@@ -82,7 +73,7 @@ def networkx_call(M):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_louvain(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -116,7 +107,7 @@ def test_louvain_directed_graph():
 @pytest.mark.sg
 @pytest.mark.parametrize("is_weighted", [True, False])
 def test_louvain_csr_graph(is_weighted):
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     df = karate.get_edgelist()
 
     M = cupyx.scipy.sparse.coo_matrix(

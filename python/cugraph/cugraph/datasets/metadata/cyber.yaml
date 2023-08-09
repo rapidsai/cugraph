@@ -1,0 +1,26 @@
+name: cyber
+file_type: .csv
+description:
+  IP edge pairs of a cyber data set from the University of New South Wales.
+author: Moustafa, Nour, and Jill Slay
+refs:
+  Moustafa, Nour. Designing an online and reliable statistical anomaly detection
+  framework for dealing with large high-speed network traffic. Diss. University
+  of New South Wales, Canberra, Australia, 2017.
+delim: ","
+header: 0
+col_names:
+  - idx
+  - srcip
+  - dstip
+col_types:
+  - int32
+  - str
+  - str
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 2546575
+number_of_nodes: 706529
+url: https://data.rapids.ai/cugraph/datasets/cyber.csv

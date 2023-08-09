@@ -11,22 +11,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
+import gc
+import sys
+import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import gc
 
 import pytest
 
+import cudf
 from cugraph.structure import Graph
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.experimental.datasets import (
+from cugraph.testing import (
+    RAPIDS_DATASET_ROOT_DIR_PATH,
     ALL_DATASETS,
-    ALL_DATASETS_WGT,
+    WEIGHTED_DATASETS,
     SMALL_DATASETS,
 )
-from cugraph.experimental import datasets
+from cugraph import datasets
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
@@ -72,6 +74,51 @@ def setup(tmpdir):
     gc.collect()
 
 
+@pytest.fixture()
+def setup_deprecation_warning_tests():
+    """
+    Fixture used to set warning filters to 'default' and reload
+    experimental.datasets module if it has been previously
+    imported. Tests that import this fixture are expected to
+    import cugraph.experimental.datasets
+    """
+    warnings.filterwarnings("default")
+
+    if "cugraph.experimental.datasets" in sys.modules:
+        del sys.modules["cugraph.experimental.datasets"]
+
+    yield
+
+
+###############################################################################
+# Helpers
+
+# check if there is a row where src == dst
+def has_loop(df):
+    df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
+    res = df.where(df["src"] == df["dst"])
+
+    return res.notnull().values.any()
+
+
+# check if dataset object is symmetric
+def is_symmetric(dataset):
+    # undirected graphs are symmetric
+    if not dataset.metadata["is_directed"]:
+        return True
+    else:
+        df = dataset.get_edgelist(download=True)
+        df_a = df.sort_values("src")
+        df_b = df_a[["dst", "src", "wgt"]]
+        df_b.rename(columns={"dst": "src", "src": "dst"}, inplace=True)
+        # created a df by appending the two
+        res = cudf.concat([df_a, df_b])
+        # sort/unique
+        res = res.drop_duplicates().sort_values("src")
+
+        return len(df_a) == len(res)
+
+
 ###############################################################################
 # Tests
 
@@ -103,8 +150,8 @@ def test_set_download_dir():
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_fetch(dataset):
-    E = dataset.get_edgelist(fetch=True)
+def test_download(dataset):
+    E = dataset.get_edgelist(download=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
@@ -112,13 +159,13 @@ def test_fetch(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
-    E = dataset.get_edgelist(fetch=True)
+    E = dataset.get_edgelist(download=True)
     assert E is not None
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert G is not None
 
 
@@ -133,32 +180,32 @@ def test_metadata(dataset):
 def test_get_path(dataset):
     tmpd = TemporaryDirectory()
     datasets.set_download_dir(tmpd.name)
-    dataset.get_edgelist(fetch=True)
+    dataset.get_edgelist(download=True)
 
     assert dataset.get_path().is_file()
     tmpd.cleanup()
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
+@pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 def test_weights(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert G.is_weighted()
-    G = dataset.get_graph(fetch=True, ignore_weights=True)
+    G = dataset.get_graph(download=True, ignore_weights=True)
     assert not G.is_weighted()
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert not G.is_directed()
-    G = dataset.get_graph(fetch=True, create_using=Graph)
+    G = dataset.get_graph(download=True, create_using=Graph)
     assert not G.is_directed()
-    G = dataset.get_graph(fetch=True, create_using=Graph(directed=True))
+    G = dataset.get_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
 
 
 def test_ctor_with_datafile():
-    from cugraph.experimental.datasets import karate
+    from cugraph.datasets import karate
 
     karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
 
@@ -185,9 +232,9 @@ def test_ctor_with_datafile():
             csv_col_dtypes=["int32", "int32", "float32"],
         )
 
-    expected_karate_edgelist = karate.get_edgelist(fetch=True)
+    expected_karate_edgelist = karate.get_edgelist(download=True)
 
-    # test with file path as string, ensure fetch=True does not break
+    # test with file path as string, ensure download=True does not break
     ds = datasets.Dataset(
         csv_file=karate_csv.as_posix(),
         csv_col_names=["src", "dst", "wgt"],
@@ -239,3 +286,72 @@ def test_unload():
     assert ds._edgelist is not None
     ds.unload()
     assert ds._edgelist is None
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_node_and_edge_count(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
+
+    assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
+    assert G.number_of_edges() == dataset.metadata["number_of_edges"]
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_directed(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
+
+    assert G.is_directed() == dataset.metadata["is_directed"]
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_has_loop(dataset):
+    df = dataset.get_edgelist(download=True)
+
+    assert has_loop(df) == dataset.metadata["has_loop"]
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_symmetric(dataset):
+    assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_multigraph(dataset):
+    G = dataset.get_graph(download=True)
+
+    assert G.is_multigraph() == dataset.metadata["is_multigraph"]
+
+
+#
+# Test experimental for DeprecationWarnings
+#
+def test_experimental_dataset_import(setup_deprecation_warning_tests):
+    with pytest.deprecated_call():
+        from cugraph.experimental.datasets import karate
+
+        # unload() is called to pass flake8
+        karate.unload()
+
+
+def test_experimental_method_warnings(setup_deprecation_warning_tests):
+    from cugraph.experimental.datasets import (
+        load_all,
+        set_download_dir,
+        get_download_dir,
+    )
+
+    warnings.filterwarnings("default")
+    tmpd = TemporaryDirectory()
+
+    with pytest.deprecated_call():
+        set_download_dir(tmpd.name)
+        get_download_dir()
+        load_all()
+
+    tmpd.cleanup()

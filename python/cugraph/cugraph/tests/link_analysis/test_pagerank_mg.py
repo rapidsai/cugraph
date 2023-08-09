@@ -10,23 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
-import pytest
-import cugraph.dask as dcg
+
 import gc
+
+import pytest
+import numpy as np
+
+import cudf
 import cugraph
+import cugraph.dask as dcg
 import dask_cudf
 from cugraph.testing import utils
-import cudf
-
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-
-
 def personalize(vertices, personalization_perc):
     personalization = None
     if personalization_perc != 0:
@@ -46,6 +46,25 @@ def personalize(vertices, personalization_perc):
         cu_personalization = cudf.DataFrame({"vertex": k, "values": v})
 
     return cu_personalization, personalization
+
+
+def create_distributed_karate_graph(store_transposed=True):
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=store_transposed)
+
+    return dg
 
 
 # =============================================================================
@@ -197,20 +216,7 @@ def test_pagerank_invalid_personalization_dtype(dask_client):
 
 @pytest.mark.mg
 def test_dask_pagerank_transposed_false(dask_client):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
-
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
+    dg = create_distributed_karate_graph(store_transposed=False)
 
     warning_msg = (
         "Pagerank expects the 'store_transposed' "
@@ -220,3 +226,49 @@ def test_dask_pagerank_transposed_false(dask_client):
 
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.pagerank(dg)
+
+
+@pytest.mark.mg
+def test_pagerank_non_convergence(dask_client):
+    dg = create_distributed_karate_graph()
+
+    # Not enough allowed iterations, should not converge
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        ddf = dcg.pagerank(dg, max_iter=1, fail_on_nonconvergence=True)
+
+    # Not enough allowed iterations, should not converge but do not consider
+    # that an error
+    (ddf, converged) = dcg.pagerank(dg, max_iter=1, fail_on_nonconvergence=False)
+    assert type(ddf) is dask_cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    # The default max_iter value should allow convergence for this graph
+    (ddf, converged) = dcg.pagerank(dg, fail_on_nonconvergence=False)
+    assert type(ddf) is dask_cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True
+
+    # Test personalized pagerank the same way
+    personalization = cudf.DataFrame()
+    personalization["vertex"] = [17, 26]
+    personalization["values"] = [0.5, 0.75]
+
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        df = dcg.pagerank(
+            dg, max_iter=1, personalization=personalization, fail_on_nonconvergence=True
+        )
+
+    (df, converged) = dcg.pagerank(
+        dg, max_iter=1, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is dask_cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    (df, converged) = dcg.pagerank(
+        dg, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is dask_cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True

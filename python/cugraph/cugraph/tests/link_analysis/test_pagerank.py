@@ -13,26 +13,15 @@
 
 import gc
 import time
-import numpy as np
 
 import pytest
+import numpy as np
+import networkx as nx
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS, karate
-
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cugraph.testing import utils, DEFAULT_DATASETS
+from cugraph.datasets import karate
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -158,7 +147,7 @@ def setup_function():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -198,11 +187,11 @@ def test_pagerank(
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 
     if has_precomputed_vertex_out_weight == 1:
-        df = G.view_edge_list()[["src", "weights"]]
+        df = G.view_edge_list()[["src", "wgt"]]
         pre_vtx_o_wgt = (
             df.groupby(["src"], as_index=False)
             .sum()
-            .rename(columns={"src": "vertex", "weights": "sums"})
+            .rename(columns={"src": "vertex", "wgt": "sums"})
         )
 
     cugraph_pr = cugraph_call(
@@ -224,7 +213,7 @@ def test_pagerank(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -269,7 +258,7 @@ def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -432,3 +421,49 @@ def test_pagerank_transposed_false():
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G)
+
+
+@pytest.mark.sg
+def test_pagerank_non_convergence():
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+
+    # Not enough allowed iterations, should not converge
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        df = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=True)
+
+    # Not enough allowed iterations, should not converge but do not consider
+    # that an error
+    (df, converged) = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    # The default max_iter value should allow convergence for this graph
+    (df, converged) = cugraph.pagerank(G, fail_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True
+
+    # Test personalized pagerank the same way
+    personalization = cudf.DataFrame()
+    personalization["vertex"] = [17, 26]
+    personalization["values"] = [0.5, 0.75]
+
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        df = cugraph.pagerank(
+            G, max_iter=1, personalization=personalization, fail_on_nonconvergence=True
+        )
+
+    (df, converged) = cugraph.pagerank(
+        G, max_iter=1, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    (df, converged) = cugraph.pagerank(
+        G, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True

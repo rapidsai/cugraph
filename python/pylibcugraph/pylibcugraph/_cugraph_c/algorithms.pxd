@@ -167,53 +167,63 @@ cdef extern from "cugraph_c/algorithms.h":
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_renumber_map(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_renumber_map_offsets(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_sources(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_destinations(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_index(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_weight(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_id(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_type(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_hop(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_start_labels(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_offsets(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
 
     cdef void \
         cugraph_sample_result_free(
-            cugraph_sample_result_t* result
+            const cugraph_sample_result_t* result
         )
 
     # testing API - cugraph_sample_result_t instances are normally created only
@@ -231,6 +241,55 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
+    
+    ctypedef struct cugraph_sampling_options_t:
+        pass
+    
+    ctypedef enum cugraph_prior_sources_behavior_t:
+        DEFAULT
+        CARRY_OVER
+        EXCLUDE
+    
+    cdef cugraph_error_code_t \
+        cugraph_sampling_options_create(
+            cugraph_sampling_options_t** options,
+            cugraph_error_t** error,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_renumber_results(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+
+    cdef void \
+        cugraph_sampling_set_with_replacement(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_return_hops(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+
+    cdef void \
+        cugraph_sampling_set_prior_sources_behavior(
+            cugraph_sampling_options_t* options,
+            cugraph_prior_sources_behavior_t value
+        )
+
+    cdef void \
+        cugraph_sampling_set_dedupe_sources(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_options_free(
+            cugraph_sampling_options_t* options,
+    )
 
     # uniform random walks
     cdef cugraph_error_code_t \

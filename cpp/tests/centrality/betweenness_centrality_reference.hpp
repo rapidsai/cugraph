@@ -33,7 +33,7 @@ void ref_bfs(std::vector<edge_t> const& offsets,
              std::queue<vertex_t>& Q,
              std::stack<vertex_t>& S,
              std::vector<vertex_t>& dist,
-             std::vector<std::vector<vertex_t>>& pred,
+             std::vector<std::vector<std::pair<vertex_t, edge_t>>>& pred,
              std::vector<double>& sigmas,
              vertex_t source)
 {
@@ -61,7 +61,7 @@ void ref_bfs(std::vector<edge_t> const& offsets,
       // Edge(v, w) on  a shortest path?
       if (dist[nbr] == dist[v] + 1) {
         sigmas[nbr] += sigmas[v];
-        pred[nbr].push_back(v);
+        pred[nbr].push_back(std::make_pair(v, nbr_idx));
       }
     }
   }
@@ -70,7 +70,7 @@ void ref_bfs(std::vector<edge_t> const& offsets,
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ref_accumulation(std::vector<weight_t>& result,
                       std::stack<vertex_t>& S,
-                      std::vector<std::vector<vertex_t>>& pred,
+                      std::vector<std::vector<std::pair<vertex_t, edge_t>>>& pred,
                       std::vector<double>& sigmas,
                       std::vector<double>& deltas,
                       vertex_t source)
@@ -80,8 +80,8 @@ void ref_accumulation(std::vector<weight_t>& result,
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) {
-      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    for (auto v : pred[w]) {
+      deltas[v.first] += (sigmas[v.first] / sigmas[w]) * (1.0 + deltas[w]);
     }
     if (w != source) { result[w] += deltas[w]; }
   }
@@ -90,7 +90,7 @@ void ref_accumulation(std::vector<weight_t>& result,
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ref_endpoints_accumulation(std::vector<weight_t>& result,
                                 std::stack<vertex_t>& S,
-                                std::vector<std::vector<vertex_t>>& pred,
+                                std::vector<std::vector<std::pair<vertex_t, edge_t>>>& pred,
                                 std::vector<double>& sigmas,
                                 std::vector<double>& deltas,
                                 vertex_t source)
@@ -101,17 +101,19 @@ void ref_endpoints_accumulation(std::vector<weight_t>& result,
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) {
-      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    for (auto v : pred[w]) {
+      deltas[v.first] += (sigmas[v.first] / sigmas[w]) * (1.0 + deltas[w]);
     }
     if (w != source) { result[w] += deltas[w] + 1; }
   }
 }
 
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 void ref_edge_accumulation(std::vector<weight_t>& result,
+                           std::vector<edge_t> const& offsets,
+                           std::vector<vertex_t> const& indices,
                            std::stack<vertex_t>& S,
-                           std::vector<std::vector<vertex_t>>& pred,
+                           std::vector<std::vector<std::pair<vertex_t, edge_t>>>& pred,
                            std::vector<double>& sigmas,
                            std::vector<double>& deltas,
                            vertex_t source)
@@ -120,10 +122,12 @@ void ref_edge_accumulation(std::vector<weight_t>& result,
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) {
-      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    for (auto v : pred[w]) {
+      double coefficient = (sigmas[v.first] / sigmas[w]) * (1.0 + deltas[w]);
+
+      deltas[v.first] += coefficient;
+      result[v.second] += coefficient;
     }
-    if (w != source) { result[w] += deltas[w]; }
   }
 }
 
@@ -162,6 +166,37 @@ void reference_rescale(result_t* result,
   }
 }
 
+template <typename result_t>
+void reference_edge_rescale(result_t* result,
+                            bool directed,
+                            bool normalize,
+                            size_t const number_of_vertices,
+                            size_t const number_of_edges,
+                            size_t const number_of_sources)
+{
+  result_t rescale_factor            = static_cast<result_t>(1);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
+
+  if (normalize) {
+    if (number_of_edges > 2) {
+      rescale_factor /= ((casted_number_of_vertices) * (casted_number_of_vertices - 1));
+    }
+  } else {
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
+  }
+
+  if (rescale_factor != result_t{1}) {
+    if (number_of_sources > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
+    }
+
+    for (auto idx = 0; idx < number_of_edges; ++idx) {
+      result[idx] *= rescale_factor;
+    }
+  }
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::vector<weight_t> betweenness_centrality_reference(
   std::vector<edge_t> const& offsets,
@@ -181,7 +216,7 @@ std::vector<weight_t> betweenness_centrality_reference(
     std::stack<vertex_t> S;
 
     std::vector<vertex_t> dist(result.size());
-    std::vector<std::vector<vertex_t>> pred(result.size());
+    std::vector<std::vector<std::pair<vertex_t, edge_t>>> pred(result.size());
     std::vector<double> sigmas(result.size());
     std::vector<double> deltas(result.size());
 
@@ -209,7 +244,9 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
   std::vector<edge_t> const& offsets,
   std::vector<vertex_t> const& indices,
   std::optional<std::vector<weight_t>> const& wgt,
-  std::vector<vertex_t> const& seeds)
+  std::vector<vertex_t> const& seeds,
+  bool directed,
+  bool normalize)
 {
   std::vector<weight_t> result;
   if (indices.size() > 0) {
@@ -220,16 +257,19 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
     std::stack<vertex_t> S;
 
     std::vector<vertex_t> dist(offsets.size() - 1);
-    std::vector<std::vector<vertex_t>> pred(offsets.size() - 1);
+    std::vector<std::vector<std::pair<vertex_t, edge_t>>> pred(result.size());
     std::vector<double> sigmas(offsets.size() - 1);
     std::vector<double> deltas(offsets.size() - 1);
 
     for (vertex_t s : seeds) {
       ref_bfs(offsets, indices, Q, S, dist, pred, sigmas, s);
 
-      ref_edge_accumulation(result, S, pred, sigmas, deltas, s);
+      ref_edge_accumulation(result, offsets, indices, S, pred, sigmas, deltas, s);
     }
   }
+
+  reference_edge_rescale(
+    result.data(), directed, normalize, offsets.size() - 1, indices.size(), seeds.size());
   return result;
 }
 }  // namespace

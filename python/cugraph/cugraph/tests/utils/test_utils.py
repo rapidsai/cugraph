@@ -14,12 +14,12 @@
 import gc
 
 import pytest
-
-import cugraph
-import cudf
-from cugraph.testing import utils
-from cugraph.experimental.datasets import karate
 import numpy as np
+
+import cudf
+import cugraph
+from cugraph.testing import utils
+from cugraph.datasets import karate
 
 
 @pytest.mark.sg

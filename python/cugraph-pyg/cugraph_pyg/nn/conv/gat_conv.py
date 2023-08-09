@@ -12,8 +12,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
-
 from cugraph.utilities.utils import import_optional
 
 from .base import BaseConv
@@ -21,6 +19,7 @@ from .base import BaseConv
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):
@@ -203,19 +202,6 @@ class GATConv(BaseConv):
                 )
             x_src = self.lin_src(x[0])
             x_dst = self.lin_dst(x[1])
-
-            out = mha_gat_n2n_bipartite(
-                x_src,
-                x_dst,
-                self.att,
-                graph,
-                num_heads=self.heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=edge_attr,
-            )
-
         else:
             if not hasattr(self, "lin"):
                 raise RuntimeError(
@@ -224,16 +210,16 @@ class GATConv(BaseConv):
                 )
             x = self.lin(x)
 
-            out = mha_gat_n2n(
-                x,
-                self.att,
-                graph,
-                num_heads=self.heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=edge_attr,
-            )
+        out = ops_torch.operators.mha_gat_n2n(
+            (x_src, x_dst) if bipartite else x,
+            self.att,
+            graph,
+            num_heads=self.heads,
+            activation="LeakyReLU",
+            negative_slope=self.negative_slope,
+            concat_heads=self.concat,
+            edge_feat=edge_attr,
+        )
 
         if self.bias is not None:
             out = out + self.bias
