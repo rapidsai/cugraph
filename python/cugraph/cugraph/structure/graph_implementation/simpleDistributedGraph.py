@@ -318,14 +318,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-
-        # FIXME: Some partitions with empty dataframe have no column names
-        # causing a metadata mismatch therefore, also copy the column names.
-        def copy_df(df, col_names):
-            df.columns = col_names
-            return df
-
-        ddf = ddf.map_partitions(lambda df: copy_df(df, ddf_columns))
+        ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
@@ -1199,7 +1192,5 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
     gc.collect()
     return output_col
