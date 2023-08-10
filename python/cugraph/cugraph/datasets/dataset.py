@@ -191,7 +191,7 @@ class Dataset:
                 header=header,
             )
 
-        return self._edgelist
+        return self._edgelist.copy()
 
     def get_graph(
         self,
