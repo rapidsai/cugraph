@@ -325,7 +325,7 @@ class simpleDistributedGraphImpl:
             df.columns = col_names
             return df
 
-        ddf = ddf.map_partitions(lambda df: copy_df(df, ddf.columns))
+        ddf = ddf.map_partitions(lambda df: copy_df(df, ddf_columns))
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
