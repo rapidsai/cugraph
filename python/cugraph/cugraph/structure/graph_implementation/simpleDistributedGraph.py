@@ -819,6 +819,7 @@ class simpleDistributedGraphImpl:
 
         _client = default_client()
         if start_vertices is not None:
+            # breakpoint()
             result = [
                 _client.submit(
                     _call_plc_two_hop_neighbors,
