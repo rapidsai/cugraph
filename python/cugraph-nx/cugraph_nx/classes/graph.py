@@ -42,6 +42,14 @@ networkx_api = cnx.utils.decorators.networkx_class(nx.Graph)
 
 
 class Graph:
+    # Tell networkx to dispatch calls with this object to cugraph-nx
+    __networkx_plugin__: ClassVar[str] = "cugraph"
+
+    # networkx properties
+    graph: dict
+    graph_attr_dict_factory: ClassVar[type] = dict
+
+    # Not networkx properties
     # We store edge data in COO format with {row,col}_indices and edge_values.
     row_indices: cp.ndarray[IndexValue]
     col_indices: cp.ndarray[IndexValue]
@@ -52,11 +60,6 @@ class Graph:
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: dict[IndexValue, NodeKey] | None
     _N: int
-    graph: dict
-
-    __networkx_plugin__: ClassVar[str] = "cugraph"
-
-    graph_attr_dict_factory: ClassVar[type] = dict
 
     ####################
     # Creation methods #

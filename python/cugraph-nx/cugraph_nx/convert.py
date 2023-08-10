@@ -159,6 +159,7 @@ def from_networkx(
         # Faster than graph.number_of_edges() == 0
         or next(concat(rowdata.values() for rowdata in adj.values()), None) is None
     ):
+        # Either we weren't asked to preserve edge attributes, or there are no edges
         edge_attrs = None
     elif preserve_edge_attrs:
         # Using comprehensions should be just as fast starting in Python 3.11

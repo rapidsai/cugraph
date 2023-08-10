@@ -47,7 +47,7 @@ Homepage = "https://github.com/rapidsai/cugraph"
 Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
 [project.entry-points."networkx.plugins"]
-cugraph = "cugraph_nx.interface:Dispatcher"
+cugraph = "cugraph_nx.interface:BackendInterface"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
