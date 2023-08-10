@@ -12,10 +12,11 @@
 # limitations under the License.
 
 import pytest
+
 import cudf
 import cupy
 import cugraph
-from cugraph.experimental.datasets import karate
+from cugraph.datasets import karate
 from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import create_directory_with_overwrite
 

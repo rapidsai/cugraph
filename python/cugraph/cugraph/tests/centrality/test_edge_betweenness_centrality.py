@@ -14,25 +14,16 @@
 import gc
 
 import pytest
-
-import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
 import random
+import networkx as nx
 import numpy as np
+
 import cupy
 import cudf
+import cugraph
+from cugraph.datasets import karate_disjoint
+from cugraph.testing import utils, SMALL_DATASETS
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
@@ -322,7 +313,7 @@ def generate_upper_triangle(dataframe):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -352,7 +343,7 @@ def test_edge_betweenness_centrality(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -391,7 +382,7 @@ def test_edge_betweenness_centrality_k_full(
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNRENUMBERED)
+@pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -425,7 +416,7 @@ def test_edge_betweenness_centrality_fixed_sample(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -461,7 +452,7 @@ def test_edge_betweenness_centrality_weight_except(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -494,7 +485,7 @@ def test_edge_betweenness_invalid_dtype(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)

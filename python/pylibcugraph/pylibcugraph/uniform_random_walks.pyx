@@ -96,6 +96,8 @@ def uniform_random_walks(ResourceHandle resource_handle,
     cdef uintptr_t cai_start_ptr = \
         start_vertices.__cuda_array_interface__["data"][0]
 
+    cdef cugraph_type_erased_device_array_view_t* weights_ptr
+
     cdef cugraph_type_erased_device_array_view_t* start_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
@@ -113,14 +115,17 @@ def uniform_random_walks(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* path_ptr = \
         cugraph_random_walk_result_get_paths(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
-        cugraph_random_walk_result_get_weights(result_ptr)
+
+    if input_graph.weights_view_ptr is NULL:
+        cupy_weights = None
+    else:
+        weights_ptr = cugraph_random_walk_result_get_weights(result_ptr)
+        cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
 
     max_path_length = \
         cugraph_random_walk_result_get_max_path_length(result_ptr)
 
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, path_ptr)
-    cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
 
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)

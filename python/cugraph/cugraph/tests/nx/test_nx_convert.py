@@ -11,25 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
 import pytest
+import pandas as pd
+import networkx as nx
+
 import cudf
-
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
-
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cugraph.testing import utils, DEFAULT_DATASETS
 
 
 def _compare_graphs(nxG, cuG, has_wt=True):
@@ -37,8 +25,9 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     assert nxG.number_of_edges() == cuG.number_of_edges()
 
     cu_df = cuG.view_edge_list().to_pandas()
+    cu_df = cu_df.rename(columns={"0": "src", "1": "dst"})
     if has_wt is True:
-        cu_df = cu_df.drop(columns=["weights"])
+        cu_df = cu_df.drop(columns=["weight"])
 
     out_of_order = cu_df[cu_df["src"] > cu_df["dst"]]
     if len(out_of_order) > 0:
@@ -70,7 +59,7 @@ def _compare_graphs(nxG, cuG, has_wt=True):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_networkx_compatibility(graph_file):
     # test to make sure cuGraph and Nx build similar Graphs
     # Read in the graph
@@ -84,12 +73,11 @@ def test_networkx_compatibility(graph_file):
 
     # create a cuGraph Directed Graph
     gdf = cudf.from_pandas(M)
-    gdf = gdf.rename(columns={"weight": "weights"})
     cuG = cugraph.from_cudf_edgelist(
         gdf,
         source="0",
         destination="1",
-        edge_attr="weights",
+        edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
     )
 
@@ -97,7 +85,7 @@ def test_networkx_compatibility(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_nx_convert_undirected(graph_file):
     # read data and create a Nx Graph
     dataset_path = graph_file.get_path()
@@ -114,7 +102,7 @@ def test_nx_convert_undirected(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_nx_convert_directed(graph_file):
     # read data and create a Nx DiGraph
     dataset_path = graph_file.get_path()
@@ -130,7 +118,7 @@ def test_nx_convert_directed(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_nx_convert_weighted(graph_file):
     # read data and create a Nx DiGraph
     dataset_path = graph_file.get_path()
@@ -147,7 +135,7 @@ def test_nx_convert_weighted(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_nx_convert_multicol(graph_file):
     # read data and create a Nx Graph
     dataset_path = graph_file.get_path()
