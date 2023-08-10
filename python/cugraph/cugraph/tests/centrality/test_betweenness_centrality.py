@@ -118,7 +118,7 @@ def calc_betweenness_centrality(
     )
 
     M = G.to_pandas_edgelist().rename(
-        columns={"src": "0", "dst": "1", "weights": "weight"}
+        columns={"src": "0", "dst": "1", "wgt": edge_attr}
     )
 
     Gnx = nx.from_pandas_edgelist(

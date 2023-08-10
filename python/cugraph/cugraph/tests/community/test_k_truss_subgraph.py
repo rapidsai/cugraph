@@ -39,7 +39,7 @@ def setup_function():
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    G = nx.read_edgelist(str(graph_file), nodetype=int, data=(("weights", float),))
+    G = nx.read_edgelist(str(graph_file), nodetype=int, data=(("weight", float),))
     df = nx.to_pandas_edgelist(G)
     return df
 
@@ -50,18 +50,18 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
     edgelist_df = k_truss_cugraph.view_edge_list()
     src = edgelist_df["src"]
     dst = edgelist_df["dst"]
-    wgt = edgelist_df["weights"]
+    wgt = edgelist_df["weight"]
     assert len(edgelist_df) == len(k_truss_nx)
     for i in range(len(src)):
         has_edge = (
             (k_truss_nx["source"] == src[i])
             & (k_truss_nx["target"] == dst[i])
-            & np.isclose(k_truss_nx["weights"], wgt[i])
+            & np.isclose(k_truss_nx["weight"], wgt[i])
         ).any()
         has_opp_edge = (
             (k_truss_nx["source"] == dst[i])
             & (k_truss_nx["target"] == src[i])
-            & np.isclose(k_truss_nx["weights"], wgt[i])
+            & np.isclose(k_truss_nx["weight"], wgt[i])
         ).any()
         assert has_edge or has_opp_edge
     return True
