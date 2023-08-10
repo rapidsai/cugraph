@@ -32,14 +32,14 @@ class networkx_algorithm:
     def __new__(cls, func=None, *, name=None):
         if func is None:
             return partial(networkx_algorithm, name=name)
-        self = object.__new__(cls)
-        update_wrapper(self, func)
-        self.__defaults__ = func.__defaults__
-        self.__kwdefaults__ = func.__kwdefaults__
-        self.name = func.__name__ if name is None else name
-        self.can_run = _default_can_run
-        setattr(BackendInterface, self.name, self)
-        return self
+        instance = object.__new__(cls)
+        update_wrapper(instance, func)
+        instance.__defaults__ = func.__defaults__
+        instance.__kwdefaults__ = func.__kwdefaults__
+        instance.name = func.__name__ if name is None else name
+        instance.can_run = _default_can_run
+        setattr(BackendInterface, instance.name, instance)
+        return instance
 
     @property
     def __signature__(self):

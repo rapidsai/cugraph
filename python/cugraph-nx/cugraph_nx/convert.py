@@ -399,6 +399,22 @@ def _iter_attr_dicts(
 
 
 def to_networkx(G: cnx.Graph) -> nx.Graph:
+    """Convert a cugraph_nx graph to networkx graph.
+
+    All edge and node attributes and ``G.graph`` properties are converted.
+
+    Parameters
+    ----------
+    G : cugraph_nx.Graph
+
+    Returns
+    -------
+    networkx.Graph
+
+    See Also
+    --------
+    from_networkx : The opposite; convert networkx graph to cugraph_nx graph
+    """
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
 
@@ -442,12 +458,17 @@ def to_networkx(G: cnx.Graph) -> nx.Graph:
     return rv
 
 
-def to_graph(
+def _to_graph(
     G,
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.Graph | cnx.DiGraph:
+    """Ensure that input type is a cugraph_nx graph, and convert if necessary.
+
+    Directed and undirected graphs are both allowed.
+    This is an internal utility function and may change or be removed.
+    """
     if isinstance(G, cnx.Graph):
         return G
     if isinstance(G, nx.Graph):
@@ -458,12 +479,17 @@ def to_graph(
     raise TypeError
 
 
-def to_directed_graph(
+def _to_directed_graph(
     G,
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.DiGraph:
+    """Ensure that input type is a cugraph_nx DiGraph, and convert if necessary.
+
+    Undirected graphs will be converted to directed.
+    This is an internal utility function and may change or be removed.
+    """
     if isinstance(G, cnx.DiGraph):
         return G
     if isinstance(G, cnx.Graph):
@@ -479,15 +505,20 @@ def to_directed_graph(
     raise TypeError
 
 
-def to_undirected_graph(
+def _to_undirected_graph(
     G,
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.Graph:
+    """Ensure that input type is a cugraph_nx Graph, and convert if necessary.
+
+    Only undirected graphs are allowed. Directed graphs will raise ValueError.
+    This is an internal utility function and may change or be removed.
+    """
     if isinstance(G, cnx.Graph):
         if G.is_directed():
-            raise NotImplementedError
+            raise ValueError("Only undirected graphs supported; got a directed graph")
         return G
     if isinstance(G, nx.Graph):
         return from_networkx(

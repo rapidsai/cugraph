@@ -49,6 +49,7 @@ def test_convert_empty(graph_class, kwargs):
 
 
 def test_convert():
+    # FIXME: can we break this into smaller tests?
     G = nx.Graph()
     G.add_edge(0, 1, x=2)
     G.add_node(0, foo=10)

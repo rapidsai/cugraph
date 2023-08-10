@@ -80,37 +80,37 @@ class Graph:
         id_to_key: dict[IndexValue, NodeKey] | None = None,
         **attr,
     ) -> Graph:
-        self = object.__new__(cls)
-        self.row_indices = row_indices
-        self.col_indices = col_indices
-        self.edge_values = {} if edge_values is None else dict(edge_values)
-        self.edge_masks = {} if edge_masks is None else dict(edge_masks)
-        self.node_values = {} if node_values is None else dict(node_values)
-        self.node_masks = {} if node_masks is None else dict(node_masks)
-        self.key_to_id = None if key_to_id is None else dict(key_to_id)
-        self._id_to_key = None if id_to_key is None else dict(id_to_key)
-        self._N = op.index(N)  # Ensure N is integral
-        self.graph = self.graph_attr_dict_factory()
-        self.graph.update(attr)
-        size = self.row_indices.size
+        new_graph = object.__new__(cls)
+        new_graph.row_indices = row_indices
+        new_graph.col_indices = col_indices
+        new_graph.edge_values = {} if edge_values is None else dict(edge_values)
+        new_graph.edge_masks = {} if edge_masks is None else dict(edge_masks)
+        new_graph.node_values = {} if node_values is None else dict(node_values)
+        new_graph.node_masks = {} if node_masks is None else dict(node_masks)
+        new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
+        new_graph._id_to_key = None if id_to_key is None else dict(id_to_key)
+        new_graph._N = op.index(N)  # Ensure N is integral
+        new_graph.graph = new_graph.graph_attr_dict_factory()
+        new_graph.graph.update(attr)
+        size = new_graph.row_indices.size
         # Easy and fast sanity checks
-        if size != self.col_indices.size:
+        if size != new_graph.col_indices.size:
             raise ValueError
         for attr in ["edge_values", "edge_masks"]:
-            if datadict := getattr(self, attr):
+            if datadict := getattr(new_graph, attr):
                 for key, val in datadict.items():
                     if val.shape[0] != size:
                         raise ValueError(key)
         for attr in ["node_values", "node_masks"]:
-            if datadict := getattr(self, attr):
+            if datadict := getattr(new_graph, attr):
                 for key, val in datadict.items():
                     if val.shape[0] != N:
                         raise ValueError(key)
-        if self.key_to_id is not None and len(self.key_to_id) != N:
+        if new_graph.key_to_id is not None and len(new_graph.key_to_id) != N:
             raise ValueError
-        if self._id_to_key is not None and len(self._id_to_key) != N:
+        if new_graph._id_to_key is not None and len(new_graph._id_to_key) != N:
             raise ValueError
-        return self
+        return new_graph
 
     @classmethod
     def from_csr(
@@ -244,15 +244,15 @@ class Graph:
 
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
-            self = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
-        elif incoming_graph_data.__class__ is self.__class__:
-            self = incoming_graph_data.copy()
-        elif incoming_graph_data.__class__ is self.to_networkx_class():
-            self = cnx.from_networkx(incoming_graph_data, preserve_all_attrs=True)
+            new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
+        elif incoming_graph_data.__class__ is new_graph.__class__:
+            new_graph = incoming_graph_data.copy()
+        elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
+            new_graph = cnx.from_networkx(incoming_graph_data, preserve_all_attrs=True)
         else:
             raise NotImplementedError
-        self.graph.update(attr)
-        return self
+        new_graph.graph.update(attr)
+        return new_graph
 
     #################
     # Class methods #
