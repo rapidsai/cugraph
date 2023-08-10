@@ -149,7 +149,7 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
-        
+
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
