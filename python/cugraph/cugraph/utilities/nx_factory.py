@@ -236,11 +236,15 @@ def cugraph_to_nx(G):
     pdf = G.view_edge_list().to_pandas()
     num_col = len(pdf.columns)
 
+    source = G.source_columns
+    target = G.destination_columns
+
     if num_col == 2:
-        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst")
+        Gnx = nx.from_pandas_edgelist(pdf, source=source, target=target)
     else:
+        edge_attr = G.weight_column
         Gnx = nx.from_pandas_edgelist(
-            pdf, source="src", target="dst", edge_attr="weights"
+            pdf, source=source, target=target, edge_attr=edge_attr
         )
 
     return Gnx

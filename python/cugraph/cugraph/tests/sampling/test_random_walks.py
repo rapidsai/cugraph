@@ -76,7 +76,7 @@ def calc_random_walks(G, max_depth=None, use_padding=False, legacy_result_type=T
     """
     assert G is not None
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
 
     k = random.randint(1, 6)
 
@@ -136,8 +136,9 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
+
     if "weight" in df_G.columns:
         df_G = df_G.rename(columns={"weight": "wgt"})
 
@@ -176,17 +177,18 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
                 else:
                     # check valid edge wgt
-                    expected_wgt = edge["wgt"].iloc[0]
-                    result_wgt = e_wgt_paths.iloc[e_wgt_idx]
+                    if G.is_weighted():
+                        expected_wgt = edge["wgt"].iloc[0]
+                        result_wgt = e_wgt_paths.iloc[e_wgt_idx]
 
-                    if expected_wgt != result_wgt:
-                        print(
-                            "[ERR] Invalid edge wgt: "
-                            "The edge src {} dst {} has wgt {} but got {}".format(
-                                src, dst, expected_wgt, result_wgt
+                        if expected_wgt != result_wgt:
+                            print(
+                                "[ERR] Invalid edge wgt: "
+                                "The edge src {} dst {} has wgt {} but got {}".format(
+                                    src, dst, expected_wgt, result_wgt
+                                )
                             )
-                        )
-                        invalid_edge_wgt += 1
+                            invalid_edge_wgt += 1
             e_wgt_idx += 1
 
             if src != -1 and dst == -1:
@@ -195,9 +197,10 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
     assert invalid_seeds == 0
     assert invalid_edge == 0
-    assert invalid_edge_wgt == 0
     assert len(v_paths) == (max_depth) * len(seeds)
-    assert len(e_wgt_paths) == (max_depth - 1) * len(seeds)
+    if G.is_weighted():
+        assert invalid_edge_wgt == 0
+        assert len(e_wgt_paths) == (max_depth - 1) * len(seeds)
 
     if legacy_result_type:
         sizes = path_data[2]
@@ -298,11 +301,15 @@ def test_random_walks_nx(graph_file):
 
     M = G.to_pandas_edgelist()
 
+    source = G.source_columns
+    target = G.destination_columns
+    edge_attr = G.weight_column
+
     Gnx = nx.from_pandas_edgelist(
         M,
-        source="src",
-        target="dst",
-        edge_attr="weights",
+        source=source,
+        target=target,
+        edge_attr=edge_attr,
         create_using=nx.DiGraph(),
     )
     max_depth = random.randint(2, 10)
