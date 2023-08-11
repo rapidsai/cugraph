@@ -330,6 +330,8 @@ dependencies:
           - raft-dask==23.10.*
           - *rmm
           - &ucx_py ucx-py==0.34.*
+          - requests
+          - aiohttp
       - output_types: conda
         packages:
           - &cupy cupy>=12.0.0
