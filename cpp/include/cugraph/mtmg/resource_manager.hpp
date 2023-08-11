@@ -85,10 +85,15 @@ class resource_manager_t {
     auto const min_alloc =
       rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
 
+#if 0
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
-    // rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(std::make_shared<rmm::mr::cuda_memory_resource>(),
-    // min_alloc)});
+#else
+    auto per_device_it = per_device_rmm_resources_.insert(
+      std::pair{rank,
+                rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
+                  std::make_shared<rmm::mr::cuda_memory_resource>(), min_alloc)});
+#endif
 
     rmm::mr::set_per_device_resource(device_id, per_device_it.first->second.get());
   }
@@ -172,13 +177,9 @@ class resource_manager_t {
         auto pos = local_rank_map.find(rank);
         cudaSetDevice(pos->second.value());
 
-        std::cout << "call nccl_comms_init_rank, rank = " << idx << std::endl;
-
         ncclCommInitRank(nccl_comms[idx].get(), comm_size, instance_manager_id, rank);
 
-        std::cout << "call build_comms_nccl_only" << std::endl;
         raft::comms::build_comms_nccl_only(handles[idx].get(), *nccl_comms[idx], comm_size, rank);
-        std::cout << "back from build_comms_nccl_only" << std::endl;
 
         cugraph::partition_manager::init_subcomm(*handles[idx], gpu_row_comm_size);
       });

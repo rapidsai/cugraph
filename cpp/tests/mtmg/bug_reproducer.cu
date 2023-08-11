@@ -70,6 +70,8 @@ int main(int argc, char** argv)
         raft::comms::build_comms_nccl_only(handles[rank].get(), *nccl_comms[rank], comm_size, rank);
         std::cout << "back from build_comms_nccl_only" << std::endl;
 
+        handles[rank]->sync_stream();
+
         auto& comm = handles[rank]->get_comms();
 
         int row_idx = rank / gpu_row_comm_size;
@@ -81,6 +83,8 @@ int main(int argc, char** argv)
         handles[rank]->set_subcomm(
           "gpu_col_comm",
           std::make_shared<raft::comms::comms_t>(comm.comm_split(col_idx, row_idx)));
+
+        handles[rank]->sync_stream();
 
         std::cout << "back from init_subcomm" << std::endl;
       });

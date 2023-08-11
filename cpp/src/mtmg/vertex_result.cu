@@ -15,6 +15,7 @@
  */
 
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_result.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -30,7 +31,8 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
   handle_t const& handle,
   raft::device_span<vertex_t const> vertices,
-  cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view)
+  cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map)
 {
   auto my_graph_view = graph_view.get_pointer(handle);
 
@@ -51,6 +53,16 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
                       my_graph_view->vertex_partition_range_lasts().data(),
                       my_graph_view->vertex_partition_range_lasts().size(),
                       handle.get_stream());
+
+  if (renumber_map) {
+    cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      handle.raft_handle(),
+      local_vertices.data(),
+      local_vertices.size(),
+      renumber_map->get_pointer(handle)->data(),
+      my_graph_view->local_vertex_partition_range_first(),
+      my_graph_view->local_vertex_partition_range_last());
+  }
 
   auto const major_comm_size =
     handle.raft_handle().get_subcomm(cugraph::partition_manager::major_comm_name()).get_size();
@@ -94,8 +106,7 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
   //
   // Shuffle back
   //
-  std::forward_as_tuple(
-    std::ignore, std::tie(local_vertices, vertex_pos, tmp_result), std::ignore) =
+  std::forward_as_tuple(std::ignore, std::tie(std::ignore, vertex_pos, tmp_result), std::ignore) =
     groupby_gpu_id_and_shuffle_kv_pairs(
       handle.raft_handle().get_comms(),
       vertex_gpu.begin(),
@@ -119,32 +130,38 @@ rmm::device_uvector<result_t> vertex_result_t<result_t>::gather(
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, false> const& graph_view);
+  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, false> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int32_t>>& renumber_map);
 
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, false> const& graph_view);
+  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, false> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int32_t>>& renumber_map);
 
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, false> const& graph_view);
+  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int64_t>>& renumber_map);
 
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, true> const& graph_view);
+  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int32_t>>& renumber_map);
 
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, true> const& graph_view);
+  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int32_t>>& renumber_map);
 
 template rmm::device_uvector<float> vertex_result_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, true> const& graph_view);
+  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::mtmg::renumber_map_t<int64_t>>& renumber_map);
 
 }  // namespace mtmg
 }  // namespace cugraph

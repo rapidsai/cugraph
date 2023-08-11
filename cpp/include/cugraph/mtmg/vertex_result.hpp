@@ -19,6 +19,7 @@
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/graph_view.hpp>
 #include <cugraph/mtmg/handle.hpp>
+#include <cugraph/mtmg/renumber_map.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <rmm/device_uvector.hpp>
@@ -35,7 +36,8 @@ class vertex_result_t : public detail::device_shared_wrapper_t<rmm::device_uvect
   rmm::device_uvector<result_t> gather(
     handle_t const& handle,
     raft::device_span<vertex_t const> vertices,
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view);
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+    std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map);
 };
 
 }  // namespace mtmg

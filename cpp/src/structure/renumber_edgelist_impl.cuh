@@ -277,9 +277,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
   // 2. if local_vertices.has_value() is false, find unique vertices from edge minors (to construct
   // local_vertices)
-  std::cout << "in compute_renumber_map... step 2, rank = " << handle.get_comms().get_rank()
-            << std::endl;
-
   rmm::device_uvector<vertex_t> sorted_unique_minors(0, handle.get_stream());
   if (!local_vertices) {
     sorted_unique_minors.resize(num_local_edges, handle.get_stream());
@@ -314,18 +311,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   // 3. update sorted_local_vertices.
   // if local_vertices.has_value() is false, reconstruct local_vertices first
 
-  std::cout << "in compute_renumber_map... step 3, rank = " << handle.get_comms().get_rank()
-            << std::endl;
-
   if (local_vertices) {
-    std::cout << "in compute_renumber_map... step 3 local_vertices true, rank = "
-              << handle.get_comms().get_rank() << std::endl;
     sorted_local_vertices = std::move(*local_vertices);
     thrust::sort(
       handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
   } else {
-    std::cout << "in compute_renumber_map... step 3 local_vertices false, rank = "
-              << handle.get_comms().get_rank() << std::endl;
     sorted_local_vertices.resize(sorted_unique_majors.size() + sorted_unique_minors.size(),
                                  handle.get_stream());
 
@@ -349,46 +339,20 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     sorted_local_vertices.shrink_to_fit(handle.get_stream());
 
     if constexpr (multi_gpu) {
-      std::cout << "in compute_renumber_map... step 3 shuffle, rank = "
-                << handle.get_comms().get_rank() << std::endl;
-      raft::print_device_vector("  sorted_local_vertices",
-                                sorted_local_vertices.data(),
-                                sorted_local_vertices.size(),
-                                std::cout);
       sorted_local_vertices =
         cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
           handle, std::move(sorted_local_vertices));
 
-      sleep(handle.get_comms().get_rank());
-      std::cout << "in compute_renumber_map... step 3 after shuffle, rank = "
-                << handle.get_comms().get_rank() << std::endl;
-      raft::print_device_vector("  sorted_local_vertices",
-                                sorted_local_vertices.data(),
-                                sorted_local_vertices.size(),
-                                std::cout);
-
       thrust::sort(
         handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
-      raft::print_device_vector("  sorted_local_vertices",
-                                sorted_local_vertices.data(),
-                                sorted_local_vertices.size(),
-                                std::cout);
-      std::cout << "in compute_renumber_map... step 3 after sort, rank = "
-                << handle.get_comms().get_rank() << std::endl;
       sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),
                                                     thrust::unique(handle.get_thrust_policy(),
                                                                    sorted_local_vertices.begin(),
                                                                    sorted_local_vertices.end())),
                                    handle.get_stream());
-      std::cout << "in compute_renumber_map... step 3 after resize, rank = "
-                << handle.get_comms().get_rank() << ", size = " << sorted_local_vertices.size()
-                << std::endl;
       sorted_local_vertices.shrink_to_fit(handle.get_stream());
     }
   }
-
-  std::cout << "in compute_renumber_map... step 3a, rank = " << handle.get_comms().get_rank()
-            << std::endl;
 
   auto locally_unused_vertex_id = find_locally_unused_ext_vertex_id(
     handle,
@@ -399,9 +363,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                   "vertex_t, increase vertex_t to 64 bit.");
 
   // 4. compute global degrees for the sorted local vertices
-  std::cout << "in compute_renumber_map... step 4, rank = " << handle.get_comms().get_rank()
-            << std::endl;
-
   rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
   std::optional<std::vector<size_t>> stream_pool_indices{
     std::nullopt};  // FIXME: move this inside the if statement
@@ -565,9 +526,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   }
 
   // 4. sort local vertices by degree (descending)
-  std::cout << "in compute_renumber_map... step 4a, rank = " << handle.get_comms().get_rank()
-            << std::endl;
-
   thrust::sort_by_key(handle.get_thrust_policy(),
                       sorted_local_vertex_degrees.begin(),
                       sorted_local_vertex_degrees.end(),
@@ -575,9 +533,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                       thrust::greater<edge_t>());
 
   // 5. compute segment_offsets
-  std::cout << "in compute_renumber_map... step 5, rank = " << handle.get_comms().get_rank()
-            << std::endl;
-
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
                 (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
@@ -926,9 +881,6 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
-  std::cout << "in renumber_edgelist... about to compute_number_map, rank = "
-            << handle.get_comms().get_rank() << std::endl;
-
   auto [renumber_map_labels, vertex_partition_segment_offsets, locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               std::move(local_vertices),
@@ -937,9 +889,6 @@ renumber_edgelist(
                                                               edgelist_edge_counts);
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
-
-  std::cout << "in renumber_edgelist... about to host_scalar_allgather, rank = "
-            << handle.get_comms().get_rank() << std::endl;
 
   auto vertex_counts = host_scalar_allgather(
     comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
@@ -973,8 +922,6 @@ renumber_edgelist(
 
   // 3. renumber edges
 
-  std::cout << "in renumber_edgelist... about to renumber edges, rank = "
-            << handle.get_comms().get_rank() << std::endl;
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {

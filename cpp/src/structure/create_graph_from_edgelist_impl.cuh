@@ -348,8 +348,6 @@ create_graph_from_edgelist_impl(
                   "Invalid input arguments: renumber should be true if multi_gpu is true.");
 
   if (do_expensive_check) {
-    std::cout << "calling expensive_check_edgelist, rank = " << handle.get_comms().get_rank()
-              << std::endl;
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
                                                   local_vertices,
                                                   store_transposed ? edgelist_dsts : edgelist_srcs,
@@ -377,9 +375,6 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  std::cout << "in create_graph_from_edge_list... after expensive checks, rank = "
-            << handle.get_comms().get_rank() << std::endl;
-
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
   // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
 
@@ -391,12 +386,6 @@ create_graph_from_edgelist_impl(
     edgelist_edge_ids,
     edgelist_edge_types,
     true);
-
-  std::cout << "in create_graph_from_edge_list... after "
-               "groupby_and_count_edgelist_by_local_partition_id, rank = "
-            << handle.get_comms().get_rank() << std::endl;
-  raft::print_device_vector(
-    "  d_edge_counts", d_edge_counts.data(), d_edge_counts.size(), std::cout);
 
   std::vector<size_t> h_edge_counts(d_edge_counts.size());
   raft::update_host(
@@ -419,13 +408,6 @@ create_graph_from_edgelist_impl(
   std::partial_sum(edgelist_edge_counts.begin(),
                    edgelist_edge_counts.end() - 1,
                    edgelist_displacements.begin() + 1);
-
-  std::cout << "in create_graph_from_edge_list... computed edgelist_displacement, rank = "
-            << handle.get_comms().get_rank() << std::endl;
-  raft::print_host_vector("  edgelist_displacements",
-                          edgelist_displacements.data(),
-                          edgelist_displacements.size(),
-                          std::cout);
 
   // 2. split the input edges to local partitions
 
@@ -515,12 +497,6 @@ create_graph_from_edgelist_impl(
     dst_ptrs[i] = edge_partition_edgelist_dsts[i].begin();
   }
 
-  sleep(handle.get_comms().get_rank());
-  std::cout << "in create_graph_from_edge_list... about to renumber, rank = "
-            << handle.get_comms().get_rank() << std::endl;
-  raft::print_host_vector(
-    "  edgelist_edge_counts", edgelist_edge_counts.data(), edgelist_edge_counts.size(), std::cout);
-
   auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
     std::move(local_vertices),
@@ -529,9 +505,6 @@ create_graph_from_edgelist_impl(
     edgelist_edge_counts,
     edgelist_intra_partition_segment_offsets,
     store_transposed);
-
-  std::cout << "in create_graph_from_edge_list... after renumber, rank = "
-            << handle.get_comms().get_rank() << std::endl;
 
   auto num_segments_per_vertex_partition =
     static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
