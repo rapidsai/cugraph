@@ -157,9 +157,10 @@ def create_homogeneous_sampled_graphs_from_dataframe(
     """
     result_tensor_d = _get_tensor_d_from_sampled_df(sampled_df)
     del sampled_df
+    metagraph = dgl.convert.graph_index.from_coo(2, [0], [1], True)
     result_mfgs = [
         _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_batch_d, edge_dir
+            tensors_batch_d, edge_dir, metagraph
         )
         for tensors_batch_d in result_tensor_d.values()
     ]
@@ -167,7 +168,9 @@ def create_homogeneous_sampled_graphs_from_dataframe(
     return result_mfgs
 
 
-def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge_dir):
+def _create_homogeneous_sampled_graphs_from_tensors_perhop(
+    tensors_batch_d, edge_dir, metagraph
+):
     """
     This helper function creates sampled DGL MFGS for
     homogeneous graphs from tensors per hop for a single
@@ -176,6 +179,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
     Args:
         tensors_batch_d (dict): A dictionary of tensors, keyed by hop_id.
         edge_dir (str): Direction of edges from samples
+        metagraph (dgl.metagraph): The metagraph for the sampled graph
     Returns:
         tuple: A tuple of three elements:
             - input_nodes: The input nodes for the batch.
@@ -191,7 +195,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
     for hop_id, tensor_per_hop_d in tensors_batch_d.items():
         if hop_id != "map":
             block = _create_homogeneous_dgl_block_from_tensor_d(
-                tensor_per_hop_d, tensors_batch_d["map"], seednodes_range
+                tensor_per_hop_d, tensors_batch_d["map"], seednodes_range, metagraph
             )
             seednodes_range = max(
                 tensor_per_hop_d["sources_range"],
@@ -209,7 +213,10 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
 
 
 def _create_homogeneous_dgl_block_from_tensor_d(
-    tensor_d, renumber_map, seednodes_range=None
+    tensor_d,
+    renumber_map,
+    seednodes_range=None,
+    metagraph=None,
 ):
     rs = tensor_d["sources"]
     rd = tensor_d["destinations"]
@@ -223,17 +230,48 @@ def _create_homogeneous_dgl_block_from_tensor_d(
         # lined up correctly
         max_dst_nodes = max(max_dst_nodes, seednodes_range)
 
-    data_dict = {("_N", "_E", "_N"): (rs, rd)}
-    num_src_nodes = {"_N": max_src_nodes + 1}
-    num_dst_nodes = {"_N": max_dst_nodes + 1}
-    block = dgl.create_block(
-        data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
+    block = _create_homogeneous_dgl_block_from_tensor_arrays(
+        rs, rd, max_src_nodes + 1, max_dst_nodes + 1, metagraph
     )
+    # data_dict = {("_N", "_E", "_N"): (rs, rd)}
+    # num_src_nodes = {"_N": max_src_nodes + 1}
+    # num_dst_nodes = {"_N": max_dst_nodes + 1}
+    # block = dgl.create_block(
+    #     data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
+    # )
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
     # Below adds too much run time overhead
-    block.srcdata[dgl.NID] = renumber_map[0 : num_src_nodes["_N"]]
-    block.dstdata[dgl.NID] = renumber_map[0 : num_dst_nodes["_N"]]
+    block.srcdata[dgl.NID] = renumber_map[0 : max_src_nodes + 1]
+    block.dstdata[dgl.NID] = renumber_map[0 : max_dst_nodes + 1]
+    return block
+
+
+def _create_homogeneous_dgl_block_from_tensor_arrays(
+    src, dst, num_src_nodes, num_dst_nodes, metagraph
+):
+    srctype = "_N"
+    etype = "_E"
+    dsttype = "_N"
+
+    num_nodes_per_type = dgl.convert.utils.toindex(
+        [num_src_nodes, num_dst_nodes], "int64"
+    )
+    arrays = (src, dst)
+    rel_graph = dgl.convert.create_from_edges(
+        "coo",
+        arrays,
+        "SRC/" + srctype,
+        etype,
+        "DST/" + dsttype,
+        num_src_nodes,
+        num_dst_nodes,
+    )
+    rel_graphs = [rel_graph._graph]
+    hgidx = dgl.convert.heterograph_index.create_heterograph_from_relations(
+        metagraph, rel_graphs, num_nodes_per_type
+    )
+    block = dgl.convert.DGLBlock(hgidx, ([srctype], [dsttype]), [etype])
     return block
 
 
