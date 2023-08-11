@@ -29,6 +29,18 @@ def cast_to_tensor(ser: cudf.Series):
     return torch.as_tensor(ser.values, device="cuda")
 
 
+def _get_source_destination_range(sampled_df):
+    o = sampled_df.groupby(["batch_id", "hop_id"], as_index=True).agg(
+        {"sources": "max", "destinations": "max"}
+    )
+    o.rename(
+        columns={"sources": "sources_range", "destinations": "destinations_range"},
+        inplace=True,
+    )
+    d = o.to_pandas().to_dict(orient="index")
+    return d
+
+
 def _split_tensor(t, split_indices):
     """
     Split a tensor into a list of tensors based on split_indices.
@@ -65,6 +77,7 @@ def _get_tensor_d_from_sampled_df(df):
     Returns:
         dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
+    range_d = _get_source_destination_range(df)
     df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
     batch_id_tensor = cast_to_tensor(df["batch_id"])
     batch_id_min = batch_id_tensor.min()
@@ -110,10 +123,16 @@ def _get_tensor_d_from_sampled_df(df):
                 split_t = _split_tensor(t, hop_indices)
                 for hid, ht in zip(hop_split_d.keys(), split_t):
                     hop_split_d[hid][column] = ht
+        for hid in hop_split_d.keys():
+            hop_split_d[hid]["sources_range"] = range_d[(batch_id, hid)][
+                "sources_range"
+            ]
+            hop_split_d[hid]["destinations_range"] = range_d[(batch_id, hid)][
+                "destinations_range"
+            ]
 
         result_tensor_d[batch_id] = hop_split_d
-        if "map" in batch_d:
-            result_tensor_d[batch_id]["map"] = batch_d["map"]
+        result_tensor_d[batch_id]["map"] = batch_d["map"]
     return result_tensor_d
 
 
@@ -168,14 +187,15 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
     if edge_dir == "out":
         raise ValueError("Outwards edges not supported yet")
     graph_per_hop_ls = []
-    seednodes = None
+    seednodes_range = None
     for hop_id, tensor_per_hop_d in tensors_batch_d.items():
         if hop_id != "map":
             block = _create_homogeneous_dgl_block_from_tensor_d(
-                tensor_per_hop_d, tensors_batch_d["map"], seednodes
+                tensor_per_hop_d, tensors_batch_d["map"], seednodes_range
             )
-            seednodes = torch.concat(
-                [tensor_per_hop_d["sources"], tensor_per_hop_d["destinations"]]
+            seednodes_range = max(
+                tensor_per_hop_d["sources_range"],
+                tensor_per_hop_d["destinations_range"],
             )
             graph_per_hop_ls.append(block)
 
@@ -188,30 +208,32 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
     return input_nodes, output_nodes, graph_per_hop_ls
 
 
-def _create_homogeneous_dgl_block_from_tensor_d(tensor_d, renumber_map, seednodes=None):
+def _create_homogeneous_dgl_block_from_tensor_d(
+    tensor_d, renumber_map, seednodes_range=None
+):
     rs = tensor_d["sources"]
     rd = tensor_d["destinations"]
-
-    max_src_nodes = rs.max()
-    max_dst_nodes = rd.max()
-    if seednodes is not None:
-        # If we have isolated vertices
+    max_src_nodes = tensor_d["sources_range"]
+    max_dst_nodes = tensor_d["destinations_range"]
+    if seednodes_range is not None:
+        # If we have  vertices without outgoing edges, then
         # sources can be missing from seednodes
         # so we add them
         # to ensure all the blocks are
-        # linedup correctly
-        max_dst_nodes = max(max_dst_nodes, seednodes.max())
+        # lined up correctly
+        max_dst_nodes = max(max_dst_nodes, seednodes_range)
 
     data_dict = {("_N", "_E", "_N"): (rs, rd)}
-    num_src_nodes = {"_N": max_src_nodes.item() + 1}
-    num_dst_nodes = {"_N": max_dst_nodes.item() + 1}
+    num_src_nodes = {"_N": max_src_nodes + 1}
+    num_dst_nodes = {"_N": max_dst_nodes + 1}
     block = dgl.create_block(
         data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
     )
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
-    block.srcdata[dgl.NID] = renumber_map[block.srcnodes()]
-    block.dstdata[dgl.NID] = renumber_map[block.dstnodes()]
+    # Below adds too much run time overhead
+    block.srcdata[dgl.NID] = renumber_map[0 : num_src_nodes["_N"]]
+    block.dstdata[dgl.NID] = renumber_map[0 : num_dst_nodes["_N"]]
     return block
 
 
