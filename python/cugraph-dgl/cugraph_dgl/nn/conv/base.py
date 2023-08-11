@@ -11,9 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Tuple
+
 from cugraph.utilities.utils import import_optional
 
-torch = import_optional("torch")
+from pyg_lib.ops import index_sort
+
+# torch = import_optional("torch")
+import torch
+
 nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
@@ -48,3 +54,45 @@ class BaseConv(nn.Module):
         self._cached_offsets_fg[offsets.numel() : size] = offsets[-1]
 
         return self._cached_offsets_fg[:size]
+
+
+class SparseGraph(object):
+    r"""A thin wrapper to facilitate sparse format conversion.
+
+    Parameters
+    ----------
+    src_ids: torch.Tensor
+        Tensor of source indices.
+    dst_ids: torch.Tensor
+        Tensor of destination indices.
+    shape: Tuple of int
+        Shape of the adjacency matrix.
+    is_sort: bool
+        Whether `dst_ids` has been sorted in an ascending order.
+    """
+
+    def __init__(
+        self,
+        src_ids: torch.Tensor,
+        dst_ids: torch.Tensor,
+        shape: Tuple[int, int],
+        is_sorted: bool = False,
+    ):
+        self.row = src_ids.contiguous()
+        self.col = dst_ids.contiguous()
+        self.num_src_nodes, self.num_dst_nodes = shape
+        self.rowptr = None
+        self.colptr = None
+        self.perm = None
+
+        if not is_sorted:
+            self.col, self.perm = index_sort(self.col, max_value=self.num_dst_nodes)
+            self.row = self.row[self.perm]
+
+    def to_csc(self) -> Tuple[torch.Tensor, torch.Tensor, int]:
+        if self.colptr is None:
+            self.colptr = torch._convert_indices_from_coo_to_csr(
+                self.col, self.num_dst_nodes, out_int32=self.col.dtype == torch.int32
+            )
+
+        return (self.row, self.colptr, self.num_src_nodes)

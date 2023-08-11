@@ -14,9 +14,9 @@
 cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union
 
-from cugraph_dgl.nn.conv.base import BaseConv
+from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -98,7 +98,7 @@ class SAGEConv(BaseConv):
 
     def forward(
         self,
-        g: dgl.DGLHeteroGraph,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
         feat: torch.Tensor,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
@@ -122,26 +122,34 @@ class SAGEConv(BaseConv):
         torch.Tensor
             Output node features. Shape: :math:`(|V|, D_{out})`.
         """
-        offsets, indices, _ = g.adj_tensors("csc")
+        if isinstance(g, dgl.DGLHeteroGraph):
+            offsets, indices, _ = g.adj_tensors("csc")
 
-        if g.is_block:
-            if max_in_degree is None:
-                max_in_degree = g.in_degrees().max().item()
+            if g.is_block:
+                if max_in_degree is None:
+                    max_in_degree = g.in_degrees().max().item()
 
-            if max_in_degree < self.MAX_IN_DEGREE_MFG:
-                _graph = ops_torch.SampledCSC(
-                    offsets, indices, max_in_degree, g.num_src_nodes()
-                )
+                if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                    _graph = ops_torch.SampledCSC(
+                        offsets, indices, max_in_degree, g.num_src_nodes()
+                    )
+                else:
+                    offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
+                    _graph = ops_torch.StaticCSC(offsets_fg, indices)
             else:
-                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                _graph = ops_torch.StaticCSC(offsets_fg, indices)
+                _graph = ops_torch.StaticCSC(offsets, indices)
+
+            num_dst_nodes = g.num_dst_nodes()
         else:
-            _graph = ops_torch.StaticCSC(offsets, indices)
+            assert isinstance(g, SparseGraph)
+            indices, offsets, num_src_nodes = g.to_csc()
+            _graph = ops_torch.CSC(
+                offsets=offsets, indices=indices, num_src_nodes=num_src_nodes
+            )
+            num_dst_nodes = g.num_dst_nodes
 
         feat = self.feat_drop(feat)
-        h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[
-            : g.num_dst_nodes()
-        ]
+        h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[:num_dst_nodes]
         h = self.linear(h)
 
         return h
