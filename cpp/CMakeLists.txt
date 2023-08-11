@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.08.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.10.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -271,6 +271,7 @@ set(CUGRAPH_SOURCES
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
+    src/traversal/od_shortest_distances_sg.cu
     src/traversal/sssp_mg.cu
     src/link_analysis/hits_sg.cu
     src/link_analysis/hits_mg.cu

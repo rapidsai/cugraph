@@ -922,15 +922,16 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs satisfying the
  * following requirements.
  *
- * 1. Say @p edgelist_srcs has N unique vertices. These N unique vertices will be mapped to [0, N).
- * 2. Among the N unique vertices, an original vertex with a smaller attached hop number will be
- * renumbered to a smaller vertex ID than any other original vertices with a larger attached hop
- * number (if @p edgelist_hops.has_value() is true). If a single vertex is attached to multiple hop
- * numbers, the minimum hop number is used.
- * 3. Say @p edgelist_dsts has M unique vertices that appear only in @p edgelist_dsts (the set of M
- * unique vertices does not include any vertices that appear in @p edgelist_srcs). Then, these M
- * unique vertices will be mapped to [N, N + M).
- * 4. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
+ * 1. If @p edgelist_hops is valid, we can consider (vertex ID, flag=src, hop) triplets for each
+ * vertex ID in @p edgelist_srcs and (vertex ID, flag=dst, hop) triplets for each vertex ID in @p
+ * edgelist_dsts. From these triplets, we can find the minimum (hop, flag) pairs for every unique
+ * vertex ID (hop is the primary key and flag is the secondary key, flag=src is considered smaller
+ * than flag=dst if hop numbers are same). Vertex IDs with smaller (hop, flag) pairs precede vertex
+ * IDs with larger (hop, flag) pairs in renumbering. Ordering can be arbitrary among the vertices
+ * with the same (hop, flag) pairs.
+ * 2. If @p edgelist_hops is invalid, unique vertex IDs in @p edgelist_srcs precede vertex IDs that
+ * appear only in @p edgelist_dsts.
+ * 3. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
  * separately.
  *
  * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
@@ -940,10 +941,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs A vector storing original edgelist source vertices.
- * @param edgelist_hops An optional pointer to the array storing hops for each edge list source
- * vertices (size = @p edgelist_srcs.size()).
  * @param edgelist_dsts A vector storing original edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
+ * @param edgelist_hops An optional pointer to the array storing hops for each edge list (source,
+ * destination) pairs (size = @p edgelist_srcs.size() if valid).
  * @param label_offsets An optional tuple of unique labels and the input edge list (@p
  * edgelist_srcs, @p edgelist_hops, and @p edgelist_dsts) offsets for the labels (siez = # unique
  * labels + 1).
@@ -962,8 +963,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 renumber_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  std::optional<raft::device_span<int32_t const>> edgelist_hops,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<raft::device_span<int32_t const>> edgelist_hops,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<size_t const>>>
     label_offsets,
   bool do_expensive_check = false);

@@ -47,8 +47,8 @@ class simpleGraphImpl:
     class EdgeList:
         def __init__(
             self,
-            source: str,
-            destination: str,
+            source: cudf.Series,
+            destination: cudf.Series,
             edge_attr: Union[cudf.DataFrame, Dict[str, cudf.DataFrame]] = None,
         ):
             self.edgelist_df = cudf.DataFrame()
@@ -96,6 +96,7 @@ class simpleGraphImpl:
     def __init__(self, properties):
         # Structure
         self.edgelist = None
+        self.input_df = None
         self.adjlist = None
         self.transposedadjlist = None
         self.renumber_map = None
@@ -108,6 +109,11 @@ class simpleGraphImpl:
         self.batch_edgelists = None
         self.batch_adjlists = None
         self.batch_transposed_adjlists = None
+
+        self.source_columns = None
+        self.destination_columns = None
+        self.vertex_columns = None
+        self.weight_column = None
 
     # Functions
     # FIXME: Change to public function
@@ -149,6 +155,7 @@ class simpleGraphImpl:
                 "destination parameters"
             )
         df_columns = s_col + d_col
+        self.vertex_columns = df_columns.copy()
 
         if edge_attr is not None:
             if weight is not None or edge_id is not None or edge_type is not None:
@@ -212,9 +219,11 @@ class simpleGraphImpl:
             elist = input_df.compute().reset_index(drop=True)
         else:
             raise TypeError("input should be a cudf.DataFrame or a dask_cudf dataFrame")
-
-        # Original, unmodified input dataframe.
+        # initial, unmodified input dataframe.
         self.input_df = elist
+        self.weight_column = weight
+        self.source_columns = source
+        self.destination_columns = destination
 
         # Renumbering
         self.renumber_map = None
@@ -233,6 +242,8 @@ class simpleGraphImpl:
             # Use renumber_map to figure out if the python renumbering occured
             self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
+            self.renumber_map.implementation.src_col_names = simpleGraphImpl.srcCol
+            self.renumber_map.implementation.dst_col_names = simpleGraphImpl.dstCol
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
@@ -405,24 +416,104 @@ class simpleGraphImpl:
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
-        edgelist_df = self.edgelist.edgelist_df
+        srcCol = self.source_columns
+        dstCol = self.destination_columns
+        """
+        Only use the initial input dataframe  if the graph is directed with:
+            1) single vertex column names with integer vertex type
+            2) list of vertex column names of size 1 with integer vertex type
+        """
+        use_initial_input_df = True
 
-        if self.properties.renumbered:
+        if self.input_df is not None:
+            if type(srcCol) is list and type(dstCol) is list:
+                if len(srcCol) == 1:
+                    srcCol = srcCol[0]
+                    dstCol = dstCol[0]
+                    if self.input_df[srcCol].dtype not in [
+                        np.int32,
+                        np.int64,
+                    ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
+                        # hypergraph case
+                        use_initial_input_df = False
+                else:
+                    use_initial_input_df = False
+
+            elif self.input_df[srcCol].dtype not in [
+                np.int32,
+                np.int64,
+            ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
+                use_initial_input_df = False
+        else:
+            use_initial_input_df = False
+
+        if use_initial_input_df and self.properties.directed:
+            edgelist_df = self.input_df
+        else:
+            edgelist_df = self.edgelist.edgelist_df
+            if srcCol is None and dstCol is None:
+                srcCol = simpleGraphImpl.srcCol
+                dstCol = simpleGraphImpl.dstCol
+
+        if use_initial_input_df and not self.properties.directed:
+            # unrenumber before extracting the upper triangular part
+            # case when the vertex column name is of size 1
+            if self.properties.renumbered:
+                edgelist_df = self.renumber_map.unrenumber(
+                    edgelist_df, simpleGraphImpl.srcCol
+                )
+                edgelist_df = self.renumber_map.unrenumber(
+                    edgelist_df, simpleGraphImpl.dstCol
+                )
+                edgelist_df = edgelist_df.rename(
+                    columns=self.renumber_map.internal_to_external_col_names
+                )
+                # extract the upper triangular part
+                edgelist_df = edgelist_df[edgelist_df[srcCol] <= edgelist_df[dstCol]]
+            else:
+                edgelist_df = edgelist_df[
+                    edgelist_df[simpleGraphImpl.srcCol]
+                    <= edgelist_df[simpleGraphImpl.dstCol]
+                ]
+        elif not use_initial_input_df and self.properties.renumbered:
+            # Do not unrenumber the vertices if the initial input df was used
+            if not self.properties.directed:
+                edgelist_df = edgelist_df[
+                    edgelist_df[simpleGraphImpl.srcCol]
+                    <= edgelist_df[simpleGraphImpl.dstCol]
+                ]
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
             )
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.dstCol
             )
+            edgelist_df = edgelist_df.rename(
+                columns=self.renumber_map.internal_to_external_col_names
+            )
 
-        # FIXME: revisit this approach
-        if not self.properties.directed:
-            edgelist_df = edgelist_df[
-                edgelist_df[simpleGraphImpl.srcCol]
-                <= edgelist_df[simpleGraphImpl.dstCol]
-            ]
-            edgelist_df = edgelist_df.reset_index(drop=True)
-            self.properties.edge_count = len(edgelist_df)
+        if self.vertex_columns is not None and len(self.vertex_columns) == 2:
+            # single column vertices internally renamed to 'simpleGraphImpl.srcCol'
+            # and 'simpleGraphImpl.dstCol'.
+            if not set(self.vertex_columns).issubset(set(edgelist_df.columns)):
+                # Get the initial column names passed by the user.
+                if srcCol is not None and dstCol is not None:
+                    edgelist_df = edgelist_df.rename(
+                        columns={
+                            simpleGraphImpl.srcCol: srcCol,
+                            simpleGraphImpl.dstCol: dstCol,
+                        }
+                    )
+
+        # FIXME: When renumbered, the MG API uses renumbered col names which
+        # is not consistant with the SG API.
+
+        self.properties.edge_count = len(edgelist_df)
+
+        wgtCol = simpleGraphImpl.edgeWeightCol
+        edgelist_df = edgelist_df.rename(
+            columns={wgtCol: self.weight_column}
+        ).reset_index(drop=True)
 
         return edgelist_df
 
@@ -1175,7 +1266,7 @@ class simpleGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]]
+        return self.view_edge_list()[self.vertex_columns]
 
     def nodes(self):
         """

@@ -225,16 +225,14 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                    static_cast<int>(i),
                    handle.get_stream());
 
-      ret += edge_partition.compute_number_of_edges(
-        raft::device_span<vertex_t const>(edge_partition_frontier_vertices.begin(),
-                                          edge_partition_frontier_vertices.end()),
-        handle.get_stream());
+      ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
+                                                    edge_partition_frontier_vertices.end(),
+                                                    handle.get_stream());
     } else {
       assert(i == 0);
-      ret += edge_partition.compute_number_of_edges(
-        raft::device_span<vertex_t const>(local_frontier_vertex_first,
-                                          local_frontier_vertex_first + frontier.size()),
-        handle.get_stream());
+      ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
+                                                    local_frontier_vertex_first + frontier.size(),
+                                                    handle.get_stream());
     }
   }
 
@@ -289,7 +287,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
- * values (if ReduceOp::value_type is void).
+ * values (if ReduceOp::value_type is void). Keys in the return values are sorted in ascending order
+ * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
  */
 template <typename GraphViewType,
           typename VertexFrontierBucketType,

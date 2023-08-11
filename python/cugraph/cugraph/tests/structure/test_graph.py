@@ -12,43 +12,29 @@
 # limitations under the License.
 
 import gc
-
 import time
 
-import pandas as pd
 import pytest
-
+import pandas as pd
 import scipy
+import networkx as nx
+
+import cupy
 import cudf
-from cudf.testing.testing import assert_frame_equal
 import cugraph
 from cugraph.testing import utils
 from cudf.testing import assert_series_equal
-
-import cupy
+from cudf.testing.testing import assert_frame_equal
 
 # MG
-import cugraph.dask as dcg
-from cugraph.dask.common.mg_utils import is_single_gpu
-from dask_cuda import LocalCUDACluster
-from dask.distributed import Client
 import dask_cudf
-
-from pylibcugraph import bfs as pylibcugraph_bfs
+import cugraph.dask as dcg
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 from pylibcugraph import ResourceHandle
-
+from pylibcugraph import bfs as pylibcugraph_bfs
 from cugraph.dask.traversal.bfs import convert_to_cudf
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 # =============================================================================
@@ -76,8 +62,8 @@ def compare_graphs(nx_graph, cu_graph):
     edgelist_df = cu_graph.view_edge_list().reset_index(drop=True)
 
     df = cudf.DataFrame()
-    df["source"] = edgelist_df["src"]
-    df["target"] = edgelist_df["dst"]
+    df["source"] = edgelist_df["source"]
+    df["target"] = edgelist_df["target"]
     if len(edgelist_df.columns) > 2:
         df["weight"] = edgelist_df["weights"]
         cu_to_nx_graph = nx.from_pandas_edgelist(
@@ -333,10 +319,10 @@ def test_edges_for_Graph(graph_file):
             edges.append([edge[1], edge[0]])
         else:
             edges.append([edge[0], edge[1]])
-    nx_edge_list = cudf.DataFrame(list(edges), columns=["src", "dst"])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=["0", "1"])
     assert_frame_equal(
-        nx_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
-        cu_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
+        nx_edge_list.sort_values(by=["0", "1"]).reset_index(drop=True),
+        cu_edge_list.sort_values(by=["0", "1"]).reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -358,7 +344,8 @@ def test_view_edge_list_for_Graph(graph_file):
     G = cugraph.from_cudf_edgelist(
         cu_M, source="0", destination="1", create_using=cugraph.Graph
     )
-    cu_edge_list = G.view_edge_list().sort_values(["src", "dst"])
+
+    cu_edge_list = G.view_edge_list().sort_values(["0", "1"])
 
     # Check if number of Edges is same
     assert len(nx_edges) == len(cu_edge_list)
@@ -373,12 +360,12 @@ def test_view_edge_list_for_Graph(graph_file):
             edges.append([edge[0], edge[1]])
     edges = list(edges)
     edges.sort()
-    nx_edge_list = cudf.DataFrame(edges, columns=["src", "dst"])
+    nx_edge_list = cudf.DataFrame(edges, columns=["0", "1"])
 
     # Compare nx and cugraph edges when viewing edgelist
     # assert cu_edge_list.equals(nx_edge_list)
-    assert (cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()).all()
-    assert (cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()).all()
+    assert (cu_edge_list["0"].to_numpy() == nx_edge_list["0"].to_numpy()).all()
+    assert (cu_edge_list["1"].to_numpy() == nx_edge_list["1"].to_numpy()).all()
 
 
 # Test
@@ -696,8 +683,8 @@ def test_to_pandas_edgelist(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    assert "s" in G.to_pandas_edgelist("s", "d").columns
-    assert "s" in G.to_pandas_edgelist(source="s", destination="d").columns
+    assert "0" in G.to_pandas_edgelist("0", "1").columns
+    assert "0" in G.to_pandas_edgelist(source="0", destination="1").columns
 
 
 @pytest.mark.sg
@@ -774,9 +761,12 @@ def test_create_graph_with_edge_ids(graph_file):
         edge_attr=["2", "id", "etype"],
     )
 
-    H = G.to_undirected()
     assert G.is_directed()
-    assert not H.is_directed()
+
+    # 'edge_ids are not supported for undirected graph"
+    with pytest.raises(ValueError):
+        G.to_undirected()
+    # assert not H.is_directed()
 
 
 @pytest.mark.sg
@@ -888,3 +878,107 @@ def test_graph_creation_edge_properties(graph_file, edge_props):
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source="0", destination="1", **prop_keys)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+def test_graph_creation_edges(graph_file, directed, renumber):
+    # Verifies that the input dataframe passed the user is the same
+    # retrieved from the graph when the graph is directed
+    srcCol = "source"
+    dstCol = "target"
+    wgtCol = "weight"
+    input_df = cudf.read_csv(
+        graph_file,
+        delimiter=" ",
+        names=[srcCol, dstCol, wgtCol],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
+
+    G = cugraph.Graph(directed=directed)
+
+    if renumber:
+        # trigger renumbering by passing a list of vertex column
+        srcCol = [srcCol]
+        dstCol = [dstCol]
+        vertexCol = srcCol + dstCol
+    else:
+        vertexCol = [srcCol, dstCol]
+    G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+
+    columns = vertexCol.copy()
+    columns.append(wgtCol)
+
+    edge_list_view = G.view_edge_list().loc[:, columns]
+    edges = G.edges().loc[:, vertexCol]
+
+    assert_frame_equal(
+        edge_list_view.drop(columns=wgtCol)
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True),
+        edges.sort_values(by=vertexCol).reset_index(drop=True),
+        check_dtype=False,
+    )
+
+    if directed:
+        assert_frame_equal(
+            edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),
+            input_df.sort_values(by=vertexCol).reset_index(drop=True),
+            check_dtype=False,
+        )
+    else:
+        # If the graph is undirected, ensures that only the upper triangular
+        # matrix of the adjacency matrix is returned
+        if isinstance(srcCol, list):
+            srcCol = srcCol[0]
+            dstCol = dstCol[0]
+        is_upper_triangular = edge_list_view[srcCol] <= edge_list_view[dstCol]
+        is_upper_triangular = list(set(is_upper_triangular.values_host))
+        assert len(is_upper_triangular) == 1
+        assert is_upper_triangular[0]
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", [True, False])
+def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
+    srcCol = ["src_0", "src_1"]
+    dstCol = ["dst_0", "dst_1"]
+    wgtCol = "weight"
+    vertexCol = srcCol + dstCol
+    columns = vertexCol.copy()
+    columns.append(wgtCol)
+
+    input_df = cudf.read_csv(
+        graph_file,
+        delimiter=" ",
+        names=[srcCol[0], dstCol[0], wgtCol],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
+    input_df["src_1"] = input_df["src_0"] + 1000
+    input_df["dst_1"] = input_df["dst_0"] + 1000
+
+    G = cugraph.Graph(directed=directed)
+    G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
+
+    input_df = input_df.loc[:, columns]
+    edge_list_view = G.view_edge_list().loc[:, columns]
+    edges = G.edges().loc[:, vertexCol]
+
+    assert_frame_equal(
+        edge_list_view.drop(columns=wgtCol)
+        .sort_values(by=vertexCol)
+        .reset_index(drop=True),
+        edges.sort_values(by=vertexCol).reset_index(drop=True),
+        check_dtype=False,
+    )
+    if directed:
+        assert_frame_equal(
+            edge_list_view.sort_values(by=vertexCol).reset_index(drop=True),
+            input_df.sort_values(by=vertexCol).reset_index(drop=True),
+            check_dtype=False,
+        )
