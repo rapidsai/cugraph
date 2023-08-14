@@ -38,7 +38,8 @@ CONNECTED_GRAPH = """1,5,3
 DISCONNECTED_GRAPH = CONNECTED_GRAPH + "8,9,4"
 
 
-paths_test_data = {
+# These golden results
+paths_golden_results = {
     "shortest_path_length_1_1": 0,
     "shortest_path_length_1_5": 2.0,
     "shortest_path_length_1_3": 2.0,
@@ -52,7 +53,7 @@ paths_test_data = {
 
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    return load_resultset("traversal", None)
+    load_resultset("traversal", None)
 
 
 @pytest.fixture
@@ -102,22 +103,22 @@ def test_connected_graph_shortest_path_length(graphs):
     path_1_to_1_length = cugraph.shortest_path_length(cugraph_G, 1, 1)
     # FIXME: aren't the first two assertions in each batch essentially redundant?
     assert path_1_to_1_length == 0.0
-    assert path_1_to_1_length == paths_test_data["shortest_path_length_1_1"]
+    assert path_1_to_1_length == paths_golden_results["shortest_path_length_1_1"]
     assert path_1_to_1_length == cugraph.shortest_path_length(cupy_df, 1, 1)
 
     path_1_to_5_length = cugraph.shortest_path_length(cugraph_G, 1, 5)
     assert path_1_to_5_length == 2.0
-    assert path_1_to_5_length == paths_test_data["shortest_path_length_1_5"]
+    assert path_1_to_5_length == paths_golden_results["shortest_path_length_1_5"]
     assert path_1_to_5_length == cugraph.shortest_path_length(cupy_df, 1, 5)
 
     path_1_to_3_length = cugraph.shortest_path_length(cugraph_G, 1, 3)
     assert path_1_to_3_length == 2.0
-    assert path_1_to_3_length == paths_test_data["shortest_path_length_1_3"]
+    assert path_1_to_3_length == paths_golden_results["shortest_path_length_1_3"]
     assert path_1_to_3_length == cugraph.shortest_path_length(cupy_df, 1, 3)
 
     path_1_to_6_length = cugraph.shortest_path_length(cugraph_G, 1, 6)
     assert path_1_to_6_length == 2.0
-    assert path_1_to_6_length == paths_test_data["shortest_path_length_1_6"]
+    assert path_1_to_6_length == paths_golden_results["shortest_path_length_1_6"]
     assert path_1_to_6_length == cugraph.shortest_path_length(cupy_df, 1, 6)
 
 
@@ -129,7 +130,7 @@ def test_shortest_path_length_invalid_source(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, -1, 1)
 
-    result = paths_test_data["shortest_path_length_-1_1"]
+    result = paths_golden_results["shortest_path_length_-1_1"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -146,7 +147,7 @@ def test_shortest_path_length_invalid_target(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, 1, 10)
 
-    result = paths_test_data["shortest_path_length_1_10"]
+    result = paths_golden_results["shortest_path_length_1_10"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -163,7 +164,7 @@ def test_shortest_path_length_invalid_vertexes(graphs):
     with pytest.raises(ValueError):
         cugraph.shortest_path_length(cugraph_G, 0, 42)
 
-    result = paths_test_data["shortest_path_length_0_42"]
+    result = paths_golden_results["shortest_path_length_0_42"]
     if callable(result):
         with pytest.raises(ValueError):
             raise result()
@@ -184,7 +185,7 @@ def test_shortest_path_length_no_path(graphs):
     path_1_to_8 = cugraph.shortest_path_length(cugraph_G, 1, 8)
     assert path_1_to_8 == sys.float_info.max
 
-    golden_path_1_to_8 = paths_test_data["shortest_path_length_1_8"]
+    golden_path_1_to_8 = paths_golden_results["shortest_path_length_1_8"]
     golden_path_1_to_8 = np.float32(golden_path_1_to_8)
     assert golden_path_1_to_8 in [
         max_float_32,

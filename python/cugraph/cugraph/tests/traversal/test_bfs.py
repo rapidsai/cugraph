@@ -146,7 +146,7 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
     return np.isclose(result, expected, rtol=epsilon)
 
 
-def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
+def compare_bfs(benchmark_callable, G, golden_values, start_vertex, depth_limit):
     """
     Generate both cugraph and reference bfs traversal.
     """
@@ -161,10 +161,10 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
         #       not contain all the vertices while the cugraph version return
         #       a cudf.DataFrame with all the vertices, also some verification
         #       become slow with the data transfer
-        compare_func(cugraph_df, nx_values, start_vertex)
+        compare_func(cugraph_df, golden_values, start_vertex)
 
     elif isinstance(start_vertex, list):  # For other Verifications
-        all_nx_values = nx_values
+        all_golden_values = golden_values
         all_cugraph_distances = []
 
         def func_to_benchmark():
@@ -178,7 +178,7 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
         for (i, sv) in enumerate(start_vertex):
             cugraph_df = convert_output_to_cudf(G, all_cugraph_distances[i])
 
-            compare_func(cugraph_df, all_nx_values[i], sv)
+            compare_func(cugraph_df, all_golden_values[i], sv)
 
     else:  # Unknown type given to seed
         raise NotImplementedError("Invalid type for start_vertex")
@@ -223,7 +223,9 @@ def _compare_bfs(cugraph_df, golden_distances, source):
             if result != expected:
                 print(
                     "[ERR] Mismatch on distances: "
-                    "vid = {}, cugraph = {}, nx = {}".format(vertex, result, expected)
+                    "vid = {}, cugraph = {}, golden = {}".format(
+                        vertex, result, expected
+                    )
                 )
                 distance_mismatch_error += 1
             if vertex not in cu_predecessors:
@@ -261,10 +263,10 @@ def get_cu_graph_and_params(dataset, directed):
 
 
 def get_cu_graph_golden_results_and_params(
-    seed, depth_limit, G, dataset_path, dataset_name, directed, load_results
+    depth_limit, G, dataset_path, dataset_name, directed, _
 ):
     """
-    Helper for fixtures returning Nx results and params.
+    Helper for fixtures returning golden results and params.
     """
     start_vertex = DATASET_STARTS[dataset_name]
     golden_values = get_resultset(
@@ -297,9 +299,7 @@ DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
 # full test name.
-algo_test_fixture_params = gen_fixture_params_product(
-    (SEEDS, "seed"), (DEPTH_LIMIT, "depth_limit")
-)
+algo_test_fixture_params = gen_fixture_params_product((DEPTH_LIMIT, "depth_limit"))
 
 graph_fixture_params = gen_fixture_params_product(
     (DATASETS, "ds"), (DIRECTED, "dirctd")
@@ -314,7 +314,7 @@ small_graph_fixture_params = gen_fixture_params_product(
 # needed (eg. testing non-native input types where tests for other combinations
 # was covered elsewhere).
 single_algo_test_fixture_params = gen_fixture_params_product(
-    ([SEEDS[0]], "seed"), ([DEPTH_LIMIT[0]], "depth_limit")
+    ([DEPTH_LIMIT[0]], "depth_limit")
 )
 
 single_small_graph_fixture_params = gen_fixture_params_product(
@@ -322,9 +322,12 @@ single_small_graph_fixture_params = gen_fixture_params_product(
 )
 
 
+# Fixture that loads all golden results necessary to run cugraph tests if the
+# tests are not already present in the designated results directory. Most of the
+# time, this will only check if the module-specific mapping file exists.
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    return load_resultset("traversal", None)
+    load_resultset("traversal", None)
 
 
 # Fixtures that result in a test-per (dataset X directed/undirected)
@@ -366,26 +369,6 @@ def single_dataset_goldenresults_startvertex_spc(
     return get_cu_graph_golden_results_and_params(
         *request.param, *single_small_dataset_golden_results, load_traversal_results
     )
-
-
-# FIXME: this is unused, remove?
-"""@pytest.fixture(scope="module")
-def dataset_nxresults_allstartvertices_spc(small_dataset_nx_results):
-
-    dataset, directed, Gnx = small_dataset_nx_results
-    use_spc = True
-
-    start_vertices = [start_vertex for start_vertex in Gnx]
-
-    all_nx_values = []
-    for start_vertex in start_vertices:
-        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(
-            Gnx, start_vertex
-        )
-        nx_values = nx_sp_counter
-        all_nx_values.append(nx_values)
-
-    return (dataset, directed, all_nx_values, start_vertices, use_spc)"""
 
 
 # =============================================================================

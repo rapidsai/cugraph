@@ -12,17 +12,32 @@
 # limitations under the License.
 
 import tarfile
+import urllib.request
 
 import cudf
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_RESULTSET_ROOT_DIR_PATH
 
 
 class Resultset:
+    """
+    A Resultset Object, used to store golden results to easily run tests that
+    need to access said results without the overhead of running an algorithm
+    to get the results.
+
+    Parameters
+    ----------
+    data_dictionary : dict
+        The existing algorithm output, expected as a dictionary
+    """
+
     def __init__(self, data_dictionary):
         self._data_dictionary = data_dictionary
 
     def get_cudf_dataframe(self):
-        # This is called in testing/resultset.py before writing all results to files
+        """
+        Converts the existing algorithm output from a dictionary to
+        a cudf.DataFrame before writing the DataFrame to output into a csv
+        """
         return cudf.DataFrame(self._data_dictionary)
 
 
@@ -37,28 +52,18 @@ def load_resultset(resultset_name, resultset_download_url):
     _results_dir, use resultset_download_url to download a file to
     install/unpack/etc. to _results_dir first.
     """
-    # mapping_file_path = (
-    #     RAPIDS_RESULTSET_ROOT_DIR_PATH
-    #     / (resultset_name + "_mappings.csv")
-    # )
-    mapping_file_path = (
-        RAPIDS_DATASET_ROOT_DIR_PATH
-        / "tests"
-        / "resultsets"
-        / (resultset_name + "_mappings.csv")
+    mapping_file_path = RAPIDS_RESULTSET_ROOT_DIR_PATH / (
+        resultset_name + "_mappings.csv"
     )
     if not mapping_file_path.exists():
-        # Downloads a tar gz from s3 bucket, then decompresses the zipped results files
+        # Downloads a tar gz from s3 bucket, then unpacks the zipped results files
         compressed_file_dir = RAPIDS_DATASET_ROOT_DIR_PATH / "tests"
-        compressed_file_path = compressed_file_dir / "resultsets.tar.gz"
+        compressed_file_path = compressed_file_dir / "resultsets" / "resultsets.tar.gz"
         if not compressed_file_path.exists():
-            # FIXME: download a tar gz from s3 bucket
-            raise FileNotFoundError(
-                compressed_file_path, "downloading from s3 not implemented"
-            )
-        # Currently, it expects to have at least resultsets.tar.gz
-        tar = tarfile.open(str(compressed_file_path), "r:gz")
-        tar.extractall(str(compressed_file_dir))
+            # FIXME: untested until resultsets.tar.gz is uploaded to s3 bucket
+            urllib.request.urlretrieve(resultset_download_url, compressed_file_dir)
+        tar = tarfile.open(str(RAPIDS_RESULTSET_ROOT_DIR_PATH), "r:gz")
+        tar.extractall(str(RAPIDS_RESULTSET_ROOT_DIR_PATH))
         tar.close()
 
     # FIXME: This assumes separator is " ", but should this be configurable?
@@ -97,6 +102,18 @@ def load_resultset(resultset_name, resultset_download_url):
 
 
 def get_resultset(resultset_name, **kwargs):
+    """
+    Returns the golden results for a specific test.
+
+    Parameters
+    ----------
+    resultset_name : String
+        Name of the test's module (currently just 'traversal' is supported)
+
+    kwargs :
+        All distinct test details regarding the choice of algorithm, dataset,
+        and graph
+    """
     arg_dict = dict(kwargs)
     arg_dict["resultset_name"] = resultset_name
     # Example:
@@ -112,8 +129,5 @@ def get_resultset(resultset_name, **kwargs):
     if uuid is None:
         raise KeyError(f"results for {arg_dict} not found")
 
-    # results_filename = RAPIDS_RESULTSET_ROOT_DIR_PATH / (uuid + ".csv")
-    results_filename = (
-        RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets" / (uuid + ".csv")
-    )
+    results_filename = RAPIDS_RESULTSET_ROOT_DIR_PATH / (uuid + ".csv")
     return cudf.read_csv(results_filename)

@@ -187,7 +187,7 @@ fixture_params_single_dataset = gen_fixture_params_product(
 # call is only made only once per input param combination.
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    return load_resultset("traversal", None)
+    load_resultset("traversal", None)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
