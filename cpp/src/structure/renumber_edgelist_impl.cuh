@@ -277,6 +277,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
   // 2. if local_vertices.has_value() is false, find unique vertices from edge minors (to construct
   // local_vertices)
+
   rmm::device_uvector<vertex_t> sorted_unique_minors(0, handle.get_stream());
   if (!local_vertices) {
     sorted_unique_minors.resize(num_local_edges, handle.get_stream());
@@ -342,7 +343,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
       sorted_local_vertices =
         cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
           handle, std::move(sorted_local_vertices));
-
       thrust::sort(
         handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
       sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),
@@ -363,6 +363,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                   "vertex_t, increase vertex_t to 64 bit.");
 
   // 4. compute global degrees for the sorted local vertices
+
   rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
   std::optional<std::vector<size_t>> stream_pool_indices{
     std::nullopt};  // FIXME: move this inside the if statement
@@ -526,6 +527,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   }
 
   // 4. sort local vertices by degree (descending)
+
   thrust::sort_by_key(handle.get_thrust_policy(),
                       sorted_local_vertex_degrees.begin(),
                       sorted_local_vertex_degrees.end(),
