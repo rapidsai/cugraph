@@ -1,3 +1,75 @@
+# cuGraph 23.08.00 (9 Aug 2023)
+
+## 🚨 Breaking Changes
+
+- Change the renumber_sampled_edgelist function behavior. ([#3762](https://github.com/rapidsai/cugraph/pull/3762)) [@seunghwak](https://github.com/seunghwak)
+- PLC and Python Support for Sample-Side MFG Creation ([#3734](https://github.com/rapidsai/cugraph/pull/3734)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Stop using setup.py in build.sh ([#3704](https://github.com/rapidsai/cugraph/pull/3704)) [@vyasr](https://github.com/vyasr)
+- Refactor edge betweenness centrality ([#3672](https://github.com/rapidsai/cugraph/pull/3672)) [@jnke2016](https://github.com/jnke2016)
+- [FIX] Fix the hang in cuGraph Python Uniform Neighbor Sample, Add Logging to Bulk Sampler ([#3669](https://github.com/rapidsai/cugraph/pull/3669)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+
+## 🐛 Bug Fixes
+
+- Change the renumber_sampled_edgelist function behavior. ([#3762](https://github.com/rapidsai/cugraph/pull/3762)) [@seunghwak](https://github.com/seunghwak)
+- Fix bug discovered in Jaccard testing ([#3758](https://github.com/rapidsai/cugraph/pull/3758)) [@ChuckHastings](https://github.com/ChuckHastings)
+- fix inconsistent graph properties between the SG and the MG API ([#3757](https://github.com/rapidsai/cugraph/pull/3757)) [@jnke2016](https://github.com/jnke2016)
+- Fixes options for `--pydevelop` to remove unneeded CWD path (&quot;.&quot;), restores use of `setup.py` temporarily for develop builds ([#3747](https://github.com/rapidsai/cugraph/pull/3747)) [@rlratzel](https://github.com/rlratzel)
+- Fix sampling call parameters if compiled with -DNO_CUGRAPH_OPS ([#3729](https://github.com/rapidsai/cugraph/pull/3729)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix primitive bug discovered in MG edge betweenness centrality testing ([#3723](https://github.com/rapidsai/cugraph/pull/3723)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Reorder dependencies.yaml channels ([#3721](https://github.com/rapidsai/cugraph/pull/3721)) [@raydouglass](https://github.com/raydouglass)
+- [BUG]   Fix namesapce to default_hash and hash_functions ([#3711](https://github.com/rapidsai/cugraph/pull/3711)) [@naimnv](https://github.com/naimnv)
+- [BUG] Fix Bulk Sampling Test Issue ([#3701](https://github.com/rapidsai/cugraph/pull/3701)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Make `pylibcugraphops` optional imports in `cugraph-dgl` and `-pyg` ([#3693](https://github.com/rapidsai/cugraph/pull/3693)) [@tingyu66](https://github.com/tingyu66)
+- [FIX] Rename `cugraph-ops` symbols (refactoring) and update GHA workflows to call pytest via `python -m pytest` ([#3688](https://github.com/rapidsai/cugraph/pull/3688)) [@naimnv](https://github.com/naimnv)
+- [FIX] Fix the hang in cuGraph Python Uniform Neighbor Sample, Add Logging to Bulk Sampler ([#3669](https://github.com/rapidsai/cugraph/pull/3669)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- force atlas notebook changes to run in cugraph 23.08 container. ([#3656](https://github.com/rapidsai/cugraph/pull/3656)) [@acostadon](https://github.com/acostadon)
+
+## 📖 Documentation
+
+- this fixes github links in cugraph, cugraph-dgl and cugraph-pyg ([#3650](https://github.com/rapidsai/cugraph/pull/3650)) [@acostadon](https://github.com/acostadon)
+- Fix minor typo in README.md ([#3636](https://github.com/rapidsai/cugraph/pull/3636)) [@akasper](https://github.com/akasper)
+- Created landing spot for centrality and similarity algorithms ([#3620](https://github.com/rapidsai/cugraph/pull/3620)) [@acostadon](https://github.com/acostadon)
+
+## 🚀 New Features
+
+- Compute shortest distances between given sets of origins and destinations for large diameter graphs ([#3741](https://github.com/rapidsai/cugraph/pull/3741)) [@seunghwak](https://github.com/seunghwak)
+- Update primitive to compute weighted Jaccard, Sorensen and Overlap similarity ([#3728](https://github.com/rapidsai/cugraph/pull/3728)) [@naimnv](https://github.com/naimnv)
+- Add CUDA 12.0 conda environment. ([#3725](https://github.com/rapidsai/cugraph/pull/3725)) [@bdice](https://github.com/bdice)
+- Renumber utility function for sampling output ([#3707](https://github.com/rapidsai/cugraph/pull/3707)) [@seunghwak](https://github.com/seunghwak)
+- Integrate C++ Sampling Source Behavior Updates ([#3699](https://github.com/rapidsai/cugraph/pull/3699)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Adds `fail_on_nonconvergence` option to `pagerank` to provide pagerank results even on non-convergence ([#3639](https://github.com/rapidsai/cugraph/pull/3639)) [@rlratzel](https://github.com/rlratzel)
+- Add Benchmark for Bulk Sampling ([#3628](https://github.com/rapidsai/cugraph/pull/3628)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- cugraph: Build CUDA 12 packages ([#3456](https://github.com/rapidsai/cugraph/pull/3456)) [@vyasr](https://github.com/vyasr)
+
+## 🛠️ Improvements
+
+- Pin `dask` and `distributed` for `23.08` release ([#3761](https://github.com/rapidsai/cugraph/pull/3761)) [@galipremsagar](https://github.com/galipremsagar)
+- Fix `build.yaml` workflow ([#3756](https://github.com/rapidsai/cugraph/pull/3756)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Support MFG creation on sampling gpus for cugraph dgl ([#3742](https://github.com/rapidsai/cugraph/pull/3742)) [@VibhuJawa](https://github.com/VibhuJawa)
+- PLC and Python Support for Sample-Side MFG Creation ([#3734](https://github.com/rapidsai/cugraph/pull/3734)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Switch to new wheel building pipeline ([#3731](https://github.com/rapidsai/cugraph/pull/3731)) [@vyasr](https://github.com/vyasr)
+- Remove RAFT specialization. ([#3727](https://github.com/rapidsai/cugraph/pull/3727)) [@bdice](https://github.com/bdice)
+- C API for renumbering the samples ([#3724](https://github.com/rapidsai/cugraph/pull/3724)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Only run cugraph conda CI for CUDA 11. ([#3713](https://github.com/rapidsai/cugraph/pull/3713)) [@bdice](https://github.com/bdice)
+- Promote `Datasets` to stable and clean-up unit tests ([#3712](https://github.com/rapidsai/cugraph/pull/3712)) [@nv-rliu](https://github.com/nv-rliu)
+- [BUG] Unsupported graph for similiarity algos ([#3710](https://github.com/rapidsai/cugraph/pull/3710)) [@jnke2016](https://github.com/jnke2016)
+- Stop using setup.py in build.sh ([#3704](https://github.com/rapidsai/cugraph/pull/3704)) [@vyasr](https://github.com/vyasr)
+- [WIP] Make edge ids optional ([#3702](https://github.com/rapidsai/cugraph/pull/3702)) [@VibhuJawa](https://github.com/VibhuJawa)
+- Use rapids-cmake testing to run tests in parallel ([#3697](https://github.com/rapidsai/cugraph/pull/3697)) [@robertmaynard](https://github.com/robertmaynard)
+- Sampling modifications to support PyG and DGL options ([#3696](https://github.com/rapidsai/cugraph/pull/3696)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Include cuCollection public header for hash functions ([#3694](https://github.com/rapidsai/cugraph/pull/3694)) [@seunghwak](https://github.com/seunghwak)
+- Refactor edge betweenness centrality ([#3672](https://github.com/rapidsai/cugraph/pull/3672)) [@jnke2016](https://github.com/jnke2016)
+- Refactor RMAT ([#3662](https://github.com/rapidsai/cugraph/pull/3662)) [@jnke2016](https://github.com/jnke2016)
+- [REVIEW] Optimize bulk sampling ([#3661](https://github.com/rapidsai/cugraph/pull/3661)) [@VibhuJawa](https://github.com/VibhuJawa)
+- Update to CMake 3.26.4 ([#3648](https://github.com/rapidsai/cugraph/pull/3648)) [@vyasr](https://github.com/vyasr)
+- Optimize cugraph-dgl MFG creation ([#3646](https://github.com/rapidsai/cugraph/pull/3646)) [@VibhuJawa](https://github.com/VibhuJawa)
+- use rapids-upload-docs script ([#3640](https://github.com/rapidsai/cugraph/pull/3640)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Fix dependency versions for `23.08` ([#3638](https://github.com/rapidsai/cugraph/pull/3638)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Unpin `dask` and `distributed` for development ([#3634](https://github.com/rapidsai/cugraph/pull/3634)) [@galipremsagar](https://github.com/galipremsagar)
+- Remove documentation build scripts for Jenkins ([#3627](https://github.com/rapidsai/cugraph/pull/3627)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Unpin scikit-build upper bound ([#3609](https://github.com/rapidsai/cugraph/pull/3609)) [@vyasr](https://github.com/vyasr)
+- Implement C++ Edge Betweenness Centrality ([#3602](https://github.com/rapidsai/cugraph/pull/3602)) [@ChuckHastings](https://github.com/ChuckHastings)
+
 # cuGraph 23.06.00 (7 Jun 2023)
 
 ## 🚨 Breaking Changes
