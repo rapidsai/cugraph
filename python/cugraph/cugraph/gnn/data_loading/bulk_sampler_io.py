@@ -62,9 +62,9 @@ def _write_samples_to_parquet(
     for p in range(0, len(offsets), batches_per_partition):
         offsets_p = offsets.iloc[p : p + batches_per_partition]
         start_batch_id = offsets_p.batch_id.iloc[0]
-        end_batch_id = offsets_p.batch_id.iloc[len(offsets_p)-1]
+        end_batch_id = offsets_p.batch_id.iloc[len(offsets_p) - 1]
 
-        reached_end = (end_batch_id == max_batch_id)
+        reached_end = end_batch_id == max_batch_id
 
         start_ix = offsets_p.offsets.iloc[0]
         if reached_end:
@@ -80,7 +80,7 @@ def _write_samples_to_parquet(
             # To properly account this, the remaining batches are
             # renumbered to have contiguous batch ids and the empty
             # samples are dropped.
-            offsets_p.drop('batch_id', axis=1, inplace=True)
+            offsets_p.drop("batch_id", axis=1, inplace=True)
             batch_id_range = cudf.Series(cupy.arange(len(offsets_p)))
             end_batch_id = start_batch_id + len(offsets_p) - 1
         else:
