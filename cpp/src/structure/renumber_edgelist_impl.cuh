@@ -535,6 +535,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                       thrust::greater<edge_t>());
 
   // 5. compute segment_offsets
+
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
                 (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
