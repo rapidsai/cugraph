@@ -111,7 +111,7 @@ def _sampler_output_from_sampling_results(
     time_hop_start = perf_counter()
     hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
     hops = torch.searchsorted(
-        torch.as_tensor(sampling_results.hop_id.values, device="cuda"), hops
+        torch.as_tensor(sampling_results.hop_id, device="cuda"), hops
     )
     # print(f'calc hop pos: {perf_counter() - time_hop_start} s')
 
@@ -140,6 +140,7 @@ def _sampler_output_from_sampling_results(
     # print(f'calc hop 0: {perf_counter() - time_calc_hop_0_start} s')
 
     if renumber_map is not None:
+        start_time_map = perf_counter()
         if len(graph_store.node_types) > 1 or len(graph_store.edge_types) > 1:
             raise ValueError(
                 "Precomputing the renumber map is currently "
@@ -161,27 +162,29 @@ def _sampler_output_from_sampling_results(
         if edge_type[0] != node_type or edge_type[2] != node_type:
             raise ValueError("Edge src/dst type must match for homogeneous graphs")
         row_dict = {
-            edge_type: torch.as_tensor(sampling_results.sources.values, device="cuda"),
+            edge_type: torch.as_tensor(sampling_results.sources, device="cuda"),
         }
         col_dict = {
-            edge_type: torch.as_tensor(
-                sampling_results.destinations.values, device="cuda"
-            ),
+            edge_type: torch.as_tensor(sampling_results.destinations, device="cuda"),
         }
+        end_time_map = perf_counter()
+        # print(end_time_map - start_time_map)
     else:
         # Calculate nodes of interest based on unique nodes in order of appearance
         # Use hop 0 sources since those are the only ones not included in destinations
         # Use torch.concat based on benchmark performance (vs. cudf.concat)
+
+        if sampling_results_hop_0 is None:
+            sampling_results_hop_0 = sampling_results.iloc[
+                0 : (hops[1] if len(hops) > 1 else len(sampling_results))
+            ]
+
         nodes_of_interest = (
             cudf.Series(
                 torch.concat(
                     [
-                        torch.as_tensor(
-                            sampling_results_hop_0.sources.values, device="cuda"
-                        ),
-                        torch.as_tensor(
-                            sampling_results.destinations.values, device="cuda"
-                        ),
+                        torch.as_tensor(sampling_results_hop_0.sources, device="cuda"),
+                        torch.as_tensor(sampling_results.destinations, device="cuda"),
                     ]
                 ),
                 name="nodes_of_interest",
@@ -192,7 +195,7 @@ def _sampler_output_from_sampling_results(
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
         noi_index = graph_store._get_vertex_groups_from_sample(
-            torch.as_tensor(nodes_of_interest.values, device="cuda")
+            torch.as_tensor(nodes_of_interest, device="cuda")
         )
         del nodes_of_interest
 
@@ -214,11 +217,10 @@ def _sampler_output_from_sampling_results(
                     torch.concat(
                         [
                             torch.as_tensor(
-                                sampling_results_hop_0.sources.values, device="cuda"
+                                sampling_results_hop_0.sources, device="cuda"
                             ),
                             torch.as_tensor(
-                                sampling_results_to_hop.destinations.values,
-                                device="cuda",
+                                sampling_results_to_hop.destinations, device="cuda"
                             ),
                         ]
                     )
@@ -259,7 +261,7 @@ def _sampler_output_from_sampling_results(
         else:
             numeric_etypes, counts = torch.unique(
                 torch.as_tensor(
-                    sampling_results.iloc[hop_ix_start:hop_ix_end].edge_type.values,
+                    sampling_results.iloc[hop_ix_start:hop_ix_end].edge_type,
                     device="cuda",
                 ),
                 return_counts=True,
@@ -274,6 +276,7 @@ def _sampler_output_from_sampling_results(
                     )
                 num_edges_per_hop_dict[can_etype][hop] = count
     # print(f'nodes/edges per hop: {perf_counter() - time_nodes_per_hop_start} s')
+    # print(num_nodes_per_hop_dict)
 
     if HeteroSamplerOutput is None:
         raise ImportError("Error importing from pyg")

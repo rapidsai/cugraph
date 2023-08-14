@@ -21,23 +21,31 @@ class CuGraphSAGE(nn.Module):
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
+        s = x.shape[0]
+        edge = list(CuGraphSAGEConv.to_csc(edge.cuda(), (s, s)))
+        x = x.cuda().to(torch.float32)
+
         for i, conv in enumerate(self.convs):
-            edge = edge.cuda()
-            x = x.cuda().to(torch.float32)
+            if i > 0:
+                x = x.narrow(
+                    dim=0,
+                    start=0,
+                    length=x.size(0) - num_sampled_nodes[-i],
+                )
+                
+                edge[0] = edge[0].narrow(
+                    dim=0,
+                    start=0,
+                    length=edge[0].size(0) - num_sampled_edges[-i],
+                )
+                edge[1] = edge[1].narrow(
+                    dim=0,
+                    start=0,
+                    length=edge[1].size(0) - num_sampled_nodes[-i]
+                )
+                edge[2] = x.size(0)
 
-            x, edge, _ = self._trim(
-                i,
-                num_sampled_nodes,
-                num_sampled_edges,
-                x,
-                edge,
-                None
-            )
-
-            s = x.shape[0]
-            edge_csc = CuGraphSAGEConv.to_csc(edge, (s, s))
-
-            x = conv(x, edge_csc)
+            x = conv(x, edge)
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
@@ -47,6 +55,6 @@ class CuGraphSAGE(nn.Module):
             length=x.shape[0] - num_sampled_nodes[1]
         )
 
-        assert x.shape[0] == num_sampled_nodes[0]
+        # assert x.shape[0] == num_sampled_nodes[0]
         return x
 

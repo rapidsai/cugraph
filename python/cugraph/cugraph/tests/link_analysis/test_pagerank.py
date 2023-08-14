@@ -187,11 +187,11 @@ def test_pagerank(
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 
     if has_precomputed_vertex_out_weight == 1:
-        df = G.view_edge_list()[["src", "weights"]]
+        df = G.view_edge_list()[["src", "wgt"]]
         pre_vtx_o_wgt = (
             df.groupby(["src"], as_index=False)
             .sum()
-            .rename(columns={"src": "vertex", "weights": "sums"})
+            .rename(columns={"src": "vertex", "wgt": "sums"})
         )
 
     cugraph_pr = cugraph_call(

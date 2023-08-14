@@ -229,13 +229,6 @@ class EXPERIMENTAL__BulkSampler:
             f" took {end_time_calc_batches - start_time_calc_batches:.4f} s"
         )
 
-        end_time_calc_batches = time.perf_counter()
-        self.__logger.info(
-            f"Calculated batches to sample; min = {min_batch_id}"
-            f" and max = {max_batch_id};"
-            f" took {end_time_calc_batches - start_time_calc_batches:.4f} s"
-        )
-
         if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph):
             sample_fn = cugraph.uniform_neighbor_sample
         else:

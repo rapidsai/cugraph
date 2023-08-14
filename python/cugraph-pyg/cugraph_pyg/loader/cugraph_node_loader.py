@@ -23,7 +23,6 @@ from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.loader.filter import _filter_cugraph_store
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
 from typing import Union, Tuple, Sequence, List, Dict
@@ -261,7 +260,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             }
 
             raw_sample_data = cudf.read_parquet(parquet_path)
-            print(parquet_path)
             if "map" in raw_sample_data.columns:
                 map_end = raw_sample_data["map"].iloc[
                     (end_inclusive - self.__start_inclusive + 1)
@@ -270,7 +268,6 @@ class EXPERIMENTAL__BulkSampleLoader:
                     raw_sample_data["map"].iloc[0:map_end], device="cuda"
                 )
                 raw_sample_data.drop("map", axis=1, inplace=True)
-                print("renumber_map:", self.__renumber_map)
             else:
                 self.__renumber_map = None
 
@@ -305,28 +302,25 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         start_time_feature = perf_counter()
         # Get and return the sampled subgraph
-        if isinstance(torch_geometric, MissingModule):
-            noi_index, row_dict, col_dict, edge_dict = sampler_output["out"]
-            out = _filter_cugraph_store(
-                self.__feature_store,
-                self.__graph_store,
-                noi_index,
-                row_dict,
-                col_dict,
-                edge_dict,
-            )
-        else:
-            out = torch_geometric.loader.utils.filter_custom_store(
-                self.__feature_store,
-                self.__graph_store,
-                sampler_output.node,
-                sampler_output.row,
-                sampler_output.col,
-                sampler_output.edge,
+        out = torch_geometric.loader.utils.filter_custom_store(
+            self.__feature_store,
+            self.__graph_store,
+            sampler_output.node,
+            sampler_output.row,
+            sampler_output.col,
+            sampler_output.edge,
+        )
+
+        # Account for CSR format in cuGraph vs. CSC format in PyG
+        for node_type in out.edge_index_dict:
+            out[node_type].edge_index[0], out[node_type].edge_index[1] = (
+                out[node_type].edge_index[1],
+                out[node_type].edge_index[0],
             )
 
-            out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
-            out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
+        out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
+        out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
+
         end_time_feature = perf_counter()
 
         self._total_feature_time += end_time_feature - start_time_feature

@@ -38,7 +38,7 @@ import re
 import os
 import gc
 from time import sleep, perf_counter
-from math import ceil
+from math import ceil, log
 
 import pandas as pd
 import numpy as np
@@ -714,9 +714,10 @@ if __name__ == "__main__":
     stats_ls = []
     client.run(enable_spilling)
     for dataset in datasets:
-        if re.match(r'([A-z]|[0-9])+\[[0-9]+\]', dataset):
-            replication_factor = int(dataset[-2])
-            dataset = dataset[:-3]
+        m = re.match(r'(\w+)\[([0-9]+)\]', dataset)
+        if m:
+            replication_factor = int(m.groups()[1])
+            dataset = m.groups()[0]
         else:
             replication_factor = 1
 
