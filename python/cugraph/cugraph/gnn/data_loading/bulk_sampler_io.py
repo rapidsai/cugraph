@@ -54,35 +54,46 @@ def _write_samples_to_parquet(
     if partition_info != "sg" and (not isinstance(partition_info, dict)):
         raise ValueError("Invalid value of partition_info")
 
-    max_batch_id = offsets.batch_id.max()
+    # Offsets is always in order, so the last batch id is always the highest
+    max_batch_id = offsets.batch_id.iloc[len(offsets) - 1]
     results.dropna(axis=1, how="all", inplace=True)
     results["hop_id"] = results["hop_id"].astype("uint8")
 
     for p in range(0, len(offsets), batches_per_partition):
         offsets_p = offsets.iloc[p : p + batches_per_partition]
         start_batch_id = offsets_p.batch_id.iloc[0]
-        end_batch_id = offsets_p.batch_id.iloc[-1]
+        end_batch_id = offsets_p.batch_id.iloc[len(offsets_p)-1]
+
+        reached_end = (end_batch_id == max_batch_id)
 
         start_ix = offsets_p.offsets.iloc[0]
-        if end_batch_id == max_batch_id:
+        if reached_end:
             end_ix = len(results)
         else:
             offsets_z = offsets[offsets.batch_id == (end_batch_id + 1)]
             end_ix = offsets_z.offsets.iloc[0]
 
-        full_output_path = os.path.join(
-            output_path, f"batch={start_batch_id}-{end_batch_id}.parquet"
-        )
         results_p = results.iloc[start_ix:end_ix].reset_index(drop=True)
 
-        results_p["batch_id"] = offsets_p.batch_id.repeat(
+        if end_batch_id - start_batch_id + 1 > len(offsets_p):
+            # This occurs when some batches returned 0 samples.
+            # To properly account this, the remaining batches are
+            # renumbered to have contiguous batch ids and the empty
+            # samples are dropped.
+            offsets_p.drop('batch_id', axis=1, inplace=True)
+            batch_id_range = cudf.Series(cupy.arange(len(offsets_p)))
+            end_batch_id = start_batch_id + len(offsets_p) - 1
+        else:
+            batch_id_range = offsets_p.batch_id
+
+        results_p["batch_id"] = batch_id_range.repeat(
             cupy.diff(offsets_p.offsets.values, append=end_ix)
         ).values
 
         if renumber_map is not None:
             renumber_map_start_ix = offsets_p.renumber_map_offsets.iloc[0]
 
-            if end_batch_id == max_batch_id:
+            if reached_end:
                 renumber_map_end_ix = len(renumber_map)
             else:
                 renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
@@ -123,6 +134,10 @@ def _write_samples_to_parquet(
                 results_p = results_p.join(final_map_series, how="outer").sort_index()
             else:
                 results_p["map"] = final_map_series
+
+        full_output_path = os.path.join(
+            output_path, f"batch={start_batch_id}-{end_batch_id}.parquet"
+        )
 
         results_p.to_parquet(
             full_output_path, compression=None, index=False, force_nullable_schema=True
