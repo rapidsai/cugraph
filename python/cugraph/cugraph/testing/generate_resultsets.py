@@ -225,6 +225,9 @@ if __name__ == "__main__":
         ]
     )
     # Generating ALL results files
+    if not utils.RAPIDS_RESULTSET_ROOT_DIR_PATH.exists():
+        utils.RAPIDS_RESULTSET_ROOT_DIR_PATH.mkdir(parents=True, exist_ok=True)
+
     for temp in _resultsets:
         res = _resultsets[temp].get_cudf_dataframe()
         temp_filename = str(random.getrandbits(50))
