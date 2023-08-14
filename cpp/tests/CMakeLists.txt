@@ -430,14 +430,8 @@ rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gt
 
 ###################################################################################################
 # - MTMG tests -------------------------------------------------------------------------
-#ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
 ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
-ConfigureTest(MTMG_BUG_REPRODUCER mtmg/bug_reproducer.cu)
 target_link_libraries(MTMG_TEST
-                      PRIVATE
-                      UCP::UCP
-                    )
-target_link_libraries(MTMG_BUG_REPRODUCER
                       PRIVATE
                       UCP::UCP
                     )

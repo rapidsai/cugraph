@@ -94,29 +94,23 @@ class per_device_edgelist_t {
     while (count > 0) {
       size_t copy_count = std::min(count, (src_.back().size() - current_pos_));
 
-      raft::update_device(src_.back().begin() + current_pos_,
-                          src.begin() + pos,
-                          copy_count,
-                          handle.raft_handle().get_stream());
-      raft::update_device(dst_.back().begin() + current_pos_,
-                          dst.begin() + pos,
-                          copy_count,
-                          handle.raft_handle().get_stream());
+      raft::update_device(
+        src_.back().begin() + current_pos_, src.begin() + pos, copy_count, handle.get_stream());
+      raft::update_device(
+        dst_.back().begin() + current_pos_, dst.begin() + pos, copy_count, handle.get_stream());
       if (wgt)
-        raft::update_device(wgt_->back().begin() + current_pos_,
-                            wgt->begin() + pos,
-                            copy_count,
-                            handle.raft_handle().get_stream());
+        raft::update_device(
+          wgt_->back().begin() + current_pos_, wgt->begin() + pos, copy_count, handle.get_stream());
       if (edge_id)
         raft::update_device(edge_id_->back().begin() + current_pos_,
                             edge_id->begin() + pos,
                             copy_count,
-                            handle.raft_handle().get_stream());
+                            handle.get_stream());
       if (edge_type)
         raft::update_device(edge_type_->back().begin() + current_pos_,
                             edge_type->begin() + pos,
                             copy_count,
-                            handle.raft_handle().get_stream());
+                            handle.get_stream());
 
       count -= copy_count;
       pos += copy_count;
@@ -124,6 +118,8 @@ class per_device_edgelist_t {
 
       if (current_pos_ == src_.size()) { create_new_buffers(handle); }
     }
+
+    handle.raft_handle().sync_stream();
   }
 
   /**
@@ -216,18 +212,14 @@ class per_device_edgelist_t {
 
   void create_new_buffers(cugraph::mtmg::handle_t const& handle)
   {
-    src_.emplace_back(device_buffer_size_, handle.raft_handle().get_stream());
-    dst_.emplace_back(device_buffer_size_, handle.raft_handle().get_stream());
+    src_.emplace_back(device_buffer_size_, handle.get_stream());
+    dst_.emplace_back(device_buffer_size_, handle.get_stream());
 
-    if (wgt_) { wgt_->emplace_back(device_buffer_size_, handle.raft_handle().get_stream()); }
+    if (wgt_) { wgt_->emplace_back(device_buffer_size_, handle.get_stream()); }
 
-    if (edge_id_) {
-      edge_id_->emplace_back(device_buffer_size_, handle.raft_handle().get_stream());
-    }
+    if (edge_id_) { edge_id_->emplace_back(device_buffer_size_, handle.get_stream()); }
 
-    if (edge_type_) {
-      edge_type_->emplace_back(device_buffer_size_, handle.raft_handle().get_stream());
-    }
+    if (edge_type_) { edge_type_->emplace_back(device_buffer_size_, handle.get_stream()); }
 
     current_pos_ = 0;
   }

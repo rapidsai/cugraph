@@ -61,8 +61,7 @@ class device_shared_wrapper_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    CUGRAPH_EXPECTS(pointers_.find(handle.get_rank()) == pointers_.end(),
-                    "Cannot reinitialize pointer");
+    CUGRAPH_EXPECTS(pointers_.find(handle.get_rank()) == pointers_.end(), "Cannot set pointer");
     pointers_.insert(std::pair(handle.get_rank(), std::move(ptr)));
   }
 

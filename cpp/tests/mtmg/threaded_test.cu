@@ -28,26 +28,17 @@
 #include <cugraph/mtmg/resource_manager.hpp>
 #include <cugraph/mtmg/thread_edgelist.hpp>
 #include <cugraph/mtmg/vertex_result.hpp>
-#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
 
 #include <nccl.h>
 
-#include <algorithm>
-#include <iterator>
-#include <limits>
-#include <numeric>
-#include <random>
 #include <vector>
 
-#include <cugraph/utilities/device_functors.cuh>
-#include <detail/graph_partition_utils.cuh>
 #include <thrust/count.h>
 #include <thrust/unique.h>
 
@@ -96,7 +87,6 @@ class Tests_Multithreaded
     auto [multithreaded_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
-    HighResTimer hr_timer{};
 
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
@@ -226,10 +216,6 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    // TODO: At this point, the edgelist should be complete on the GPU.  We should be able to create
-    // the graph
-    //    Should test case where this loop runs more than num_gpus times and less.  Ideally, more
-    //    should work fine, less should fail.
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
@@ -286,9 +272,6 @@ class Tests_Multithreaded
     instance_manager->reset_threads();
 
     //   TODO: Try a facade for mtmg::pagerank
-    //
-    //    Should test case where this loop runs more than num_gpus times and less.  Ideally, more
-    //    should work fine, less should fail.
     for (int i = 0; i < num_threads; ++i) {
       running_threads.emplace_back(
         [&instance_manager, &graph_view, &edge_weights, &pageranks, alpha, epsilon]() {
@@ -323,8 +306,7 @@ class Tests_Multithreaded
     std::vector<std::tuple<std::vector<vertex_t>, std::vector<result_t>>> computed_pageranks_v;
     std::mutex computed_pageranks_lock{};
 
-    // Load computed_pageranks from different threads.  We'll use more threads than GPUs here
-    // for (int i = 0; i < num_threads; ++i) {
+    // Load computed_pageranks from different threads.
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph_view,
@@ -345,7 +327,7 @@ class Tests_Multithreaded
         std::vector<vertex_t> my_vertex_list;
         my_vertex_list.reserve((number_of_vertices + num_threads - 1) / num_threads);
 
-        for (int j = i; j < number_of_vertices; j += num_threads) {
+        for (size_t j = i; j < number_of_vertices; j += num_threads) {
           my_vertex_list.push_back(unique_vertices[j]);
         }
 
@@ -431,9 +413,6 @@ class Tests_Multithreaded
               auto pos    = std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
               auto offset = std::distance(h_sg_renumber_map->begin(), pos);
 
-              // ASSERT_TRUE(compare_functor(pr, h_sg_pageranks[v])) << "vertex " << v << ", SG
-              // result = " << h_sg_pageranks[v] << ", mtmg result = " << pr << ", renumber map = "
-              // << (*h_sg_renumber_map)[v];
               ASSERT_TRUE(compare_functor(pr, h_sg_pageranks[offset]))
                 << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
                 << ", mtmg result = " << pr << ", renumber map = " << (*h_sg_renumber_map)[offset];

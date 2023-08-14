@@ -80,15 +80,19 @@ class resource_manager_t {
 
     cudaSetDevice(device_id.value());
 
-    // FIXME: I should pass in RMM parameters here?
-    auto const [free, total] = rmm::detail::available_device_memory();
-    auto const min_alloc =
-      rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
-
+    // FIXME: There is a bug in the cuda_memory_resource that results in a Hang.
+    //   using the pool resource as a work-around.
+    //
+    // Ultimately there should be some RMM parameters passed into this function
+    // (or the constructor of the object) to configure this behavior
 #if 0
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
 #else
+    auto const [free, total] = rmm::detail::available_device_memory();
+    auto const min_alloc =
+      rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
+
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{rank,
                 rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
