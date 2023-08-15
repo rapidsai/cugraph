@@ -28,6 +28,12 @@ def _write_samples_to_parquet(
 ) -> cudf.Series:
     """
     Writes the samples to parquet.
+
+    Batches that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id.  This means that the output batch ids may not match
+    the input batch ids.
+
     results: cudf.DataFrame
         The results dataframe containing the sampled minibatches.
     offsets: cudf.DataFrame
@@ -155,6 +161,12 @@ def write_samples(
 ):
     """
     Writes the samples to parquet.
+
+    Batches in each partition that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id in the partition.
+    This means that the output batch ids may not match the input batch ids.
+
     results: cudf.DataFrame
         The results dataframe containing the sampled minibatches.
     offsets: cudf.DataFrame
