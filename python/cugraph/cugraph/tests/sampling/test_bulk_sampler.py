@@ -240,3 +240,40 @@ def test_bulk_sampler_partitions(scratch_dir):
                 ]
             ).nunique()
             assert len(map_current_batch) == n_unique
+
+
+@pytest.mark.sg
+def test_bulk_sampler_empty_batches(scratch_dir):
+    edgelist = cudf.DataFrame(
+        {
+            "src": [0, 0, 1, 2, 3, 4, 5, 6],
+            "dst": [3, 2, 0, 7, 8, 9, 1, 2],
+        }
+    )
+
+    batches = cudf.DataFrame({
+        'start': [0, 1, 2, 7, 8, 9, 3, 2, 7],
+        'batch': [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    })
+
+    G = cugraph.Graph(directed=True)
+    G.from_edgelist(edgelist, source='src', destination='dst')
+
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_empty_batches")
+    create_directory_with_overwrite(samples_path)
+
+    bs = BulkSampler(
+        batch_size=3,
+        output_path=samples_path,
+        graph=G,
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        batches_per_partition=6,
+        renumber=True,
+    )
+
+    assert len(os.listdir(samples_path)) == 1
+
+    df = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
+
+    shutil.rmtree(samples_path)
