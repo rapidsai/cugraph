@@ -43,6 +43,7 @@ class EXPERIMENTAL__BulkSampler:
     batches are renumbered to be contiguous starting from the first
     batch id in the partition.
     This means that the output batch ids may not match the input batch ids.
+    See GitHub issue #3794 for more details.
     """
 
     start_col_name = "_START_"
