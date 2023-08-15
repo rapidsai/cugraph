@@ -16,12 +16,10 @@ from typing import Optional, Tuple
 from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
-
-nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class BaseConv(nn.Module):
+class BaseConv(torch.nn.Module):
     r"""An abstract base class for cugraph-ops nn module."""
 
     def __init__(self):
