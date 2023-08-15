@@ -47,7 +47,7 @@ def test_multigraph(graph_file):
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     cuedges = cugraph.to_pandas_edgelist(G)
     cuedges.rename(
-        columns={"src": "source", "dst": "target", "weights": "weight"}, inplace=True
+        columns={"src": "source", "dst": "target", "wgt": "weight"}, inplace=True
     )
     cuedges["weight"] = cuedges["weight"].round(decimals=3)
     nxedges = nx.to_pandas_edgelist(Gnx).astype(

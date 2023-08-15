@@ -90,8 +90,8 @@ def input_expected_output(input_combo):
 
     # Sample k vertices from the cuGraph graph
     # FIXME: Leverage the method 'select_random_vertices' instead
-    srcs = G.view_edge_list()["src"]
-    dsts = G.view_edge_list()["dst"]
+    srcs = G.view_edge_list()["0"]
+    dsts = G.view_edge_list()["1"]
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
     vertices = vertices.sample(num_seeds).astype("int32")
 

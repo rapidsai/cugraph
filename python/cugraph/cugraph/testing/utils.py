@@ -408,7 +408,7 @@ def compare_mst(mst_cugraph, mst_nx):
         pass
 
     # check total weight
-    cg_sum = edgelist_df["weights"].sum()
+    cg_sum = edgelist_df[mst_cugraph.weight_column].sum()
     nx_sum = mst_nx_df["weight"].sum()
     print(cg_sum)
     print(nx_sum)
