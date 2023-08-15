@@ -11,14 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from cugraph.utilities.utils import import_optional
 
-from pyg_lib.ops import index_sort
-
-# torch = import_optional("torch")
-import torch
+torch = import_optional("torch")
 
 nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
@@ -57,42 +54,82 @@ class BaseConv(nn.Module):
 
 
 class SparseGraph(object):
-    r"""A thin wrapper to facilitate sparse format conversion.
+    r"""A god-class to store different sparse formats needed by cugraph-ops
+    and facilitate sparse format conversions.
 
     Parameters
     ----------
+    size: tuple of int
+        Size of the adjacency matrix: (num_src_nodes, num_dst_nodes).
+
     src_ids: torch.Tensor
-        Tensor of source indices.
-    dst_ids: torch.Tensor
-        Tensor of destination indices.
-    shape: Tuple of int
-        Shape of the adjacency matrix.
-    is_sort: bool
+        Source indices of the edges.
+
+    dst_ids: torch.Tensor, optional
+        Destination indices of the edges.
+
+    csrc_ids: torch.Tensor, optional
+        Compressed source indices. It is a monotonically increasing array of
+        size (num_src_nodes + 1,). For the k-th source node, its neighborhood
+        consists of the destinations between `dst_indices[csrc_indices[k]]` and
+        `dst_indices[csrc_indices[k+1]]`.
+
+    cdst_ids: torch.Tensor, optional
+        Compressed destination indices. It is a monotonically increasing array of
+        size (num_dst_nodes + 1,). For the k-th destination node, its neighborhood
+        consists of the sources between `src_indices[cdst_indices[k]]` and
+        `src_indices[cdst_indices[k+1]]`.
+
+    dst_ids_is_sorted: bool
         Whether `dst_ids` has been sorted in an ascending order.
+
+    Notes
+    -----
+    COO-format requires `src_ids` and `dst_ids`.
+    CSC-format requires `cdst_ids` and `src_ids`.
+    CSR-format requires `csrc_ids` and `dst_ids`.
+
+    For MFGs (sampled graphs), the node ids must have been renumbered.
     """
 
     def __init__(
         self,
+        size: Tuple[int, int],
         src_ids: torch.Tensor,
-        dst_ids: torch.Tensor,
-        shape: Tuple[int, int],
-        is_sorted: bool = False,
+        dst_ids: Optional[torch.Tensor] = None,
+        csrc_ids: Optional[torch.Tensor] = None,
+        cdst_ids: Optional[torch.Tensor] = None,
+        dst_ids_is_sorted: bool = False,
     ):
-        self.row = src_ids.contiguous()
-        self.col = dst_ids.contiguous()
-        self.num_src_nodes, self.num_dst_nodes = shape
-        self.rowptr = None
-        self.colptr = None
-        self.perm = None
+        if dst_ids is None and cdst_ids is None:
+            raise ValueError("One of 'dst_ids' and 'cdst_ids' must be given.")
 
-        if not is_sorted:
-            self.col, self.perm = index_sort(self.col, max_value=self.num_dst_nodes)
-            self.row = self.row[self.perm]
+        if src_ids is not None:
+            src_ids = src_ids.contiguous()
+        if dst_ids is not None:
+            dst_ids = dst_ids.contiguous()
+        if csrc_ids is not None:
+            csrc_ids = csrc_ids.contiguous()
+        if cdst_ids is not None:
+            cdst_ids = cdst_ids.contiguous()
 
-    def to_csc(self) -> Tuple[torch.Tensor, torch.Tensor, int]:
-        if self.colptr is None:
-            self.colptr = torch._convert_indices_from_coo_to_csr(
-                self.col, self.num_dst_nodes, out_int32=self.col.dtype == torch.int32
+        self._src_ids = src_ids
+        self._dst_ids = dst_ids
+        self._csrc_ids = csrc_ids
+        self._cdst_ids = cdst_ids
+        self.num_src_nodes, self.num_dst_nodes = size
+
+        # Force create CSC format.
+        if self._cdst_ids is None:
+            if not dst_ids_is_sorted:
+                self._dst_ids, self._perm = torch.sort(self._dst_ids)
+                self._src_ids = self._src_ids[self._perm]
+            self._cdst_ids = torch._convert_indices_from_coo_to_csr(
+                self._dst_ids,
+                self.num_dst_nodes,
+                out_int32=self._dst_ids.dtype == torch.int32,
             )
 
-        return (self.row, self.colptr, self.num_src_nodes)
+    def csc(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""Return CSC format."""
+        return (self._cdst_ids, self._src_ids)
