@@ -788,25 +788,52 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            dst_id_table = noi_index[dst_type]
-            dst_id_map = (
-                cudf.Series(cupy.asarray(dst_id_table), name="dst")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("dst")
-            )
-            dst = dst_id_map["new_id"].loc[sampling_results.destinations]
-            col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+            if len(self.__vertex_type_offsets["type"]) == 1:
+                vtype = src_type
+                id_table = noi_index[vtype]
+                id_map = cudf.Series(
+                    cupy.arange(id_table.shape[0], dtype="int32"),
+                    name="new_id",
+                    index=cupy.asarray(id_table),
+                ).sort_index()
 
-            src_id_table = noi_index[src_type]
-            src_id_map = (
-                cudf.Series(cupy.asarray(src_id_table), name="src")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("src")
-            )
-            src = src_id_map["new_id"].loc[sampling_results.sources]
-            row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
+                ix_r = torch.searchsorted(
+                    torch.as_tensor(id_map.index.values, device="cuda"),
+                    torch.as_tensor(sampling_results.sources.values, device="cuda"),
+                )
+                row_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
+                    ix_r
+                ]
+
+                ix_c = torch.searchsorted(
+                    torch.as_tensor(id_map.index.values, device="cuda"),
+                    torch.as_tensor(
+                        sampling_results.destinations.values, device="cuda"
+                    ),
+                )
+                col_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
+                    ix_c
+                ]
+            else:
+                dst_id_table = noi_index[dst_type]
+                dst_id_map = cudf.DataFrame(
+                    {
+                        "dst": cupy.asarray(dst_id_table),
+                        "new_id": cupy.arange(dst_id_table.shape[0]),
+                    }
+                ).set_index("dst")
+                dst = dst_id_map["new_id"].loc[sampling_results.destinations]
+                col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+
+                src_id_table = noi_index[src_type]
+                src_id_map = cudf.DataFrame(
+                    {
+                        "src": cupy.asarray(src_id_table),
+                        "new_id": cupy.arange(src_id_table.shape[0]),
+                    }
+                ).set_index("src")
+                src = src_id_map["new_id"].loc[sampling_results.sources]
+                row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
 
         else:
             # This will retrieve the single string representation.
@@ -823,34 +850,12 @@ class EXPERIMENTAL__CuGraphStore:
                 pyg_can_edge_type = tuple(pyg_can_edge_type_str.split("__"))
                 src_type, _, dst_type = pyg_can_edge_type
 
-                # Get the de-offsetted sources
-                sources = torch.as_tensor(
-                    sampling_results.sources.iloc[ix].values, device="cuda"
-                )
-                sources_ix = torch.searchsorted(
-                    self.__vertex_type_offsets["stop"], sources
-                )
-                sources -= self.__vertex_type_offsets["start"][sources_ix]
-
-                # Create the row entry for this type
-                src_id_table = noi_index[src_type]
-                src_id_map = (
-                    cudf.Series(cupy.asarray(src_id_table), name="src")
-                    .reset_index()
-                    .rename(columns={"index": "new_id"})
-                    .set_index("src")
-                )
-                src = src_id_map["new_id"].loc[cupy.asarray(sources)]
-                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
-
                 # Get the de-offsetted destinations
+                dst_num_type = self._numeric_vertex_type_from_name(dst_type)
                 destinations = torch.as_tensor(
                     sampling_results.destinations.iloc[ix].values, device="cuda"
                 )
-                destinations_ix = torch.searchsorted(
-                    self.__vertex_type_offsets["stop"], destinations
-                )
-                destinations -= self.__vertex_type_offsets["start"][destinations_ix]
+                destinations -= self.__vertex_type_offsets["start"][dst_num_type]
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
@@ -862,6 +867,24 @@ class EXPERIMENTAL__CuGraphStore:
                 )
                 dst = dst_id_map["new_id"].loc[cupy.asarray(destinations)]
                 col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device="cuda")
+
+                # Get the de-offsetted sources
+                src_num_type = self._numeric_vertex_type_from_name(src_type)
+                sources = torch.as_tensor(
+                    sampling_results.sources.iloc[ix].values, device="cuda"
+                )
+                sources -= self.__vertex_type_offsets["start"][src_num_type]
+
+                # Create the row entry for this type
+                src_id_table = noi_index[src_type]
+                src_id_map = (
+                    cudf.Series(cupy.asarray(src_id_table), name="src")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("src")
+                )
+                src = src_id_map["new_id"].loc[cupy.asarray(sources)]
+                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
 
         return row_dict, col_dict
 
@@ -958,9 +981,7 @@ class EXPERIMENTAL__CuGraphStore:
                 t = t[-1]
 
             if isinstance(t, np.ndarray):
-                t = torch.as_tensor(t, device="cuda")
-            else:
-                t = t.cuda()
+                t = torch.as_tensor(t, device="cpu")
 
             return t
 
@@ -978,7 +999,6 @@ class EXPERIMENTAL__CuGraphStore:
 
                 t = torch.concatenate([t, u])
 
-            t = t.cuda()
             return t
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:

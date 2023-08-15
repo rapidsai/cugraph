@@ -23,12 +23,12 @@ from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.loader.filter import _filter_cugraph_store
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
 from typing import Union, Tuple, Sequence, List, Dict
 
 torch_geometric = import_optional("torch_geometric")
+torch = import_optional("torch")
 InputNodes = (
     Sequence
     if isinstance(torch_geometric, MissingModule)
@@ -253,7 +253,12 @@ class EXPERIMENTAL__BulkSampleLoader:
 
             raw_sample_data = cudf.read_parquet(parquet_path)
             if "map" in raw_sample_data.columns:
-                self.__renumber_map = raw_sample_data["map"]
+                map_end = raw_sample_data["map"].iloc[
+                    (end_inclusive - self.__start_inclusive + 1)
+                ]
+                self.__renumber_map = torch.as_tensor(
+                    raw_sample_data["map"].iloc[0:map_end], device="cuda"
+                )
                 raw_sample_data.drop("map", axis=1, inplace=True)
             else:
                 self.__renumber_map = None
@@ -265,14 +270,15 @@ class EXPERIMENTAL__BulkSampleLoader:
         f = self.__data["batch_id"] == self.__next_batch
         if self.__renumber_map is not None:
             i = self.__next_batch - self.__start_inclusive
-            ix = self.__renumber_map.iloc[[i, i + 1]]
-            ix_start, ix_end = ix.iloc[0], ix.iloc[1]
-            current_renumber_map = self.__renumber_map.iloc[ix_start:ix_end]
+            ix_start, ix_end = self.__renumber_map[[i, i + 1]].tolist()
+            current_renumber_map = self.__renumber_map[ix_start:ix_end]
+
             if len(current_renumber_map) != ix_end - ix_start:
                 raise ValueError("invalid renumber map")
         else:
             current_renumber_map = None
 
+        # Get and return the sampled subgraph
         sampler_output = _sampler_output_from_sampling_results(
             self.__data[f], current_renumber_map, self.__graph_store
         )
@@ -280,28 +286,31 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Get ready for next iteration
         self.__next_batch += 1
 
-        # Get and return the sampled subgraph
-        if isinstance(torch_geometric, MissingModule):
-            noi_index, row_dict, col_dict, edge_dict = sampler_output["out"]
-            return _filter_cugraph_store(
-                self.__feature_store,
-                self.__graph_store,
-                noi_index,
-                row_dict,
-                col_dict,
-                edge_dict,
-            )
-        else:
-            out = torch_geometric.loader.utils.filter_custom_store(
-                self.__feature_store,
-                self.__graph_store,
-                sampler_output.node,
-                sampler_output.row,
-                sampler_output.col,
-                sampler_output.edge,
+        # Create a PyG HeteroData object, loading the required features
+        out = torch_geometric.loader.utils.filter_custom_store(
+            self.__feature_store,
+            self.__graph_store,
+            sampler_output.node,
+            sampler_output.row,
+            sampler_output.col,
+            sampler_output.edge,
+        )
+
+        # Account for CSR format in cuGraph vs. CSC format in PyG
+        for node_type in out.edge_index_dict:
+            out[node_type].edge_index[0], out[node_type].edge_index[1] = (
+                out[node_type].edge_index[1],
+                out[node_type].edge_index[0],
             )
 
-            return out
+        out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
+        out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
+
+        return out
+
+    @property
+    def _starting_batch_id(self):
+        return self.__starting_batch_id
 
     def __iter__(self):
         return self
