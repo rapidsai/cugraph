@@ -13,7 +13,7 @@
 
 import tarfile
 
-# import urllib.request
+import urllib.request
 
 import cudf
 from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_RESULTSET_ROOT_DIR_PATH
@@ -62,9 +62,8 @@ def load_resultset(resultset_name, resultset_download_url):
         compressed_file_path = compressed_file_dir / "resultsets.tar.gz"
         if not RAPIDS_RESULTSET_ROOT_DIR_PATH.exists():
             RAPIDS_RESULTSET_ROOT_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        # FIXME: untested until resultsets.tar.gz is uploaded to s3 bucket
-        # if not compressed_file_path.exists():
-        #     urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
+        if not compressed_file_path.exists():
+            urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
         tar.extractall(str(RAPIDS_RESULTSET_ROOT_DIR_PATH))
         tar.close()

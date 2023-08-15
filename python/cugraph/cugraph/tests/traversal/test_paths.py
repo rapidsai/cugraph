@@ -38,7 +38,7 @@ CONNECTED_GRAPH = """1,5,3
 DISCONNECTED_GRAPH = CONNECTED_GRAPH + "8,9,4"
 
 
-# These golden results
+# Single value or callable golden results are not added as a Resultset
 paths_golden_results = {
     "shortest_path_length_1_1": 0,
     "shortest_path_length_1_5": 2.0,
@@ -51,9 +51,14 @@ paths_golden_results = {
 }
 
 
+# Fixture that loads all golden results necessary to run cugraph tests if the
+# tests are not already present in the designated results directory. Most of the
+# time, this will only check if the module-specific mapping file exists.
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    load_resultset("traversal", None)
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
 
 
 @pytest.fixture
@@ -101,7 +106,7 @@ def test_connected_graph_shortest_path_length(graphs):
     cugraph_G, cupy_df = graphs
 
     path_1_to_1_length = cugraph.shortest_path_length(cugraph_G, 1, 1)
-    # FIXME: aren't the first two assertions in each batch essentially redundant?
+    # FIXME: aren't the first two assertions in each batch redundant?
     assert path_1_to_1_length == 0.0
     assert path_1_to_1_length == paths_golden_results["shortest_path_length_1_1"]
     assert path_1_to_1_length == cugraph.shortest_path_length(cupy_df, 1, 1)

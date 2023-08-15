@@ -183,17 +183,20 @@ fixture_params_single_dataset = gen_fixture_params_product(
 )
 
 
-# These fixtures will call networkx BFS algos and save the result. The networkx
-# call is only made only once per input param combination.
+# Fixture that loads all golden results necessary to run cugraph tests if the
+# tests are not already present in the designated results directory. Most of the
+# time, this will only check if the module-specific mapping file exists.
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    load_resultset("traversal", None)
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
 
 
 @pytest.fixture(scope="module", params=fixture_params)
 def dataset_source_goldenresults(request):
     # request.param is a tuple of params from fixture_params. When expanded
-    # with *, will be passed to networkx_call() as args (graph_file, source)
+    # with *, will be passed to resultset_call() as args (graph_file, source)
     return resultset_call(*(request.param), load_traversal_results)
 
 
@@ -272,7 +275,6 @@ def test_sssp_nonnative_inputs_matrix(
     test_sssp(gpubenchmark, single_dataset_source_goldenresults, cugraph_input_type)
 
 
-# MARK
 @pytest.mark.sg
 @pytest.mark.parametrize("directed", [True, False])
 def test_sssp_nonnative_inputs_graph(single_dataset_source_goldenresults, directed):
@@ -419,7 +421,7 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 
 @pytest.mark.sg
-def test_sssp_networkx_edge_attr(load_traversal_results):
+def test_sssp_golden_edge_attr(load_traversal_results):
     df = get_resultset(
         resultset_name="traversal", algo="sssp_nonnative", test="network_edge_attr"
     )

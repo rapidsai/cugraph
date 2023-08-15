@@ -327,7 +327,9 @@ single_small_graph_fixture_params = gen_fixture_params_product(
 # time, this will only check if the module-specific mapping file exists.
 @pytest.fixture(scope="module")
 def load_traversal_results():
-    load_resultset("traversal", None)
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
 
 
 # Fixtures that result in a test-per (dataset X directed/undirected)
