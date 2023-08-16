@@ -15,9 +15,7 @@ from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
 
-# torch = import_optional("torch")
-import torch
-
+torch = import_optional("torch")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
