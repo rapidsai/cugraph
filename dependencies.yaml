@@ -382,7 +382,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - networkx>=3.1
+          - &networkx networkx>=3.0
       - output_types: conda
         packages:
           - *cupy
@@ -467,7 +467,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - networkx>=2.5.1
+          - *networkx
           - *numpy
           - pandas
           - pytest

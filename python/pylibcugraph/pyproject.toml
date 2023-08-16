@@ -41,7 +41,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "cudf==23.10.*",
-    "networkx>=2.5.1",
+    "networkx>=3.0",
     "numpy>=1.21",
     "pandas",
     "pytest",

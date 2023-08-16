@@ -45,7 +45,7 @@ dynamic = ["entry-points"]
 test = [
     "aiohttp",
     "fsspec[http]>=0.6.0",
-    "networkx>=2.5.1",
+    "networkx>=3.0",
     "numpy>=1.21",
     "pandas",
     "pytest",
