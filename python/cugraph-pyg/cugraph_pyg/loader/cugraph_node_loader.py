@@ -297,11 +297,12 @@ class EXPERIMENTAL__BulkSampleLoader:
         )
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
-        for node_type in out.edge_index_dict:
-            out[node_type].edge_index[0], out[node_type].edge_index[1] = (
-                out[node_type].edge_index[1],
-                out[node_type].edge_index[0],
-            )
+        if self.__graph_store.order == 'CSC':
+            for node_type in out.edge_index_dict:
+                out[node_type].edge_index[0], out[node_type].edge_index[1] = (
+                    out[node_type].edge_index[1],
+                    out[node_type].edge_index[0],
+                )
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
