@@ -39,6 +39,8 @@ class networkx_algorithm:
         instance.name = func.__name__ if name is None else name
         instance.can_run = _default_can_run
         setattr(BackendInterface, instance.name, instance)
+        # Set methods so they are in __dict__
+        instance._can_run = instance._can_run
         return instance
 
     def _can_run(self, func):

@@ -10,6 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib
 import inspect
 
 import networkx as nx
@@ -26,8 +27,11 @@ def test_match_signature_and_names():
         dispatchable_func = nx.utils.backends._registered_algorithms[name]
         orig_func = dispatchable_func.orig_func
         # Matching signatures?
+        # TODO: allow cnx functions to have additional keyword-only parameters
         sig = inspect.signature(orig_func)
         assert sig == inspect.signature(func)
+        if func.can_run is not cnx.utils.decorators._default_can_run:
+            assert sig == inspect.signature(func.can_run)
         # Matching function names?
         assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__
         # Matching dispatch names?
@@ -38,3 +42,34 @@ def test_match_signature_and_names():
             == dispatchable_func.__module__
             == orig_func.__module__
         )
+        # Matching package layout (i.e., which modules have the function)?
+        cnx_path = func.__module__
+        name = func.__name__
+        while "." in cnx_path:
+            # This only walks up the module tree and does not check sibling modules
+            cnx_path, mod_name = cnx_path.rsplit(".", 1)
+            nx_path = cnx_path.replace("cugraph_nx", "networkx")
+            cnx_mod = importlib.import_module(cnx_path)
+            nx_mod = importlib.import_module(nx_path)
+            # Is the function present in the current module?
+            present_in_cnx = hasattr(cnx_mod, name)
+            present_in_nx = hasattr(nx_mod, name)
+            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_cnx:
+                    raise AssertionError(
+                        f"{name} exists in {cnx_path}, but not in {nx_path}"
+                    )
+                raise AssertionError(
+                    f"{name} exists in {nx_path}, but not in {cnx_path}"
+                )
+            # Is the nested module present in the current module?
+            present_in_cnx = hasattr(cnx_mod, mod_name)
+            present_in_nx = hasattr(nx_mod, mod_name)
+            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_cnx:
+                    raise AssertionError(
+                        f"{mod_name} exists in {cnx_path}, but not in {nx_path}"
+                    )
+                raise AssertionError(
+                    f"{mod_name} exists in {nx_path}, but not in {cnx_path}"
+                )
