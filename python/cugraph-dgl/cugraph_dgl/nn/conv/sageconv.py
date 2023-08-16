@@ -125,14 +125,14 @@ class SAGEConv(BaseConv):
             max_in_degree = -1
 
         if isinstance(g, SparseGraph):
+            assert "csc" in g.formats()
             offsets, indices = g.csc()
             _graph = ops_torch.CSC(
                 offsets=offsets,
                 indices=indices,
-                num_src_nodes=g.num_src_nodes,
+                num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
             )
-            num_dst_nodes = g.num_dst_nodes
         elif isinstance(g, dgl.DGLHeteroGraph):
             offsets, indices, _ = g.adj_tensors("csc")
             _graph = ops_torch.CSC(
@@ -141,7 +141,6 @@ class SAGEConv(BaseConv):
                 num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
             )
-            num_dst_nodes = g.num_dst_nodes()
         else:
             raise TypeError(
                 f"The graph has to be either a 'SparseGraph' or "
@@ -149,7 +148,9 @@ class SAGEConv(BaseConv):
             )
 
         feat = self.feat_drop(feat)
-        h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[:num_dst_nodes]
+        h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[
+            : g.num_dst_nodes()
+        ]
         h = self.linear(h)
 
         return h

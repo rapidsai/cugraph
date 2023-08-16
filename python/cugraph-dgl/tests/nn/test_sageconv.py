@@ -27,8 +27,8 @@ dgl = import_optional("dgl")
 @pytest.mark.parametrize("idtype_int", [False, True])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("to_block", [False, True])
-@pytest.mark.parametrize("sparse_graph", ["coo", "csc", None])
-def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_graph):
+@pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
+def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_format):
     SAGEConv = dgl.nn.SAGEConv
     device = "cuda"
 
@@ -44,11 +44,13 @@ def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_gra
     size = (g.num_src_nodes(), g.num_dst_nodes())
     feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
 
-    if sparse_graph == "coo":
-        sg = SparseGraph(size=size, src_ids=g.edges()[0], dst_ids=g.edges()[1])
-    elif sparse_graph == "csc":
+    if sparse_format == "coo":
+        sg = SparseGraph(
+            size=size, src_ids=g.edges()[0], dst_ids=g.edges()[1], formats="csc"
+        )
+    elif sparse_format == "csc":
         offsets, indices, _ = g.adj_tensors("csc")
-        sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets)
+        sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets, formats="csc")
 
     torch.manual_seed(0)
     conv1 = SAGEConv(in_feat, out_feat, **kwargs).to(device)
@@ -63,7 +65,7 @@ def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_gra
             conv2.linear.bias.data[:] = conv1.fc_self.bias.data
 
     out1 = conv1(g, feat)
-    if sparse_graph is not None:
+    if sparse_format is not None:
         out2 = conv2(sg, feat, max_in_degree=max_in_degree)
     else:
         out2 = conv2(g, feat, max_in_degree=max_in_degree)
