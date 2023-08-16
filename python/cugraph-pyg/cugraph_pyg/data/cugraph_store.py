@@ -429,8 +429,8 @@ class EXPERIMENTAL__CuGraphStore:
 
         df = pandas.DataFrame(
             {
-                "src": pandas.Series(na_src),
-                "dst": pandas.Series(na_dst),
+                "src": pandas.Series(na_dst), # CSC
+                "dst": pandas.Series(na_src), # CSC
                 "etp": pandas.Series(na_etp),
             }
         )
