@@ -11,19 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
+
 import pytest
 
 import cudf
 import dask_cudf
-
-import tempfile
-import os
-
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
+from cugraph.utilities.utils import create_directory_with_overwrite
 
 
 @pytest.mark.mg
-def test_bulk_sampler_io():
+def test_bulk_sampler_io(scratch_dir):
     results = cudf.DataFrame(
         {
             "sources": [0, 0, 1, 2, 2, 2, 3, 4, 5, 5, 6, 7],
@@ -41,12 +41,14 @@ def test_bulk_sampler_io():
     offsets = cudf.DataFrame({"offsets": [0, 0], "batch_id": [0, 1]})
     offsets = dask_cudf.from_cudf(offsets, npartitions=2)
 
-    tempdir_object = tempfile.TemporaryDirectory()
-    write_samples(results, offsets, 1, tempdir_object.name)
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io")
+    create_directory_with_overwrite(samples_path)
 
-    assert len(os.listdir(tempdir_object.name)) == 2
+    write_samples(results, offsets, None, 1, samples_path)
 
-    df = cudf.read_parquet(os.path.join(tempdir_object.name, "batch=0-0.parquet"))
+    assert len(os.listdir(samples_path)) == 2
+
+    df = cudf.read_parquet(os.path.join(samples_path, "batch=0-0.parquet"))
     assert len(df) == 8
 
     results = results.compute()
@@ -63,7 +65,7 @@ def test_bulk_sampler_io():
     )
     assert (df.batch_id == 0).all()
 
-    df = cudf.read_parquet(os.path.join(tempdir_object.name, "batch=1-1.parquet"))
+    df = cudf.read_parquet(os.path.join(samples_path, "batch=1-1.parquet"))
     assert len(df) == 4
     assert (
         df.sources.values_host.tolist()
@@ -77,3 +79,5 @@ def test_bulk_sampler_io():
         df.hop_id.values_host.tolist() == results.hop_id.iloc[8:12].values_host.tolist()
     )
     assert (df.batch_id == 1).all()
+
+    shutil.rmtree(samples_path)

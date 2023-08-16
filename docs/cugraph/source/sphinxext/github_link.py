@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,8 @@
 # license in /thirdparty/LICENSES/LICENSE.scikit_learn
 
 import inspect
-import os
 import re
 import subprocess
-import sys
 from functools import partial
 from operator import attrgetter
 
@@ -56,7 +54,7 @@ def _get_git_revision():
     return revision.decode('utf-8')
 
 
-def _linkcode_resolve(domain, info, package, url_fmt, revision):
+def _linkcode_resolve(domain, info, url_fmt, revision):
     """Determine a link to online source for a class/method/function
 
     This is called by sphinx.ext.linkcode
@@ -73,7 +71,7 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
 
     if revision is None:
         return
-    if domain not in ('py', 'pyx'):
+    if domain != 'py':
         return
     if not info.get('module') or not info.get('fullname'):
         return
@@ -89,41 +87,29 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     fn: str = None
     lineno: str = None
 
-    try:
-        fn = inspect.getsourcefile(obj)
-    except Exception:
-        fn = None
-    if not fn:
-        try:
-            fn = inspect.getsourcefile(sys.modules[obj.__module__])
-        except Exception:
-            fn = None
+    obj_module = inspect.getmodule(obj)
+    if not obj_module:
+        print(f"could not infer source code link for: {info}")
+        return
+    module_name = obj_module.__name__.split('.')[0]
 
-    if not fn:
-        # Possibly Cython code. Search docstring for source
-        m = source_regex.search(obj.__doc__)
+    module_dir_dict = {
+        "cugraph_dgl": "cugraph-dgl",
+        "cugraph_pyg": "cugraph-pyg",
+        "cugraph_service_client": "cugraph-service/client",
+        "cugraph_service_server": "cugraph-service/server",
+        "cugraph": "cugraph",
+        "pylibcugraph": "pylibcugraph",
+    }
+    module_dir = module_dir_dict.get(module_name)
+    if not module_dir:
+        print(f"no source path directory set for {module_name}")
+        return
 
-        if (m is not None):
-            source_file = m.group(1)
-            lineno = m.group(2)
-
-            # fn is expected to be the absolute path.
-            fn = os.path.relpath(source_file, start=package)
-            print("{}:{}".format(
-                os.path.abspath(os.path.join("..", "python", "cuml", fn)),
-                lineno))
-        else:
-            return
-    else:
-        # Test if we are absolute or not (pyx are relative)
-        if (not os.path.isabs(fn)):
-            # Should be relative to docs right now
-            fn = os.path.abspath(os.path.join("..", "python", fn))
-
-        # Convert to relative from module root
-        fn = os.path.relpath(fn,
-                             start=os.path.dirname(
-                                 __import__(package).__file__))
+    obj_path = "/".join(obj_module.__name__.split(".")[1:])
+    obj_file_ext = obj_module.__file__.split('.')[-1]
+    source_ext = "pyx" if obj_file_ext == "so" else "py"
+    fn = f"{module_dir}/{module_name}/{obj_path}.{source_ext}"
 
     # Get the line number if we need it. (Can work without it)
     if (lineno is None):
@@ -137,17 +123,14 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
             else:
                 lineno = ''
     return url_fmt.format(revision=revision,
-                          package=package,
                           path=fn,
                           lineno=lineno)
 
 
-def make_linkcode_resolve(package, url_fmt):
+def make_linkcode_resolve(url_fmt):
     """Returns a linkcode_resolve function for the given URL format
 
     revision is a git commit reference (hash or name)
-
-    package is the name of the root module of the package
 
     url_fmt is along the lines of ('https://github.com/USER/PROJECT/'
                                    'blob/{revision}/{package}/'
@@ -156,5 +139,4 @@ def make_linkcode_resolve(package, url_fmt):
     revision = _get_git_revision()
     return partial(_linkcode_resolve,
                    revision=revision,
-                   package=package,
                    url_fmt=url_fmt)

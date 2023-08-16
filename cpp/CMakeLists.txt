@@ -192,7 +192,6 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
-    src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
@@ -219,10 +218,17 @@ set(CUGRAPH_SOURCES
     src/community/egonet_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
-    src/sampling/detail/sampling_utils_mg.cu
-    src/sampling/detail/sampling_utils_sg.cu
+    src/sampling/detail/prepare_next_frontier_sg.cu
+    src/sampling/detail/prepare_next_frontier_mg.cu
+    src/sampling/detail/gather_one_hop_edgelist_sg.cu
+    src/sampling/detail/gather_one_hop_edgelist_mg.cu
+    src/sampling/detail/remove_visited_vertices_from_frontier.cu
+    src/sampling/detail/sample_edges_sg.cu
+    src/sampling/detail/sample_edges_mg.cu
+    src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/renumber_sampled_edgelist_sg.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
@@ -264,6 +270,7 @@ set(CUGRAPH_SOURCES
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
+    src/traversal/od_shortest_distances_sg.cu
     src/traversal/sssp_mg.cu
     src/link_analysis/hits_sg.cu
     src/link_analysis/hits_mg.cu

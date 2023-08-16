@@ -378,10 +378,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
- * @return device vector containing the centralities.
+ * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t> edge_betweenness_centrality(
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -1178,6 +1179,45 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
 
+/*
+ * @brief Compute the shortest distances from the given origins to all the given destinations.
+ *
+ * This algorithm is designed for large diameter graphs. For small diameter graphs, running the
+ * cugraph::sssp function in a sequentially executed loop might be faster. This algorithms currently
+ * works only for single-GPU (we are not aware of large diameter graphs that won't fit in a single
+ * GPU).
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param origins An array of origins (starting vertices) to find shortest distances. There should
+ * be no duplicates in @p origins.
+ * @param destinations An array of destinations (end vertices) to find shortest distances. There
+ * should be no duplicates in @p destinations.
+ * @param cutoff Any destinations farther than @p cutoff will be marked as unreachable.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return A vector of size @p origins.size() * @p destinations.size(). The i'th element of the
+ * returned vector is the shortest distance from the (i / @p destinations.size())'th origin to the
+ * (i % @p destinations.size())'th destination.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> od_shortest_distances(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  raft::device_span<vertex_t const> origins,
+  raft::device_span<vertex_t const> destinations,
+  weight_t cutoff         = std::numeric_limits<weight_t>::max(),
+  bool do_expensive_check = false);
+
 /**
  * @brief Compute PageRank scores.
  *
@@ -1840,6 +1880,17 @@ k_core(raft::handle_t const& handle,
        bool do_expensive_check = false);
 
 /**
+ * @brief Controls how we treat prior sources in sampling
+ *
+ * @param DEFAULT    Add vertices encounted while sampling to the new frontier
+ * @param CARRY_OVER In addition to newly encountered vertices, include vertices
+ *                   used as sources in any previous frontier in the new frontier
+ * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
+ *                   used as a source in a previous frontier
+ */
+enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
+
+/**
  * @brief Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -1892,6 +1943,11 @@ k_core(raft::handle_t const& handle,
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @param return_hops boolean flag specifying if the hop information should be returned
+ * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
+ * DEFAULT)
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1927,8 +1983,10 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement   = true,
-  bool do_expensive_check = false);
+  bool with_replacement                           = true,
+  prior_sources_behavior_t prior_sources_behavior = prior_sources_behavior_t::DEFAULT,
+  bool dedupe_sources                             = false,
+  bool do_expensive_check                         = false);
 
 /*
  * @brief Compute triangle counts.

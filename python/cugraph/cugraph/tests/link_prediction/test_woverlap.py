@@ -16,12 +16,11 @@ import gc
 import pytest
 import scipy
 import numpy as np
-import cudf
-from cudf.testing import assert_series_equal
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
+import cudf
 import cugraph
-from cugraph.testing import utils
+from cudf.testing import assert_series_equal
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 
 
 # =============================================================================
@@ -94,7 +93,7 @@ def cpu_call(M, first, second):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_woverlap(gpubenchmark, graph_file):
     dataset_path = graph_file.get_path()
     Mnx = utils.read_csv_for_nx(dataset_path)
@@ -122,7 +121,7 @@ def test_woverlap(gpubenchmark, graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_woverlap_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -159,3 +158,14 @@ def test_woverlap_multi_column(graph_file):
     actual = df_res.sort_values("0_first").reset_index()
     expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
+
+
+@pytest.mark.sg
+def test_invalid_datasets_overlap_w():
+    karate = UNDIRECTED_DATASETS[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.overlap_w(G, None)

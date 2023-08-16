@@ -68,8 +68,8 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> ec = cugraph.eigenvector_centrality(G)
 
     """

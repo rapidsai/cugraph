@@ -12,18 +12,16 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 import numpy as np
 import scipy
 
 import cudf
-from cudf.testing import assert_series_equal, assert_frame_equal
-
-from cugraph.experimental import overlap as exp_overlap
-
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.experimental import overlap as exp_overlap
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 
 # =============================================================================
@@ -113,7 +111,7 @@ def cpu_call(M, first, second):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
@@ -171,7 +169,7 @@ def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_overlap_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -216,7 +214,7 @@ def test_overlap_multi_column(graph_file):
 
 @pytest.mark.sg
 def test_weighted_exp_overlap():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     G = karate.get_graph()
     with pytest.raises(ValueError):
         exp_overlap(G)
@@ -225,3 +223,14 @@ def test_weighted_exp_overlap():
     use_weight = True
     with pytest.raises(ValueError):
         exp_overlap(G, use_weight=use_weight)
+
+
+@pytest.mark.sg
+def test_invalid_datasets_overlap():
+    karate = UNDIRECTED_DATASETS[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.overlap(G)
