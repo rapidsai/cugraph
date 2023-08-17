@@ -12,5 +12,9 @@
 #
 # Coverage of `cugraph_nx.algorithms` is reported and is a good sanity check that algorithms run.
 
-# NETWORKX_GRAPH_CONVERT=cugraph NETWORKX_BACKEND_TEST_EXHAUSTIVE=True pytest --pyargs networkx "$@"
-NETWORKX_TEST_BACKEND=cugraph NETWORKX_TEST_FALLBACK_TO_NX=True pytest --pyargs networkx --cov=cugraph_nx/algorithms --cov-report term-missing --no-cov-on-fail "$@"
+NETWORKX_GRAPH_CONVERT=cugraph NETWORKX_BACKEND_TEST_EXHAUSTIVE=True \
+NETWORKX_TEST_BACKEND=cugraph NETWORKX_TEST_FALLBACK_TO_NX=True \
+    pytest --pyargs networkx \
+    --cov=cugraph_nx/algorithms \
+    --cov-report term-missing --no-cov-on-fail \
+    "$@"
