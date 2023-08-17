@@ -22,8 +22,11 @@ git diff
 # Install CI tools using pip
 python -m pip install "rapids-dependency-file-generator==1.*"
 
+# Temporary patch for adding it to the PATH
+pydir=`dirname $(which python)`
+
 # Manually install dependencies because we're building without isolation.
-rapids-dependency-file-generator \
+$pydir/rapids-dependency-file-generator \
   --output requirements \
   --file_key py_build_${package_name} \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
