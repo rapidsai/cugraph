@@ -259,7 +259,7 @@ class EXPERIMENTAL__CuGraphStore:
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
 
-        order: bool (Optional, default = CSC)
+        order: bool (Optional ["CSR", "CSC"], default = CSC)
             The order to use for sampling.  Should nearly always be CSC
             unless there is a specific expectation of "reverse" sampling.
             It is also not uncommon to use CSR order for correctness
