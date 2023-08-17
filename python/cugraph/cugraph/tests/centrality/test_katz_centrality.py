@@ -14,27 +14,17 @@
 import gc
 
 import pytest
+import networkx as nx
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import (
-    toy_graph_undirected,
-    karate,
-    DATASETS,
-    DATASETS_UNDIRECTED,
+from cugraph.testing import (
+    utils,
+    DEFAULT_DATASETS,
+    UNDIRECTED_DATASETS,
 )
+from cugraph.datasets import toy_graph_undirected, karate
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
 TOY = toy_graph_undirected
@@ -75,7 +65,7 @@ def calc_katz(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_katz_centrality(graph_file):
     katz_scores = calc_katz(graph_file)
 
@@ -86,7 +76,7 @@ def test_katz_centrality(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_katz_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -118,7 +108,7 @@ def test_katz_centrality_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_katz_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
@@ -161,7 +151,7 @@ def test_katz_centrality_multi_column(graph_file):
 @pytest.mark.parametrize("graph_file", [TOY])
 def test_katz_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True), download=True)
     alpha = 0.01
     beta = 1.0
     tol = 0.000001

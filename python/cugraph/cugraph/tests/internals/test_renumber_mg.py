@@ -18,17 +18,17 @@ import pytest
 
 import pandas
 import numpy as np
-import dask_cudf
+
 import dask
 import cudf
-from cudf.testing import assert_frame_equal, assert_series_equal
-
+import dask_cudf
 import cugraph.dask as dcg
 import cugraph
 from cugraph.testing import utils
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 
 # =============================================================================

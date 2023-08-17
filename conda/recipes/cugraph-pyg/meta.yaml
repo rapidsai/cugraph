@@ -22,11 +22,11 @@ requirements:
   build:
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - cython >=0.29,<0.30
+    - cython >=3.0.0
     - python
     - scikit-build >=0.13.1
   run:
-    - distributed >=2023.5.1
+    - distributed ==2023.7.1
     - numba >=0.57
     - numpy >=1.21
     - python

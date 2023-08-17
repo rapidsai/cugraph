@@ -12,17 +12,17 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 
-import dask_cudf
+import cudf
 from cudf.testing.testing import assert_frame_equal
-from pylibcugraph.testing import gen_fixture_params_product
-
+import dask_cudf
 import cugraph
 import cugraph.dask as dcg
 from cugraph.testing import utils
 from cugraph.dask.common.mg_utils import is_single_gpu
-import cudf
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -90,8 +90,8 @@ def input_expected_output(input_combo):
 
     # Sample k vertices from the cuGraph graph
     # FIXME: Leverage the method 'select_random_vertices' instead
-    srcs = G.view_edge_list()["src"]
-    dsts = G.view_edge_list()["dst"]
+    srcs = G.view_edge_list()["0"]
+    dsts = G.view_edge_list()["1"]
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
     vertices = vertices.sample(num_seeds).astype("int32")
 

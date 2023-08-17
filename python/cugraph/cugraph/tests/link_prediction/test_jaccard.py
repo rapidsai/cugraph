@@ -12,27 +12,17 @@
 # limitations under the License.
 
 import gc
+
 import pytest
+import networkx as nx
 
 import cudf
-from cudf.testing import assert_series_equal, assert_frame_equal
-
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
+from cugraph.datasets import netscience
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.experimental import jaccard as exp_jaccard
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, netscience
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cudf.testing import assert_series_equal, assert_frame_equal
+from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -140,7 +130,7 @@ def networkx_call(M, benchmark_callable=None):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
@@ -318,7 +308,7 @@ def test_jaccard_multi_column(read_csv):
 
 @pytest.mark.sg
 def test_weighted_exp_jaccard():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     G = karate.get_graph()
     with pytest.raises(ValueError):
         exp_jaccard(G)
@@ -331,7 +321,7 @@ def test_weighted_exp_jaccard():
 
 @pytest.mark.sg
 def test_invalid_datasets_jaccard():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     df = karate.get_edgelist()
     df = df.add(1)
     G = cugraph.Graph(directed=False)
