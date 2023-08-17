@@ -33,12 +33,12 @@ rapids-dependency-file-generator \
 
 # TODO: Remove this once the dependency file generator supports matrix entries,
 # https://github.com/rapidsai/dependency-file-generator/pull/48
-sed -i "s/rmm==/rmm${CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/cudf==/cudf${CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/raft-dask==/raft-dask${CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/pylibcugraph==/pylibcugraph${CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/pylibraft==/pylibraft${CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/ucx-py==/ucx-py${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/rmm==/rmm-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/cudf==/cudf-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/raft-dask==/raft-dask-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/pylibcugraph==/pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/pylibraft==/pylibraft-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/ucx-py==/ucx-py-${RAPIDS_PY_CUDA_SUFFIX}==/g" requirements.txt
 
 python -m pip install -r requirements.txt
 
