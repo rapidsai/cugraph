@@ -344,7 +344,7 @@ dependencies:
         packages:
           - &cupy_pip cupy-cuda11x>=12.0.0
             # cudf uses fsspec but is protocol independent. cugraph 
-            # requires [http] extras for the test files it asks cudf to read.
+            # dataset APIs require [http] extras for use with cudf.
           - fsspec[http]>=0.6.0
           - pylibcugraph==23.10.*
   python_run_pylibcugraph:
