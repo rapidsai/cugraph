@@ -22,6 +22,7 @@ class BackendInterface:
     @staticmethod
     def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
         if weight is not None:
+            # MAINT: networkx 3.0, 3.1
             # For networkx 3.0 and 3.1 compatibility
             if edge_attrs is not None:
                 raise TypeError(
@@ -58,7 +59,9 @@ class BackendInterface:
 
         from packaging.version import parse
 
-        if parse("3.0a0") <= parse(nx.__version__) < parse("3.2dev0"):
+        nxver = parse(nx.__version__)
+        if nxver.major == 3 and nxver.minor in {0, 1}:
+            # MAINT: networkx 3.0, 3.1
             xfail.update(
                 {
                     key(
