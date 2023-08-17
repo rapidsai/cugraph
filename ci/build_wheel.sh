@@ -30,6 +30,16 @@ rapids-dependency-file-generator \
   --output requirements \
   --file_key py_build_${package_name} \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
+
+# TODO: Remove this once the dependency file generator supports matrix entries,
+# https://github.com/rapidsai/dependency-file-generator/pull/48
+sed -i "s/rmm==/rmm${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/cudf==/cudf${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/raft-dask==/raft-dask${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/pylibcugraph==/pylibcugraph${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/pylibraft==/pylibraft${CUDA_SUFFIX}==/g" requirements.txt
+sed -i "s/ucx-py==/ucx-py${CUDA_SUFFIX}==/g" requirements.txt
+
 python -m pip install -r requirements.txt
 
 cd "${package_dir}"
