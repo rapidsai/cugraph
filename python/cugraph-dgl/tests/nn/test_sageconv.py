@@ -14,12 +14,9 @@
 
 import pytest
 
-try:
-    import cugraph_dgl
-except ModuleNotFoundError:
-    pytest.skip("cugraph_dgl not available", allow_module_level=True)
-
 from cugraph.utilities.utils import import_optional
+from cugraph_dgl.nn.conv.base import SparseGraph
+from cugraph_dgl.nn import SAGEConv as CuGraphSAGEConv
 from .common import create_graph1
 
 torch = import_optional("torch")
@@ -30,19 +27,30 @@ dgl = import_optional("dgl")
 @pytest.mark.parametrize("idtype_int", [False, True])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("to_block", [False, True])
-def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block):
+@pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
+def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_format):
     SAGEConv = dgl.nn.SAGEConv
-    CuGraphSAGEConv = cugraph_dgl.nn.SAGEConv
     device = "cuda"
 
     in_feat, out_feat = 5, 2
     kwargs = {"aggregator_type": "mean", "bias": bias}
     g = create_graph1().to(device)
+
     if idtype_int:
         g = g.int()
     if to_block:
         g = dgl.to_block(g)
+
+    size = (g.num_src_nodes(), g.num_dst_nodes())
     feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
+
+    if sparse_format == "coo":
+        sg = SparseGraph(
+            size=size, src_ids=g.edges()[0], dst_ids=g.edges()[1], formats="csc"
+        )
+    elif sparse_format == "csc":
+        offsets, indices, _ = g.adj_tensors("csc")
+        sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets, formats="csc")
 
     torch.manual_seed(0)
     conv1 = SAGEConv(in_feat, out_feat, **kwargs).to(device)
@@ -57,7 +65,10 @@ def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block):
             conv2.linear.bias.data[:] = conv1.fc_self.bias.data
 
     out1 = conv1(g, feat)
-    out2 = conv2(g, feat, max_in_degree=max_in_degree)
+    if sparse_format is not None:
+        out2 = conv2(sg, feat, max_in_degree=max_in_degree)
+    else:
+        out2 = conv2(g, feat, max_in_degree=max_in_degree)
     assert torch.allclose(out1, out2, atol=1e-06)
 
     grad_out = torch.rand_like(out1)

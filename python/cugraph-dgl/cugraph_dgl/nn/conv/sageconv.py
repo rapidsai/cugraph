@@ -14,9 +14,9 @@
 cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union
 
-from cugraph_dgl.nn.conv.base import BaseConv
+from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -98,7 +98,7 @@ class SAGEConv(BaseConv):
 
     def forward(
         self,
-        g: dgl.DGLHeteroGraph,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
         feat: torch.Tensor,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
@@ -106,37 +106,46 @@ class SAGEConv(BaseConv):
 
         Parameters
         ----------
-        g : DGLGraph
+        g : DGLGraph or SparseGraph
             The graph.
         feat : torch.Tensor
             Node features. Shape: :math:`(|V|, D_{in})`.
         max_in_degree : int
-            Maximum in-degree of destination nodes. It is only effective when
-            :attr:`g` is a :class:`DGLBlock`, i.e., bipartite graph. When
-            :attr:`g` is generated from a neighbor sampler, the value should be
-            set to the corresponding :attr:`fanout`. If not given,
-            :attr:`max_in_degree` will be calculated on-the-fly.
+            Maximum in-degree of destination nodes. When :attr:`g` is generated
+            from a neighbor sampler, the value should be set to the corresponding
+            :attr:`fanout`. This option is used to invoke the MFG-variant of
+            cugraph-ops kernel.
 
         Returns
         -------
         torch.Tensor
             Output node features. Shape: :math:`(|V|, D_{out})`.
         """
-        offsets, indices, _ = g.adj_tensors("csc")
+        if max_in_degree is None:
+            max_in_degree = -1
 
-        if g.is_block:
-            if max_in_degree is None:
-                max_in_degree = g.in_degrees().max().item()
-
-            if max_in_degree < self.MAX_IN_DEGREE_MFG:
-                _graph = ops_torch.SampledCSC(
-                    offsets, indices, max_in_degree, g.num_src_nodes()
-                )
-            else:
-                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                _graph = ops_torch.StaticCSC(offsets_fg, indices)
+        if isinstance(g, SparseGraph):
+            assert "csc" in g.formats()
+            offsets, indices = g.csc()
+            _graph = ops_torch.CSC(
+                offsets=offsets,
+                indices=indices,
+                num_src_nodes=g.num_src_nodes(),
+                dst_max_in_degree=max_in_degree,
+            )
+        elif isinstance(g, dgl.DGLHeteroGraph):
+            offsets, indices, _ = g.adj_tensors("csc")
+            _graph = ops_torch.CSC(
+                offsets=offsets,
+                indices=indices,
+                num_src_nodes=g.num_src_nodes(),
+                dst_max_in_degree=max_in_degree,
+            )
         else:
-            _graph = ops_torch.StaticCSC(offsets, indices)
+            raise TypeError(
+                f"The graph has to be either a 'SparseGraph' or "
+                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
+            )
 
         feat = self.feat_drop(feat)
         h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[
