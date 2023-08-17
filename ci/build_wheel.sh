@@ -21,7 +21,14 @@ git diff
 
 cd "${package_dir}"
 
-python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+# Manually install dependencies because we're building without isolation.
+rapids-dependency-file-generator \
+  --output requirements \
+  --file_key py_build_${package_name} \
+  --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
+python -m pip install -r requirements.txt
+
+python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check --no-build-isolation
 
 mkdir -p final_dist
 python -m auditwheel repair -w final_dist dist/*

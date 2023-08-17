@@ -222,7 +222,7 @@ dependencies:
               - cudatoolkit
   common_build:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - &cmake_ver cmake>=3.26.4
           - ninja
@@ -300,13 +300,13 @@ dependencies:
               - python>=3.9,<3.11
   python_build_wheel:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - wheel
           - setuptools
   python_build_cythonize:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - cython>=3.0.0
           - &pylibraft pylibraft==23.10.*
@@ -314,7 +314,7 @@ dependencies:
           - scikit-build>=0.13.1
   python_build_cugraph:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - pylibcugraph==23.10.*
   python_run_cugraph:
