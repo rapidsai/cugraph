@@ -215,7 +215,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N, multi_gpu=True, order='CSR')
+    graph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(

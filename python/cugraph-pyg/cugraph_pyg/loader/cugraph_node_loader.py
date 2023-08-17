@@ -297,7 +297,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         )
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
-        if self.__graph_store.order == 'CSC':
+        if self.__graph_store.order == "CSC":
             for node_type in out.edge_index_dict:
                 out[node_type].edge_index[0], out[node_type].edge_index[1] = (
                     out[node_type].edge_index[1],
