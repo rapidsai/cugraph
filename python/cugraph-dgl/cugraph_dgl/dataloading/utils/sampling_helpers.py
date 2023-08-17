@@ -115,7 +115,7 @@ def _get_tensor_d_from_sampled_df(df):
         if hop_split_empty_d is None:
             hop_split_empty_d, hop_indices = _create_split_dict(hop_id_tensor)
 
-        hop_split_d = dict.fromkeys(hop_split_empty_d.keys(), {})
+        hop_split_d = {k: {} for k in hop_split_empty_d.keys()}
         hop_split_indices = torch.searchsorted(hop_id_tensor, hop_indices).to("cpu")
         for column, t in batch_d.items():
             if column not in ["hop_id", "map"]:
