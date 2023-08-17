@@ -43,7 +43,6 @@ dynamic = ["entry-points"]
 
 [project.optional-dependencies]
 test = [
-    "fsspec[http]>=0.6.0",
     "networkx>=2.5.1",
     "numpy>=1.21",
     "pandas",
