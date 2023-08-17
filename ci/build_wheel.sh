@@ -21,6 +21,9 @@ git diff
 
 cd "${package_dir}"
 
+# Install CI tools using pip
+pip install "rapids-dependency-file-generator==1.*"
+
 # Manually install dependencies because we're building without isolation.
 rapids-dependency-file-generator \
   --output requirements \
