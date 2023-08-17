@@ -46,7 +46,4 @@ def louvain_communities(
 @louvain_communities._can_run
 def _(G, weight="weight", resolution=1, threshold=0.0000001, seed=None):
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
-    try:
-        return not G.is_directed()
-    except Exception:  # pragma: no cover (safety)
-        return False
+    return not G.is_directed()
