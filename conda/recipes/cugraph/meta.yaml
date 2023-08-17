@@ -85,6 +85,8 @@ requirements:
     - raft-dask ={{ minor_version }}
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
+    - requests
+    - aiohttp
 
 tests:
   requirements:
