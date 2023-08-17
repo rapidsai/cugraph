@@ -19,10 +19,8 @@ bash ci/release/apply_wheel_modifications.sh ${version_override} "-${RAPIDS_PY_C
 echo "The package name and/or version was modified in the package source. The git diff is:"
 git diff
 
-cd "${package_dir}"
-
 # Install CI tools using pip
-pip install "rapids-dependency-file-generator==1.*"
+python -m pip install "rapids-dependency-file-generator==1.*"
 
 # Manually install dependencies because we're building without isolation.
 rapids-dependency-file-generator \
@@ -30,6 +28,8 @@ rapids-dependency-file-generator \
   --file_key py_build_${package_name} \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
 python -m pip install -r requirements.txt
+
+cd "${package_dir}"
 
 python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check --no-build-isolation
 
