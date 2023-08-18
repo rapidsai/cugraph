@@ -23,7 +23,7 @@ from cugraph.datasets import dolphins, netscience, karate_disjoint, karate
 from cugraph.testing import utils, Resultset, SMALL_DATASETS
 
 
-_results_dir = utils.RAPIDS_RESULTSET_ROOT_DIR_PATH
+_results_dir = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets"
 _resultsets = {}
 
 
@@ -225,8 +225,8 @@ if __name__ == "__main__":
         ]
     )
     # Generating ALL results files
-    if not utils.RAPIDS_RESULTSET_ROOT_DIR_PATH.exists():
-        utils.RAPIDS_RESULTSET_ROOT_DIR_PATH.mkdir(parents=True, exist_ok=True)
+    if not _results_dir.exists():
+        _results_dir.mkdir(parents=True, exist_ok=True)
 
     for temp in _resultsets:
         res = _resultsets[temp].get_cudf_dataframe()
