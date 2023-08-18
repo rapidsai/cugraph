@@ -74,9 +74,12 @@ def _get_renumber_map(df):
     renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
     renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
 
-    # Drop all rows with NaN values
-    df.dropna(axis=0, how="all", inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    map_end_offset = map_starting_offset + len(renumber_map)
+    # We only need to drop rows if the length of dataframe is determined by the map
+    # that is if map_length > sampled edges length
+    if map_end_offset == len(df):
+        df.dropna(axis=0, how="all", inplace=True)
+        df.reset_index(drop=True, inplace=True)
 
     return df, cast_to_tensor(renumber_map), cast_to_tensor(renumber_map_batch_indices)
 
@@ -209,9 +212,13 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
                 max_dst_nodes = tensor_per_hop_d["destinations_range"]
                 if seednodes_range is not None:
                     max_dst_nodes = max(max_dst_nodes, seednodes_range)
-                shape = (max_src_nodes, max_dst_nodes)
+                size = (max_src_nodes, max_dst_nodes)
                 block = cugraph_dgl.nn.SparseGraph(
-                    tensor_per_hop_d["sources"], tensor_per_hop_d["destinations"], shape
+                    src_ids=tensor_per_hop_d["sources"],
+                    dst_ids=tensor_per_hop_d["destinations"],
+                    size=size,
+                    formats=["csc"],
+                    reduce_memory=True,
                 )
             else:
                 raise ValueError(f"Invalid return_type {return_type} provided")
@@ -229,8 +236,8 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
         output_nodes = graph_per_hop_ls[-1].dstdata[dgl.NID]
     else:
         map = tensors_batch_d["map"]
-        input_nodes = map[0 : graph_per_hop_ls[0].num_src_nodes]
-        output_nodes = map[0 : graph_per_hop_ls[-1].num_dst_nodes]
+        input_nodes = map[0 : graph_per_hop_ls[0].num_src_nodes()]
+        output_nodes = map[0 : graph_per_hop_ls[-1].num_dst_nodes()]
     return input_nodes, output_nodes, graph_per_hop_ls
 
 
