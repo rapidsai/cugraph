@@ -202,23 +202,14 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     for hop_id, tensor_per_hop_d in tensors_batch_d.items():
         if hop_id != "map":
             if return_type == "dgl.Block":
-                block = _create_homogeneous_dgl_block_from_tensor_d(
-                    tensor_per_hop_d,
-                    tensors_batch_d["map"],
-                    seednodes_range,
+                mfg = _create_homogeneous_dgl_block_from_tensor_d(
+                    tensor_d=tensor_per_hop_d,
+                    renumber_map=tensors_batch_d["map"],
+                    seednodes_range=seednodes_range,
                 )
             elif return_type == "cugraph_dgl.nn.SparseGraph":
-                max_src_nodes = tensor_per_hop_d["sources_range"]
-                max_dst_nodes = tensor_per_hop_d["destinations_range"]
-                if seednodes_range is not None:
-                    max_dst_nodes = max(max_dst_nodes, seednodes_range)
-                size = (max_src_nodes, max_dst_nodes)
-                block = cugraph_dgl.nn.SparseGraph(
-                    src_ids=tensor_per_hop_d["sources"],
-                    dst_ids=tensor_per_hop_d["destinations"],
-                    size=size,
-                    formats=["csc"],
-                    reduce_memory=True,
+                mfg = _create_homogeneous_cugraph_dgl_nn_sparse_graph(
+                    tensor_d=tensor_per_hop_d, seednodes_range=seednodes_range
                 )
             else:
                 raise ValueError(f"Invalid return_type {return_type} provided")
@@ -226,7 +217,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
                 tensor_per_hop_d["sources_range"],
                 tensor_per_hop_d["destinations_range"],
             )
-            graph_per_hop_ls.append(block)
+            graph_per_hop_ls.append(mfg)
 
     # default DGL behavior
     if edge_dir == "in":
@@ -267,10 +258,26 @@ def _create_homogeneous_dgl_block_from_tensor_d(
     )
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
-    # Below adds too much run time overhead
+    # Below adds run time overhead
     block.srcdata[dgl.NID] = renumber_map[0 : max_src_nodes + 1]
     block.dstdata[dgl.NID] = renumber_map[0 : max_dst_nodes + 1]
     return block
+
+
+def _create_homogeneous_cugraph_dgl_nn_sparse_graph(tensor_d, seednodes_range):
+    max_src_nodes = tensor_d["sources_range"]
+    max_dst_nodes = tensor_d["destinations_range"]
+    if seednodes_range is not None:
+        max_dst_nodes = max(max_dst_nodes, seednodes_range)
+    size = (max_src_nodes + 1, max_dst_nodes + 1)
+    sparse_graph = cugraph_dgl.nn.SparseGraph(
+        src_ids=tensor_d["sources"],
+        dst_ids=tensor_d["destinations"],
+        size=size,
+        formats=["csc"],
+        reduce_memory=True,
+    )
+    return sparse_graph
 
 
 def create_heterogeneous_sampled_graphs_from_dataframe(
