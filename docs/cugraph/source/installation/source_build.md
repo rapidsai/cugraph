@@ -84,6 +84,7 @@ build.sh [<target> ...] [<flag> ...]
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
    cugraph                    - build the cugraph Python package
+   cugraph-nx                 - build the cugraph-nx Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL

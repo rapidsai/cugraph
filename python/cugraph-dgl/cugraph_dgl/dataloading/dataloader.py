@@ -210,6 +210,15 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
+        if isinstance(self.cugraph_dgl_dataset, HomogenousBulkSamplerDataset):
+            deduplicate_sources = True
+            prior_sources_behavior = "carryover"
+            renumber = True
+        else:
+            deduplicate_sources = False
+            prior_sources_behavior = None
+            renumber = False
+
         bs = BulkSampler(
             output_path=output_dir,
             batch_size=self._batch_size,
@@ -218,6 +227,9 @@ class DataLoader(torch.utils.data.DataLoader):
             seeds_per_call=self._seeds_per_call,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
+            deduplicate_sources=deduplicate_sources,
+            prior_sources_behavior=prior_sources_behavior,
+            renumber=renumber,
         )
         if self.shuffle:
             self.tensorized_indices_ds.shuffle()
