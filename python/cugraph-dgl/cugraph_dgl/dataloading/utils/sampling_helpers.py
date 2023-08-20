@@ -271,9 +271,9 @@ def _create_homogeneous_cugraph_dgl_nn_sparse_graph(tensor_d, seednodes_range):
         max_dst_nodes = max(max_dst_nodes, seednodes_range)
     size = (max_src_nodes + 1, max_dst_nodes + 1)
     sparse_graph = cugraph_dgl.nn.SparseGraph(
+        size=size,
         src_ids=tensor_d["sources"],
         dst_ids=tensor_d["destinations"],
-        size=size,
         formats=["csc"],
         reduce_memory=True,
     )
