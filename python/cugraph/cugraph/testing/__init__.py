@@ -15,7 +15,12 @@ from cugraph.testing.utils import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
     RAPIDS_DATASET_ROOT_DIR,
 )
-from cugraph.testing.resultset import Resultset, load_resultset, get_resultset
+from cugraph.testing.resultset import (
+    Resultset,
+    load_resultset,
+    get_resultset,
+    results_dir_path,
+)
 from cugraph.datasets import (
     cyber,
     dolphins,

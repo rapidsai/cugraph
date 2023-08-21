@@ -16,7 +16,10 @@ import tarfile
 import urllib.request
 
 import cudf
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import utils
+
+
+results_dir_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets"
 
 
 class Resultset:
@@ -43,7 +46,6 @@ class Resultset:
 
 
 _resultsets = {}
-_results_dir_path = RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets"
 
 
 def load_resultset(resultset_name, resultset_download_url):
@@ -54,17 +56,17 @@ def load_resultset(resultset_name, resultset_download_url):
     _results_dir, use resultset_download_url to download a file to
     install/unpack/etc. to _results_dir first.
     """
-    mapping_file_path = _results_dir_path / (resultset_name + "_mappings.csv")
+    mapping_file_path = results_dir_path / (resultset_name + "_mappings.csv")
     if not mapping_file_path.exists():
         # Downloads a tar gz from s3 bucket, then unpacks the results files
-        compressed_file_dir = RAPIDS_DATASET_ROOT_DIR_PATH / "tests"
+        compressed_file_dir = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "tests"
         compressed_file_path = compressed_file_dir / "resultsets.tar.gz"
-        if not _results_dir_path.exists():
-            _results_dir_path.mkdir(parents=True, exist_ok=True)
+        if not results_dir_path.exists():
+            results_dir_path.mkdir(parents=True, exist_ok=True)
         if not compressed_file_path.exists():
             urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
-        tar.extractall(str(_results_dir_path))
+        tar.extractall(str(results_dir_path))
         tar.close()
 
     # FIXME: This assumes separator is " ", but should this be configurable?
@@ -130,5 +132,5 @@ def get_resultset(resultset_name, **kwargs):
     if uuid is None:
         raise KeyError(f"results for {arg_dict} not found")
 
-    results_filename = _results_dir_path / (uuid + ".csv")
+    results_filename = results_dir_path / (uuid + ".csv")
     return cudf.read_csv(results_filename)
