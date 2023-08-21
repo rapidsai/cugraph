@@ -27,11 +27,21 @@ def test_match_signature_and_names():
         dispatchable_func = nx.utils.backends._registered_algorithms[name]
         orig_func = dispatchable_func.orig_func
         # Matching signatures?
-        # TODO: allow cnx functions to have additional keyword-only parameters
-        sig = inspect.signature(orig_func)
-        assert sig == inspect.signature(func)
+        orig_sig = inspect.signature(orig_func)
+        func_sig = inspect.signature(func)
+        if not func.extra_params:
+            assert orig_sig == func_sig
+        else:
+            # Ignore extra parameters added to cugraph-nx algorithm
+            assert orig_sig == func_sig.replace(
+                parameters=[
+                    p
+                    for name, p in func_sig.parameters.items()
+                    if name not in func.extra_params
+                ]
+            )
         if func.can_run is not cnx.utils.decorators._default_can_run:
-            assert sig == inspect.signature(func.can_run)
+            assert func_sig == inspect.signature(func.can_run)
         # Matching function names?
         assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__
         # Matching dispatch names?

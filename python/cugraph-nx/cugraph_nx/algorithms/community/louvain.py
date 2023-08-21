@@ -21,20 +21,25 @@ __all__ = ["louvain_communities"]
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(extra_params="max_level")
 def louvain_communities(
-    G, weight="weight", resolution=1, threshold=0.0000001, seed=None
+    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
 ):
-    """`threshold` and `seed` parameters are currently ignored."""
+    """`threshold` and `seed` parameters are currently ignored.
+
+    Extra parameter: `max_level` controls the maximum number of levels of the algorithm.
+    """
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     G = _to_undirected_graph(G, weight)
     if G.row_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
+    if max_level is None:
+        max_level = sys.maxsize
     vertices, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
-        max_level=sys.maxsize,  # TODO: add this parameter to NetworkX
+        max_level=max_level,  # TODO: add this parameter to NetworkX
         resolution=resolution,
         # threshold=threshold,  # TODO: add this parameter to PLC
         do_expensive_check=False,
@@ -44,6 +49,8 @@ def louvain_communities(
 
 
 @louvain_communities._can_run
-def _(G, weight="weight", resolution=1, threshold=0.0000001, seed=None):
+def _(
+    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
+):
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     return not G.is_directed()
