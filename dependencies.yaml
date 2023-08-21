@@ -128,6 +128,7 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
+      - test_python_common
       - test_python_cugraph_nx
 
 
@@ -493,9 +494,9 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
+          - packaging
             # not needed by cugraph-nx tests, but is required for running networkx tests
           - pytest-mpl
-          - packaging
   cugraph_dgl_dev:
     common:
       - output_types: [conda]
