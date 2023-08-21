@@ -128,7 +128,6 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
-      - test_python_common
       - test_python_cugraph_nx
 
 
@@ -195,9 +194,6 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
-      # TODO: I think that the contents of the server's pyproject.toml
-      # dependencies were just copied from cugraph, so I'm not sure if this
-      # list is really minimal or if it is a superset.
       - test_python_common
       - test_python_cugraph
   cugraph_dgl_dev:
@@ -382,7 +378,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &networkx networkx>=3.0
+          - networkx>=3.0
       - output_types: conda
         packages:
           - *cupy
@@ -467,14 +463,10 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - *networkx
-          - *numpy
-          - pandas
           - pytest
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
-          - scipy
   test_python_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -483,14 +475,20 @@ dependencies:
             # cudf will use fsspec but is protocol independent. cugraph tests
             # specifically require http for the test files it asks cudf to read.
           - fsspec[http]>=0.6.0
+          - networkx>=2.5.1
+          - *numpy
+          - pandas
           - python-louvain
           - requests
           - scikit-learn>=0.23.1
+          - scipy
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - *cudf
+          - *numpy
+          - pandas
   test_python_cugraph_nx:
     common:
       - output_types: [conda, pyproject]

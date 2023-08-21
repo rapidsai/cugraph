@@ -10,17 +10,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
 
-from .base import SparseGraph
-from .gatconv import GATConv
-from .relgraphconv import RelGraphConv
-from .sageconv import SAGEConv
-from .transformerconv import TransformerConv
+from collections.abc import Hashable
+from typing import TypeVar
 
-__all__ = [
-    "SparseGraph",
-    "GATConv",
-    "RelGraphConv",
-    "SAGEConv",
-    "TransformerConv",
-]
+AttrKey = TypeVar("AttrKey", bound=Hashable)
+EdgeKey = TypeVar("EdgeKey", bound=Hashable)
+NodeKey = TypeVar("NodeKey", bound=Hashable)
+EdgeTuple = tuple[NodeKey, NodeKey]
+EdgeValue = TypeVar("EdgeValue")
+NodeValue = TypeVar("NodeValue")
+IndexValue = TypeVar("IndexValue")
+Dtype = TypeVar("Dtype")

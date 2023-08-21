@@ -10,17 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from setuptools import setup
 
-from .base import SparseGraph
-from .gatconv import GATConv
-from .relgraphconv import RelGraphConv
-from .sageconv import SAGEConv
-from .transformerconv import TransformerConv
-
-__all__ = [
-    "SparseGraph",
-    "GATConv",
-    "RelGraphConv",
-    "SAGEConv",
-    "TransformerConv",
-]
+setup()

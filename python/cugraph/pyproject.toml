@@ -52,7 +52,7 @@ classifiers = [
 test = [
     "aiohttp",
     "fsspec[http]>=0.6.0",
-    "networkx>=3.0",
+    "networkx>=2.5.1",
     "numpy>=1.21",
     "pandas",
     "pytest",

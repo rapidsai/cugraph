@@ -11,16 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import SparseGraph
-from .gatconv import GATConv
-from .relgraphconv import RelGraphConv
-from .sageconv import SAGEConv
-from .transformerconv import TransformerConv
 
-__all__ = [
-    "SparseGraph",
-    "GATConv",
-    "RelGraphConv",
-    "SAGEConv",
-    "TransformerConv",
-]
+def pytest_addoption(parser):
+    parser.addoption(
+        "--bench",
+        action="store_true",
+        default=False,
+        help="Run benchmarks (sugar for --benchmark-enable) and skip other tests"
+        " (to run both benchmarks AND tests, use --all)",
+    )
+    parser.addoption(
+        "--all",
+        action="store_true",
+        default=False,
+        help="Run benchmarks AND tests (unlike --bench, which only runs benchmarks)",
+    )
