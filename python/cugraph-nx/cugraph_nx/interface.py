@@ -39,6 +39,13 @@ class BackendInterface:
 
     @staticmethod
     def on_start_tests(items):
+        """Modify pytest items after tests have been collected.
+
+        This is called during ``pytest_collection_modifyitems`` phase of pytest.
+        We use this to set `xfail` on tests we expect to fail. See:
+
+        https://docs.pytest.org/en/stable/reference/reference.html#std-hook-pytest_collection_modifyitems
+        """
         try:
             import pytest
         except ModuleNotFoundError:
