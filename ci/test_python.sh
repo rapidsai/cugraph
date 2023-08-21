@@ -34,6 +34,7 @@ rapids-mamba-retry install \
   libcugraph \
   pylibcugraph \
   cugraph \
+  cugraph-nx \
   cugraph-service-server \
   cugraph-service-client
 
@@ -87,6 +88,23 @@ pytest \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
 popd
+
+rapids-logger "pytest cugraph-nx"
+pushd python/cugraph-nx/cugraph_nx
+pytest \
+  --capture=no \
+  --verbose \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --cov-config=../.coveragerc \
+  --cov=cugraph_nx \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-nx-coverage.xml" \
+  --cov-report=term \
+  --benchmark-disable \
+  tests
+popd
+
+# FIXME: add call to test cugraph-nx against the networkx test suite
 
 rapids-logger "pytest cugraph-service (single GPU)"
 pushd python/cugraph-service

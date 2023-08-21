@@ -493,7 +493,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-            # required for running networkx tests
+            # not needed by cugraph-nx tests, but is required for running networkx tests
           - pytest-mpl
           - packaging
   cugraph_dgl_dev:
