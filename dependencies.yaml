@@ -491,6 +491,7 @@ dependencies:
           - *cudf
           - *numpy
           - pandas
+          - scipy
   test_python_cugraph_nx:
     common:
       - output_types: [conda, pyproject]
