@@ -146,18 +146,6 @@ def train_epoch(model, loader, optimizer):
         total_loss += loss.item()
         end_time_backward = time.perf_counter()
         time_backward += end_time_backward - start_time_backward
-        
-        """
-        start_time_delete = time.perf_counter()
-        del y_true
-        del y_pred
-        del loss
-        del data
-        gc.collect()
-        end_time_delete = time.perf_counter()
-
-        print('delete:', end_time_delete - start_time_delete)
-        """
     
     end_time = time.perf_counter()
     return total_loss, num_batches, ((end_time - start_time) / num_batches), (time_forward / num_batches), (time_backward / num_batches), (time_loader / num_batches), (time_feature_additional / num_batches)
@@ -270,12 +258,6 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         print(f"# edges: {len(ei['src'])}")
 
         print('converting to csc...')
-        #from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
-        #ei = torch.stack([
-        #    ei['src'],
-        #    ei['dst'],
-        #])
-        #ei = CuGraphModule.to_csc(ei)[:-1]
         from torch_geometric.utils.sparse import index2ptr
         ei['dst'] = index2ptr(ei['dst'], num_nodes_dict[can_edge_type[2]])
 
