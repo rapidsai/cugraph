@@ -96,7 +96,7 @@ pytest \
   --verbose \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-  --cov-config=../.coveragerc \
+  --cov-config=../../.coveragerc \
   --cov=cugraph_nx \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-nx-coverage.xml" \
   --cov-report=term \
