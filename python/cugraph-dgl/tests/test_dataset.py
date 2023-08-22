@@ -124,5 +124,5 @@ def test_homogeneous_sampled_graphs_from_dataframe(return_type, seed_node):
             assert dgl_block.num_dst_nodes() == cugraph_dgl_graph.num_dst_nodes()
             dgl_offsets, dgl_indices, _ = dgl_block.adj_tensors("csc")
             cugraph_offsets, cugraph_indices = cugraph_dgl_graph.csc()
-            torch.equal(dgl_offsets.to("cpu"), cugraph_offsets.to("cpu"))
-            torch.equal(dgl_indices.to("cpu"), cugraph_indices.to("cpu"))
+            assert torch.equal(dgl_offsets.to("cpu"), cugraph_offsets.to("cpu"))
+            assert torch.equal(dgl_indices.to("cpu"), cugraph_indices.to("cpu"))

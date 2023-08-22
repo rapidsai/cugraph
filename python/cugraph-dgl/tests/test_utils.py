@@ -150,12 +150,12 @@ def test_get_source_destination_range():
     output_d = _get_source_destination_range(df)
 
     expected_output = {
-        (0.0, 0.0): {"sources_range": 0, "destinations_range": 1},
-        (0.0, 1.0): {"sources_range": 1, "destinations_range": 2},
-        (1.0, 0.0): {"sources_range": 0, "destinations_range": 1},
-        (1.0, 1.0): {"sources_range": 1, "destinations_range": 2},
-        (2.0, 0.0): {"sources_range": 0, "destinations_range": 2},
-        (2.0, 1.0): {"sources_range": 2, "destinations_range": 2},
+        (0, 0): {"sources_range": 0, "destinations_range": 1},
+        (0, 1): {"sources_range": 1, "destinations_range": 2},
+        (1, 0): {"sources_range": 0, "destinations_range": 1},
+        (1, 1): {"sources_range": 1, "destinations_range": 2},
+        (2, 0): {"sources_range": 0, "destinations_range": 2},
+        (2, 1): {"sources_range": 2, "destinations_range": 1},
     }
 
     assert output_d == expected_output
@@ -173,6 +173,6 @@ def test__create_homogeneous_cugraph_dgl_nn_sparse_graph():
     sparse_graph = _create_homogeneous_cugraph_dgl_nn_sparse_graph(
         tensor_d, seednodes_range
     )
-    assert sparse_graph.num_sources() == 2
-    assert sparse_graph.num_destinations() == 10
+    assert sparse_graph.num_src_nodes() == 2
+    assert sparse_graph.num_dst_nodes() == seednodes_range + 1
     assert isinstance(sparse_graph, cugraph_dgl.nn.SparseGraph)
