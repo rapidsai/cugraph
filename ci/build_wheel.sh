@@ -25,6 +25,12 @@ rapids-dependency-file-generator \
   --file_key py_build_${package_name} \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
 
+for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
+    sed -i "s/${dep}==/${dep}${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
+done
+
+python -m pip install -r requirements.txt
+
 # pyproject.toml updates
 sed -i "s/^version = .*/version = \"${version_override}\"/g" \
   python/cugraph/pyproject.toml \
@@ -36,33 +42,19 @@ sed -i "s/^version = .*/version = \"${version_override}\"/g" \
 
 # pylibcugraph pyproject.toml cuda suffixes
 sed -i "s/name = \"pylibcugraph\"/name = \"pylibcugraph${PACKAGE_CUDA_SUFFIX}\"/g" python/pylibcugraph/pyproject.toml
-sed -i "s/rmm/rmm${PACKAGE_CUDA_SUFFIX}/g" python/pylibcugraph/pyproject.toml
-sed -i "s/pylibraft/pylibraft${PACKAGE_CUDA_SUFFIX}/g" python/pylibcugraph/pyproject.toml
-sed -i "s/cudf/cudf${PACKAGE_CUDA_SUFFIX}/g" python/pylibcugraph/pyproject.toml
+for dep in rmm pylibraft cudf; do
+  sed -i "s/${dep}/${dep}${PACKAGE_CUDA_SUFFIX}/g" python/pylibcugraph/pyproject.toml
+done
 
 # cugraph pyproject.toml cuda suffixes
 sed -i "s/name = \"cugraph\"/name = \"cugraph${PACKAGE_CUDA_SUFFIX}\"/g" python/cugraph/pyproject.toml
-sed -i "s/rmm/rmm${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
-sed -i "s/cudf/cudf${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
-sed -i "s/raft-dask/raft-dask${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
-sed -i "s/pylibcugraph/pylibcugraph${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
-sed -i "s/pylibraft/pylibraft${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
-sed -i "s/ucx-py/ucx-py${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
+for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
+  sed -i "s/${dep}/${dep}${PACKAGE_CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
+done
 
 if [[ $PACKAGE_CUDA_SUFFIX == "-cu12" ]]; then
     sed -i "s/cupy-cuda11x/cupy-cuda12x/g" python/cugraph/pyproject.toml
 fi
-
-# TODO: Remove this once the dependency file generator supports matrix entries,
-# https://github.com/rapidsai/dependency-file-generator/pull/48
-sed -i "s/rmm==/rmm${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/cudf==/cudf${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/raft-dask==/raft-dask${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/pylibcugraph==/pylibcugraph${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/pylibraft==/pylibraft${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-sed -i "s/ucx-py==/ucx-py${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-
-python -m pip install -r requirements.txt
 
 cd "${package_dir}"
 
