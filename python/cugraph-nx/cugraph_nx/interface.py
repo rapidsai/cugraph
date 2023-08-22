@@ -22,6 +22,7 @@ class BackendInterface:
     @staticmethod
     def convert_from_nx(graph, *args, edge_attrs=None, weight=None, **kwargs):
         if weight is not None:
+            # MAINT: networkx 3.0, 3.1
             # For networkx 3.0 and 3.1 compatibility
             if edge_attrs is not None:
                 raise TypeError(
@@ -38,6 +39,13 @@ class BackendInterface:
 
     @staticmethod
     def on_start_tests(items):
+        """Modify pytest items after tests have been collected.
+
+        This is called during ``pytest_collection_modifyitems`` phase of pytest.
+        We use this to set `xfail` on tests we expect to fail. See:
+
+        https://docs.pytest.org/en/stable/reference/reference.html#std-hook-pytest_collection_modifyitems
+        """
         try:
             import pytest
         except ModuleNotFoundError:
@@ -51,15 +59,115 @@ class BackendInterface:
                 return (testname, frozenset({classname, filename}))
             return (testname, frozenset({filename}))
 
+        no_weights = "weighted implementation not currently supported"
+        no_multigraph = "multigraphs not currently supported"
         louvain_different = (
             "Louvain may be different due to RNG or unsupported threshold parameter"
         )
+
         xfail = {
             key("test_louvain.py:test_karate_club_partition"): louvain_different,
             key("test_louvain.py:test_none_weight_param"): louvain_different,
             key("test_louvain.py:test_multigraph"): louvain_different,
             key("test_louvain.py:test_threshold"): louvain_different,
         }
+
+        from packaging.version import parse
+
+        nxver = parse(nx.__version__)
+        if nxver.major == 3 and nxver.minor in {0, 1}:
+            # MAINT: networkx 3.0, 3.1
+            xfail.update(
+                {
+                    key(
+                        "test_agraph.py:TestAGraph.test_no_warnings_raised"
+                    ): "pytest.warn(None) deprecated",
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_K5"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_P3_normalized"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_P3"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_krackhardt_kite_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality."
+                        "test_krackhardt_kite_graph_normalized"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality."
+                        "test_florentine_families_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_les_miserables_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_ladder_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_G"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_G2"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_G3"
+                    ): no_multigraph,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedBetweennessCentrality.test_G4"
+                    ): no_multigraph,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_K5"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_C4"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_P4"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_balanced_tree"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_weighted_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality."
+                        "test_normalized_weighted_graph"
+                    ): no_weights,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality.test_weighted_multigraph"
+                    ): no_multigraph,
+                    key(
+                        "test_betweenness_centrality.py:"
+                        "TestWeightedEdgeBetweennessCentrality."
+                        "test_normalized_weighted_multigraph"
+                    ): no_multigraph,
+                }
+            )
         for item in items:
             kset = set(item.keywords)
             for (test_name, keywords), reason in xfail.items():

@@ -40,6 +40,7 @@ test = [
     "pytest",
     "pytest-benchmark",
     "pytest-mpl",
+    "packaging >=21",
 ]
 
 [project.urls]
