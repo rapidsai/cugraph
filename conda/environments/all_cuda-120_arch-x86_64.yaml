@@ -45,7 +45,7 @@ dependencies:
 - numpy>=1.21
 - numpydoc
 - openmpi
-- packaging
+- packaging>=21
 - pandas
 - pre-commit
 - pydata-sphinx-theme

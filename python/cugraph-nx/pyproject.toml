@@ -37,7 +37,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "packaging",
+    "packaging>=21",
     "pytest",
     "pytest-benchmark",
     "pytest-cov",

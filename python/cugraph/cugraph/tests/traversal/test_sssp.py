@@ -12,12 +12,10 @@
 # limitations under the License.
 
 import gc
-import time
 
 import pytest
 import numpy as np
 import pandas as pd
-import networkx as nx
 
 import cudf
 import cupyx
@@ -30,18 +28,19 @@ from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.testing import utils, UNDIRECTED_DATASETS, SMALL_DATASETS
-
-
-print("Networkx version : {} ".format(nx.__version__))
+from cugraph.testing import (
+    utils,
+    get_resultset,
+    load_resultset,
+    UNDIRECTED_DATASETS,
+    SMALL_DATASETS,
+)
 
 
 # Map of cuGraph input types to the expected output type for cuGraph
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    nx.Graph: pd.DataFrame,
-    nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
@@ -128,45 +127,47 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
     return result_dict, max_val
 
 
-def networkx_call(graph_file, source, edgevals=True):
+def resultset_call(graph_file, source, load_results, edgevals=True):
     dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    # Directed NetworkX graph
-    edge_attr = "weight" if edgevals else None
-
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source="0",
-        target="1",
-        edge_attr=edge_attr,
-        create_using=nx.DiGraph(),
-    )
-    print("NX Solving... ")
-    t1 = time.time()
+    dataset_name = graph_file.metadata["name"]
 
     if edgevals is False:
-        nx_paths = nx.single_source_shortest_path_length(Gnx, source)
+        # FIXME: no test coverage if edgevals is False, this assertion is never reached
+        assert False
+        golden_paths = get_resultset(
+            resultset_name="traversal",
+            algo="single_source_shortest_path_length",
+            graph_dataset=dataset_name,
+            graph_directed=str(True),
+            source=str(source),
+        )
     else:
-        # FIXME: The nx call below doesn't return accurate results as it seems to
-        # not support 'weights'. It matches cuGraph result only if the weight column
-        # is 1s.
-        nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
+        # FIXME: The golden results (nx) below doesn't return accurate results as it
+        # seems to not support 'weights'. It matches cuGraph result only if the weight
+        # column is 1s.
+        golden_paths = get_resultset(
+            resultset_name="traversal",
+            algo="single_source_dijkstra_path_length",
+            graph_dataset=dataset_name,
+            graph_directed=str(True),
+            source=str(source),
+        )
+    golden_paths = cudf.Series(
+        golden_paths.distance.values, index=golden_paths.vertex
+    ).to_dict()
 
     G = graph_file.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
 
-    t2 = time.time() - t1
-    print("NX Time : " + str(t2))
-
-    return (G, dataset_path, source, nx_paths, Gnx)
+    return (G, dataset_path, graph_file, source, golden_paths)
 
 
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
 
-# Call gen_fixture_params_product() to caluculate the cartesian product of
+# Call gen_fixture_params_product() to calculate the cartesian product of
 # multiple lists of params. This is required since parameterized fixtures do
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
@@ -182,28 +183,36 @@ fixture_params_single_dataset = gen_fixture_params_product(
 )
 
 
-# These fixtures will call networkx BFS algos and save the result. The networkx
-# call is only made only once per input param combination.
+# Fixture that loads all golden results necessary to run cugraph tests if the
+# tests are not already present in the designated results directory. Most of the
+# time, this will only check if the module-specific mapping file exists.
+@pytest.fixture(scope="module")
+def load_traversal_results():
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
+
+
 @pytest.fixture(scope="module", params=fixture_params)
-def dataset_source_nxresults(request):
+def dataset_source_goldenresults(request):
     # request.param is a tuple of params from fixture_params. When expanded
-    # with *, will be passed to networkx_call() as args (graph_file, source)
-    return networkx_call(*(request.param))
+    # with *, will be passed to resultset_call() as args (graph_file, source)
+    return resultset_call(*(request.param), load_traversal_results)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
-def single_dataset_source_nxresults(request):
-    return networkx_call(*(request.param))
+def single_dataset_source_goldenresults(request):
+    return resultset_call(*(request.param), load_traversal_results)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
-def dataset_source_nxresults_weighted(request):
-    return networkx_call(*(request.param), edgevals=True)
+def dataset_source_goldenresults_weighted(request):
+    return resultset_call(*(request.param), load_traversal_results, edgevals=True)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
-def single_dataset_source_nxresults_weighted(request):
-    return networkx_call(*(request.param), edgevals=True)
+def single_dataset_source_goldenresults_weighted(request):
+    return resultset_call(*(request.param), load_traversal_results, edgevals=True)
 
 
 # =============================================================================
@@ -211,9 +220,9 @@ def single_dataset_source_nxresults_weighted(request):
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
+def test_sssp(gpubenchmark, dataset_source_goldenresults, cugraph_input_type):
     # Extract the params generated from the fixture
-    (G, dataset_path, source, nx_paths, Gnx) = dataset_source_nxresults
+    (G, dataset_path, _, source, golden_paths) = dataset_source_goldenresults
 
     if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
@@ -221,7 +230,6 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
         )
     else:
         input_G_or_matrix = G
-
     cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
 
     # Calculating mismatch
@@ -231,14 +239,14 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
         # NOTE : If distance type is float64 then cu_paths[vid][0]
         # should be compared against np.finfo(np.float64).max)
         if cu_paths[vid][0] != max_val:
-            if cu_paths[vid][0] != nx_paths[vid]:
+            if cu_paths[vid][0] != golden_paths[vid]:
                 err = err + 1
             # check pred dist + 1 = current dist (since unweighted)
             pred = cu_paths[vid][1]
             if vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]:
                 err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in golden_paths.keys():
                 err = err + 1
 
     assert err == 0
@@ -246,8 +254,10 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
-    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults
+def test_sssp_invalid_start(
+    gpubenchmark, dataset_source_goldenresults, cugraph_input_type
+):
+    (G, _, _, source, _) = dataset_source_goldenresults
     el = G.view_edge_list()
 
     newval = max(el.src.max(), el.dst.max()) + 1
@@ -258,22 +268,61 @@ def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_inpu
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
-)
-def test_sssp_nonnative_inputs(
-    gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
+@pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
+def test_sssp_nonnative_inputs_matrix(
+    gpubenchmark, single_dataset_source_goldenresults, cugraph_input_type
 ):
-    test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
+    test_sssp(gpubenchmark, single_dataset_source_goldenresults, cugraph_input_type)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("directed", [True, False])
+def test_sssp_nonnative_inputs_graph(single_dataset_source_goldenresults, directed):
+    (_, _, graph_file, source, golden_paths) = single_dataset_source_goldenresults
+    dataset_name = graph_file.metadata["name"]
+    result = get_resultset(
+        resultset_name="traversal",
+        algo="sssp_nonnative",
+        graph_dataset=dataset_name,
+        graph_directed=str(directed),
+        source=str(source),
+    )
+    if np.issubdtype(result["distance"].dtype, np.integer):
+        max_val = np.iinfo(result["distance"].dtype).max
+    else:
+        max_val = np.finfo(result["distance"].dtype).max
+    verts = result["vertex"].to_numpy()
+    dists = result["distance"].to_numpy()
+    preds = result["predecessor"].to_numpy()
+    cu_paths = dict(zip(verts, zip(dists, preds)))
+
+    # Calculating mismatch
+    err = 0
+    for vid in cu_paths:
+        # Validate vertices that are reachable
+        # NOTE : If distance type is float64 then cu_paths[vid][0]
+        # should be compared against np.finfo(np.float64).max)
+        if cu_paths[vid][0] != max_val:
+            if cu_paths[vid][0] != golden_paths[vid]:
+                err = err + 1
+            # check pred dist + 1 = current dist (since unweighted)
+            pred = cu_paths[vid][1]
+            if vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]:
+                err = err + 1
+        else:
+            if vid in golden_paths.keys():
+                err = err + 1
+
+    assert err == 0
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_edgevals(
-    gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
+    gpubenchmark, dataset_source_goldenresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
-    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
+    (G, _, _, source, golden_paths) = dataset_source_goldenresults_weighted
     input_G_or_matrix = G
 
     cu_paths, max_val = cugraph_call(
@@ -286,19 +335,20 @@ def test_sssp_edgevals(
         # Validate vertices that are reachable
         # NOTE : If distance type is float64 then cu_paths[vid][0]
         # should be compared against np.finfo(np.float64).max)
+        distances = cugraph.sssp(G, source=vid)
         if cu_paths[vid][0] != max_val:
-            if cu_paths[vid][0] != nx_paths[vid]:
+            if cu_paths[vid][0] != golden_paths[vid]:
                 err = err + 1
             # check pred dist + edge_weight = current dist
             if vid != source:
                 pred = cu_paths[vid][1]
-                edge_weight = Gnx[pred][vid]["weight"]
+                if G.has_edge(pred, vid):
+                    edge_weight = distances[distances["vertex"] == pred].iloc[0, 0]
                 if cu_paths[pred][0] + edge_weight != cu_paths[vid][0]:
                     err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in golden_paths.keys():
                 err = err + 1
-
     assert err == 0
 
 
@@ -307,10 +357,10 @@ def test_sssp_edgevals(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
 def test_sssp_edgevals_nonnative_inputs(
-    gpubenchmark, single_dataset_source_nxresults_weighted, cugraph_input_type
+    gpubenchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
 ):
     test_sssp_edgevals(
-        gpubenchmark, single_dataset_source_nxresults_weighted, cugraph_input_type
+        gpubenchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
     )
 
 
@@ -319,7 +369,7 @@ def test_sssp_edgevals_nonnative_inputs(
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
     dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
+    dataset_name = graph_file.metadata["name"]
     cu_M = utils.read_csv_file(dataset_path)
 
     # cugraph call with int32 weights
@@ -334,19 +384,17 @@ def test_sssp_data_type_conversion(graph_file, source):
     dist_np = df["distance"].to_numpy()
     pred_np = df["predecessor"].to_numpy()
     cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
-
-    # networkx call with int32 weights
-    M["weight"] = M["weight"].astype(np.int32)
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source="0",
-        target="1",
-        edge_attr="weight",
-        create_using=nx.DiGraph(),
+    golden_paths = get_resultset(
+        resultset_name="traversal",
+        algo="single_source_dijkstra_path_length",
+        graph_dataset=dataset_name,
+        graph_directed=str(True),
+        source=str(source),
+        test="data_type_conversion",
     )
-    # assert nx weights is int
-    assert type(list(Gnx.edges(data=True))[0][2]["weight"]) is int
-    nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
+    golden_paths = cudf.Series(
+        golden_paths.distance.values, index=golden_paths.vertex
+    ).to_dict()
 
     # Calculating mismatch
     err = 0
@@ -354,28 +402,29 @@ def test_sssp_data_type_conversion(graph_file, source):
         # Validate vertices that are reachable
         # NOTE : If distance type is float64 then cu_paths[vid][0]
         # should be compared against np.finfo(np.float64).max)
+        distances = cugraph.sssp(G, source=vid)
         if cu_paths[vid][0] != max_val:
-            if cu_paths[vid][0] != nx_paths[vid]:
+            if cu_paths[vid][0] != golden_paths[vid]:
                 err = err + 1
             # check pred dist + edge_weight = current dist
             if vid != source:
                 pred = cu_paths[vid][1]
-                edge_weight = Gnx[pred][vid]["weight"]
+                if G.has_edge(pred, vid):
+                    edge_weight = distances[distances["vertex"] == pred].iloc[0, 0]
                 if cu_paths[pred][0] + edge_weight != cu_paths[vid][0]:
                     err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in golden_paths.keys():
                 err = err + 1
 
     assert err == 0
 
 
 @pytest.mark.sg
-def test_sssp_networkx_edge_attr():
-    G = nx.Graph()
-    G.add_edge(0, 1, other=10)
-    G.add_edge(1, 2, other=20)
-    df = cugraph.sssp(G, 0, edge_attr="other")
+def test_sssp_golden_edge_attr(load_traversal_results):
+    df = get_resultset(
+        resultset_name="traversal", algo="sssp_nonnative", test="network_edge_attr"
+    )
     df = df.set_index("vertex")
     assert df.loc[0, "distance"] == 0
     assert df.loc[1, "distance"] == 10
