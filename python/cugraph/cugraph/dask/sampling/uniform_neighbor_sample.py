@@ -27,10 +27,8 @@ import cupy as cp
 from pylibcugraph import ResourceHandle
 
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
-from pylibcugraph.utilities.api_tools import deprecated_warning_wrapper
 
 from cugraph.dask.comms import comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask import get_n_workers
 
 from typing import Sequence, List, Union, Tuple
@@ -400,7 +398,7 @@ def uniform_neighbor_sample(
     start_list: Sequence,
     fanout_vals: List[int],
     with_replacement: bool = True,
-    with_edge_properties: bool = False, # deprecated
+    with_edge_properties: bool = False,  # deprecated
     with_batch_ids: bool = False,
     keep_batches_together=False,
     min_batch_id=None,
@@ -599,13 +597,13 @@ def uniform_neighbor_sample(
 
     # fanout_vals must be passed to pylibcugraph as a host array
     if isinstance(fanout_vals, numpy.ndarray):
-        fanout_vals = fanout_vals.astype('int32')
+        fanout_vals = fanout_vals.astype("int32")
     elif isinstance(fanout_vals, list):
         fanout_vals = numpy.asarray(fanout_vals, dtype="int32")
     elif isinstance(fanout_vals, cp.ndarray):
-        fanout_vals = fanout_vals.get().astype('int32')
+        fanout_vals = fanout_vals.get().astype("int32")
     elif isinstance(fanout_vals, cudf.Series):
-        fanout_vals = fanout_vals.values_host.astype('int32')
+        fanout_vals = fanout_vals.values_host.astype("int32")
     else:
         raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
 
