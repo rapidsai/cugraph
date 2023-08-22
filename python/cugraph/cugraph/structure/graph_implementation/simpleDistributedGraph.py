@@ -317,7 +317,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        # FIXME: Make a copy of the input ddf without map partition
+        # FIXME: Make a copy of the input ddf without map_partitions
         # as a workaround
         ddf = ddf.copy()
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
