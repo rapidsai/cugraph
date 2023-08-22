@@ -317,9 +317,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        # FIXME: Make a copy of the input ddf without map_partitions
-        # as a workaround
-        ddf = ddf.copy()
+        ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
@@ -335,7 +333,7 @@ class simpleDistributedGraphImpl:
             )
             for w, edata in ddf.items()
         }
-        del ddf
+        # FIXME: Not deleting the copy of the dataframe
         self._plc_graph = {
             w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
             for w, delayed_task in delayed_tasks_d.items()
@@ -1194,7 +1192,5 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
-    gc.collect()
+    # FIXME: Not deleting the copy of the dataframe
     return output_col
