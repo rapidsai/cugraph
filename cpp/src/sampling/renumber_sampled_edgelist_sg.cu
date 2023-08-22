@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <cugraph/graph_functions.hpp>
+#include <cugraph/sampling_functions.hpp>
 
 #include "renumber_sampled_edgelist_impl.cuh"
 
