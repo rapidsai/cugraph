@@ -550,6 +550,13 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
+    if with_edge_properties:
+        warning_msg = (
+            "The with_edge_properties flag is deprecated"
+            " and will be removed in the next release."
+        )
+        warnings.warn(warning_msg, DeprecationWarning)
+
     if isinstance(start_list, int):
         start_list = [start_list]
 
