@@ -375,8 +375,6 @@ dependencies:
         packages:
           - *pylibraft
           - *rmm
-
-
   python_run_cugraph_nx:
     common:
       - output_types: [conda, pyproject]
@@ -389,8 +387,6 @@ dependencies:
         packages:
           - *cupy_pip
           - *pylibcugraph
-
-
   python_run_cugraph_dgl:
     common:
       - output_types: [conda, pyproject]
