@@ -31,13 +31,18 @@ def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
+    batches = cudf.DataFrame({
+        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+        'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
+    })
+
     sampling_results = uniform_neighbor_sample(
         cugraph_store._subgraph(),
-        cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+        batches,
         fanout_vals=[-1],
         with_replacement=False,
         with_edge_properties=True,
-        batch_id_list=cudf.Series(cupy.zeros(5, dtype="int32")),
+        with_batch_ids=True,
         random_state=62,
         return_offsets=False,
     ).sort_values(by=["sources", "destinations"])
@@ -82,13 +87,17 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
+    batches = cudf.DataFrame({
+        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+        'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
+    })
+
     sampling_results = uniform_neighbor_sample(
         cugraph_store._subgraph(),
-        cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+        batches,
         fanout_vals=[-1],
         with_replacement=False,
         with_edge_properties=True,
-        batch_id_list=cudf.Series(cupy.zeros(5, dtype="int32")),
         random_state=62,
         return_offsets=False,
     ).sort_values(by=["sources", "destinations"])
