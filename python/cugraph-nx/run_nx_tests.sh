@@ -21,12 +21,16 @@
 # Coverage of `cugraph_nx.algorithms` is reported and is a good sanity check
 # that algorithms run.
 
+# Warning: cugraph has a .coveragerc file in the <repo root>/python directory,
+# so be mindful of its contents and the CWD when running.
+# FIXME: should something be added to detect/prevent the above?
+
 NETWORKX_GRAPH_CONVERT=cugraph \
 NETWORKX_TEST_BACKEND=cugraph \
 NETWORKX_FALLBACK_TO_NX=True \
     pytest \
     --pyargs networkx \
-    --cov=cugraph_nx/algorithms \
+    --cov=cugraph_nx.algorithms \
     --cov-report term-missing \
     --no-cov-on-fail \
     "$@"
