@@ -26,25 +26,27 @@ rapids-mamba-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph
 
+# NOTE: nothing in cugraph-nx is CUDA-specific, but it is built on each CUDA
+# platform to ensure it is included in each set of artifacts since tests only
+# install from one set of CUDA-specific artifacts.
+rapids-mamba-retry mambabuild \
+  --no-test \
+  --channel "${CPP_CHANNEL}" \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/cugraph-nx
+
+# NOTE: nothing in the cugraph-service packages are CUDA-specific, but they are
+# built on each CUDA platform to ensure they areincluded in each set of
+# artifacts since tests only install from one set of CUDA-specific artifacts.
+rapids-mamba-retry mambabuild \
+  --no-test \
+  --channel "${CPP_CHANNEL}" \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/cugraph-service
+
 RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
 if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
-  # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
-  # Nothing in cugraph-nx is CUDA-specific.
-  rapids-mamba-retry mambabuild \
-    --no-test \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    conda/recipes/cugraph-nx
-
-  # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
-  # Nothing in the cugraph-service packages are CUDA-specific.
-  rapids-mamba-retry mambabuild \
-    --no-test \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    conda/recipes/cugraph-service
-
   # Only CUDA 11 is supported right now due to PyTorch requirement.
   rapids-mamba-retry mambabuild \
     --no-test \

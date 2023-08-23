@@ -21,15 +21,6 @@ set -u
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-# FIXME: this is a hack - since several python packages are CUDA-independent,
-# they are only built for CUDA 11 and only included in the CUDA 11
-# artifacts. When testing on CUDA 12, also install the CUDA 11 artifacts to
-# ensure they are available for testing on CUDA 12. This may be needed since
-# the CUDA-independent packages may have CUDA-specific dependencies that should
-# be tested on CUDA 12 via the code paths in the CUDA-independent packages.
-if [[ ${RAPIDS_CUDA_MAJOR} == "12" ]]; then
-   $(RAPIDS_CUDA_VERSION=11.8.0 rapids-download-conda-from-s3 python)
-fi
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
