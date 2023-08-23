@@ -296,6 +296,12 @@ class Dataset:
         """
         return self.metadata['number_of_nodes']
 
+    def number_of_edges(self):
+        """
+        Get the number of edges in the graph.
+        """
+        return self.metadata['number_of_edges']
+
 
 def download_all(force=False):
     """
