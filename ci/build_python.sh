@@ -27,8 +27,9 @@ rapids-mamba-retry mambabuild \
   conda/recipes/cugraph
 
 # NOTE: nothing in cugraph-nx is CUDA-specific, but it is built on each CUDA
-# platform to ensure it is included in each set of artifacts since tests only
-# install from one set of CUDA-specific artifacts.
+# platform to ensure it is included in each set of artifacts, since test
+# scripts only install from one set of artifacts based on the CUDA version used
+# for the test run.
 rapids-mamba-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
@@ -36,8 +37,9 @@ rapids-mamba-retry mambabuild \
   conda/recipes/cugraph-nx
 
 # NOTE: nothing in the cugraph-service packages are CUDA-specific, but they are
-# built on each CUDA platform to ensure they areincluded in each set of
-# artifacts since tests only install from one set of CUDA-specific artifacts.
+# built on each CUDA platform to ensure they are included in each set of
+# artifacts, since test scripts only install from one set of artifacts based on
+# the CUDA version used for the test run.
 rapids-mamba-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
