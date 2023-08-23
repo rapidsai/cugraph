@@ -64,6 +64,7 @@ def scratch_dir():
 
     del tempdir_object
 
+
 @pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def undirected_datasets(request):
     """

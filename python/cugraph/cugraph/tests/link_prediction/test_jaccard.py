@@ -71,7 +71,12 @@ def compare_jaccard_two_hop(G, Gnx, edgevals=True):
         assert diff < 1.0e-6
 
 
-def cugraph_call(benchmark_callable, graph_dataset, input_df, edgevals=False, ):
+def cugraph_call(
+    benchmark_callable,
+    graph_dataset,
+    input_df,
+    edgevals=False,
+):
     G = graph_dataset.get_graph(ignore_weights=not edgevals)
 
     # If no vertex_pair is passed as input, 'cugraph.jaccard' will
@@ -151,9 +156,7 @@ def test_directed_graph(undirected_datasets):
     M_cu, M, graph_file = undirected_datasets
 
     G1 = cugraph.Graph(directed=True)
-    G1.from_cudf_edgelist(
-        M_cu, source=["src"], destination=["dst"]
-    )
+    G1.from_cudf_edgelist(M_cu, source=["src"], destination=["dst"])
 
     with pytest.raises(ValueError):
         cugraph.jaccard(G1, M)
@@ -163,14 +166,14 @@ def test_directed_graph(undirected_datasets):
 def test_nx_jaccard_time(undirected_datasets, gpubenchmark):
     M_cu, M, graph_dataset = undirected_datasets
     symmetric = graph_dataset.metadata.get("is_symmetric")
-    nx_src, nx_dst, nx_coeff = networkx_call(M,
-                                             is_symmetric=symmetric,
-                                             benchmark_callable=gpubenchmark)
+    nx_src, nx_dst, nx_coeff = networkx_call(
+        M, is_symmetric=symmetric, benchmark_callable=gpubenchmark
+    )
 
 
 @pytest.mark.sg
 def test_jaccard_edgevals(undirected_datasets, gpubenchmark):
-    M_cu, M, graph_dataset  = undirected_datasets
+    M_cu, M, graph_dataset = undirected_datasets
 
     cu_src, cu_dst, cu_coeff = cugraph_call(
         gpubenchmark, graph_dataset, input_df=M_cu, edgevals=True
@@ -194,7 +197,9 @@ def test_jaccard_edgevals(undirected_datasets, gpubenchmark):
 def test_jaccard_two_hop(undirected_datasets):
     M_cu, M, graph_file = undirected_datasets
 
-    Gnx = nx.from_pandas_edgelist(M, source="src", target="dst", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="src", target="dst", create_using=nx.Graph()
+    )
     G = graph_file.get_graph(ignore_weights=True)
 
     compare_jaccard_two_hop(G, Gnx)
@@ -217,7 +222,9 @@ def test_jaccard_two_hop_edge_vals(undirected_datasets):
 def test_jaccard_nx(undirected_datasets):
 
     M_cu, M, _ = undirected_datasets
-    Gnx = nx.from_pandas_edgelist(M, source="src", target="dst", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="src", target="dst", create_using=nx.Graph()
+    )
 
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
@@ -300,7 +307,10 @@ def test_invalid_datasets_jaccard():
     with pytest.raises(ValueError):
         cugraph.jaccard(G)
 
+
 TYPES = [np.dtype(str), np.dtype(float)]
+
+
 @pytest.mark.sg
 @pytest.mark.parametrize("type", TYPES)
 def test_str_datasets_jaccard(type):
