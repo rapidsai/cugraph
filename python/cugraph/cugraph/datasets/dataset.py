@@ -270,37 +270,37 @@ class Dataset:
         """
         Returns True if the graph is a directed graph.
         """
-        return self.metadata['is_directed']
+        return self.metadata["is_directed"]
 
     def is_multigraph(self):
         """
         Returns True if the graph is a multigraph.
         """
-        return self.metadata['is_multigraph']
+        return self.metadata["is_multigraph"]
 
     def is_symmetric(self):
         """
         Returns True if the graph is symmetric.
         """
-        return self.metadata['is_symmetric']
+        return self.metadata["is_symmetric"]
 
     def number_of_nodes(self):
         """
         An alias of number_of_vertices()
         """
         return self.number_of_vertices()
-    
+
     def number_of_vertices(self):
         """
         Get the number of vertices in the graph.
         """
-        return self.metadata['number_of_nodes']
+        return self.metadata["number_of_nodes"]
 
     def number_of_edges(self):
         """
         Get the number of edges in the graph.
         """
-        return self.metadata['number_of_edges']
+        return self.metadata["number_of_edges"]
 
 
 def download_all(force=False):
