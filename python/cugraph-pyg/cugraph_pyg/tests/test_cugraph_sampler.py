@@ -100,6 +100,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         with_edge_properties=True,
         random_state=62,
         return_offsets=False,
+        with_batch_ids=True,
     ).sort_values(by=["sources", "destinations"])
 
     out = _sampler_output_from_sampling_results(
