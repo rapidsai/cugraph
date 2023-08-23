@@ -105,8 +105,6 @@ files:
     includes:
       - test_python_common
       - test_python_pylibcugraph
-
-
   py_build_cugraph_nx:
     output: pyproject
     pyproject_dir: python/cugraph-nx
@@ -130,8 +128,6 @@ files:
     includes:
       - test_python_common
       - test_python_cugraph_nx
-
-
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -470,28 +466,26 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
+          - pandas
           - pytest
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
+          - scipy
   test_python_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - networkx>=2.5.1
           - *numpy
-          - pandas
           - python-louvain
           - scikit-learn>=0.23.1
-          - scipy
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - *cudf
           - *numpy
-          - pandas
-          - scipy
   test_python_cugraph_nx:
     common:
       - output_types: [conda, pyproject]
