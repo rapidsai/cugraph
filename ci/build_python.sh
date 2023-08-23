@@ -30,7 +30,7 @@ RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
 if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
   # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
-  # Nothing in the cugraph-nx is CUDA-specific.
+  # Nothing in cugraph-nx is CUDA-specific.
   rapids-mamba-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
@@ -38,7 +38,7 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     conda/recipes/cugraph-nx
 
   # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
-  # Nothing in the cugraph-service packages is CUDA-specific.
+  # Nothing in the cugraph-service packages are CUDA-specific.
   rapids-mamba-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \

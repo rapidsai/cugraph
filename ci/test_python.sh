@@ -95,7 +95,7 @@ pytest \
   --capture=no \
   --verbose \
   --cache-clear \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-nx.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph_nx \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-nx-coverage.xml" \
@@ -104,7 +104,14 @@ pytest \
   tests
 popd
 
-# FIXME: add call to test cugraph-nx against the networkx test suite
+rapids-logger "pytest networkx using cugraph-nx backend"
+pushd python/cugraph-nx
+./run_nx_tests.sh
+# run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
+# in case cugraph-nx failed to load and fallback mode is enabled.
+echo "cugraph-nx coverage from networkx tests:"
+coverage report|grep "^TOTAL"|grep -v "[[:space:]]0.0%"
+popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
 pushd python/cugraph-service
