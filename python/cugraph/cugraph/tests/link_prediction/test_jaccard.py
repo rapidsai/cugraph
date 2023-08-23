@@ -15,15 +15,19 @@ import gc
 
 import pytest
 import networkx as nx
+import numpy as np
 
 import cudf
 import cugraph
-from cugraph.datasets import netscience
-from cugraph.testing import utils, UNDIRECTED_DATASETS
-from cugraph.experimental import jaccard as exp_jaccard
-from cudf.testing import assert_series_equal, assert_frame_equal
-from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
+from cugraph.testing import utils
+from cugraph.testing import UNDIRECTED_DATASETS
 
+from cudf.testing import assert_series_equal, assert_frame_equal
+
+from cugraph.datasets import karate
+from cugraph.datasets import netscience
+from cugraph.experimental import jaccard as exp_jaccard
+from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
 
 print("Networkx version : {} ".format(nx.__version__))
 
@@ -69,21 +73,16 @@ def compare_jaccard_two_hop(G, Gnx, edgevals=True):
         assert diff < 1.0e-6
 
 
-def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
-    G = cugraph.Graph()
-    G = graph_file.get_graph(ignore_weights=not edgevals)
+def cugraph_call(benchmark_callable, graph_dataset, input_df, edgevals=False, ):
+    G = graph_dataset.get_graph(ignore_weights=not edgevals)
 
     # If no vertex_pair is passed as input, 'cugraph.jaccard' will
     # compute the 'jaccard_similarity' with the two_hop_neighbor of the
     # entire graph while nx compute with the one_hop_neighbor. For better
-    # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
-    # and pass it as vertex_pair
-    vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
-    vertex_pair = vertex_pair[["first", "second"]]
+    # comparaison, we use the one-hop edges list
 
     # cugraph Jaccard Call
-    df = benchmark_callable(cugraph.jaccard, G, vertex_pair=vertex_pair)
-
+    df = benchmark_callable(cugraph.jaccard, G, vertex_pair=input_df)
     df = df.sort_values(["first", "second"]).reset_index(drop=True)
 
     return (
@@ -93,22 +92,21 @@ def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
     )
 
 
-def networkx_call(M, benchmark_callable=None):
+def networkx_call(M, is_symmetric=False, benchmark_callable=None):
 
-    sources = M["0"]
-    destinations = M["1"]
+    sources = M["src"]
+    destinations = M["dst"]
     edges = []
     for i in range(len(M)):
         edges.append((sources[i], destinations[i]))
-        edges.append((destinations[i], sources[i]))
+        if is_symmetric is False:
+            edges.append((destinations[i], sources[i]))
+
     edges = list(dict.fromkeys(edges))
     edges = sorted(edges)
-    # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
-    # explicitly
-    print("Format conversion ... ")
 
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        M, source="src", target="dst", edge_attr="wgt", create_using=nx.Graph()
     )
 
     # Networkx Jaccard Call
@@ -128,27 +126,14 @@ def networkx_call(M, benchmark_callable=None):
 
 
 # =============================================================================
-# Pytest Fixtures
+# Pytest
 # =============================================================================
-@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
-def read_csv(request):
-    """
-    Read csv file for both networkx and cugraph
-    """
-    graph_file = request.param
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-    M_cu = utils.read_csv_file(dataset_path)
-
-    return M_cu, M, graph_file
-
-
 @pytest.mark.sg
-def test_jaccard(read_csv, gpubenchmark):
-
-    M_cu, M, graph_file = read_csv
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu)
-    nx_src, nx_dst, nx_coeff = networkx_call(M)
+def test_jaccard(undirected_datasets, gpubenchmark):
+    M_cu, M, graph_dataset = undirected_datasets
+    symmetric = graph_dataset.metadata.get("is_symmetric")
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_dataset, input_df=M_cu)
+    nx_src, nx_dst, nx_coeff = networkx_call(M, is_symmetric=symmetric)
 
     # Calculating mismatch
     err = 0
@@ -164,41 +149,33 @@ def test_jaccard(read_csv, gpubenchmark):
 
 
 @pytest.mark.sg
-def test_directed_graph_check(read_csv):
-    _, M, _ = read_csv
+def test_directed_graph(undirected_datasets):
+    M_cu, M, graph_file = undirected_datasets
 
-    cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M["0"])
-    cu_M["dst_0"] = cudf.Series(M["1"])
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        M_cu, source=["src"], destination=["dst"]
     )
 
-    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
-    vertex_pair = vertex_pair[:5]
     with pytest.raises(ValueError):
-        cugraph.jaccard(G1, vertex_pair)
+        cugraph.jaccard(G1, M)
 
 
 @pytest.mark.sg
-def test_nx_jaccard_time(read_csv, gpubenchmark):
-
-    _, M, _ = read_csv
-    nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
+def test_nx_jaccard_time(undirected_datasets, gpubenchmark):
+    M_cu, M, graph_dataset = undirected_datasets
+    symmetric = graph_dataset.metadata.get("is_symmetric")
+    nx_src, nx_dst, nx_coeff = networkx_call(M,
+                                             is_symmetric=symmetric,
+                                             benchmark_callable=gpubenchmark)
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [netscience])
-@pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
-def test_jaccard_edgevals(gpubenchmark, graph_file):
-    dataset_path = netscience.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-    M_cu = utils.read_csv_file(dataset_path)
+def test_jaccard_edgevals(undirected_datasets, gpubenchmark):
+    M_cu, M, graph_dataset  = undirected_datasets
+
     cu_src, cu_dst, cu_coeff = cugraph_call(
-        gpubenchmark, netscience, edgevals=True, input_df=M_cu
+        gpubenchmark, graph_dataset, input_df=M_cu, edgevals=True
     )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -216,23 +193,21 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
 
 
 @pytest.mark.sg
-def test_jaccard_two_hop(read_csv):
+def test_jaccard_two_hop(undirected_datasets):
+    M_cu, M, graph_file = undirected_datasets
 
-    _, M, graph_file = read_csv
-
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source="src", target="dst", create_using=nx.Graph())
     G = graph_file.get_graph(ignore_weights=True)
 
     compare_jaccard_two_hop(G, Gnx)
 
 
 @pytest.mark.sg
-def test_jaccard_two_hop_edge_vals(read_csv):
-
-    _, M, graph_file = read_csv
+def test_jaccard_two_hop_edge_vals(undirected_datasets):
+    _, M, graph_file = undirected_datasets
 
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        M, source="src", target="dst", edge_attr="wgt", create_using=nx.Graph()
     )
 
     G = graph_file.get_graph()
@@ -241,15 +216,15 @@ def test_jaccard_two_hop_edge_vals(read_csv):
 
 
 @pytest.mark.sg
-def test_jaccard_nx(read_csv):
+def test_jaccard_nx(undirected_datasets):
 
-    M_cu, M, _ = read_csv
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+    M_cu, M, _ = undirected_datasets
+    Gnx = nx.from_pandas_edgelist(M, source="src", target="dst", create_using=nx.Graph())
 
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
 
-    ebunch = M_cu.rename(columns={"0": "first", "1": "second"})
+    ebunch = M_cu.rename(columns={"src": "first", "dst": "second"})
     ebunch = ebunch[["first", "second"]]
     cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
     cg_j_exp = exp_jaccard_coefficient(Gnx, ebunch=ebunch)
@@ -263,13 +238,13 @@ def test_jaccard_nx(read_csv):
 
 
 @pytest.mark.sg
-def test_jaccard_multi_column(read_csv):
+def test_jaccard_multi_column(undirected_datasets):
 
-    _, M, _ = read_csv
+    _, M, _ = undirected_datasets
 
     cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M["0"])
-    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_0"] = cudf.Series(M["src"])
+    cu_M["dst_0"] = cudf.Series(M["dst"])
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
@@ -308,8 +283,7 @@ def test_jaccard_multi_column(read_csv):
 
 @pytest.mark.sg
 def test_weighted_exp_jaccard():
-    karate = UNDIRECTED_DATASETS[0]
-    G = karate.get_graph()
+    G = karate.get_graph(ignore_weights=False)
     with pytest.raises(ValueError):
         exp_jaccard(G)
 
@@ -321,10 +295,21 @@ def test_weighted_exp_jaccard():
 
 @pytest.mark.sg
 def test_invalid_datasets_jaccard():
-    karate = UNDIRECTED_DATASETS[0]
     df = karate.get_edgelist()
     df = df.add(1)
     G = cugraph.Graph(directed=False)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     with pytest.raises(ValueError):
         cugraph.jaccard(G)
+
+TYPES = [np.dtype(str), np.dtype(float)]
+@pytest.mark.sg
+@pytest.mark.parametrize("type", TYPES)
+def test_str_datasets_jaccard(type):
+    df = karate.get_edgelist()
+    df2 = utils.convert_edges_to(df, type, inplace=False)
+
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df2, source="src", destination="dst", renumber=True)
+
+    cugraph.jaccard(G, df, do_expensive_check=False)

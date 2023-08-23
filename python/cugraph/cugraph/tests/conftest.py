@@ -12,6 +12,9 @@
 # limitations under the License.
 
 import pytest
+from cugraph.testing import utils
+from cugraph.testing import UNDIRECTED_DATASETS
+
 from cugraph.testing.mg_utils import (
     start_dask_client,
     stop_dask_client,
@@ -61,3 +64,14 @@ def scratch_dir():
         yield tempdir_object
 
     del tempdir_object
+
+@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
+def undirected_datasets(request):
+    """
+    From a Dataset, return the edges list in cudf and pandas, plus the dataset
+    """
+    graph_dataset = request.param
+    M_cu = graph_dataset.get_edgelist()
+    M = M_cu.to_pandas()
+
+    return M_cu, M, graph_dataset

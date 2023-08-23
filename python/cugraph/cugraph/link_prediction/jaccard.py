@@ -20,7 +20,7 @@ from cugraph.utilities import (
 )
 
 
-def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
+def jaccard(input_graph, vertex_pair=None, do_expensive_check=False):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -32,13 +32,16 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
     first is specified but second is not, or vice versa, an exception will be
     thrown.
 
+    NOTE: The do_expensive_check check impacts perforamcne and is no longer
+    needed. Setting it to any value is ignored
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     NOTE: If the vertex_pair parameter is not specified then the behavior
     of cugraph.jaccard is different from the behavior of
     networkx.jaccard_coefficient.
-
-    This algorithm doesn't currently support datasets with vertices that
-    are not (re)numebred vertices from 0 to V-1 where V is the total number of
-    vertices as this creates isolated vertices.
 
     cugraph.jaccard, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
@@ -66,7 +69,6 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
     But please remember that cugraph will fill the dataframe with the entire
     solution you request, so you'll need enough memory to store the 2-hop
     neighborhood dataframe.
-
 
     Parameters
     ----------
@@ -96,11 +98,10 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
-            specified).
+        df['first'] : cudf.Series
+            The first vertex ID (dentical to source for 1-hop).
+        df['second'] : cudf.Series
+            The second vertex ID (identical to destination for 1-hop).
         df['jaccard_coeff'] : cudf.Series
             The computed jaccard coefficient between the first and the second
             vertex ID.
@@ -112,7 +113,13 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
     >>> df = cugraph.jaccard(G)
 
     """
+
     if do_expensive_check:
+        raise DeprecationWarning(
+            "do_expensive_check is deprecated since it is no longer needed"
+            )
+
+    """
         if not input_graph.renumbered:
             input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
             max_vertex = input_df.max().max()
@@ -127,6 +134,7 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
             )
             if not expected_nodes.equals(nodes):
                 raise ValueError("Unrenumbered vertices are not supported.")
+    """
 
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
