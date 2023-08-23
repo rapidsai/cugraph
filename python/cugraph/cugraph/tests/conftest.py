@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import pytest
-from cugraph.testing import utils
 from cugraph.testing import UNDIRECTED_DATASETS
 
 from cugraph.testing.mg_utils import (

@@ -20,12 +20,10 @@ import numpy as np
 import cudf
 import cugraph
 from cugraph.testing import utils
-from cugraph.testing import UNDIRECTED_DATASETS
 
 from cudf.testing import assert_series_equal, assert_frame_equal
 
 from cugraph.datasets import karate
-from cugraph.datasets import netscience
 from cugraph.experimental import jaccard as exp_jaccard
 from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
 

@@ -117,24 +117,7 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False):
     if do_expensive_check:
         raise DeprecationWarning(
             "do_expensive_check is deprecated since it is no longer needed"
-            )
-
-    """
-        if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
-            max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
-            if not expected_nodes.equals(nodes):
-                raise ValueError("Unrenumbered vertices are not supported.")
-    """
+        )
 
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
@@ -152,7 +135,7 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False):
     return df
 
 
-def jaccard_coefficient(G, ebunch=None, do_expensive_check=True):
+def jaccard_coefficient(G, ebunch=None, do_expensive_check=False):
     """
     For NetworkX Compatability.  See `jaccard`
 
@@ -200,6 +183,11 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=True):
     >>> df = cugraph.jaccard_coefficient(G)
 
     """
+    if do_expensive_check:
+        raise DeprecationWarning(
+            "do_expensive_check is deprecated since it is no longer needed"
+        )
+
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

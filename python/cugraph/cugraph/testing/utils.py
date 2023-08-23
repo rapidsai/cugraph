@@ -50,7 +50,7 @@ DATASETS_UNDIRECTED = [
     RAPIDS_DATASET_ROOT_DIR_PATH / f for f in ["karate.csv", "dolphins.csv"]
 ]
 
-#DATASETS_UNDIRECTED_WEIGHTS = [RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"]
+# DATASETS_UNDIRECTED_WEIGHTS = [RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"]
 
 DATASETS_UNRENUMBERED = [Path(RAPIDS_DATASET_ROOT_DIR) / "karate-disjoint.csv"]
 
@@ -59,27 +59,27 @@ DATASETS = [
     for f in ["karate-disjoint.csv", "dolphins.csv", "netscience.csv"]
 ]
 
-#DATASETS_MULTI_EDGES = [
+# DATASETS_MULTI_EDGES = [
 #    RAPIDS_DATASET_ROOT_DIR_PATH / f
 #    for f in ["karate_multi_edge.csv", "dolphins_multi_edge.csv"]
-#]
+# ]
 
-#DATASETS_STR_ISLT_V = [
+# DATASETS_STR_ISLT_V = [
 #    RAPIDS_DATASET_ROOT_DIR_PATH / f for f in ["karate_mod.mtx", "karate_str.mtx"]
-#]
+# ]
 
-#DATASETS_SELF_LOOPS = [
+# DATASETS_SELF_LOOPS = [
 #    RAPIDS_DATASET_ROOT_DIR_PATH / f
 #    for f in ["karate_s_loop.csv", "dolphins_s_loop.csv"]
-#]
+# ]
 
 
 #            '../datasets/email-Eu-core.csv']
 
-#STRONGDATASETS = [
+# STRONGDATASETS = [
 #    RAPIDS_DATASET_ROOT_DIR_PATH / f
 #    for f in ["dolphins.csv", "netscience.csv", "email-Eu-core.csv"]
-#]
+# ]
 
 
 DATASETS_KTRUSS = [
@@ -89,7 +89,7 @@ DATASETS_KTRUSS = [
     )
 ]
 
-#DATASETS_TSPLIB = [
+# DATASETS_TSPLIB = [
 #    (RAPIDS_DATASET_ROOT_DIR_PATH / f,) + (d,)
 #    for (f, d) in [
 #        ("gil262.tsp", 2378),
@@ -97,7 +97,7 @@ DATASETS_KTRUSS = [
 #        ("kroA100.tsp", 21282),
 #        ("tsp225.tsp", 3916),
 #    ]
-#]
+# ]
 
 DATASETS_SMALL = [
     RAPIDS_DATASET_ROOT_DIR_PATH / f
@@ -417,10 +417,8 @@ def compare_mst(mst_cugraph, mst_nx):
 
 
 def convert_edges_to(
-    df: cudf.DataFrame,
-    to_type: np.dtype,
-    inplace=True
-    ) -> Union[cudf.DataFrame, None]:
+    df: cudf.DataFrame, to_type: np.dtype, inplace=True
+) -> Union[cudf.DataFrame, None]:
     """Change the dtype of the source and destination columns
 
     Parameters
@@ -446,18 +444,16 @@ def convert_edges_to(
     else:
         _df = df
 
-    _df['src'] = _df['src'].astype(to_type)
-    _df['dst'] = _df['dst'].astype(to_type)
-    
+    _df["src"] = _df["src"].astype(to_type)
+    _df["dst"] = _df["dst"].astype(to_type)
+
     if inplace is False:
         return _df
 
 
 def offset_edges(
-    df: cudf.DataFrame,
-    offset: int,
-    inplace=True
-    ) -> Union[cudf.DataFrame, None]:
+    df: cudf.DataFrame, offset: int, inplace=True
+) -> Union[cudf.DataFrame, None]:
     """Offset the starting vertex ID by adding an offset value to all IDs
 
     Parameters
@@ -482,17 +478,16 @@ def offset_edges(
     else:
         _df = df
 
-    _df['src'] += offset
-    _df['dst'] += offset
-    
+    _df["src"] += offset
+    _df["dst"] += offset
+
     if inplace is False:
         return _df
 
+
 def scale_edges(
-    df: cudf.DataFrame,
-    scale: int,
-    inplace=True
-    ) -> Union[cudf.DataFrame, None]:
+    df: cudf.DataFrame, scale: int, inplace=True
+) -> Union[cudf.DataFrame, None]:
     """scale all edge ids by the given value
 
     Parameters
@@ -517,8 +512,8 @@ def scale_edges(
     else:
         _df = df
 
-    _df['src'] *= scale
-    _df['dst'] *= scale
-    
+    _df["src"] *= scale
+    _df["dst"] *= scale
+
     if inplace is False:
         return _df
