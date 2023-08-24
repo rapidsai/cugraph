@@ -4,8 +4,6 @@
 [RAPIDS](https://rapids.ai) cugraph-nx is a [backend to NetworkX](https://networkx.org/documentation/stable/reference/classes/index.html#backends)
 with minimal dependencies (`networkx`, `cupy`, and `pylibcugraph`) to run graph algorithms on the GPU.
 
-_Nightly conda packages and pip wheels coming soon._
-
 ### Contribute
 
 Follow instructions for [contributing to cugraph](https://github.com/rapidsai/cugraph/blob/branch-23.10/readme_pages/CONTRIBUTING.md)
