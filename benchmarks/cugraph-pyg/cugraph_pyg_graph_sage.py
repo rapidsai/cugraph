@@ -95,6 +95,15 @@ def init_pytorch_worker(rank:int, world_size:int, manager_ip:str, manager_port:i
         rank=rank,
     )
 
+def extend_tensor(t: torch.Tensor, l:int):
+    return torch.concat([
+        t,
+        torch.zeros(
+            l - len(t),
+            dtype=t.dtype,
+            device=t.device
+        )
+    ])
 
 def train_epoch(model, loader, optimizer):
     total_loss = 0.0
@@ -114,6 +123,10 @@ def train_epoch(model, loader, optimizer):
             #data = data.to_homogeneous()
             num_sampled_nodes = data['paper']['num_sampled_nodes']
             num_sampled_edges = data['paper','cites','paper']['num_sampled_edges']
+
+            num_layers = len(model.module.convs)
+            num_sampled_nodes = extend_tensor(num_sampled_nodes, num_layers + 1)
+            num_sampled_edges = extend_tensor(num_sampled_edges, num_layers)
 
             num_batches += 1
             if iter_i % 20 == 1:
@@ -680,10 +693,12 @@ def main(rank, args, hetero_data, num_input_features, num_output_features):
 if __name__ == "__main__":
     args = parse_args()
 
-    hetero_data, num_input_features, num_output_features = load_graph_native(
-        args.sample_dir,
-        features_device="cpu"
-    )
+    hetero_data, num_input_features, num_output_features = None,None,None
+    if False:
+        hetero_data, num_input_features, num_output_features = load_graph_native(
+            args.sample_dir,
+            features_device="cpu"
+        )
 
     tmp.spawn(
         main,

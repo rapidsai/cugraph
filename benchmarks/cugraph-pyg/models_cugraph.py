@@ -19,10 +19,21 @@ class CuGraphSAGE(nn.Module):
         self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr='mean'))
 
         self._trim = TrimToLayer()
+        self._csc_time = 0.0
+        self._num_iter = 0
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
         s = x.shape[0]
+        from time import perf_counter
+
+        start_csc = perf_counter()
         edge = list(CuGraphSAGEConv.to_csc(edge.cuda(), (s, s)))
+        end_csc = perf_counter()
+        csc_time = end_csc - start_csc
+        self._csc_time += csc_time
+        self._num_iter += 1
+        print('mean csc time:', self._csc_time / self._num_iter)
+
         x = x.cuda().to(torch.float32)
 
         for i, conv in enumerate(self.convs):
