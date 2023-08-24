@@ -87,7 +87,12 @@ def _write_samples_to_parquet(
             # renumbered to have contiguous batch ids and the empty
             # samples are dropped.
             offsets_p.drop("batch_id", axis=1, inplace=True)
-            batch_id_range = cudf.Series(cupy.arange(len(offsets_p)))
+            batch_id_range = cudf.Series(
+                cupy.arange(
+                    start_batch_id,
+                    start_batch_id + len(offsets_p)
+                )
+            )
             end_batch_id = start_batch_id + len(offsets_p) - 1
         else:
             batch_id_range = offsets_p.batch_id
