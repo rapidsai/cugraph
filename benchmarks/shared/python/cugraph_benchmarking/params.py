@@ -15,10 +15,13 @@ import pytest
 
 from pylibcugraph.testing.utils import gen_fixture_params
 from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.experimental.datasets import (
+from cugraph.datasets import (
     Dataset,
     karate,
 )
+#    cyber,
+#    netscience,
+#    email_Eu_core,
 
 # Create Dataset objects from .csv files.
 # Once the cugraph.dataset package is updated to include the metadata files for
