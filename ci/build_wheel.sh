@@ -19,18 +19,6 @@ RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 # everywhere except in the final wheel name.
 PACKAGE_CUDA_SUFFIX="-${RAPIDS_PY_CUDA_SUFFIX}"
 
-# Manually install dependencies because we're building without isolation.
-rapids-dependency-file-generator \
-  --output requirements \
-  --file_key py_build_${package_name} \
-  --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee requirements.txt
-
-for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
-    sed -i "s/${dep}==/${dep}${PACKAGE_CUDA_SUFFIX}==/g" requirements.txt
-done
-
-python -m pip install -r requirements.txt
-
 # Patch project metadata files to include the CUDA version suffix and version override.
 pyproject_file="${package_dir}/pyproject.toml"
 
@@ -38,7 +26,7 @@ sed -i "s/^version = .*/version = \"${version_override}\"/g" ${pyproject_file}
 sed -i "s/name = \"${package_name}\"/name = \"${package_name}${PACKAGE_CUDA_SUFFIX}\"/g" ${pyproject_file}
 
 for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
-  sed -i "s/${dep}/${dep}${PACKAGE_CUDA_SUFFIX}/g" ${pyproject_file}
+  sed -r -i "s/${dep}==(.*)\.\*/${dep}${PACKAGE_CUDA_SUFFIX}==\1.*/g" ${pyproject_file}
 done
 
 if [[ $PACKAGE_CUDA_SUFFIX == "-cu12" ]]; then
@@ -47,7 +35,7 @@ fi
 
 cd "${package_dir}"
 
-python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check --no-build-isolation
+python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 mkdir -p final_dist
 python -m auditwheel repair -w final_dist dist/*
