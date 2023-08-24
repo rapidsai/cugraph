@@ -88,10 +88,7 @@ def _write_samples_to_parquet(
             # samples are dropped.
             offsets_p.drop("batch_id", axis=1, inplace=True)
             batch_id_range = cudf.Series(
-                cupy.arange(
-                    start_batch_id,
-                    start_batch_id + len(offsets_p)
-                )
+                cupy.arange(start_batch_id, start_batch_id + len(offsets_p))
             )
             end_batch_id = start_batch_id + len(offsets_p) - 1
         else:

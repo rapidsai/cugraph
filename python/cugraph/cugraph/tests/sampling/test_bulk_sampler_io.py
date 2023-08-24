@@ -81,8 +81,50 @@ def test_bulk_sampler_io(scratch_dir):
 def test_bulk_sampler_io_empty_batch(scratch_dir):
     results = cudf.DataFrame(
         {
-            "sources": [0, 0, 1, 2, 2, 2, 3, 4, 5, 5, 6, 7, 9, 9, 12, 13, 29, 29, 31, 14],
-            "destinations": [1, 2, 3, 3, 3, 4, 1, 1, 6, 7, 2, 3, 12, 13, 18, 19, 31, 14, 15, 16],
+            "sources": [
+                0,
+                0,
+                1,
+                2,
+                2,
+                2,
+                3,
+                4,
+                5,
+                5,
+                6,
+                7,
+                9,
+                9,
+                12,
+                13,
+                29,
+                29,
+                31,
+                14,
+            ],
+            "destinations": [
+                1,
+                2,
+                3,
+                3,
+                3,
+                4,
+                1,
+                1,
+                6,
+                7,
+                2,
+                3,
+                12,
+                13,
+                18,
+                19,
+                31,
+                14,
+                15,
+                16,
+            ],
             "edge_id": None,
             "edge_type": None,
             "weight": None,
@@ -92,7 +134,7 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
 
     # some batches are missing
     offsets = cudf.DataFrame({"offsets": [0, 8, 12, 16], "batch_id": [0, 3, 4, 10]})
-    
+
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_empty_batch")
     create_directory_with_overwrite(samples_path)
 
@@ -101,15 +143,11 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
     files = os.listdir(samples_path)
     assert len(files) == 2
 
-    df0 = cudf.read_parquet(
-        os.path.join(samples_path, "batch=0-1.parquet")
-    )
+    df0 = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
 
     assert df0.batch_id.min() == 0
     assert df0.batch_id.max() == 1
 
-    df1 = cudf.read_parquet(
-        os.path.join(samples_path, "batch=4-5.parquet")
-    )
+    df1 = cudf.read_parquet(os.path.join(samples_path, "batch=4-5.parquet"))
     assert df1.batch_id.min() == 4
     assert df1.batch_id.max() == 5
