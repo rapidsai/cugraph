@@ -26,22 +26,17 @@ def test_match_signature_and_names():
             continue
 
         # nx version >=3.2 uses utils.backends, version >=3.0,<3.2 uses classes.backends
-        nx_backends = getattr(
-            nx.utils, "backends", getattr(nx.classes, "backends", None)
-        )
-        if nx_backends is None:
-            raise AttributeError(
-                f"imported networkx version {nx.__version__} is not "
-                "supported, must be >= 3.0"
-            )
+        is_nx_30_or_31 = hasattr(nx.classes, "backends")
+        nx_backends = nx.classes.backends if is_nx_30_or_31 else nx.utils.backends
 
+        if is_nx_30_or_31 and name in {"louvain_communities"}:
+            continue
         dispatchable_func = nx_backends._registered_algorithms[name]
         # nx version >=3.2 uses orig_func, version >=3.0,<3.2 uses _orig_func
-        orig_func = getattr(
-            dispatchable_func,
-            "orig_func",
-            getattr(dispatchable_func, "_orig_func", None),
-        )
+        if is_nx_30_or_31:
+            orig_func = dispatchable_func._orig_func
+        else:
+            orig_func = dispatchable_func.orig_func
 
         # Matching signatures?
         orig_sig = inspect.signature(orig_func)
@@ -65,9 +60,11 @@ def test_match_signature_and_names():
 
         # Matching dispatch names?
         # nx version >=3.2 uses name, version >=3.0,<3.2 uses dispatchname
-        assert func.name == getattr(
-            dispatchable_func, "name", getattr(dispatchable_func, "dispatchname", None)
-        )
+        if is_nx_30_or_31:
+            dispatchname = dispatchable_func.dispatchname
+        else:
+            dispatchname = dispatchable_func.name
+        assert func.name == dispatchname
 
         # Matching modules (i.e., where function defined)?
         assert (
