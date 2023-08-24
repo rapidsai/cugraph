@@ -66,12 +66,7 @@ class BackendInterface:
             "Louvain may be different due to RNG or unsupported threshold parameter"
         )
 
-        xfail = {
-            key("test_louvain.py:test_karate_club_partition"): louvain_different,
-            key("test_louvain.py:test_none_weight_param"): louvain_different,
-            key("test_louvain.py:test_multigraph"): louvain_different,
-            key("test_louvain.py:test_threshold"): louvain_different,
-        }
+        xfail = {}
 
         from packaging.version import parse
 
@@ -173,6 +168,18 @@ class BackendInterface:
                     ): no_multigraph,
                 }
             )
+        else:
+            xfail.update(
+                {
+                    key(
+                        "test_louvain.py:test_karate_club_partition"
+                    ): louvain_different,
+                    key("test_louvain.py:test_none_weight_param"): louvain_different,
+                    key("test_louvain.py:test_multigraph"): louvain_different,
+                    key("test_louvain.py:test_threshold"): louvain_different,
+                }
+            )
+
         for item in items:
             kset = set(item.keywords)
             for (test_name, keywords), reason in xfail.items():
