@@ -427,7 +427,6 @@ if All || hasArg docs; then
     fi
     mkdir -p ${REPODIR}/docs/cugraph/libcugraph
 
-    mv ${REPODIR}/cpp/doxygen/html  ${REPODIR}/docs/cugraph/libcugraph
     mv ${REPODIR}/cpp/doxygen/xml   ${REPODIR}/docs/cugraph/libcugraph
 
     cd ${REPODIR}/docs/cugraph
