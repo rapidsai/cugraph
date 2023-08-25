@@ -79,7 +79,7 @@ namespace cugraph {
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops. The hop array values should be
+ * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
  * non-decreasing within each label.
  * @param label_offsets An optional tuple storing a pointer to the array storing label offsets to
  * the input edges (size = std::get<1>(*label_offsets) + 1) and the number of labels.
@@ -87,8 +87,8 @@ namespace cugraph {
  * major key in renumbering and compression.
  * @param compress_per_hop A flag to determine whether to compress edges with different hop numbers
  * separately (if ture) or altogether (if false).
- * @param doubly_compress A flag to compress to the CSR/CSC format (if false) or the DCSR/DCSC
- * format (if true).
+ * @param doubly_compress A flag to determine whether to compress to the CSR/CSC format (if false)
+ * or the DCSR/DCSC format (if true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing optional DCSR/DCSC major vertex IDs with one or more neighbors,
  * (D)CSR|(D)CSC offset values, edge minor vertex IDs, optional edge weights, optional edge IDs,
@@ -96,8 +96,9 @@ namespace cugraph {
  * = # labels * # hops + 1, where # labels = std::get<1>(*label_offests) if @p
  * label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
  * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original verties (size
- * = # unique vertices or aggregate # unique vertices for every label), and renumber_map offsets
- * (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value() is true).
+ * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
+ * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
+ * is true).
  */
 template <typename vertex_t,
           typename weight_t,
@@ -176,7 +177,7 @@ renumber_and_compress_sampled_edgelist(
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops. The hop array values should be
+ * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
  * non-decreasing within each label.
  * @param label_offsets An optional tuple storing a pointer to the array storing label offsets to
  * the input edges (size = std::get<1>(*label_offsets) + 1) and the number of labels.
@@ -190,8 +191,9 @@ renumber_and_compress_sampled_edgelist(
  * and sorted edges (size = # labels * # hops + 1, where # labels = std::get<1>(*label_offests) if
  * @p label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
  * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original verties (size
- * = # unique vertices or aggregate # unique vertices for every label), and renumber_map offsets
- * (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value() is true).
+ * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
+ * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
+ * is true).
  */
 template <typename vertex_t,
           typename weight_t,
