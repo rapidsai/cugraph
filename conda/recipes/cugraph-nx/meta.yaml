@@ -6,7 +6,7 @@
 {% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
-  name: cugraph-dgl
+  name: cugraph-nx
   version: {{ version }}
 
 source:
@@ -22,20 +22,22 @@ requirements:
   host:
     - python
   run:
-    - cugraph ={{ version }}
-    - dgl >=1.1.0.cu*
-    - numba >=0.57
-    - numpy >=1.21
+    - pylibcugraph ={{ version }}
+    - networkx >=3.0
+    - cupy >=12.0.0
     - python
-    - pytorch
 
 tests:
   imports:
-    - cugraph_dgl
+    - cugraph_nx
+  commands:
+    - pip check
+  requires:
+    - pip
 
 about:
   home: https://rapids.ai/
   dev_url: https://github.com/rapidsai/cugraph
   license: Apache-2.0
   license_file: ../../../LICENSE
-  summary: cuGraph library
+  summary: cuGraph backend for GPU-accelerated NetworkX
