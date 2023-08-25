@@ -490,7 +490,15 @@ class EXPERIMENTAL__CuGraphStore:
                     meta=get_empty_df(),
                 )
                 .reset_index(drop=True)
-                .persist()
+                df = df.persist()
+                df = (
+                df.map_partitions(
+                    lambda f: cudf.DataFrame.from_pandas(f)
+                    if len(f) > 0
+                    else get_empty_df(),
+                    meta=get_empty_df(),
+                )
+                .reset_index(drop=True)
             )
         else:
             df = cudf.from_pandas(df).reset_index(drop=True)
