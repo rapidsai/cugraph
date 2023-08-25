@@ -40,7 +40,7 @@ namespace cugraph {
  * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
  * appear only in edge minors.
- * 3. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
+ * 3. If label_offsets.has_value() is true, edge lists for different labels will be renumbered
  * separately.
  *
  * The renumbered edges are compressed based on the following requirements.
@@ -49,7 +49,7 @@ namespace cugraph {
  * compress_per_hop is false, edges with different hop numbers are compressed altogether.
  * 2. Edges are compressed independently for different labels.
  * 3. If @p doubly_compress is false, edges are compressed to CSR (if @p src_is_major is true) or
- * CSC (if @p src_is_major is false). If @p doulby_compress is true, edges are compressed to DCSR
+ * CSC (if @p src_is_major is false). If @p doubly_compress is true, edges are compressed to DCSR
  * (if @p src_is_major is true) or DCSC (if @p src_is_major is false). If @p doubly_compress is
  * false, the CSR/CSC offset array size is the number of vertices (which is the maximum vertex ID +
  * 1) + 1. Here, the maximum vertex ID is the maximum major vertex ID in the edges to compress if @p
@@ -86,16 +86,16 @@ namespace cugraph {
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and compression.
  * @param compress_per_hop A flag to determine whether to compress edges with different hop numbers
- * separately (if ture) or altogether (if false).
+ * separately (if true) or altogether (if false).
  * @param doubly_compress A flag to determine whether to compress to the CSR/CSC format (if false)
  * or the DCSR/DCSC format (if true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing optional DCSR/DCSC major vertex IDs with one or more neighbors,
  * (D)CSR|(D)CSC offset values, edge minor vertex IDs, optional edge weights, optional edge IDs,
  * optional edge types, optional (label, hop) offset values to the (D)CSR|(D)CSC offset array (size
- * = # labels * # hops + 1, where # labels = std::get<1>(*label_offests) if @p
+ * = # labels * # hops + 1, where # labels = std::get<1>(*label_offsets) if @p
  * label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
- * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original verties (size
+ * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original vertices (size
  * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
  * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
  * is true).
@@ -145,7 +145,7 @@ renumber_and_compress_sampled_edgelist(
  * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
  * appear only in edge minors.
- * 3. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
+ * 3. If label_offsets.has_value() is true, edge lists for different labels will be renumbered
  * separately.
  *
  * The renumbered edges are sorted based on the following rules.
@@ -153,7 +153,7 @@ renumber_and_compress_sampled_edgelist(
  * 1. If @p src_is_major is true, use (src, dst) as the key in sorting. If @p src_is_major is false,
  * use (dst, src) instead.
  * 2. Edges in each label are sorted independently if @p label_offsets.has_value() is true.
- * 3. Edges in each hop are sorted indpendently if @p edgelist_hops.has_value() is true.
+ * 3. Edges in each hop are sorted independently if @p edgelist_hops.has_value() is true.
  *
  * This function assumes that the edges are pre-sorted by hop # within each label.
  *
@@ -188,9 +188,9 @@ renumber_and_compress_sampled_edgelist(
  * @p edgelist_weights.has_value() is true), optional edge IDs (valid if @p
  * edgelist_edge_ids.has_value() is true), optional edge types (valid if @p
  * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the renumbered
- * and sorted edges (size = # labels * # hops + 1, where # labels = std::get<1>(*label_offests) if
+ * and sorted edges (size = # labels * # hops + 1, where # labels = std::get<1>(*label_offsets) if
  * @p label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
- * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original verties (size
+ * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original vertices (size
  * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
  * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
  * is true).
