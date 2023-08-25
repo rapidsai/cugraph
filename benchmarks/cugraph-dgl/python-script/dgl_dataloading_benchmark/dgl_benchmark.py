@@ -18,6 +18,8 @@ import pandas as pd
 import os
 import time
 import json
+import random
+import numpy as np
 from argparse import ArgumentParser
 
 
@@ -218,6 +220,11 @@ def dataloading_benchmark(g, train_idx, fanouts, batch_sizes, use_uva):
             print("==============================================")
     return time_ls
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -230,13 +237,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--batch_sizes", type=str, default="512,1024")
     parser.add_argument("--do_not_use_uva", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
     if args.do_not_use_uva:
         use_uva = False
     else:
         use_uva = True
-
+    set_seed(args.seed)
     replication_factors = [int(x) for x in args.replication_factors.split(",")]
     fanouts = [[int(y) for y in x.split("_")] for x in args.fanouts.split(",")]
     batch_sizes = [int(x) for x in args.batch_sizes.split(",")]
