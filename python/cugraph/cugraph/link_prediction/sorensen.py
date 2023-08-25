@@ -74,8 +74,8 @@ def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
             specified)
 
         df['sorensen_coeff'] : cudf.Series
-            The computed Sorensen coefficient between the source and
-            destination vertices
+            The computed Sorensen coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -149,13 +149,13 @@ def sorensen_coefficient(G, ebunch=None, do_expensive_check=True):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            the second vertex ID of each pair (will be identical to second if
             specified).
         df['sorensen_coeff'] : cudf.Series
-            The computed sorensen coefficient between the first and the second
+            The computed Sorensen coefficient between the first and the second
             vertex ID.
 
     Examples
