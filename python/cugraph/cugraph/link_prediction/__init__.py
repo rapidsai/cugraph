@@ -11,12 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+from cugraph.utilities.api_tools import deprecated_warning_wrapper
 from cugraph.link_prediction.jaccard import jaccard
 from cugraph.link_prediction.jaccard import jaccard_coefficient
 from cugraph.link_prediction.overlap import overlap
 from cugraph.link_prediction.wjaccard import jaccard_w
+jaccard_w = deprecated_warning_wrapper(jaccard_w)
 from cugraph.link_prediction.woverlap import overlap_w
+overlap_w = deprecated_warning_wrapper(overlap_w)
 from cugraph.link_prediction.wsorensen import sorensen_w
+sorensen_w = deprecated_warning_wrapper(sorensen_w)
 from cugraph.link_prediction.jaccard import jaccard_coefficient
 from cugraph.link_prediction.sorensen import sorensen_coefficient
 from cugraph.link_prediction.sorensen import sorensen

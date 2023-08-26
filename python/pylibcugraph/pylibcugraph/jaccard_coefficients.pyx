@@ -15,6 +15,8 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
+from libc.stdio cimport printf
+from cython.operator cimport dereference
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -57,7 +59,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
+def jaccard_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         first,
         second,
@@ -83,8 +85,7 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
     second :
         Destination of the vertex pair.
     
-    use_weight : bool, optional (default=False)
-        Currently not supported
+    use_weight : bool, optional
 
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
@@ -131,6 +132,7 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
                                              &error_ptr)
     assert_success(error_code, error_ptr, "vertex_pairs")
 
+    print('cugraph_jaccard_coefficients use_weight:', use_weight)
     error_code = cugraph_jaccard_coefficients(c_resource_handle_ptr,
                                               c_graph_ptr,
                                               vertex_pairs_ptr,

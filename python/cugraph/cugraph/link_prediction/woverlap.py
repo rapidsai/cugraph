@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_prediction import overlap_wrapper
+# from cugraph.link_prediction import overlap_wrapper
+from cugraph.link_prediction import overlap
 import cudf
-from cugraph.utilities import renumber_vertex_pair
-
+import warnings
 
 def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
@@ -96,43 +96,9 @@ def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     ...                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
     """
-    if do_expensive_check:
-        if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
-            max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
-            if not expected_nodes.equals(nodes):
-                raise ValueError("Unrenumbered vertices are not supported.")
-
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is not None:
-        raise ValueError("vertex_pair must be a cudf dataframe")
-
-    if input_graph.renumbered:
-        vertex_size = input_graph.vertex_column_size()
-        if vertex_size == 1:
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", "vertex")
-        else:
-            cols = weights.columns[:vertex_size].to_list()
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", cols)
-
-    overlap_weights = weights["weight"]
-
-    overlap_weights = overlap_weights.astype("float32")
-
-    df = overlap_wrapper.overlap(input_graph, overlap_weights, vertex_pair)
-
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "first")
-        df = input_graph.unrenumber(df, "second")
-
-    return df
+    warning_msg = (
+        " overlap_w is deprecated. To compute weighted overlap, please use "
+        "overlap(input_graph, vertex_pair=False, use_weight=True)"
+        )
+    warnings.warn(warning_msg, DeprecationWarning)
+    return overlap(input_graph, vertex_pair, do_expensive_check, use_weight=True)

@@ -11,17 +11,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-from cugraph.structure.graph_classes import Graph
-from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_edge_score_to_dictionary,
     renumber_vertex_pair,
 )
+import cudf
+import warnings
+from pylibcugraph import (
+    sorensen_coefficients as pylibcugraph_sorensen_coefficients,
+)
+from pylibcugraph import ResourceHandle
 
 
-def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, vertex_pair):
+
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_pair_dtypes = vertex_pair.dtypes
+
+    if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[1] != vertex_dtype:
+        warning_msg = (
+            "Sorensen requires 'vertex_pair' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'vertex_pair' of type: {vertex_pair_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        vertex_pair = vertex_pair.astype(vertex_dtype)
+
+    return vertex_pair
+
+# FIXME: 
+# 1. Be consistent with column names for output/result DataFrame
+# 2. Enforce that 'vertex_pair' is a cudf Dataframe with only columns for vertex pairs
+# 3. We need to add support for multi-column vertices
+
+def sorensen(G, vertex_pair=None, use_weight=False):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -30,22 +56,22 @@ def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 
-    NOTE: This algorithm doesn't currently support datasets with vertices that
-    are not (re)numebred vertices from 0 to V-1 where V is the total number of
-    vertices as this creates isolated vertices.
-
     cugraph.sorensen, in the absence of a specified vertex pair list, will
-    use the edges of the graph to construct a vertex pair list and will
-    return the sorensen coefficient for those vertex pairs.
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair
+    list and will return the sorensen coefficient for those vertex pairs. This is
+    not advisable as the vertex_pairs can grow exponentially with respect to the
+    size of the datasets
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
+    G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
+        as an edge list (edge weights are not supported yet for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
+
+        This implementation only supports undirected, unweighted Graph.
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
@@ -54,9 +80,8 @@ def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
         current implementation computes the Sorensen coefficient for all
         adjacent vertices in the graph.
 
-    do_expensive_check: bool (default=True)
-        When set to True, check if the vertices in the graph are (re)numbered
-        from 0 to V-1 where V is the total number of vertices.
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     Returns
     -------
@@ -67,64 +92,70 @@ def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
         pairs.
 
         df['first'] : cudf.Series
-            The first vertex ID of each pair (will be identical to first if specified)
-
+            The first vertex ID of each pair (will be identical to first if specified).
         df['second'] : cudf.Series
             The second vertex ID of each pair (will be identical to second if
-            specified)
-
+            specified).
         df['sorensen_coeff'] : cudf.Series
-            The computed Sorensen coefficient between the source and
-            destination vertices
+            The computed sorensen coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.sorensen(G)
+    >>> from cugraph import sorensen
+    >>> G = karate.get_graph(download=True, ignore_weights=True)
+    >>> df = sorensen(G)
 
     """
-    if do_expensive_check:
-        if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
-            max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
-            if not expected_nodes.equals(nodes):
-                raise ValueError("Unrenumbered vertices are not supported.")
+    if G.is_directed():
+        raise ValueError("Input must be an undirected Graph.")
 
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
+    if vertex_pair is None:
+        # Call two_hop neighbor of the entire graph
+        vertex_pair = G.get_two_hop_neighbors()
 
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
+    v_p_num_col = len(vertex_pair.columns)
+
+    if isinstance(vertex_pair, cudf.DataFrame):
+        vertex_pair = renumber_vertex_pair(G, vertex_pair)
+        vertex_pair = ensure_valid_dtype(G, vertex_pair)
+        src_col_name = vertex_pair.columns[0]
+        dst_col_name = vertex_pair.columns[1]
+        first = vertex_pair[src_col_name]
+        second = vertex_pair[dst_col_name]
+
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
-    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
-    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "first")
-        df = input_graph.unrenumber(df, "second")
+    first, second, sorensen_coeff = pylibcugraph_sorensen_coefficients(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        first=first,
+        second=second,
+        use_weight=use_weight,
+        do_expensive_check=False,
+    )
+
+    if G.renumbered:
+        vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
+        vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
+
+    if v_p_num_col == 2:
+        # single column vertex
+        vertex_pair = vertex_pair.rename(
+            columns={src_col_name: "first", dst_col_name: "second"}
+        )
+
+    df = vertex_pair
+    df["sorensen_coeff"] = cudf.Series(sorensen_coeff)
 
     return df
 
 
-def sorensen_coefficient(G, ebunch=None, do_expensive_check=True):
+def sorensen_coefficient(G, ebunch=None, use_weight=False):
     """
     For NetworkX Compatability.  See `sorensen`
-
-    NOTE: This algorithm doesn't currently support datasets with vertices that
-    are not (re)numebred vertices from 0 to V-1 where V is the total number of
-    vertices as this creates isolated vertices.
 
     Parameters
     ----------
@@ -140,6 +171,8 @@ def sorensen_coefficient(G, ebunch=None, do_expensive_check=True):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the sorensen coefficient for all
         adjacent vertices in the graph.
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     Returns
     -------
@@ -149,10 +182,10 @@ def sorensen_coefficient(G, ebunch=None, do_expensive_check=True):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
             specified).
         df['sorensen_coeff'] : cudf.Series
             The computed sorensen coefficient between the first and the second
@@ -161,14 +194,17 @@ def sorensen_coefficient(G, ebunch=None, do_expensive_check=True):
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.sorensen_coefficient(G)
+    >>> from cugraph import sorensen_coefficient
+    >>> G = karate.get_graph(download=True, ignore_weights=True)
+    >>> df = sorensen_coef(G)
 
     """
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    # FIXME: What is the logic behind this since the docstrings mention that 'G' and
+    # 'ebunch'(if not None) are respectively of type cugraph.Graph and cudf.DataFrame?
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)
 

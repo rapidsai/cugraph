@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
+def overlap_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         first,
         second,

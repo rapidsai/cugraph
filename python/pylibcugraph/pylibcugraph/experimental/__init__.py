@@ -76,16 +76,16 @@ from pylibcugraph.node2vec import node2vec
 
 node2vec = promoted_experimental_warning_wrapper(node2vec)
 
-from pylibcugraph.jaccard_coefficients import EXPERIMENTAL__jaccard_coefficients
+# from pylibcugraph.jaccard_coefficients import EXPERIMENTAL__jaccard_coefficients
 
-jaccard_coefficients = experimental_warning_wrapper(EXPERIMENTAL__jaccard_coefficients)
+# jaccard_coefficients = experimental_warning_wrapper(EXPERIMENTAL__jaccard_coefficients)
 
-from pylibcugraph.overlap_coefficients import EXPERIMENTAL__overlap_coefficients
+# from pylibcugraph.overlap_coefficients import EXPERIMENTAL__overlap_coefficients
 
-overlap_coefficients = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficients)
+# overlap_coefficients = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficients)
 
-from pylibcugraph.sorensen_coefficients import EXPERIMENTAL__sorensen_coefficients
+# from pylibcugraph.sorensen_coefficients import EXPERIMENTAL__sorensen_coefficients
 
-sorensen_coefficients = experimental_warning_wrapper(
-    EXPERIMENTAL__sorensen_coefficients
-)
+# sorensen_coefficients = experimental_warning_wrapper(
+    # EXPERIMENTAL__sorensen_coefficients
+# )

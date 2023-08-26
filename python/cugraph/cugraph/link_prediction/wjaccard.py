@@ -12,12 +12,38 @@
 # limitations under the License.
 
 from cugraph.structure.graph_classes import Graph
-from cugraph.link_prediction import jaccard_wrapper
+# from cugraph.link_prediction import jaccard_wrapper
+from cugraph.link_prediction import jaccard
 import cudf
-from cugraph.utilities import renumber_vertex_pair
+
+from pylibcugraph import (
+    jaccard_coefficients as pylibcugraph_jaccard_coefficients,
+)
+from pylibcugraph import ResourceHandle
+import warnings
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, vertex_pair):
+
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_pair_dtypes = vertex_pair.dtypes
+
+    if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[1] != vertex_dtype:
+        warning_msg = (
+            "Jaccard requires 'vertex_pair' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'vertex_pair' of type: {vertex_pair_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        vertex_pair = vertex_pair.astype(vertex_dtype)
+
+    return vertex_pair
 
 
-def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
+
+
+def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
     """
     Compute the weighted Jaccard similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -95,47 +121,9 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     >>> df = cugraph.jaccard_w(G, weights)
 
     """
-    if do_expensive_check:
-        if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
-            max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
-            if not expected_nodes.equals(nodes):
-                raise ValueError("Unrenumbered vertices are not supported.")
-
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
-
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is not None:
-        raise ValueError("vertex_pair must be a cudf dataframe")
-
-    if input_graph.renumbered:
-        # The 'vertex' column of the cudf 'weights' also needs to be renumbered
-        # if the graph was renumbered
-        vertex_size = input_graph.vertex_column_size()
-        # single-column vertices i.e only one src and dst columns
-        if vertex_size == 1:
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", "vertex")
-        # multi-column vertices i.e more than one src and dst columns
-        else:
-            cols = weights.columns[:vertex_size].to_list()
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", cols)
-
-    jaccard_weights = weights["weight"]
-    df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
-
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "first")
-        df = input_graph.unrenumber(df, "second")
-
-    return df
+    warning_msg = (
+        "jaccard_w is deprecated. To compute weighted jaccard, please use "
+        "jaccard(input_graph, vertex_pair=False, use_weight=True)"
+        )
+    warnings.warn(warning_msg, DeprecationWarning)
+    return jaccard(input_graph, vertex_pair, do_expensive_check, use_weight=True)

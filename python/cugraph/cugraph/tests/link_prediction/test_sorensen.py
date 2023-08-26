@@ -20,7 +20,7 @@ import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import netscience
-from cugraph.experimental import sorensen as exp_sorensen
+from cugraph import sorensen
 from cudf.testing import assert_series_equal, assert_frame_equal
 
 
@@ -62,7 +62,7 @@ def compare_sorensen_two_hop(G, Gnx, edgevals=False):
     df = df.sort_values(by=["first", "second"]).reset_index(drop=True)
     if not edgevals:
         # experimental sorensen currently only supports unweighted graphs
-        df_exp = exp_sorensen(G, pairs)
+        df_exp = sorensen(G, pairs)
         df_exp = df_exp.sort_values(by=["first", "second"]).reset_index(drop=True)
         assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
     assert len(nx_coeff) == len(df)
@@ -244,7 +244,7 @@ def test_sorensen_multi_column(read_csv):
     vertex_pair = vertex_pair[:5]
 
     df_res = cugraph.sorensen(G1, vertex_pair)
-    df_plc_exp = exp_sorensen(G1, vertex_pair)
+    df_plc_exp = sorensen(G1, vertex_pair)
 
     df_plc_exp = df_plc_exp.rename(
         columns={
@@ -273,12 +273,12 @@ def test_weighted_exp_sorensen():
     karate = UNDIRECTED_DATASETS[0]
     G = karate.get_graph()
     with pytest.raises(ValueError):
-        exp_sorensen(G)
+        sorensen(G)
 
     G = karate.get_graph(ignore_weights=True)
     use_weight = True
     with pytest.raises(ValueError):
-        exp_sorensen(G, use_weight=use_weight)
+        sorensen(G, use_weight=use_weight)
 
 
 @pytest.mark.sg

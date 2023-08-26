@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
+def sorensen_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         first,
         second,
