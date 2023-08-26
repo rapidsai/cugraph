@@ -188,7 +188,7 @@ def sorensen_coefficient(G, ebunch=None, use_weight=False):
             The second vertex ID of each pair (will be identical to second if
             specified).
         df['sorensen_coeff'] : cudf.Series
-            The computed sorensen coefficient between the first and the second
+            The computed Sorensen coefficient between the first and the second
             vertex ID.
 
     Examples

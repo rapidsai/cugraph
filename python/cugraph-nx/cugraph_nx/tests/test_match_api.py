@@ -23,15 +23,36 @@ def test_match_signature_and_names():
     for name, func in vars(cnx.interface.BackendInterface).items():
         if not isinstance(func, networkx_algorithm):
             continue
-        dispatchable_func = nx.utils.backends._registered_algorithms[name]
-        orig_func = dispatchable_func.orig_func
+
+        # nx version >=3.2 uses utils.backends, version >=3.0,<3.2 uses classes.backends
+        nx_backends = getattr(
+            nx.utils, "backends", getattr(nx.classes, "backends", None)
+        )
+        if nx_backends is None:
+            raise AttributeError(
+                f"imported networkx version {nx.__version__} is not "
+                "supported, must be >= 3.0"
+            )
+
+        dispatchable_func = nx_backends._registered_algorithms[name]
+        # nx version >=3.2 uses orig_func, version >=3.0,<3.2 uses _orig_func
+        orig_func = getattr(
+            dispatchable_func, "orig_func", getattr(dispatchable_func, "_orig_func")
+        )
+
         # Matching signatures?
         sig = inspect.signature(orig_func)
         assert sig == inspect.signature(func)
+
         # Matching function names?
         assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__
+
         # Matching dispatch names?
-        assert func.name == dispatchable_func.name
+        # nx version >=3.2 uses name, version >=3.0,<3.2 uses dispatchname
+        assert func.name == getattr(
+            dispatchable_func, "name", getattr(dispatchable_func, "dispatchname")
+        )
+
         # Matching modules (i.e., where function defined)?
         assert (
             "networkx." + func.__module__.split(".", 1)[1]

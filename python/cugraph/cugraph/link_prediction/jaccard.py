@@ -130,7 +130,7 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
             The second vertex ID of each pair (will be identical to second if
             specified).
         df['jaccard_coeff'] : cudf.Series
-            The computed jaccard coefficient between the first and the second
+            The computed Jaccard coefficient between the first and the second
             vertex ID.
 
     Examples
@@ -230,8 +230,8 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=False):
             the second vertex ID of each pair (will be identical to second if
             specified).
         df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the source and destination
-            vertices.
+            The computed Jaccard coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
