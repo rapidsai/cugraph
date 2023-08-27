@@ -42,6 +42,7 @@
 
 #include <optional>
 
+// FIXME: deprecated, to be deleted
 namespace cugraph {
 
 namespace {
