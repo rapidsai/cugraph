@@ -30,6 +30,10 @@ VERTEX_PAIR_FIRST_COL = "first"
 VERTEX_PAIR_SECOND_COL = "second"
 SORENSEN_COEFF_COL = "jaccard_coeff"
 EDGE_ATT_COL = "weight"
+MULTI_COL_SRC_0_COL = "src_0"
+MULTI_COL_DST_0_COL = "dst_0"
+MULTI_COL_SRC_1_COL = "src_1"
+MULTI_COL_DST_1_COL = "dst_1"
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -90,7 +94,7 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     # and pass it as vertex_pair
     if isinstance(input_df, cudf.DataFrame):
         vertex_pair = input_df.rename(
-            columns={"0": VERTEX_PAIR_FIRST_COL, "1": VERTEX_PAIR_SECOND_COL}
+            columns={SRC_COL: VERTEX_PAIR_FIRST_COL, DST_COL: VERTEX_PAIR_SECOND_COL}
         )
         vertex_pair = vertex_pair[[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]]
     else:
@@ -116,8 +120,8 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
 
 
 def networkx_call(M, benchmark_callable=None):
-    sources = M["0"]
-    destinations = M["1"]
+    sources = M[SRC_COL]
+    destinations = M[DST_COL]
     edges = []
     for i in range(len(M)):
         edges.append((sources[i], destinations[i]))
@@ -129,7 +133,11 @@ def networkx_call(M, benchmark_callable=None):
     print("Format conversion ... ")
 
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr=EDGE_ATT_COL, create_using=nx.Graph()
+        M,
+        source=SRC_COL,
+        target=DST_COL,
+        edge_attr=EDGE_ATT_COL,
+        create_using=nx.Graph(),
     )
 
     # Networkx Jaccard Call
@@ -196,16 +204,25 @@ def test_directed_graph_check(read_csv, use_weight):
     _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M["0"])
-    cu_M["dst_0"] = cudf.Series(M["1"])
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
+    cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
+    cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
+    cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
     G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        cu_M,
+        source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
+        destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
     )
 
-    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = cu_M[
+        [
+            MULTI_COL_SRC_0_COL,
+            MULTI_COL_SRC_1_COL,
+            MULTI_COL_DST_0_COL,
+            MULTI_COL_DST_1_COL,
+        ]
+    ]
     vertex_pair = vertex_pair[:5]
     with pytest.raises(ValueError):
         cugraph.jaccard(G1, vertex_pair, use_weight)
@@ -251,7 +268,9 @@ def test_jaccard_edgevals(gpubenchmark, graph_file, use_weight):
 def test_jaccard_two_hop(read_csv, use_weight):
     _, M, graph_file = read_csv
 
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source=SRC_COL, target=DST_COL, create_using=nx.Graph()
+    )
     G = graph_file.get_graph(ignore_weights=not use_weight)
 
     compare_jaccard_two_hop(G, Gnx, use_weight)
@@ -260,13 +279,15 @@ def test_jaccard_two_hop(read_csv, use_weight):
 @pytest.mark.sg
 def test_jaccard_nx(read_csv):
     M_cu, M, _ = read_csv
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source=SRC_COL, target=DST_COL, create_using=nx.Graph()
+    )
 
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
 
     ebunch = M_cu.rename(
-        columns={"0": VERTEX_PAIR_FIRST_COL, "1": VERTEX_PAIR_SECOND_COL}
+        columns={SRC_COL: VERTEX_PAIR_FIRST_COL, DST_COL: VERTEX_PAIR_SECOND_COL}
     )
     ebunch = ebunch[[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]]
     cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
@@ -283,23 +304,36 @@ def test_jaccard_multi_column(read_csv):
     _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M["0"])
-    cu_M["dst_0"] = cudf.Series(M["1"])
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
+    cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
+    cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
+    cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
     G1 = cugraph.Graph()
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        cu_M,
+        source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
+        destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
     )
 
-    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = cu_M[
+        [
+            MULTI_COL_SRC_0_COL,
+            MULTI_COL_SRC_1_COL,
+            MULTI_COL_DST_0_COL,
+            MULTI_COL_DST_1_COL,
+        ]
+    ]
     vertex_pair = vertex_pair[:5]
 
     df_multi_col_res = cugraph.jaccard(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
-    df_single_col_res = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
+    G2.from_cudf_edgelist(
+        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL
+    )
+    df_single_col_res = cugraph.jaccard(
+        G2, vertex_pair[[MULTI_COL_SRC_0_COL, MULTI_COL_DST_0_COL]]
+    )
 
     # Calculating mismatch
     actual = df_multi_col_res.sort_values("0_src").reset_index()

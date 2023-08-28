@@ -28,6 +28,10 @@ VERTEX_PAIR_FIRST_COL = "first"
 VERTEX_PAIR_SECOND_COL = "second"
 SORENSEN_COEFF_COL = "sorensen_coeff"
 EDGE_ATT_COL = "weight"
+MULTI_COL_SRC_0_COL = "src_0"
+MULTI_COL_DST_0_COL = "dst_0"
+MULTI_COL_SRC_1_COL = "src_1"
+MULTI_COL_DST_1_COL = "dst_1"
 
 print("Networkx version : {} ".format(nx.__version__))
 
@@ -84,7 +88,7 @@ def compare_sorensen_two_hop(G, Gnx, use_weight=False):
         pass
 
 
-def cugraph_call(benchmark_callable, graph_file, use_weight=False, input_df=None):
+def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False):
     G = cugraph.Graph()
     G = graph_file.get_graph(ignore_weights=not use_weight)
 
@@ -175,9 +179,12 @@ def read_csv(request):
 
 
 @pytest.mark.sg
-def test_sorensen(gpubenchmark, read_csv):
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_sorensen(gpubenchmark, read_csv, use_weight):
     M_cu, M, graph_file = read_csv
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu)
+    cu_src, cu_dst, cu_coeff = cugraph_call(
+        gpubenchmark, graph_file, input_df=M_cu, use_weight=use_weight
+    )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -201,13 +208,14 @@ def test_nx_sorensen_time(gpubenchmark, read_csv):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
+@pytest.mark.parametrize("use_weight", [False, True])
 @pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
-def test_sorensen_edgevals(gpubenchmark, graph_file):
+def test_sorensen_edgevals(gpubenchmark, graph_file, use_weight):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     M_cu = utils.read_csv_file(dataset_path)
     cu_src, cu_dst, cu_coeff = cugraph_call(
-        gpubenchmark, netscience, use_weight=True, input_df=M_cu
+        gpubenchmark, netscience, input_df=M_cu, use_weight=use_weight
     )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -225,19 +233,21 @@ def test_sorensen_edgevals(gpubenchmark, graph_file):
 
 
 @pytest.mark.sg
-def test_sorensen_two_hop(read_csv):
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_sorensen_two_hop(read_csv, use_weight):
     _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(
         M, source=SRC_COL, target=DST_COL, create_using=nx.Graph()
     )
-    G = graph_file.get_graph(ignore_weights=True)
+    G = graph_file.get_graph(ignore_weights=not use_weight)
 
-    compare_sorensen_two_hop(G, Gnx)
+    compare_sorensen_two_hop(G, Gnx, use_weight=use_weight)
 
 
 @pytest.mark.sg
-def test_sorensen_two_hop_edge_vals(read_csv):
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_sorensen_two_hop_edge_vals(read_csv, use_weight):
     _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(
@@ -248,33 +258,51 @@ def test_sorensen_two_hop_edge_vals(read_csv):
         create_using=nx.Graph(),
     )
 
-    G = graph_file.get_graph()
+    G = graph_file.get_graph(ignore_weights=not use_weight)
 
-    compare_sorensen_two_hop(G, Gnx, use_weight=True)
+    compare_sorensen_two_hop(G, Gnx, use_weight=use_weight)
 
 
 @pytest.mark.sg
 def test_sorensen_multi_column(read_csv):
     _, M, _ = read_csv
 
+    MULTI_COL_SRC_0_COL = "src_0"
+    MULTI_COL_DST_0_COL = "dst_0"
+    MULTI_COL_SRC_1_COL = "src_1"
+    MULTI_COL_DST_1_COL = "dst_1"
+
     cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M[SRC_COL])
-    cu_M["dst_0"] = cudf.Series(M[DST_COL])
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
+    cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
+    cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
+    cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
     G1 = cugraph.Graph()
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        cu_M,
+        source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
+        destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
     )
 
-    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = cu_M[
+        [
+            MULTI_COL_SRC_0_COL,
+            MULTI_COL_SRC_1_COL,
+            MULTI_COL_DST_0_COL,
+            MULTI_COL_DST_1_COL,
+        ]
+    ]
     vertex_pair = vertex_pair[:5]
 
     df_multi_col_res = cugraph.sorensen(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
-    df_single_col_res = cugraph.sorensen(G2, vertex_pair[["src_0", "dst_0"]])
+    G2.from_cudf_edgelist(
+        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL
+    )
+    df_single_col_res = cugraph.sorensen(
+        G2, vertex_pair[[MULTI_COL_SRC_0_COL, MULTI_COL_DST_0_COL]]
+    )
 
     # Calculating mismatch
     actual = df_multi_col_res.sort_values("0_src").reset_index()
