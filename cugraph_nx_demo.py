@@ -49,6 +49,7 @@ df = pd.read_csv("datasets/cyber.csv")
 Gnx = nx.from_pandas_edgelist(df, source="srcip", target="dstip", create_using=nx.Graph())
 
 gdf = cyber.get_edgelist(download=True)
+G = cugraph.Graph(directed=True)
 G = cugraph.from_cudf_edgelist(gdf, source="srcip", destination="dstip")
 # Once dataset API can accept different src and dst col names, the above two lines can be replaced by the line below
 # G = cyber.get_graph(download=True) 
@@ -71,9 +72,9 @@ def cugraph_nx_call_bc(Gnx):
     return t2
 
 def cugraph_nx_convert_call_bc(Gnx):
-    G = cnx.from_networkx(Gnx)
+    Gcnx = cnx.from_networkx(Gnx)
     t1 = time.time()
-    cnx.betweenness_centrality(G)
+    cnx.betweenness_centrality(Gcnx)
     t2 = time.time() - t1
     return t2
 
@@ -111,7 +112,7 @@ def networkx_call_ebc(Gnx):
 
 # NEW CELL
 
-# Original analysis Tues Aug 22
+"""# Original analysis Tues Aug 22
 tnx_bc = networkx_call_bc(Gnx)
 trapids_bc = cugraph_call_bc(G)
 tcnx_bc = cugraph_nx_call_bc(Gnx)
@@ -125,7 +126,7 @@ tcnx_convert_ebc = cugraph_nx_convert_call_ebc(Gnx)
 print("Betweenness Centrality: cuGraph ({}), networkX ({})".format(trapids_bc, tnx_bc))
 print("Betweenness Centrality: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_bc, tcnx_convert_bc))
 print("Edge Betweenness Centrality: cuGraph ({}), cuGraph-nx ({}), networkX ({})".format(trapids_ebc, tcnx_ebc, tnx_ebc))
-print("Edge Betweenness Centrality: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_ebc, tcnx_convert_ebc))
+print("Edge Betweenness Centrality: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_ebc, tcnx_convert_ebc))"""
 
 # NEW CELL
 
@@ -208,7 +209,7 @@ def nx_read_n_call_ebc():
 
 # NEW CELL
 
-tnx_read_bc = nx_read_n_call_bc()
+"""tnx_read_bc = nx_read_n_call_bc()
 trapids_read_bc = cu_read_n_call_bc()
 tcnx_read_bc = cu_nx_noconvert_read_n_call_bc()
 tcnx_read_convert_bc = cu_nx_convert_read_n_call_bc()
@@ -222,15 +223,31 @@ print()
 print("Graph Creation + Betweenness: cuGraph ({}), networkX ({})".format(trapids_read_bc, tnx_read_bc))
 print("Graph Creation + Betweenness: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_read_bc, tcnx_read_convert_bc))
 print("Graph Creation + Edge Betweenness: cuGraph ({}), networkX ({})".format(trapids_read_ebc, tnx_read_ebc))
-print("Graph Creation + Edge Betweenness: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_read_ebc, tcnx_read_convert_ebc))
+print("Graph Creation + Edge Betweenness: cu-nx w/o convert ({}), cu-nx w/ convert ({})".format(tcnx_read_ebc, tcnx_read_convert_ebc))"""
 
 # NEW CELL
+
+Gcnx = cnx.from_networkx(Gnx, preserve_all_attrs=True)
+
+def cugraph_nx_nxGraph_timeit_call_bc(Gnx):
+    cnx.betweenness_centrality(Gnx)
+
+def networkx_timeit_call_bc(Gnx):
+    nx.betweenness_centrality(Gnx)
+
+def cugraph_timeit_call_bc(G):
+    cugraph.betweenness_centrality(G)
+
+# Testing above benchmark functions with timeit
+
+
+
 
 # NEW CELL
 
 # NEW CELL (caused a SegFault when running cu.betweenness on preferentialAttachment.mtx)
 
-"""# Advanced mtx performance tests?
+# Advanced mtx performance tests?
 def cugraph_call(M):
     gdf = cudf.DataFrame()
     gdf['src'] = M.row
@@ -242,7 +259,7 @@ def cugraph_call(M):
     
 
     t1 = time.time()
-    cugraph.betweenness_centrality(G)
+    cugraph.betweenness_centrality(G, k=10)
     t2 = time.time() - t1
     return t2
 
@@ -263,13 +280,13 @@ def networkx_call(M):
     Gnx = nx.DiGraph(M)
 
     t1 = time.time()
-    nx.betweenness_centrality(Gnx)
+    nx.betweenness_centrality(Gnx, k=10)
     t2 = time.time() - t1
-    return t2"""
+    return t2
 
 # NEW CELL
 
-"""from scipy.io import mmread
+from scipy.io import mmread
 
 # Data reader - the file format is MTX, so we will use the reader from SciPy
 def read_mtx_file(mm_file):
@@ -288,11 +305,11 @@ data = {
 #    'citationCiteseer'       : 'notebooks/data/citationCiteseer.mtx',
 #    'coPapersDBLP'           : 'notebooks/data/coPapersDBLP.mtx',
 #    'coPapersCiteseer'       : 'notebooks/data/coPapersCiteseer.mtx',
-#    'as-Skitter'             : 'notebooks/data/as-Skitter.mtx'"""
+#    'as-Skitter'             : 'notebooks/data/as-Skitter.mtx'
 
 # NEW CELL
 
-"""# arrays to capture performance gains
+# arrays to capture performance gains
 time_cu = []
 time_nx = []
 time_sp = []
@@ -330,4 +347,21 @@ for k,v in data.items():
     time_nx.append(tn)
         
     print("cuGraph (" + str(trapids) + ")  Nx (" + str(tn) + ")" )
-    del M"""
+    del M
+
+# NEW CELL
+
+"""if __name__ == "__main__":
+    import timeit
+    print("cugraph-nx bc w/ nx.Graph")
+    print(timeit.timeit("cugraph_nx_nxGraph_timeit_call_bc(Gnx)", setup="from __main__ import cugraph_nx_nxGraph_timeit_call_bc, Gnx", number=10))
+    print("cugraph-nx bc w/ cnx.Graph")
+    print(timeit.timeit("cugraph_nx_nxGraph_timeit_call_bc(Gcnx)", setup="from __main__ import cugraph_nx_nxGraph_timeit_call_bc, Gcnx", number=10))
+    print("networkx bc")
+    print(timeit.timeit("networkx_timeit_call_bc(Gnx)", setup="from __main__ import networkx_timeit_call_bc, Gnx", number=10))
+    print("cugraph bc")
+    print(timeit.timeit("cugraph_timeit_call_bc(G)", setup="from __main__ import cugraph_timeit_call_bc, G", number=10))
+"""
+#cugraph_nx_nxGraph_timeit_call_bc(Gnx)
+#networkx_timeit_call_bc(Gnx)
+#cugraph_timeit_ebc(G)
