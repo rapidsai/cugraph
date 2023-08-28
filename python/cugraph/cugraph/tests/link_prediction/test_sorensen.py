@@ -207,6 +207,28 @@ def test_nx_sorensen_time(gpubenchmark, read_csv):
 
 
 @pytest.mark.sg
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_directed_graph_check(read_csv, use_weight):
+    _, M, _ = read_csv
+
+    cu_M = cudf.DataFrame()
+    cu_M[SRC_COL] = cudf.Series(M[SRC_COL])
+    cu_M[DST_COL] = cudf.Series(M[DST_COL])
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
+
+    G1 = cugraph.Graph(directed=True)
+    weight = EDGE_ATT_COL if use_weight else None
+    G1.from_cudf_edgelist(cu_M, source=SRC_COL, destination=DST_COL, weight=weight)
+
+    vertex_pair = cu_M[[SRC_COL, DST_COL]]
+
+    vertex_pair = vertex_pair[:5]
+    with pytest.raises(ValueError):
+        cugraph.sorensen(G1, vertex_pair, use_weight)
+
+
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
 @pytest.mark.parametrize("use_weight", [False, True])
 @pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
@@ -264,24 +286,27 @@ def test_sorensen_two_hop_edge_vals(read_csv, use_weight):
 
 
 @pytest.mark.sg
-def test_sorensen_multi_column(read_csv):
-    _, M, _ = read_csv
-
-    MULTI_COL_SRC_0_COL = "src_0"
-    MULTI_COL_DST_0_COL = "dst_0"
-    MULTI_COL_SRC_1_COL = "src_1"
-    MULTI_COL_DST_1_COL = "dst_1"
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_sorensen_multi_column(graph_file, use_weight):
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
     cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
     cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
     cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
     cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
+
     G1 = cugraph.Graph()
+    weight = EDGE_ATT_COL if use_weight else None
     G1.from_cudf_edgelist(
         cu_M,
         source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
         destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
+        weight=weight,
     )
 
     vertex_pair = cu_M[
@@ -298,7 +323,7 @@ def test_sorensen_multi_column(read_csv):
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(
-        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL
+        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL, weight=weight
     )
     df_single_col_res = cugraph.sorensen(
         G2, vertex_pair[[MULTI_COL_SRC_0_COL, MULTI_COL_DST_0_COL]]
@@ -308,3 +333,15 @@ def test_sorensen_multi_column(read_csv):
     actual = df_multi_col_res.sort_values("0_src").reset_index()
     expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
     assert_series_equal(actual[SORENSEN_COEFF_COL], expected[SORENSEN_COEFF_COL])
+
+
+@pytest.mark.sg
+def test_weighted_sorensen():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+    with pytest.raises(ValueError):
+        cugraph.sorensen(G, use_weight=True)
+
+    G = karate.get_graph(ignore_weights=True)
+    with pytest.raises(ValueError):
+        cugraph.sorensen(G, use_weight=True)

@@ -28,7 +28,7 @@ SRC_COL = "0"
 DST_COL = "1"
 VERTEX_PAIR_FIRST_COL = "first"
 VERTEX_PAIR_SECOND_COL = "second"
-SORENSEN_COEFF_COL = "jaccard_coeff"
+JACCARD_COEFF_COL = "jaccard_coeff"
 EDGE_ATT_COL = "weight"
 MULTI_COL_SRC_0_COL = "src_0"
 MULTI_COL_DST_0_COL = "dst_0"
@@ -76,7 +76,7 @@ def compare_jaccard_two_hop(G, Gnx, use_weight=False):
 
         assert len(nx_coeff) == len(df)
         for i in range(len(df)):
-            diff = abs(nx_coeff[i] - df[SORENSEN_COEFF_COL].iloc[i])
+            diff = abs(nx_coeff[i] - df[JACCARD_COEFF_COL].iloc[i])
             assert diff < 1.0e-6
     else:
         # FIXME: compare results against resultset api
@@ -115,7 +115,7 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     return (
         df[VERTEX_PAIR_FIRST_COL].to_numpy(),
         df[VERTEX_PAIR_SECOND_COL].to_numpy(),
-        df[SORENSEN_COEFF_COL].to_numpy(),
+        df[JACCARD_COEFF_COL].to_numpy(),
     )
 
 
@@ -204,25 +204,17 @@ def test_directed_graph_check(read_csv, use_weight):
     _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
-    cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
-    cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
-    cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
-    cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
-    G1 = cugraph.Graph(directed=True)
-    G1.from_cudf_edgelist(
-        cu_M,
-        source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
-        destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
-    )
+    cu_M[SRC_COL] = cudf.Series(M[SRC_COL])
+    cu_M[DST_COL] = cudf.Series(M[DST_COL])
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
 
-    vertex_pair = cu_M[
-        [
-            MULTI_COL_SRC_0_COL,
-            MULTI_COL_SRC_1_COL,
-            MULTI_COL_DST_0_COL,
-            MULTI_COL_DST_1_COL,
-        ]
-    ]
+    G1 = cugraph.Graph(directed=True)
+    weight = EDGE_ATT_COL if use_weight else None
+    G1.from_cudf_edgelist(cu_M, source=SRC_COL, destination=DST_COL, weight=weight)
+
+    vertex_pair = cu_M[[SRC_COL, DST_COL]]
+
     vertex_pair = vertex_pair[:5]
     with pytest.raises(ValueError):
         cugraph.jaccard(G1, vertex_pair, use_weight)
@@ -300,19 +292,27 @@ def test_jaccard_nx(read_csv):
 
 
 @pytest.mark.sg
-def test_jaccard_multi_column(read_csv):
-    _, M, _ = read_csv
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_jaccard_multi_column(graph_file, use_weight):
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
     cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
     cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
     cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
     cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
+
     G1 = cugraph.Graph()
+    weight = EDGE_ATT_COL if use_weight else None
     G1.from_cudf_edgelist(
         cu_M,
         source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
         destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
+        weight=weight,
     )
 
     vertex_pair = cu_M[
@@ -329,7 +329,7 @@ def test_jaccard_multi_column(read_csv):
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(
-        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL
+        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL, weight=weight
     )
     df_single_col_res = cugraph.jaccard(
         G2, vertex_pair[[MULTI_COL_SRC_0_COL, MULTI_COL_DST_0_COL]]
@@ -338,4 +338,16 @@ def test_jaccard_multi_column(read_csv):
     # Calculating mismatch
     actual = df_multi_col_res.sort_values("0_src").reset_index()
     expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
-    assert_series_equal(actual[SORENSEN_COEFF_COL], expected[SORENSEN_COEFF_COL])
+    assert_series_equal(actual[JACCARD_COEFF_COL], expected[JACCARD_COEFF_COL])
+
+
+@pytest.mark.sg
+def test_weighted_jaccard():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+    with pytest.raises(ValueError):
+        cugraph.jaccard(G, use_weight=True)
+
+    G = karate.get_graph(ignore_weights=True)
+    with pytest.raises(ValueError):
+        cugraph.jaccard(G, use_weight=True)
