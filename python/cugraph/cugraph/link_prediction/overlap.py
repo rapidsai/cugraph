@@ -28,7 +28,6 @@ from pylibcugraph import ResourceHandle
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph, vertex_pair):
-
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
     vertex_pair_dtypes = vertex_pair.dtypes
 
@@ -44,7 +43,7 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     return vertex_pair
 
 
-def overlap_coefficient(G, ebunch=None, use_weight=False):
+def overlap_coefficient(G, ebunch=None, do_expensive_check=False):
     """
     For NetworkX Compatability.  See `overlap`
 
@@ -64,8 +63,8 @@ def overlap_coefficient(G, ebunch=None, use_weight=False):
         current implementation computes the overlap coefficient for all
         adjacent vertices in the graph.
 
-    use_weight : bool, optional (default=False)
-        Currently not supported
+    do_expensive_check : bool, optional (default=False)
+        Deprecated, no longer needed
 
     Returns
     -------
@@ -91,6 +90,11 @@ def overlap_coefficient(G, ebunch=None, use_weight=False):
     >>> G = karate.get_graph(download=True, ignore_weights=True)
     >>> df = overlap_coefficient(G)
     """
+    if do_expensive_check:
+        warnings.warn(
+            "do_expensive_check is deprecated since it is no longer needed",
+            DeprecationWarning,
+        )
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
@@ -109,12 +113,14 @@ def overlap_coefficient(G, ebunch=None, use_weight=False):
 
     return df
 
-# FIXME: 
+
+# FIXME:
 # 1. Be consistent with column names for output/result DataFrame
 # 2. Enforce that 'vertex_pair' is a cudf Dataframe with only columns for vertex pairs
 # 3. We need to add support for multi-column vertices
 
-def overlap(G, vertex_pair=None, use_weight=False):
+
+def overlap(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=False):
     """
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -134,7 +140,7 @@ def overlap(G, vertex_pair=None, use_weight=False):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not supported yet for this algorithm). The
         adjacency list will be computed if not already present.
@@ -146,8 +152,15 @@ def overlap(G, vertex_pair=None, use_weight=False):
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
+    do_expensive_check : bool, optional (default=False)
+        Deprecated, no longer needed
+
     use_weight : bool, optional (default=False)
-        Currently not supported
+        Flag to indicate whether to compute weighted overlap (if use_weight==True)
+        or un-weighted overlap (if use_weight==False).
+        'input_graph' must be wighted if 'use_weight=True'.
+
+
 
     Returns
     -------
@@ -170,24 +183,28 @@ def overlap(G, vertex_pair=None, use_weight=False):
     --------
     >>> from cugraph.datasets import karate
     >>> from cugraph import overlap
-    >>> G = karate.get_graph(download=True, ignore_weights=True)
-    >>> df = overlap(G)
+    >>> input_graph = karate.get_graph(download=True, ignore_weights=True)
+    >>> df = overlap(input_graph)
 
     """
+    if do_expensive_check:
+        warnings.warn(
+            "do_expensive_check is deprecated since it is no longer needed",
+            DeprecationWarning,
+        )
 
-    if G.is_directed():
+    if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
-
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
-        vertex_pair = G.get_two_hop_neighbors()
+        vertex_pair = input_graph.get_two_hop_neighbors()
 
     v_p_num_col = len(vertex_pair.columns)
 
     if isinstance(vertex_pair, cudf.DataFrame):
-        vertex_pair = renumber_vertex_pair(G, vertex_pair)
-        vertex_pair = ensure_valid_dtype(G, vertex_pair)
+        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
+        vertex_pair = ensure_valid_dtype(input_graph, vertex_pair)
         src_col_name = vertex_pair.columns[0]
         dst_col_name = vertex_pair.columns[1]
         first = vertex_pair[src_col_name]
@@ -196,19 +213,22 @@ def overlap(G, vertex_pair=None, use_weight=False):
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    
     first, second, overlap_coeff = pylibcugraph_overlap_coefficients(
         resource_handle=ResourceHandle(),
-        graph=G._plc_graph,
+        graph=input_graph._plc_graph,
         first=first,
         second=second,
         use_weight=use_weight,
         do_expensive_check=False,
     )
 
-    if G.renumbered:
-        vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
-        vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
+    if input_graph.renumbered:
+        vertex_pair = input_graph.unrenumber(
+            vertex_pair, src_col_name, preserve_order=True
+        )
+        vertex_pair = input_graph.unrenumber(
+            vertex_pair, dst_col_name, preserve_order=True
+        )
 
     if v_p_num_col == 2:
         # single column vertex

@@ -113,8 +113,14 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
 
+    do_expensive_check : bool, optional (default=False)
+        Deprecated, no longer needed
+
     use_weight : bool, optional (default=False)
-        Currently not supported
+        Flag to indicate whether to compute weighted jaccard (if use_weight==True)
+        or un-weighted jaccard (if use_weight==False).
+        'input_graph' must be wighted if 'use_weight=True'.
+
 
     Returns
     -------
@@ -141,13 +147,11 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
     >>> df = jaccard(input_graph)
 
     """
-
-    print("use_weight =", use_weight)
-
-    warnings.warn(
-        "do_expensive_check is deprecated since it is no longer needed",
-        DeprecationWarning,
-    )
+    if do_expensive_check:
+        warnings.warn(
+            "do_expensive_check is deprecated since it is no longer needed",
+            DeprecationWarning,
+        )
 
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
@@ -219,7 +223,7 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=False):
         adjacent vertices in the graph.
 
     do_expensive_check : bool, optional (default=False)
-        Currently not supported
+        Deprecated, longer needed
 
     Returns
     -------
@@ -245,6 +249,12 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=False):
     >>> df = cugraph.jaccard_coefficient(G)
 
     """
+    if do_expensive_check:
+        warnings.warn(
+            "do_expensive_check is deprecated since it is no longer needed",
+            DeprecationWarning,
+        )
+
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
