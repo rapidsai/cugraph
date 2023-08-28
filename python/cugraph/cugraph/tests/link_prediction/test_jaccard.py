@@ -24,7 +24,12 @@ from cugraph.datasets import netscience
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
 
-# from cugraph import jaccard_coefficient
+SRC_COL = "0"
+DST_COL = "1"
+VERTEX_PAIR_FIRST_COL = "first"
+VERTEX_PAIR_SECOND_COL = "second"
+SORENSEN_COEFF_COL = "jaccard_coeff"
+EDGE_ATT_COL = "weight"
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -49,12 +54,14 @@ def compare_jaccard_two_hop(G, Gnx, use_weight=False):
     """
     pairs = (
         G.get_two_hop_neighbors()
-        .sort_values(["first", "second"])
+        .sort_values([VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL])
         .reset_index(drop=True)
     )
 
     df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=["first", "second"]).reset_index(drop=True)
+    df = df.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
+        drop=True
+    )
 
     if not use_weight:
         nx_pairs = list(pairs.to_records(index=False))
@@ -65,7 +72,7 @@ def compare_jaccard_two_hop(G, Gnx, use_weight=False):
 
         assert len(nx_coeff) == len(df)
         for i in range(len(df)):
-            diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
+            diff = abs(nx_coeff[i] - df[SORENSEN_COEFF_COL].iloc[i])
             assert diff < 1.0e-6
     else:
         # FIXME: compare results against resultset api
@@ -82,11 +89,14 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
     # and pass it as vertex_pair
     if isinstance(input_df, cudf.DataFrame):
-        vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
-        vertex_pair = vertex_pair[["first", "second"]]
+        vertex_pair = input_df.rename(
+            columns={"0": VERTEX_PAIR_FIRST_COL, "1": VERTEX_PAIR_SECOND_COL}
+        )
+        vertex_pair = vertex_pair[[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]]
     else:
         vertex_pair = cudf.DataFrame(
-            columns=["first", "second"], dtype=G.edgelist.edgelist_df["src"].dtype
+            columns=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL],
+            dtype=G.edgelist.edgelist_df["src"].dtype,
         )
 
     # cugraph Jaccard Call
@@ -94,12 +104,14 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
         cugraph.jaccard, G, vertex_pair=vertex_pair, use_weight=use_weight
     )
 
-    df = df.sort_values(["first", "second"]).reset_index(drop=True)
+    df = df.sort_values([VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
+        drop=True
+    )
 
     return (
-        df["first"].to_numpy(),
-        df["second"].to_numpy(),
-        df["jaccard_coeff"].to_numpy(),
+        df[VERTEX_PAIR_FIRST_COL].to_numpy(),
+        df[VERTEX_PAIR_SECOND_COL].to_numpy(),
+        df[SORENSEN_COEFF_COL].to_numpy(),
     )
 
 
@@ -117,7 +129,7 @@ def networkx_call(M, benchmark_callable=None):
     print("Format conversion ... ")
 
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr=EDGE_ATT_COL, create_using=nx.Graph()
     )
 
     # Networkx Jaccard Call
@@ -253,8 +265,10 @@ def test_jaccard_nx(read_csv):
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
 
-    ebunch = M_cu.rename(columns={"0": "first", "1": "second"})
-    ebunch = ebunch[["first", "second"]]
+    ebunch = M_cu.rename(
+        columns={"0": VERTEX_PAIR_FIRST_COL, "1": VERTEX_PAIR_SECOND_COL}
+    )
+    ebunch = ebunch[[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]]
     cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
 
     assert len(nv_js) > len(cg_j)
@@ -289,5 +303,5 @@ def test_jaccard_multi_column(read_csv):
 
     # Calculating mismatch
     actual = df_multi_col_res.sort_values("0_src").reset_index()
-    expected = df_single_col_res.sort_values("first").reset_index()
-    assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
+    expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
+    assert_series_equal(actual[SORENSEN_COEFF_COL], expected[SORENSEN_COEFF_COL])
