@@ -11,10 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from cugraph.link_prediction import overlap_wrapper
 from cugraph.link_prediction import overlap
-import cudf
 import warnings
+
 
 def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
@@ -99,6 +98,6 @@ def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     warning_msg = (
         " overlap_w is deprecated. To compute weighted overlap, please use "
         "overlap(input_graph, vertex_pair=False, use_weight=True)"
-        )
+    )
     warnings.warn(warning_msg, DeprecationWarning)
     return overlap(input_graph, vertex_pair, do_expensive_check, use_weight=True)

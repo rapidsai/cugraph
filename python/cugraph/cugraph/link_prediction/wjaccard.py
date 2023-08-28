@@ -11,16 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
-# from cugraph.link_prediction import jaccard_wrapper
 from cugraph.link_prediction import jaccard
-import cudf
-
-from pylibcugraph import (
-    jaccard_coefficients as pylibcugraph_jaccard_coefficients,
-)
-from pylibcugraph import ResourceHandle
 import warnings
+
 
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
@@ -39,8 +32,6 @@ def ensure_valid_dtype(input_graph, vertex_pair):
         vertex_pair = vertex_pair.astype(vertex_dtype)
 
     return vertex_pair
-
-
 
 
 def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
@@ -124,6 +115,6 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
     warning_msg = (
         "jaccard_w is deprecated. To compute weighted jaccard, please use "
         "jaccard(input_graph, vertex_pair=False, use_weight=True)"
-        )
+    )
     warnings.warn(warning_msg, DeprecationWarning)
     return jaccard(input_graph, vertex_pair, do_expensive_check, use_weight=True)

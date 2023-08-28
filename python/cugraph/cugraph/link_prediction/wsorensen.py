@@ -11,10 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import sorensen
-import cudf
 import warnings
+
 
 def sorensen_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
@@ -93,8 +92,8 @@ def sorensen_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
 
     """
     warning_msg = (
-        f" sorensen_w is deprecated. To compute weighted sorensen, please use "
+        "sorensen_w is deprecated. To compute weighted sorensen, please use "
         "sorensen(input_graph, vertex_pair=False, use_weight=True)"
-        )
+    )
     warnings.warn(warning_msg, DeprecationWarning)
     return sorensen(input_graph, vertex_pair, use_weight=True)
