@@ -282,11 +282,6 @@ def test_jaccard_multi_column(read_csv):
     vertex_pair = vertex_pair[:5]
 
     df_multi_col_res = cugraph.jaccard(G1, vertex_pair)
-    # jaccard_multi_col_res = (
-    #     df_multi_col_res["jaccard_coeff"].sort_values().reset_index(drop=True)
-    # )
-
-    print(df_multi_col_res)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
@@ -295,5 +290,4 @@ def test_jaccard_multi_column(read_csv):
     # Calculating mismatch
     actual = df_multi_col_res.sort_values("0_src").reset_index()
     expected = df_single_col_res.sort_values("first").reset_index()
-
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
