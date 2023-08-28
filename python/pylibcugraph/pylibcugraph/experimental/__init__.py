@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -87,5 +87,5 @@ node2vec = promoted_experimental_warning_wrapper(node2vec)
 # from pylibcugraph.sorensen_coefficients import EXPERIMENTAL__sorensen_coefficients
 
 # sorensen_coefficients = experimental_warning_wrapper(
-    # EXPERIMENTAL__sorensen_coefficients
+# EXPERIMENTAL__sorensen_coefficients
 # )

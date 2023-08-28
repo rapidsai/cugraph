@@ -11,14 +11,14 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
   - repo: https://github.com/psf/black
-    rev: 22.10.0
+    rev: 23.7.0
     hooks:
       - id: black
         language_version: python3
         args: [--target-version=py38]
         files: ^python/
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
       - id: flake8
         args: ["--config=.flake8"]
@@ -27,13 +27,13 @@ repos:
         types_or: [python] # TODO: Enable [python, cython]
         additional_dependencies: ["flake8-force"]
   - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
+    rev: v1.5.0
     hooks:
       - id: yesqa
         additional_dependencies:
           - flake8==6.0.0
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.1
+    rev: v16.0.6
     hooks:
       - id: clang-format
         exclude: |
@@ -52,7 +52,7 @@ repos:
         pass_filenames: false
         additional_dependencies: [gitpython]
   - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.5.1
+    rev: v1.5.2
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]

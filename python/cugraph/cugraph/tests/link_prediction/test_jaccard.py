@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#FIXME: Can we use global variables for column names instead of hardcoded ones?
+# FIXME: Can we use global variables for column names instead of hardcoded ones?
 
 import gc
 
@@ -22,9 +22,9 @@ import cudf
 import cugraph
 from cugraph.datasets import netscience
 from cugraph.testing import utils, UNDIRECTED_DATASETS
-from cugraph import jaccard
-from cudf.testing import assert_series_equal, assert_frame_equal
-from cugraph import jaccard_coefficient
+from cudf.testing import assert_series_equal
+
+# from cugraph import jaccard_coefficient
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -68,7 +68,7 @@ def compare_jaccard_two_hop(G, Gnx, use_weight=False):
             diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
             assert diff < 1.0e-6
     else:
-        #FIXME: compare results against resultset api
+        # FIXME: compare results against resultset api
         pass
 
 
@@ -81,11 +81,18 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     # entire graph while nx compute with the one_hop_neighbor. For better
     # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
     # and pass it as vertex_pair
-    vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
-    vertex_pair = vertex_pair[["first", "second"]]
+    if isinstance(input_df, cudf.DataFrame):
+        vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
+        vertex_pair = vertex_pair[["first", "second"]]
+    else:
+        vertex_pair = cudf.DataFrame(
+            columns=["first", "second"], dtype=G.edgelist.edgelist_df["src"].dtype
+        )
 
     # cugraph Jaccard Call
-    df = benchmark_callable(cugraph.jaccard, G, vertex_pair=vertex_pair, use_weight=use_weight)
+    df = benchmark_callable(
+        cugraph.jaccard, G, vertex_pair=vertex_pair, use_weight=use_weight
+    )
 
     df = df.sort_values(["first", "second"]).reset_index(drop=True)
 
@@ -97,7 +104,6 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
 
 
 def networkx_call(M, benchmark_callable=None):
-
     sources = M["0"]
     destinations = M["1"]
     edges = []
@@ -149,9 +155,10 @@ def read_csv(request):
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
 def test_jaccard(read_csv, gpubenchmark, use_weight):
-
     M_cu, M, graph_file = read_csv
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu, use_weight=use_weight)
+    cu_src, cu_dst, cu_coeff = cugraph_call(
+        gpubenchmark, graph_file, input_df=M_cu, use_weight=use_weight
+    )
     if not use_weight:
         nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -167,9 +174,8 @@ def test_jaccard(read_csv, gpubenchmark, use_weight):
         print("Mismatches:  %d" % err)
         assert err == 0
     else:
-        #FIXME: compare weighted jaccard results against resultset api
+        # FIXME: compare weighted jaccard results against resultset api
         pass
-    
 
 
 @pytest.mark.sg
@@ -195,7 +201,6 @@ def test_directed_graph_check(read_csv, use_weight):
 
 @pytest.mark.sg
 def test_nx_jaccard_time(read_csv, gpubenchmark):
-
     _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
@@ -225,25 +230,23 @@ def test_jaccard_edgevals(gpubenchmark, graph_file, use_weight):
         print("Mismatches:  %d" % err)
         assert err == 0
     else:
-        #FIXME: compare results against resultset api
+        # FIXME: compare results against resultset api
         pass
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
 def test_jaccard_two_hop(read_csv, use_weight):
-
     _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
-    G = graph_file.get_graph(ignore_weights= not use_weight)
+    G = graph_file.get_graph(ignore_weights=not use_weight)
 
     compare_jaccard_two_hop(G, Gnx, use_weight)
 
 
 @pytest.mark.sg
 def test_jaccard_nx(read_csv):
-
     M_cu, M, _ = read_csv
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
@@ -263,7 +266,6 @@ def test_jaccard_nx(read_csv):
 
 @pytest.mark.sg
 def test_jaccard_multi_column(read_csv):
-
     _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
@@ -280,10 +282,11 @@ def test_jaccard_multi_column(read_csv):
     vertex_pair = vertex_pair[:5]
 
     df_multi_col_res = cugraph.jaccard(G1, vertex_pair)
-    jaccard_multi_col_res = df_multi_col_res["jaccard_coeff"].sort_values().reset_index(drop=True)
+    # jaccard_multi_col_res = (
+    #     df_multi_col_res["jaccard_coeff"].sort_values().reset_index(drop=True)
+    # )
 
     print(df_multi_col_res)
-
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")

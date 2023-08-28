@@ -28,7 +28,6 @@ from pylibcugraph import ResourceHandle
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph, vertex_pair):
-
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
     vertex_pair_dtypes = vertex_pair.dtypes
 
@@ -44,12 +43,13 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     return vertex_pair
 
 
-# FIXME: 
+# FIXME:
 # 1. Be consistent with column names for output/result DataFrame
 # 2. Enforce that 'vertex_pair' is a cudf Dataframe with only columns for vertex pairs
 # 3. We need to add support for multi-column vertices
 
-def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=False):    
+
+def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=False):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -142,10 +142,12 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
 
     """
 
-    print ('use_weight =', use_weight)
+    print("use_weight =", use_weight)
 
-    warnings.warn("do_expensive_check is deprecated since it is no longer needed",
-                DeprecationWarning)
+    warnings.warn(
+        "do_expensive_check is deprecated since it is no longer needed",
+        DeprecationWarning,
+    )
 
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
@@ -177,9 +179,12 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
     )
 
     if input_graph.renumbered:
-        vertex_pair = input_graph.unrenumber(vertex_pair, src_col_name, preserve_order=True)
-        vertex_pair = input_graph.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
-
+        vertex_pair = input_graph.unrenumber(
+            vertex_pair, src_col_name, preserve_order=True
+        )
+        vertex_pair = input_graph.unrenumber(
+            vertex_pair, dst_col_name, preserve_order=True
+        )
 
     if v_p_num_col == 2:
         # single column vertex
