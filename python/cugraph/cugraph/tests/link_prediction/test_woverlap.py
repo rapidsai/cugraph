@@ -45,8 +45,8 @@ def read_csv(request):
 
 
 @pytest.mark.sg
-def test_wjaccard(read_csv):
+def test_overlap_w(read_csv):
     M, graph_file = read_csv
     G = cugraph.Graph()
     G = graph_file.get_graph(ignore_weights=False)
-    cugraph.sorensen_w(G, weights=None)
+    cugraph.overlap_w(G, weights=None)

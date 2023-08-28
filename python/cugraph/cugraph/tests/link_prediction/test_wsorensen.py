@@ -46,7 +46,7 @@ def read_csv(request):
 
 
 @pytest.mark.sg
-def test_wsorensen(read_csv):
+def test_sorensen_w(read_csv):
     M, graph_file = read_csv
     G = cugraph.Graph()
     G = graph_file.get_graph(ignore_weights=False)
