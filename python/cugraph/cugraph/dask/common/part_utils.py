@@ -89,7 +89,7 @@ def get_persisted_df_worker_map(dask_df, client):
     ddf_keys = futures_of(dask_df)
     output_map = {}
     for w, w_keys in client.has_what().items():
-        output_map[w] = [ddf_k for ddf_k in ddf_keys if str(ddf_k.key) in w_keys]
+        output_map[w] = [ddf_k for ddf_k in ddf_keys if ddf_k.key in w_keys]
         if len(output_map[w]) == 0:
             output_map[w] = _create_empty_dask_df_future(dask_df._meta, client, w)
     return output_map
