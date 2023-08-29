@@ -23,7 +23,10 @@ from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
+from cugraph_pyg.sampler.cugraph_sampler import (
+    _sampler_output_from_sampling_results,
+    _sampler_output_from_sampling_results_homogeneous,
+)
 
 from typing import Union, Tuple, Sequence, List, Dict
 
@@ -253,35 +256,56 @@ class EXPERIMENTAL__BulkSampleLoader:
 
             raw_sample_data = cudf.read_parquet(parquet_path)
             if "map" in raw_sample_data.columns:
+                num_batches = (end_inclusive - self.__start_inclusive + 1)
+
                 map_end = raw_sample_data["map"].iloc[
-                    (end_inclusive - self.__start_inclusive + 1)
+                    num_batches
                 ]
-                self.__renumber_map = torch.as_tensor(
+
+                map = torch.as_tensor(
                     raw_sample_data["map"].iloc[0:map_end], device="cuda"
                 )
                 raw_sample_data.drop("map", axis=1, inplace=True)
+
+                self.__renumber_map_offsets = map[0:num_batches+1] - map[0]
+                self.__renumber_map = map[num_batches+1:]
+                
             else:
                 self.__renumber_map = None
 
             self.__data = raw_sample_data[list(columns.keys())].astype(columns)
             self.__data.dropna(inplace=True)
 
+            if len(self.__graph_store.edge_types) == 1 and len(self.__graph_store.node_types) == 1:
+                group_cols = ['batch_id', 'hop_id']
+                self.__data_index = self.__data.groupby(group_cols, as_index=True).agg({'sources':'max','destinations':'max'})
+                self.__data_index.rename(columns={'sources':'src_max', 'destinations':'dst_max'}, inplace=True,)
+                self.__data_index = self.__data_index.to_dict(orient='index')
+
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
         if self.__renumber_map is not None:
+            print("renumber map: ", self.__renumber_map)
             i = self.__next_batch - self.__start_inclusive
-            ix_start, ix_end = self.__renumber_map[[i, i + 1]].tolist()
-            current_renumber_map = self.__renumber_map[ix_start:ix_end]
 
-            if len(current_renumber_map) != ix_end - ix_start:
-                raise ValueError("invalid renumber map")
+            # this should avoid d2h copy
+            current_renumber_map = self.__renumber_map[
+                self.__renumber_map_offsets[i]:
+                self.__renumber_map_offsets[i+1]
+            ]
+
         else:
             current_renumber_map = None
 
         # Get and return the sampled subgraph
-        sampler_output = _sampler_output_from_sampling_results(
-            self.__data[f], current_renumber_map, self.__graph_store
-        )
+        if len(self.__graph_store.edge_types) == 1 and len(self.__graph_store.node_types) == 1:
+            sampler_output = _sampler_output_from_sampling_results_homogeneous(
+                self.__data[f], current_renumber_map, self.__graph_store, self.__data_index, self.__next_batch
+            )
+        else:
+            sampler_output = _sampler_output_from_sampling_results(
+                self.__data[f], current_renumber_map, self.__graph_store
+            )
 
         # Get ready for next iteration
         self.__next_batch += 1
