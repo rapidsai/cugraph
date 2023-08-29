@@ -73,7 +73,7 @@ def persist_distributed_data(dask_df, client):
     _keys = dask_df.__dask_keys__()
     worker_dict = {}
     for i, key in enumerate(_keys):
-        worker_dict[str(key)] = tuple([worker_addresses[i]])
+        worker_dict[key] = tuple([worker_addresses[i]])
     persisted = client.persist(dask_df, workers=worker_dict)
     parts = futures_of(persisted)
     return parts
@@ -167,7 +167,7 @@ async def _extract_partitions(
         parts = client.compute([p for p in zip(*raveled)])
 
     await wait(parts)
-    key_to_part = [(str(part.key), part) for part in parts]
+    key_to_part = [(part.key, part) for part in parts]
     who_has = await client.who_has(parts)
     return [(first(who_has[key]), part) for key, part in key_to_part]
 
@@ -229,7 +229,7 @@ def load_balance_func(ddf_, by, client=None):
     wait(parts)
 
     who_has = client.who_has(parts)
-    key_to_part = [(str(part.key), part) for part in parts]
+    key_to_part = [(part.key, part) for part in parts]
     gpu_fututres = [
         (first(who_has[key]), part.key[1], part) for key, part in key_to_part
     ]
@@ -283,7 +283,7 @@ def get_delayed_dict(ddf):
     """
     df_delayed = {}
     for delayed_obj in ddf.to_delayed():
-        df_delayed[str(delayed_obj.key)] = delayed_obj
+        df_delayed[delayed_obj.key] = delayed_obj
     return df_delayed
 
 
