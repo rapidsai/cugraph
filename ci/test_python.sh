@@ -60,6 +60,7 @@ pytest \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
   --cov-report=term \
+  -m=sg \
   tests
 popd
 
@@ -75,6 +76,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
+  -m=sg \
   -k "not test_property_graph_mg" \
   tests
 popd
@@ -101,6 +103,7 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-nx-coverage.xml" \
   --cov-report=term \
   --benchmark-disable \
+  -m=sg \
   tests
 popd
 
@@ -127,6 +130,7 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
   --cov-report=term \
   --benchmark-disable \
+  -m=sg \
   -k "not mg" \
   tests
 popd
@@ -169,6 +173,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov=cugraph_dgl \
       --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
       --cov-report=term \
+      -m=sg \
       .
     popd
 
@@ -226,6 +231,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov=cugraph_pyg \
       --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
       --cov-report=term \
+      -m=sg \
       .
     popd
 
