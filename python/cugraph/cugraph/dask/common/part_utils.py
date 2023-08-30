@@ -289,7 +289,7 @@ def get_delayed_dict(ddf):
 
 def concat_within_workers(client, ddf):
     """
-    Concats all partitions within workers without transfers
+    Concats all partitions within workers without transfers.
     """
     df_delayed = get_delayed_dict(ddf)
 
