@@ -52,8 +52,8 @@ from pylibcugraph.utils cimport (
 def louvain(ResourceHandle resource_handle,
             _GPUGraph graph,
             size_t max_level,
-            double threshold,
-            double resolution,
+            float threshold,
+            float resolution,
             bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -74,13 +74,13 @@ def louvain(ResourceHandle resource_handle,
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    threshold: double
+    threshold: float
         Modularity gain threshold for each level. If the gain of
         modularity between 2 levels of the algorithm is less than the
         given threshold then the algorithm stops and returns the
         resulting communities.
 
-    resolution: double
+    resolution: float
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
