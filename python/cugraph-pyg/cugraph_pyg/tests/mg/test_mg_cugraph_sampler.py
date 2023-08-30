@@ -17,7 +17,9 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results_heterogeneous
+from cugraph_pyg.sampler.cugraph_sampler import (
+    _sampler_output_from_sampling_results_heterogeneous,
+)
 
 from cugraph.gnn import FeatureStore
 

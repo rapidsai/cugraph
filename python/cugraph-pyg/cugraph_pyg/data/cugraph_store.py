@@ -25,6 +25,7 @@ import cupy
 import pandas
 import cudf
 import cugraph
+import warnings
 
 from cugraph.utilities.utils import import_optional, MissingModule
 
@@ -837,11 +838,21 @@ class EXPERIMENTAL__CuGraphStore:
         """
         row_dict = {}
         col_dict = {}
-        if len(self.__edge_types_to_attrs) == 1:
+        # If there is only 1 edge type (includes heterogeneous graphs)
+        if len(self.edge_types) == 1:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            if len(self.__vertex_type_offsets["type"]) == 1:
+            # If there is only 1 node type (homogeneous)
+            # This should only occur if the cuGraph loader was
+            # not used.  This logic is deprecated.
+            if len(self.node_types) == 1:
+                warnings.warn(
+                    "Renumbering after sampling for homogeneous graphs is deprecated.",
+                    DeprecationWarning,
+                )
+
+                # Create a dataframe mapping old ids to new ids.
                 vtype = src_type
                 id_table = noi_index[vtype]
                 id_map = cudf.Series(
@@ -850,24 +861,31 @@ class EXPERIMENTAL__CuGraphStore:
                     index=cupy.asarray(id_table),
                 ).sort_index()
 
+                # Renumber the sources using binary search
+                # Step 1: get the index of the new id
                 ix_r = torch.searchsorted(
                     torch.as_tensor(id_map.index.values, device="cuda"),
                     torch.as_tensor(sampling_results.sources.values, device="cuda"),
                 )
+                # Step 2: Go from id indices to actual ids
                 row_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
                     ix_r
                 ]
 
+                # Renumber the destinations using binary search
+                # Step 1: get the index of the new id
                 ix_c = torch.searchsorted(
                     torch.as_tensor(id_map.index.values, device="cuda"),
                     torch.as_tensor(
                         sampling_results.destinations.values, device="cuda"
                     ),
                 )
+                # Step 2: Go from id indices to actual ids
                 col_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
                     ix_c
                 ]
             else:
+                # Handle the heterogeneous case where there is only 1 edge type
                 dst_id_table = noi_index[dst_type]
                 dst_id_map = cudf.DataFrame(
                     {
