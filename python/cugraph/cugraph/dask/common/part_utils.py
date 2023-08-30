@@ -220,7 +220,7 @@ def repartition(ddf, cumsum):
 
 def load_balance_func(ddf_, by, client=None):
     # Load balances the sorted dask_cudf DataFrame.
-    # Input is a dask_cudf dataframe ddf_ which is sorted by
+    # Input is a dask_cudf dataframe ddf_ which is sorted by 
     # the column name passed as the 'by' argument.
 
     client = default_client() if client is None else client
