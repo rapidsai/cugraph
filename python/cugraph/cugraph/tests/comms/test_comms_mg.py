@@ -38,7 +38,7 @@ IS_DIRECTED = [True, False]
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_pagerank(dask_client, directed):
+def test_dask_mg_pagerank(dask_client, directed):
 
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
