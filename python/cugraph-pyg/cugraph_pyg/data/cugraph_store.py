@@ -465,9 +465,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         if multi_gpu:
             nworkers = len(distributed.get_client().scheduler_info()["workers"])
-            df = dd.from_pandas(
-                df, npartitions=nworkers if len(df) > 32 else 1
-            ).persist()
+            df = dd.from_pandas(df, npartitions=nworkers if len(df) > 32 else 1)
 
             # Ensure the dataframe is constructed on each partition
             # instead of adding additional synchronization head from potential
@@ -482,24 +480,13 @@ class EXPERIMENTAL__CuGraphStore:
                 )
 
             # Have to check for empty partitions and handle them appropriately
-            df = (
-                df.map_partitions(
-                    lambda f: cudf.DataFrame.from_pandas(f)
-                    if len(f) > 0
-                    else get_empty_df(),
-                    meta=get_empty_df(),
-                )
-                .reset_index(drop=True)
-                df = df.persist()
-                df = (
-                df.map_partitions(
-                    lambda f: cudf.DataFrame.from_pandas(f)
-                    if len(f) > 0
-                    else get_empty_df(),
-                    meta=get_empty_df(),
-                )
-                .reset_index(drop=True)
-            )
+            df = df.persist()
+            df = df.map_partitions(
+                lambda f: cudf.DataFrame.from_pandas(f)
+                if len(f) > 0
+                else get_empty_df(),
+                meta=get_empty_df(),
+            ).reset_index(drop=True)
         else:
             df = cudf.from_pandas(df).reset_index(drop=True)
 

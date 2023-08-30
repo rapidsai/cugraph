@@ -84,13 +84,13 @@ def _get_unique_nodes(
 
 
 def _sampler_output_from_sampling_results_homogeneous(
-    sampling_results:cudf.DataFrame,
-    renumber_map:torch.Tensor,
-    graph_store:CuGraphStore,
-    data_index:Dict[Tuple[int, int], int],
+    sampling_results: cudf.DataFrame,
+    renumber_map: torch.Tensor,
+    graph_store: CuGraphStore,
+    data_index: Dict[Tuple[int, int], int],
     batch_id: int,
     metadata: Sequence = None,
-) -> HeteroSamplerOutput:    
+) -> HeteroSamplerOutput:
     """
     Parameters
     ----------
@@ -112,7 +112,9 @@ def _sampler_output_from_sampling_results_homogeneous(
     if len(graph_store.edge_types) > 1 or len(graph_store.node_types) > 1:
         raise ValueError("Graph is heterogeneous")
 
-    hops = torch.arange(sampling_results.hop_id.iloc[len(sampling_results) - 1], device="cuda")
+    hops = torch.arange(
+        sampling_results.hop_id.iloc[len(sampling_results) - 1] + 1, device="cuda"
+    )
     hops = torch.searchsorted(
         torch.as_tensor(sampling_results.hop_id, device="cuda"), hops
     )
@@ -120,36 +122,44 @@ def _sampler_output_from_sampling_results_homogeneous(
     node_type = graph_store.node_types[0]
     edge_type = graph_store.edge_types[0]
 
-    num_nodes_per_hop_dict = {
-        node_type:torch.zeros(len(hops) + 1)
-    }
-    num_edges_per_hop_dict = {
-        edge_type:torch.zeros(len(hops))
-    }
+    num_nodes_per_hop_dict = {node_type: torch.zeros(len(hops) + 1, dtype=torch.int64)}
+    num_edges_per_hop_dict = {edge_type: torch.zeros(len(hops), dtype=torch.int64)}
 
     if renumber_map is None:
         raise ValueError("Renumbered input is expected for homogeneous graphs")
-      
+
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 
     row_dict = {
         edge_type: torch.as_tensor(sampling_results.sources, device="cuda"),
     }
-    
+
     col_dict = {
         edge_type: torch.as_tensor(sampling_results.destinations, device="cuda"),
-    } 
+    }
 
-    num_nodes_per_hop_dict[node_type][0] = data_index[batch_id, 0]['src_max'] + 1       
+    num_nodes_per_hop_dict[node_type][0] = data_index[batch_id, 0]["src_max"] + 1
     for hop in range(len(hops)):
         hop_ix_start = hops[hop]
         hop_ix_end = hops[hop + 1] if hop < len(hops) - 1 else len(sampling_results)
 
-        num_nodes_per_hop_dict[node_type][hop+1] = data_index[batch_id, hop]['dst_max'] + 1 - num_nodes_per_hop_dict[node_type][hop]
-        
-        num_edges_per_hop_dict[edge_type][hop] = (
-            hop_ix_end - hop_ix_start
-        )
+        if num_nodes_per_hop_dict[node_type][hop] > 0:
+            max_id_hop = data_index[batch_id, hop]["dst_max"]
+            max_id_prev_hop = (
+                data_index[batch_id, hop - 1]["dst_max"]
+                if hop > 0
+                else data_index[batch_id, 0]["src_max"]
+            )
+
+            if max_id_hop > max_id_prev_hop:
+                num_nodes_per_hop_dict[node_type][hop + 1] = (
+                    max_id_hop - max_id_prev_hop
+                )
+            else:
+                num_nodes_per_hop_dict[node_type][hop + 1] = 0
+        # will default to 0 if the previous hop was 0, since this is a PyG requirement
+
+        num_edges_per_hop_dict[edge_type][hop] = hop_ix_end - hop_ix_start
 
     if HeteroSamplerOutput is None:
         raise ImportError("Error importing from pyg")
@@ -218,7 +228,7 @@ def _sampler_output_from_sampling_results(
             "Precomputing the renumber map is currently "
             "unsupported for heterogeneous graphs."
         )
-    
+
     # Calculate nodes of interest based on unique nodes in order of appearance
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
@@ -268,9 +278,7 @@ def _sampler_output_from_sampling_results(
                 sampling_results_hop_0, graph_store, node_type, "src"
             )
 
-            num_unique_nodes = cudf.concat(
-                [unique_nodes_0, unique_nodes_hop]
-            ).nunique()
+            num_unique_nodes = cudf.concat([unique_nodes_0, unique_nodes_hop]).nunique()
 
             if num_unique_nodes > 0:
                 if node_type not in num_nodes_per_hop_dict:
