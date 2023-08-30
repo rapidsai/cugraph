@@ -45,6 +45,8 @@ pushd cpp/doxygen
 doxygen Doxyfile
 mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/html"
 mv html/* "${RAPIDS_DOCS_DIR}/libcugraph/html"
+mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/_xml"
+mv xml/* "${RAPIDS_DOCS_DIR}/libcugraph/_xml"
 popd
 
 rapids-logger "Build Python docs"

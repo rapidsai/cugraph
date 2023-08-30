@@ -37,6 +37,7 @@ from github_link import make_linkcode_resolve # noqa
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "breathe",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -184,6 +185,14 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+autodoc_mock_imports = [
+    "numpy",
+    "torch",
+    "torch.distributed",
+    "torch.utils.dlpack",
+    "torch.utils.data.Dataset",
+    "pylibcugraph.binding.cugraph_binding"
+]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
@@ -193,6 +202,9 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 numpydoc_show_inherited_class_members = False
 numpydoc_class_members_toctree = False
 
+breathe_projects = {
+    'libcugraph': '../libcugraph/_xml',
+}
 
 def setup(app):
     app.add_css_file("https://docs.rapids.ai/assets/css/custom.css")

@@ -9,8 +9,11 @@ This page provides a list of all publicly accessible Python modules with in the 
 
     cugraph/index.rst
     plc/pylibcugraph.rst
-    cugraph-dgl/cugraph_dgl.rst
-    cugraph-pyg/cugraph_pyg.rst
-    service/index.rst
-    cugraph-ops/index.rst
+    cugraph_c/index.rst
+    cugraph_cpp/index.rst
+
+..    cugraph-dgl/cugraph_dgl.rst
+..    cugraph-pyg/cugraph_pyg.rst
+..    service/index.rst
+
 

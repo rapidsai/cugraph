@@ -39,7 +39,7 @@ VALIDARGS="
    --pydevelop
    --allgpuarch
    --skip_cpp_tests
-   --with_cugraphops
+   --without_cugraphops
    --cmake_default_generator
    --clean
    -h
@@ -68,7 +68,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --pydevelop                - use setup.py develop instead of install
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
-   --with_cugraphops          - do not build algos that require cugraph-ops
+   --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
@@ -419,15 +419,19 @@ if All || hasArg docs; then
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
     fi
+
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
 
-    if [ -d ${LIBCUGRAPH_BUILD_DIR} ]; then
+    if [ -d ${REPODIR}/docs/cugraph/libcugraph ]; then
+        echo "removing libcugraph docs dir"
         rm -r ${REPODIR}/docs/cugraph/libcugraph
     fi
+    echo "making libcugraph doc dir"
     mkdir -p ${REPODIR}/docs/cugraph/libcugraph
 
-    mv ${REPODIR}/cpp/doxygen/xml   ${REPODIR}/docs/cugraph/libcugraph
+    mv ${REPODIR}/cpp/doxygen/xml   ${REPODIR}/docs/cugraph/libcugraph/_xml
+    mv ${REPODIR}/cpp/doxygen/html  ${REPODIR}/docs/cugraph/libcugraph/html
 
     cd ${REPODIR}/docs/cugraph
     make html

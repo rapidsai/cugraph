@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~
-cugraph API Reference
+cugraph Python API Reference
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. toctree::

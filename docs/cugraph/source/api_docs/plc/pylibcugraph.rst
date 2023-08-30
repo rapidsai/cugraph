@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-pylibcugraph API reference
+pylibcugraph Python API reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pylibcugraph

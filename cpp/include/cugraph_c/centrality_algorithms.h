@@ -22,11 +22,6 @@
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
-/** @defgroup centrality Centrality algorithms
- *  @ingroup c_api
- *  @{
- */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
