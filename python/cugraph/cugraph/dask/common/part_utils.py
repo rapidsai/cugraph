@@ -279,7 +279,7 @@ def concat_dfs(df_list):
 def get_delayed_dict(ddf):
     """
     Returns a dicitionary with the dataframe tasks as keys and
-    the dataframe delayed objects as values
+    the dataframe delayed objects as values.
     """
     df_delayed = {}
     for delayed_obj in ddf.to_delayed():
