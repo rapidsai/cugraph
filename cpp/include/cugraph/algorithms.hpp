@@ -459,6 +459,41 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
   int k,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
+/**
+ * @brief     Compute k truss for a graph  ** temporary
+ *
+ * K Truss is the maximal subgraph of a graph which contains at least three
+ * vertices where every edge is incident to at least k-2 triangles.
+ *
+ * This version is a temporary solution to clean up python integration through the C API.
+ *
+ * This version is only supported SG.
+ *
+ * @throws                  cugraph::logic_error with a custom message when an error
+ * occurs.
+ *
+ * @tparam vertex_t         Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam weight_t         Type of edge weights. Supported values : float or double.
+ *
+ * @param[in] handle        Library handle (RAFT).
+ * @param[in] src           Source vertices from COO
+ * @param[in] dst           Destination vertices from COO
+ * @param[in] wgt           Optional edge weights from COO
+ * @param[in] k             The order of the truss
+ * @return                  Tuple containing extracted src, dst and optional weights for the
+ * subgraph
+ */
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<vertex_t const> src,
+                 raft::device_span<vertex_t const> dst,
+                 std::optional<raft::device_span<weight_t const>> wgt,
+                 size_t number_of_vertices,
+                 int k);
+
 // FIXME: Internally distances is of int (signed 32-bit) data type, but current
 // template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
 // are not considered
