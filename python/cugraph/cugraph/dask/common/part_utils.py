@@ -157,7 +157,7 @@ async def _extract_partitions(
         # NOTE: We colocate (X, y) here by zipping delayed
         # n partitions of them as (X1, y1), (X2, y2)...
         # and asking client to compute a single future for
-        # each tuple in the list
+        # each tuple in the list.
         dela = [np.asarray(d.to_delayed()) for d in dask_obj]
 
         # TODO: ravel() is causing strange behavior w/ delayed Arrays which are
