@@ -245,7 +245,7 @@ def load_balance_func(ddf_, by, client=None):
     for cumsum in cumsum_parts:
         num_rows.append(cumsum.iloc[-1])
 
-    # Calculate current partition divisions
+    # Calculate current partition divisions.
     divisions = [sum(num_rows[0:x:1]) for x in range(0, len(num_rows) + 1)]
     divisions[-1] = divisions[-1] - 1
     divisions = tuple(divisions)
