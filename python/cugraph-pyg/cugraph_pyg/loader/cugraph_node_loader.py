@@ -24,7 +24,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import (
-    _sampler_output_from_sampling_results,
+    _sampler_output_from_sampling_results_heterogeneous,
     _sampler_output_from_sampling_results_homogeneous,
 )
 
@@ -314,7 +314,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                 self.__next_batch,
             )
         else:
-            sampler_output = _sampler_output_from_sampling_results(
+            sampler_output = _sampler_output_from_sampling_results_heterogeneous(
                 self.__data[f], current_renumber_map, self.__graph_store
             )
 
