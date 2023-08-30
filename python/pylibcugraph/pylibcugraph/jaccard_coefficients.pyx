@@ -132,7 +132,6 @@ def jaccard_coefficients(ResourceHandle resource_handle,
                                              &error_ptr)
     assert_success(error_code, error_ptr, "vertex_pairs")
 
-    print('cugraph_jaccard_coefficients use_weight:', use_weight)
     error_code = cugraph_jaccard_coefficients(c_resource_handle_ptr,
                                               c_graph_ptr,
                                               vertex_pairs_ptr,

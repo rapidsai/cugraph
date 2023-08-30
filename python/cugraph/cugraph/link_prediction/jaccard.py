@@ -245,8 +245,9 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=False):
     Examples
     --------
     >>> from cugraph.datasets import karate
+    >>> from cugraph import jaccard_coefficient
     >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.jaccard_coefficient(G)
+    >>> df = jaccard_coefficient(G)
 
     """
     if do_expensive_check:

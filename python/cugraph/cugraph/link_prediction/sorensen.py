@@ -214,7 +214,7 @@ def sorensen_coefficient(G, ebunch=None, do_expensive_check=False):
     >>> from cugraph.datasets import karate
     >>> from cugraph import sorensen_coefficient
     >>> G = karate.get_graph(download=True, ignore_weights=True)
-    >>> df = sorensen_coef(G)
+    >>> df = sorensen_coefficient(G)
 
     """
 
