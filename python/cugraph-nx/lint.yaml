@@ -50,7 +50,7 @@ repos:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.285
+    rev: v0.0.286
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]
@@ -76,7 +76,7 @@ repos:
         additional_dependencies: [tomli]
         files: ^(cugraph_nx|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.285
+    rev: v0.0.286
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks
