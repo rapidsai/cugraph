@@ -132,7 +132,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_pagerank(dask_client, directed):
+def test_dask_mg_pagerank(dask_client, directed):
     pandas.set_option("display.max_rows", 10000)
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
