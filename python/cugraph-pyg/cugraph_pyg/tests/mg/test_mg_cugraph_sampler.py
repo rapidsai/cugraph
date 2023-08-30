@@ -17,7 +17,7 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
+from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results_heterogeneous
 
 from cugraph.gnn import FeatureStore
 
@@ -49,7 +49,7 @@ def test_neighbor_sample(dask_client, basic_graph_1):
         .sort_values(by=["sources", "destinations"])
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -105,7 +105,7 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
         .compute()
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -184,7 +184,7 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
         }
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         mock_sampling_results, None, graph_store, None
     )
 

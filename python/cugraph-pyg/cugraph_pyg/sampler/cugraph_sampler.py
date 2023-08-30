@@ -182,7 +182,7 @@ def _sampler_output_from_sampling_results_homogeneous(
     )
 
 
-def _sampler_output_from_sampling_results(
+def _sampler_output_from_sampling_results_heterogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: cudf.Series,
     graph_store: CuGraphStore,
