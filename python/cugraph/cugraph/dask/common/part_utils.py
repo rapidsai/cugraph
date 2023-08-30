@@ -271,7 +271,7 @@ def load_balance_func(ddf_, by, client=None):
 
 def concat_dfs(df_list):
     """
-    Concat a list of cudf dataframes
+    Concat a list of cudf dataframes.
     """
     return cudf.concat(df_list)
 
