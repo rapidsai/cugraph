@@ -225,27 +225,27 @@ class Tests_ODShortestDistances
 using Tests_ODShortestDistances_File = Tests_ODShortestDistances<cugraph::test::File_Usecase>;
 using Tests_ODShortestDistances_Rmat = Tests_ODShortestDistances<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_ODShortestDistances_File, DISABLED_CheckInt32Int32Float)
+TEST_P(Tests_ODShortestDistances_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_ODShortestDistances_Rmat, DISABLED_CheckInt32Int32Float)
+TEST_P(Tests_ODShortestDistances_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_ODShortestDistances_Rmat, DISABLED_CheckInt32Int64Float)
+TEST_P(Tests_ODShortestDistances_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_ODShortestDistances_Rmat, DISABLED_CheckInt64Int64Float)
+TEST_P(Tests_ODShortestDistances_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(
