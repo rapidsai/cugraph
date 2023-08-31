@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import networkx as nx
 
-import cugraph_nx as cnx
+import nx_cugraph as cnx
 
 
 class BackendInterface:

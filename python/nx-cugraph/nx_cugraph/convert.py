@@ -22,10 +22,10 @@ import cupy as cp
 import networkx as nx
 import numpy as np
 
-import cugraph_nx as cnx
+import nx_cugraph as cnx
 
 if TYPE_CHECKING:
-    from cugraph_nx.typing import AttrKey, Dtype, EdgeValue, NodeValue
+    from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue
 
 __all__ = [
     "from_networkx",
@@ -52,7 +52,7 @@ def from_networkx(
     name: str | None = None,
     graph_name: str | None = None,
 ) -> cnx.Graph:
-    """Convert a networkx graph to cugraph_nx graph; can convert all attributes.
+    """Convert a networkx graph to nx_cugraph graph; can convert all attributes.
 
     Parameters
     ----------
@@ -94,7 +94,7 @@ def from_networkx(
 
     Returns
     -------
-    cugraph_nx.Graph
+    nx_cugraph.Graph
 
     Notes
     -----
@@ -111,7 +111,7 @@ def from_networkx(
 
     See Also
     --------
-    to_networkx : The opposite; convert cugraph_nx graph to networkx graph
+    to_networkx : The opposite; convert nx_cugraph graph to networkx graph
     """
     # This uses `graph._adj` and `graph._node`, which are private attributes in NetworkX
     if not isinstance(graph, nx.Graph):
@@ -399,13 +399,13 @@ def _iter_attr_dicts(
 
 
 def to_networkx(G: cnx.Graph) -> nx.Graph:
-    """Convert a cugraph_nx graph to networkx graph.
+    """Convert a nx_cugraph graph to networkx graph.
 
     All edge and node attributes and ``G.graph`` properties are converted.
 
     Parameters
     ----------
-    G : cugraph_nx.Graph
+    G : nx_cugraph.Graph
 
     Returns
     -------
@@ -413,7 +413,7 @@ def to_networkx(G: cnx.Graph) -> nx.Graph:
 
     See Also
     --------
-    from_networkx : The opposite; convert networkx graph to cugraph_nx graph
+    from_networkx : The opposite; convert networkx graph to nx_cugraph graph
     """
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
@@ -464,7 +464,7 @@ def _to_graph(
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.Graph | cnx.DiGraph:
-    """Ensure that input type is a cugraph_nx graph, and convert if necessary.
+    """Ensure that input type is a nx_cugraph graph, and convert if necessary.
 
     Directed and undirected graphs are both allowed.
     This is an internal utility function and may change or be removed.
@@ -485,7 +485,7 @@ def _to_directed_graph(
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.DiGraph:
-    """Ensure that input type is a cugraph_nx DiGraph, and convert if necessary.
+    """Ensure that input type is a nx_cugraph DiGraph, and convert if necessary.
 
     Undirected graphs will be converted to directed.
     This is an internal utility function and may change or be removed.
@@ -511,7 +511,7 @@ def _to_undirected_graph(
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
 ) -> cnx.Graph:
-    """Ensure that input type is a cugraph_nx Graph, and convert if necessary.
+    """Ensure that input type is a nx_cugraph Graph, and convert if necessary.
 
     Only undirected graphs are allowed. Directed graphs will raise ValueError.
     This is an internal utility function and may change or be removed.

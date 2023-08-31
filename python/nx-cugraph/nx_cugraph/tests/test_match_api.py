@@ -15,8 +15,8 @@ import inspect
 
 import networkx as nx
 
-import cugraph_nx as cnx
-from cugraph_nx.utils import networkx_algorithm
+import nx_cugraph as cnx
+from nx_cugraph.utils import networkx_algorithm
 
 
 def test_match_signature_and_names():
@@ -44,7 +44,7 @@ def test_match_signature_and_names():
         if not func.extra_params:
             assert orig_sig == func_sig
         else:
-            # Ignore extra parameters added to cugraph-nx algorithm
+            # Ignore extra parameters added to nx-cugraph algorithm
             assert orig_sig == func_sig.replace(
                 parameters=[
                     p
@@ -79,7 +79,7 @@ def test_match_signature_and_names():
         while "." in cnx_path:
             # This only walks up the module tree and does not check sibling modules
             cnx_path, mod_name = cnx_path.rsplit(".", 1)
-            nx_path = cnx_path.replace("cugraph_nx", "networkx")
+            nx_path = cnx_path.replace("nx_cugraph", "networkx")
             cnx_mod = importlib.import_module(cnx_path)
             nx_mod = importlib.import_module(nx_path)
             # Is the function present in the current module?

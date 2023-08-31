@@ -12,8 +12,8 @@
 # limitations under the License.
 import pylibcugraph as plc
 
-from cugraph_nx.convert import _to_graph
-from cugraph_nx.utils import networkx_algorithm
+from nx_cugraph.convert import _to_graph
+from nx_cugraph.utils import networkx_algorithm
 
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 

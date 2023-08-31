@@ -21,12 +21,12 @@ import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
-import cugraph_nx as cnx
+import nx_cugraph as cnx
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from cugraph_nx.typing import (
+    from nx_cugraph.typing import (
         AttrKey,
         Dtype,
         EdgeTuple,
@@ -42,7 +42,7 @@ networkx_api = cnx.utils.decorators.networkx_class(nx.Graph)
 
 
 class Graph:
-    # Tell networkx to dispatch calls with this object to cugraph-nx
+    # Tell networkx to dispatch calls with this object to nx-cugraph
     __networkx_plugin__: ClassVar[str] = "cugraph"
 
     # networkx properties

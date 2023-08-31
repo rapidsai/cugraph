@@ -14,8 +14,8 @@ import cupy as cp
 import networkx as nx
 import pytest
 
-import cugraph_nx as cnx
-from cugraph_nx import interface
+import nx_cugraph as cnx
+from nx_cugraph import interface
 
 
 @pytest.mark.parametrize("graph_class", [nx.Graph, nx.DiGraph])

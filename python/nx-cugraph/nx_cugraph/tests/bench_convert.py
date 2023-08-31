@@ -16,7 +16,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-import cugraph_nx as cnx
+import nx_cugraph as cnx
 
 try:
     import cugraph

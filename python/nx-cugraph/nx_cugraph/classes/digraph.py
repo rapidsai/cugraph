@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-import cugraph_nx as cnx
+import nx_cugraph as cnx
 
 from .graph import Graph
 
 if TYPE_CHECKING:
-    from cugraph_nx.typing import NodeKey
+    from nx_cugraph.typing import NodeKey
 
 __all__ = ["DiGraph"]
 
