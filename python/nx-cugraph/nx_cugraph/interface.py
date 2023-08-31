@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import networkx as nx
 
-import nx_cugraph as cnx
+import nx_cugraph as nxcg
 
 
 class BackendInterface:
@@ -29,12 +29,12 @@ class BackendInterface:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        return cnx.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
+        return nxcg.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, cnx.Graph):
-            return cnx.to_networkx(obj)
+        if isinstance(obj, nxcg.Graph):
+            return nxcg.to_networkx(obj)
         return obj
 
     @staticmethod

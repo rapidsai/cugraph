@@ -21,7 +21,7 @@ import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
-import nx_cugraph as cnx
+import nx_cugraph as nxcg
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 __all__ = ["Graph"]
 
-networkx_api = cnx.utils.decorators.networkx_class(nx.Graph)
+networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
 
 class Graph:
@@ -248,7 +248,7 @@ class Graph:
         elif incoming_graph_data.__class__ is new_graph.__class__:
             new_graph = incoming_graph_data.copy()
         elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
-            new_graph = cnx.from_networkx(incoming_graph_data, preserve_all_attrs=True)
+            new_graph = nxcg.from_networkx(incoming_graph_data, preserve_all_attrs=True)
         else:
             raise NotImplementedError
         new_graph.graph.update(attr)
@@ -270,8 +270,8 @@ class Graph:
 
     @classmethod
     @networkx_api
-    def to_directed_class(cls) -> type[cnx.DiGraph]:
-        return cnx.DiGraph
+    def to_directed_class(cls) -> type[nxcg.DiGraph]:
+        return nxcg.DiGraph
 
     @classmethod
     def to_networkx_class(cls) -> type[nx.Graph]:
@@ -428,7 +428,7 @@ class Graph:
         return int((self.row_indices <= self.col_indices).sum())
 
     @networkx_api
-    def to_directed(self, as_view: bool = False) -> cnx.DiGraph:
+    def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
         return self._copy(as_view, self.to_directed_class())
 
     @networkx_api

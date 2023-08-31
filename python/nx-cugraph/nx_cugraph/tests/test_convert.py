@@ -14,7 +14,7 @@ import cupy as cp
 import networkx as nx
 import pytest
 
-import nx_cugraph as cnx
+import nx_cugraph as nxcg
 from nx_cugraph import interface
 
 
@@ -28,20 +28,20 @@ from nx_cugraph import interface
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": 0}},
         {"edge_attrs": {"x": None}},
-        {"edge_attrs": {"x": cnx.convert.REQUIRED}},
+        {"edge_attrs": {"x": nxcg.convert.REQUIRED}},
         {"edge_attrs": {"x": ...}},  # sugar for REQUIRED
         {"edge_attrs": "x"},
         {"node_attrs": {"x": 0}},
         {"node_attrs": {"x": None}},
-        {"node_attrs": {"x": cnx.convert.REQUIRED}},
+        {"node_attrs": {"x": nxcg.convert.REQUIRED}},
         {"node_attrs": {"x": ...}},  # sugar for REQUIRED
         {"node_attrs": "x"},
     ],
 )
 def test_convert_empty(graph_class, kwargs):
     G = graph_class()
-    cG = cnx.from_networkx(G, **kwargs)
-    H = cnx.to_networkx(cG)
+    cG = nxcg.from_networkx(G, **kwargs)
+    H = nxcg.to_networkx(cG)
     assert G.number_of_nodes() == cG.number_of_nodes() == H.number_of_nodes() == 0
     assert G.number_of_edges() == cG.number_of_edges() == H.number_of_edges() == 0
     assert cG.edge_values == cG.edge_masks == cG.node_values == cG.node_masks == {}
@@ -61,74 +61,74 @@ def test_convert():
         {"edge_attrs": {"x": None}, "node_attrs": {"bar": None}},
         {"edge_attrs": "x", "edge_dtypes": int},
         {
-            "edge_attrs": {"x": cnx.convert.REQUIRED},
-            "node_attrs": {"foo": cnx.convert.REQUIRED},
+            "edge_attrs": {"x": nxcg.convert.REQUIRED},
+            "node_attrs": {"foo": nxcg.convert.REQUIRED},
         },
         {"edge_attrs": {"x": ...}, "node_attrs": {"foo": ...}},  # sugar for REQUIRED
     ]:
         # All edges have "x" attribute, so all kwargs are equivalent
-        cG = cnx.from_networkx(G, **kwargs)
+        cG = nxcg.from_networkx(G, **kwargs)
         cp.testing.assert_array_equal(cG.row_indices, [0, 1])
         cp.testing.assert_array_equal(cG.col_indices, [1, 0])
         cp.testing.assert_array_equal(cG.edge_values["x"], [2, 2])
         assert len(cG.edge_values) == 1
         assert cG.edge_masks == {}
-        H = cnx.to_networkx(cG)
+        H = nxcg.to_networkx(cG)
         assert G.number_of_nodes() == cG.number_of_nodes() == H.number_of_nodes() == 2
         assert G.number_of_edges() == cG.number_of_edges() == H.number_of_edges() == 1
         assert G.adj == H.adj
 
     with pytest.raises(KeyError, match="bar"):
-        cnx.from_networkx(G, node_attrs={"bar": ...})
+        nxcg.from_networkx(G, node_attrs={"bar": ...})
 
     # Structure-only graph (no edge attributes)
-    cG = cnx.from_networkx(G, preserve_node_attrs=True)
+    cG = nxcg.from_networkx(G, preserve_node_attrs=True)
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     cp.testing.assert_array_equal(cG.node_values["foo"], [10, 20])
     assert cG.edge_values == cG.edge_masks == {}
-    H = cnx.to_networkx(cG)
+    H = nxcg.to_networkx(cG)
     assert set(G.edges) == set(H.edges) == {(0, 1)}
     assert G.nodes == H.nodes
 
     # Fill completely missing attribute with default value
-    cG = cnx.from_networkx(G, edge_attrs={"y": 0})
+    cG = nxcg.from_networkx(G, edge_attrs={"y": 0})
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     cp.testing.assert_array_equal(cG.edge_values["y"], [0, 0])
     assert len(cG.edge_values) == 1
     assert cG.edge_masks == cG.node_values == cG.node_masks == {}
-    H = cnx.to_networkx(cG)
+    H = nxcg.to_networkx(cG)
     assert list(H.edges(data=True)) == [(0, 1, {"y": 0})]
 
     # If attribute is completely missing (and no default), then just ignore it
-    cG = cnx.from_networkx(G, edge_attrs={"y": None})
+    cG = nxcg.from_networkx(G, edge_attrs={"y": None})
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     assert sorted(cG.edge_values) == sorted(cG.edge_masks) == []
-    H = cnx.to_networkx(cG)
+    H = nxcg.to_networkx(cG)
     assert list(H.edges(data=True)) == [(0, 1, {})]
 
     G.add_edge(0, 2)
     # Some edges are missing 'x' attribute; need to use a mask
     for kwargs in [{"preserve_edge_attrs": True}, {"edge_attrs": {"x": None}}]:
-        cG = cnx.from_networkx(G, **kwargs)
+        cG = nxcg.from_networkx(G, **kwargs)
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
         assert sorted(cG.edge_values) == sorted(cG.edge_masks) == ["x"]
         cp.testing.assert_array_equal(cG.edge_masks["x"], [True, False, True, False])
         cp.testing.assert_array_equal(cG.edge_values["x"][cG.edge_masks["x"]], [2, 2])
-    H = cnx.to_networkx(cG)
+    H = nxcg.to_networkx(cG)
     assert list(H.edges(data=True)) == [(0, 1, {"x": 2}), (0, 2, {})]
 
     with pytest.raises(KeyError, match="x"):
-        cnx.from_networkx(G, edge_attrs={"x": cnx.convert.REQUIRED})
+        nxcg.from_networkx(G, edge_attrs={"x": nxcg.convert.REQUIRED})
     with pytest.raises(KeyError, match="x"):
-        cnx.from_networkx(G, edge_attrs={"x": ...})
+        nxcg.from_networkx(G, edge_attrs={"x": ...})
     with pytest.raises(KeyError, match="bar"):
-        cnx.from_networkx(G, node_attrs={"bar": cnx.convert.REQUIRED})
+        nxcg.from_networkx(G, node_attrs={"bar": nxcg.convert.REQUIRED})
     with pytest.raises(KeyError, match="bar"):
-        cnx.from_networkx(G, node_attrs={"bar": ...})
+        nxcg.from_networkx(G, node_attrs={"bar": ...})
 
     # Now for something more complicated...
     G = nx.Graph()
@@ -146,7 +146,7 @@ def test_convert():
         {"edge_attrs": {"x": 0, "y": None}},
         {"edge_attrs": {"x": 0, "y": None}, "edge_dtypes": {"x": int, "y": float}},
     ]:
-        cG = cnx.from_networkx(G, **kwargs)
+        cG = nxcg.from_networkx(G, **kwargs)
         assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
@@ -156,7 +156,7 @@ def test_convert():
         cp.testing.assert_array_equal(
             cG.edge_values["y"][cG.edge_masks["y"]], [1.5, 1.5]
         )
-        H = cnx.to_networkx(cG)
+        H = nxcg.to_networkx(cG)
         assert G.adj == H.adj
 
     # Some nodes have masks, some don't
@@ -167,7 +167,7 @@ def test_convert():
         {"node_attrs": {"foo": None, "bar": None}},
         {"node_attrs": {"foo": 0, "bar": None, "missing": None}},
     ]:
-        cG = cnx.from_networkx(G, **kwargs)
+        cG = nxcg.from_networkx(G, **kwargs)
         assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
@@ -177,7 +177,7 @@ def test_convert():
         cp.testing.assert_array_equal(
             cG.node_values["bar"][cG.node_masks["bar"]], [1000]
         )
-        H = cnx.to_networkx(cG)
+        H = nxcg.to_networkx(cG)
         assert G.nodes == H.nodes
 
     # Check default values for nodes
@@ -188,7 +188,7 @@ def test_convert():
         {"node_attrs": {"bar": 0}, "node_dtypes": {"bar": int}},
         {"node_attrs": {"bar": 0, "foo": None}, "node_dtypes": int},
     ]:
-        cG = cnx.from_networkx(G, **kwargs)
+        cG = nxcg.from_networkx(G, **kwargs)
         assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
@@ -200,4 +200,4 @@ def test_convert():
     ):
         interface.BackendInterface.convert_from_nx(G, edge_attrs={"x": 1}, weight="x")
     with pytest.raises(TypeError, match="Expected networkx.Graph"):
-        cnx.from_networkx({})
+        nxcg.from_networkx({})

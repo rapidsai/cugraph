@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-import nx_cugraph as cnx
+import nx_cugraph as nxcg
 
 from .graph import Graph
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 __all__ = ["DiGraph"]
 
-networkx_api = cnx.utils.decorators.networkx_class(nx.DiGraph)
+networkx_api = nxcg.utils.decorators.networkx_class(nx.DiGraph)
 
 
 class DiGraph(Graph):

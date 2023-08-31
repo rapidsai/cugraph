@@ -15,13 +15,13 @@ import inspect
 
 import networkx as nx
 
-import nx_cugraph as cnx
+import nx_cugraph as nxcg
 from nx_cugraph.utils import networkx_algorithm
 
 
 def test_match_signature_and_names():
     """Simple test to ensure our signatures and basic module layout match networkx."""
-    for name, func in vars(cnx.interface.BackendInterface).items():
+    for name, func in vars(nxcg.interface.BackendInterface).items():
         if not isinstance(func, networkx_algorithm):
             continue
 
@@ -52,7 +52,7 @@ def test_match_signature_and_names():
                     if name not in func.extra_params
                 ]
             )
-        if func.can_run is not cnx.utils.decorators._default_can_run:
+        if func.can_run is not nxcg.utils.decorators._default_can_run:
             assert func_sig == inspect.signature(func.can_run)
 
         # Matching function names?
