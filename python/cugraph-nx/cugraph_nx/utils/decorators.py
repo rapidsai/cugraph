@@ -28,17 +28,26 @@ def networkx_class(api):
 
 
 class networkx_algorithm:
-    def __new__(cls, func=None, *, name=None):
+    def __new__(cls, func=None, *, name=None, extra_params=None):
         if func is None:
-            return partial(networkx_algorithm, name=name)
+            return partial(networkx_algorithm, name=name, extra_params=extra_params)
         instance = object.__new__(cls)
         # update_wrapper sets __wrapped__, which will be used for the signature
         update_wrapper(instance, func)
         instance.__defaults__ = func.__defaults__
         instance.__kwdefaults__ = func.__kwdefaults__
         instance.name = func.__name__ if name is None else name
+        # TODO: should extra_params be a dict[str, str] that describes the parameters?
+        if extra_params is None:
+            instance.extra_params = None
+        elif isinstance(extra_params, str):
+            instance.extra_params = {extra_params}
+        else:
+            instance.extra_params = set(extra_params)
         instance.can_run = _default_can_run
         setattr(BackendInterface, instance.name, instance)
+        # Set methods so they are in __dict__
+        instance._can_run = instance._can_run
         return instance
 
     def _can_run(self, func):
