@@ -205,6 +205,7 @@ numpydoc_class_members_toctree = False
 breathe_projects = {
     'libcugraph': '../libcugraph/_xml',
 }
+breathe_default_project = "libcugraph"
 
 def setup(app):
     app.add_css_file("https://docs.rapids.ai/assets/css/custom.css")
