@@ -27,21 +27,21 @@ namespace cugraph {
 /*
  * @brief renumber sampled edge list and compress to the (D)CSR|(D)CSC format.
  *
- * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs fulfilling the
- * following requirements. Assume major = source if @p src_is_major is true, major = destination if
- * @p src_is_major is false.
+ * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edges fulfilling
+ * the following requirements. Assume major = source if @p src_is_major is true, major = destination
+ * if @p src_is_major is false.
  *
- * 1. If @p edgelist_hops is valid, we can consider (vertex ID, flag=major, hop) triplets for each
+ * 1. If @p edgelist_hops is valid, we can consider (vertex ID, hop, flag=major) triplets for each
  * vertex ID in edge majors (@p edgelist_srcs if @p src_is_major is true, @p edgelist_dsts if false)
- * and (vertex ID, flag=minor, hop) triplets for each vertex ID in edge minors. From these triplets,
+ * and (vertex ID, hop, flag=minor) triplets for each vertex ID in edge minors. From these triplets,
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
  * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
  * appear only in edge minors.
- * 3. If label_offsets.has_value() is true, edge lists for different labels will be renumbered
- * separately.
+ * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
+ * renumbered separately.
  *
  * The renumbered edges are compressed based on the following requirements.
  *
@@ -57,7 +57,11 @@ namespace cugraph {
  * larger, the maximum vertex ID is the larger of the maximum major vertex ID for this hop and the
  * maximum vertex ID for the edges in the previous hops.
  *
- * This function assumes that the edges are pre-sorted by hop # within each label.
+ * If both @p compress_per_hop is false and @p edgelist_hops.has_value() is true, majors should be
+ * non-decreasing within each label after renumbering and sorting by (hop, major, minor). Also,
+ * majors in hop N should not appear in any of the previous hops. This condition is satisfied if
+ * majors in hop N + 1 does not have any vertices from the previous hops excluding the minors from
+ * hop N.
  *
  * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
  *
@@ -66,7 +70,6 @@ namespace cugraph {
  * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
- * @tparam label_t Type of labels. Needs to be an integral type.
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs A vector storing edgelist source vertices.
@@ -79,32 +82,36 @@ namespace cugraph {
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
- * non-decreasing within each label.
- * @param label_offsets An optional tuple storing a pointer to the array storing label offsets to
- * the input edges (size = std::get<1>(*label_offsets) + 1) and the number of labels.
+ * edgelist_srcs.size() if valid) and the number of hops.
+ * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
+ * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
+ * labels.
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and compression.
  * @param compress_per_hop A flag to determine whether to compress edges with different hop numbers
- * separately (if true) or altogether (if false).
+ * separately (if true) or altogether (if false). If @p compress_per_hop is true, @p
+ * edgelist_hops.has_value() should be true and @p doubly_compress should be false.
  * @param doubly_compress A flag to determine whether to compress to the CSR/CSC format (if false)
  * or the DCSR/DCSC format (if true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing optional DCSR/DCSC major vertex IDs with one or more neighbors,
- * (D)CSR|(D)CSC offset values, edge minor vertex IDs, optional edge weights, optional edge IDs,
- * optional edge types, optional (label, hop) offset values to the (D)CSR|(D)CSC offset array (size
- * = # labels * # hops + 1, where # labels = std::get<1>(*label_offsets) if @p
- * label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
- * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original vertices (size
- * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
- * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
- * is true).
+ * (D)CSR|(D)CSC offset values, edge minor vertex IDs, optional edge weights (valid only if @p
+ * edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
+ * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
+ * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the
+ * (D)CSR|(D)CSC offset array (size = # labels * # hops + 1, where # labels =
+ * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
+ * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
+ * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
+ * edgelist_hops.has_value() is rue), renumber_map to query original vertices (size = # unique
+ * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
+ * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
+ * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
           typename weight_t,
           typename edge_id_t,
-          typename edge_type_t,
-          typename label_t>
+          typename edge_type_t>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>,     // dcsr/dcsc major vertices
            rmm::device_uvector<size_t>,                      // (d)csr/(d)csc offset values
            rmm::device_uvector<vertex_t>,                    // minor vertices
@@ -123,7 +130,7 @@ renumber_and_compress_sampled_edgelist(
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> label_offsets,
+  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
   bool src_is_major       = true,
   bool compress_per_hop   = false,
   bool doubly_compress    = false,
@@ -132,30 +139,27 @@ renumber_and_compress_sampled_edgelist(
 /*
  * @brief renumber sampled edge list and sort the renumbered edges.
  *
- * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs fulfilling the
- * following requirements. Assume major = source if @p src_is_major is true, major = destination if
- * @p src_is_major is false.
+ * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edges fulfilling
+ * the following requirements. Assume major = source if @p src_is_major is true, major = destination
+ * if @p src_is_major is false.
  *
- * 1. If @p edgelist_hops is valid, we can consider (vertex ID, flag=major, hop) triplets for each
+ * 1. If @p edgelist_hops is valid, we can consider (vertex ID, hop, flag=major) triplets for each
  * vertex ID in edge majors (@p edgelist_srcs if @p src_is_major is true, @p edgelist_dsts if false)
- * and (vertex ID, flag=minor, hop) triplets for each vertex ID in edge minors. From these triplets,
+ * and (vertex ID, hop, flag=minor) triplets for each vertex ID in edge minors. From these triplets,
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
  * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
  * appear only in edge minors.
- * 3. If label_offsets.has_value() is true, edge lists for different labels will be renumbered
- * separately.
+ * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
+ * renumbered separately.
  *
  * The renumbered edges are sorted based on the following rules.
  *
- * 1. If @p src_is_major is true, use (src, dst) as the key in sorting. If @p src_is_major is false,
- * use (dst, src) instead.
- * 2. Edges in each label are sorted independently if @p label_offsets.has_value() is true.
- * 3. Edges in each hop are sorted independently if @p edgelist_hops.has_value() is true.
- *
- * This function assumes that the edges are pre-sorted by hop # within each label.
+ * 1. If @p src_is_major is true, use ((hop), src, dst) as the key in sorting. If @p src_is_major is
+ * false, use ((hop), dst, src) instead. hop is used only if @p edgelist_hops.has_value() is true.
+ * 2. Edges in each label are sorted independently if @p edgelist_label_offsets.has_value() is true.
  *
  * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
  *
@@ -164,7 +168,6 @@ renumber_and_compress_sampled_edgelist(
  * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
- * @tparam label_t Type of labels. Needs to be an integral type.
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs A vector storing edgelist source vertices.
@@ -179,27 +182,29 @@ renumber_and_compress_sampled_edgelist(
  * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
  * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
  * non-decreasing within each label.
- * @param label_offsets An optional tuple storing a pointer to the array storing label offsets to
- * the input edges (size = std::get<1>(*label_offsets) + 1) and the number of labels.
+ * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
+ * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
+ * labels.
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid if
- * @p edgelist_weights.has_value() is true), optional edge IDs (valid if @p
- * edgelist_edge_ids.has_value() is true), optional edge types (valid if @p
+ * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
+ * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
+ * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
  * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the renumbered
- * and sorted edges (size = # labels * # hops + 1, where # labels = std::get<1>(*label_offsets) if
- * @p label_offsets.has_value() is true and 1 otherwise and # hops = std::get<1>(*edgelist_hops) if
- * edgelist_hops.has_value() is true and 1 otherwise), renumber_map to query original vertices (size
- * = # unique vertices or aggregate # unique vertices for every label), and label offsets to the
- * renumber_map (size = std::get<1>(*label_offsets) + 1, valid only if @p label_offsets.has_value()
- * is true).
+ * and sorted edges (size = # labels * # hops + 1, where # labels =
+ * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
+ * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
+ * otherwise, vlaid only if at least one of @p edgelist_label_offsets.has_value() or @p
+ * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
+ * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
+ * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
+ * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
           typename weight_t,
           typename edge_id_t,
-          typename edge_type_t,
-          typename label_t>
+          typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
            rmm::device_uvector<vertex_t>,                    // dsts
            std::optional<rmm::device_uvector<weight_t>>,     // weights
@@ -216,7 +221,7 @@ renumber_and_sort_sampled_edgelist(
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> label_offsets,
+  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
   bool src_is_major       = true,
   bool do_expensive_check = false);
 
