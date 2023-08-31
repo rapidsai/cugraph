@@ -117,6 +117,35 @@ struct is_first_in_run_t {
   }
 };
 
+template <typename label_index_t>
+struct compute_label_index_t {
+  raft::device_span<size_t const> edgelist_label_offsets{};
+
+  __device__ label_index_t operator()(size_t i) const
+  {
+    return static_cast<label_index_t>(thrust::distance(
+      edgelist_label_offsets.begin() + 1,
+      thrust::upper_bound(
+        thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
+  }
+};
+
+template <typename label_index_t>
+struct optionally_compute_label_index_t {
+  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
+
+  __device__ label_index_t operator()(size_t i) const
+  {
+    return edgelist_label_offsets ? static_cast<label_index_t>(thrust::distance(
+                                      (*edgelist_label_offsets).begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          (*edgelist_label_offsets).begin() + 1,
+                                                          (*edgelist_label_offsets).end(),
+                                                          i)))
+                                  : label_index_t{0};
+  }
+};
+
 template <typename label_index_t,
           typename vertex_t,
           typename weight_t,
@@ -870,6 +899,7 @@ sort_sampled_and_renumbered_edgelist(
   std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
   bool src_is_major)
 {
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::vector<size_t> h_label_offsets{};
   std::vector<size_t> h_edge_offsets{};
 
@@ -899,7 +929,7 @@ sort_sampled_and_renumbered_edgelist(
                                  std::get<0>(*edgelist_label_offsets).data() + h_label_offsets[i],
                                  (h_label_offsets[i + 1] - h_label_offsets[i]) + 1)
                              : thrust::nullopt,
-      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t>>(
+      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
                         std::get<0>(*edgelist_hops).data() + h_edge_offsets[i], indices.size())
                     : thrust::nullopt,
       raft::device_span<vertex_t const>(
@@ -1045,18 +1075,9 @@ renumber_and_compress_sampled_edgelist(
 
       auto label_index_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
-        [edgelist_label_offsets = edgelist_label_offsets
-                                    ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
-                                    : thrust::nullopt] __device__(size_t i) {
-          return edgelist_label_offsets
-                   ? static_cast<label_index_t>(
-                       thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                        thrust::upper_bound(thrust::seq,
-                                                            (*edgelist_label_offsets).begin() + 1,
-                                                            (*edgelist_label_offsets).end(),
-                                                            i)))
-                   : label_index_t{0};
-        });
+        optionally_compute_label_index_t<label_index_t>{
+          edgelist_label_offsets ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
+                                 : thrust::nullopt});
       auto input_key_first =
         thrust::make_zip_iterator(label_index_first, std::get<0>(*edgelist_hops).begin());
       rmm::device_uvector<label_index_t> unique_key_label_indices(min_vertices.size(),
@@ -1121,7 +1142,7 @@ renumber_and_compress_sampled_edgelist(
     is_first_in_run_t<vertex_t>{
       edgelist_label_offsets ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
                              : thrust::nullopt,
-      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t>>(
+      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
                         std::get<0>(*edgelist_hops).data(), std::get<0>(*edgelist_hops).size())
                     : thrust::nullopt,
       raft::device_span<vertex_t const>(
@@ -1142,12 +1163,7 @@ renumber_and_compress_sampled_edgelist(
   if (edgelist_label_offsets) {
     auto label_index_first = thrust::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
-      [edgelist_label_offsets = std::get<0>(*edgelist_label_offsets)] __device__(size_t i) {
-        return static_cast<label_index_t>(thrust::distance(
-          edgelist_label_offsets.begin() + 1,
-          thrust::upper_bound(
-            thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
-      });
+      compute_label_index_t<label_index_t>{std::get<0>(*edgelist_label_offsets)});
 
     if (edgelist_hops) {
       auto input_key_first = thrust::make_zip_iterator(
