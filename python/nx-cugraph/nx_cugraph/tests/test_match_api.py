@@ -74,33 +74,33 @@ def test_match_signature_and_names():
         )
 
         # Matching package layout (i.e., which modules have the function)?
-        cnx_path = func.__module__
+        nxcg_path = func.__module__
         name = func.__name__
-        while "." in cnx_path:
+        while "." in nxcg_path:
             # This only walks up the module tree and does not check sibling modules
-            cnx_path, mod_name = cnx_path.rsplit(".", 1)
-            nx_path = cnx_path.replace("nx_cugraph", "networkx")
-            cnx_mod = importlib.import_module(cnx_path)
+            nxcg_path, mod_name = nxcg_path.rsplit(".", 1)
+            nx_path = nxcg_path.replace("nx_cugraph", "networkx")
+            nxcg_mod = importlib.import_module(nxcg_path)
             nx_mod = importlib.import_module(nx_path)
             # Is the function present in the current module?
-            present_in_cnx = hasattr(cnx_mod, name)
+            present_in_nxcg = hasattr(nxcg_mod, name)
             present_in_nx = hasattr(nx_mod, name)
-            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
-                if present_in_cnx:
+            if present_in_nxcg is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_nxcg:
                     raise AssertionError(
-                        f"{name} exists in {cnx_path}, but not in {nx_path}"
+                        f"{name} exists in {nxcg_path}, but not in {nx_path}"
                     )
                 raise AssertionError(
-                    f"{name} exists in {nx_path}, but not in {cnx_path}"
+                    f"{name} exists in {nx_path}, but not in {nxcg_path}"
                 )
             # Is the nested module present in the current module?
-            present_in_cnx = hasattr(cnx_mod, mod_name)
+            present_in_nxcg = hasattr(nxcg_mod, mod_name)
             present_in_nx = hasattr(nx_mod, mod_name)
-            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
-                if present_in_cnx:
+            if present_in_nxcg is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_nxcg:
                     raise AssertionError(
-                        f"{mod_name} exists in {cnx_path}, but not in {nx_path}"
+                        f"{mod_name} exists in {nxcg_path}, but not in {nx_path}"
                     )
                 raise AssertionError(
-                    f"{mod_name} exists in {nx_path}, but not in {cnx_path}"
+                    f"{mod_name} exists in {nx_path}, but not in {nxcg_path}"
                 )
