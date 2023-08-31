@@ -52,7 +52,7 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code =
-    cugraph_louvain_with_threshold(p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
+    cugraph_louvain(p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_louvain failed.");

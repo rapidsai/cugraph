@@ -31,7 +31,6 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_hierarchical_clustering_result_t,
     cugraph_louvain,
-    cugraph_louvain_with_threshold,
     cugraph_hierarchical_clustering_result_get_vertices,
     cugraph_hierarchical_clustering_result_get_clusters,
     cugraph_hierarchical_clustering_result_get_modularity,
@@ -123,14 +122,14 @@ def louvain(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_louvain_with_threshold(c_resource_handle_ptr,
-                                                c_graph_ptr,
-                                                max_level,
-                                                threshold,
-                                                resolution,
-                                                do_expensive_check,
-                                                &result_ptr,
-                                                &error_ptr)
+    error_code = cugraph_louvain(c_resource_handle_ptr,
+                                 c_graph_ptr,
+                                 max_level,
+                                 threshold,
+                                 resolution,
+                                 do_expensive_check,
+                                 &result_ptr,
+                                 &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_louvain")
 
     # Extract individual device array pointers from result and copy to cupy

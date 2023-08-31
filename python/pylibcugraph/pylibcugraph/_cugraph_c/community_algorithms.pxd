@@ -98,17 +98,6 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t max_level,
-            double resolution,
-            bool_t do_expensive_check,
-            cugraph_hierarchical_clustering_result_t** result,
-            cugraph_error_t** error
-        )
-    
-    cdef cugraph_error_code_t \
-        cugraph_louvain_with_threshold(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            size_t max_level,
             double threshold,
             double resolution,
             bool_t do_expensive_check,

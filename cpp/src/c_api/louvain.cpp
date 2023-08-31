@@ -125,25 +125,11 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
 extern "C" cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
                                                 cugraph_graph_t* graph,
                                                 size_t max_level,
+                                                double threshold,
                                                 double resolution,
                                                 bool_t do_expensive_check,
                                                 cugraph_hierarchical_clustering_result_t** result,
                                                 cugraph_error_t** error)
-{
-  louvain_functor functor(handle, graph, max_level, double{1e-7}, resolution, do_expensive_check);
-
-  return cugraph::c_api::run_algorithm(graph, functor, result, error);
-}
-
-extern "C" cugraph_error_code_t cugraph_louvain_with_threshold(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  size_t max_level,
-  double threshold,
-  double resolution,
-  bool_t do_expensive_check,
-  cugraph_hierarchical_clustering_result_t** result,
-  cugraph_error_t** error)
 {
   louvain_functor functor(handle, graph, max_level, threshold, resolution, do_expensive_check);
 
