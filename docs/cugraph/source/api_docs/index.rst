@@ -4,7 +4,7 @@ Python API reference
 This page provides a list of all publicly accessible Python modules with in the Graph collection
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
     :caption: Python API Documentation
 
     cugraph/index.rst

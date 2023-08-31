@@ -24,7 +24,7 @@
 
 /** @defgroup community Community algorithms
  *  @{
-    @}
+ *  @}
  */
 
 #ifdef __cplusplus

@@ -8,13 +8,9 @@ cuGraph C API documentation
     :caption: API Documentation
 
     centrality.rst
+    community.rst
+    core.rst
+    labeling.rst
+    sampling.rst
     similarity.rst
-
-
-.. #include <cugraph_c/centrality_algorithms.h>
- #include <cugraph_c/community_algorithms.h>
- #include <cugraph_c/core_algorithms.h>
- #include <cugraph_c/labeling_algorithms.h>
- #include <cugraph_c/sampling_algorithms.h>
- #include <cugraph_c/similarity_algorithms.h>
- #include <cugraph_c/traversal_algorithms.h>
+    traversal.rst

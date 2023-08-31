@@ -23,7 +23,7 @@
 
 /** @defgroup core Core algorithms
  *  @{
-    @}
+ *  @}
  */
 
 #ifdef __cplusplus

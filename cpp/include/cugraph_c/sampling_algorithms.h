@@ -24,6 +24,14 @@
 /** @defgroup sampling Sampling algorithms
  *  @ingroup c_api
  *  @{
+ *  @}
+ */
+
+/**
+ *  @defgroup sampling_test
+ *  @ingroup c_api
+ *  @{
+ *  @}
  */
 
 #ifdef __cplusplus
@@ -135,6 +143,7 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_error_t** error);
 
 /**
+ * @ingroup sampling
  * @brief     Get the max path length from random walk result
  *
  * @param [in]   result   The result from random walks
@@ -146,6 +155,7 @@ size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result
 //         difference at the moment is that RW results contain weights
 //         and extract_paths results don't.  But that's probably wrong.
 /**
+ * @ingroup sampling
  * @brief     Get the matrix (row major order) of vertices in the paths
  *
  * @param [in]   result   The result from a random walk algorithm
@@ -155,6 +165,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
   cugraph_random_walk_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the matrix (row major order) of edge weights in the paths
  *
  * @param [in]   result   The result from a random walk algorithm
@@ -164,6 +175,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
   cugraph_random_walk_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     If the random walk result is compressed, get the path sizes
  * @deprecated This call will no longer be relevant once the new node2vec are called
  *
@@ -174,6 +186,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_siz
   cugraph_random_walk_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Free random walks result
  *
  * @param [in]   result   The result from random walks
@@ -195,6 +208,7 @@ typedef struct {
 } cugraph_sampling_options_t;
 
 /**
+ * @ingroup sampling
  * @brief     Enumeration for prior sources behavior
  */
 typedef enum cugraph_prior_sources_behavior_t {
@@ -206,6 +220,7 @@ typedef enum cugraph_prior_sources_behavior_t {
 } cugraph_prior_sources_behavior_t;
 
 /**
+ * @ingroup sampling
  * @brief   Create sampling options object
  *
  * All sampling options set to FALSE
@@ -218,6 +233,7 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
                                                      cugraph_error_t** error);
 
 /**
+ * @ingroup sampling
  * @brief   Set flag to renumber results
  *
  * @param options - opaque pointer to the sampling options
@@ -226,6 +242,7 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
 void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @ingroup sampling
  * @brief   Set flag to sample with_replacement
  *
  * @param options - opaque pointer to the sampling options
@@ -234,6 +251,7 @@ void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, 
 void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @ingroup sampling
  * @brief   Set flag to sample return_hops
  *
  * @param options - opaque pointer to the sampling options
@@ -242,6 +260,7 @@ void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, 
 void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @ingroup sampling
  * @brief   Set prior sources behavior
  *
  * @param options - opaque pointer to the sampling options
@@ -251,6 +270,7 @@ void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* opt
                                                  cugraph_prior_sources_behavior_t value);
 
 /**
+ * @ingroup sampling
  * @brief   Set flag to sample dedupe_sources prior to sampling
  *
  * @param options - opaque pointer to the sampling options
@@ -259,6 +279,7 @@ void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* opt
 void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @ingroup sampling
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
@@ -374,6 +395,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @ingroup sampling
  * @brief     Get the source vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -383,6 +405,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the destination vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -392,6 +415,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the start labels from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -401,6 +425,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the edge_id from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -410,6 +435,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the edge_type from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -419,6 +445,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the edge_weight from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -428,6 +455,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the hop from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -437,6 +465,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the index from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -446,6 +475,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the result offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -455,6 +485,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the renumber map
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -464,6 +495,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Get the renumber map offsets
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -473,6 +505,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_
   const cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling
  * @brief     Free a sampling result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -480,6 +513,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_
 void cugraph_sample_result_free(cugraph_sample_result_t* result);
 
 /**
+ * @ingroup sampling_test
  * @brief     Create a sampling result (testing API)
  *
  * @param [in]   handle         Handle for accessing resources
@@ -510,6 +544,7 @@ cugraph_error_code_t cugraph_test_sample_result_create(
   cugraph_error_t** error);
 
 /**
+ * @ingroup sampling_test
  * @brief     Create a sampling result (testing API)
  *
  * @param [in]   handle         Handle for accessing resources
@@ -540,6 +575,7 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
   cugraph_error_t** error);
 
 /**
+ * @ingroup sampling_test
  * @brief Select random vertices from the graph
  *
  * @param [in]      handle        Handle for accessing resources
@@ -563,6 +599,3 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
 }
 #endif
 
-/**
- *  @}
- */
