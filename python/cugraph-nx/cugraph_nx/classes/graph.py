@@ -24,7 +24,7 @@ import pylibcugraph as plc
 import cugraph_nx as cnx
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
     from cugraph_nx.typing import (
         AttrKey,
@@ -531,6 +531,17 @@ class Graph:
             renumber=False,
             do_expensive_check=False,
         )
+
+    def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
+        """Convert an iterable of node IDs to an iterable of node keys."""
+        if (id_to_key := self.id_to_key) is not None:
+            return map(id_to_key.__getitem__, node_ids)
+        return node_ids
+
+    def _nodearray_to_list(self, node_ids: cp.ndarray[IndexValue]) -> list[NodeKey]:
+        if self.key_to_id is None:
+            return node_ids.tolist()
+        return list(self._nodeiter_to_iter(node_ids.tolist()))
 
     def _nodearrays_to_dict(
         self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]

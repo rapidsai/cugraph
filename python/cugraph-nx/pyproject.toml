@@ -116,7 +116,7 @@ omit = []
 ignore_errors = false
 precision = 1
 fail_under = 0
-skip_covered = true
+skip_covered = false  # Nice to see fully covered files when running `run_nx_tests.sh`
 skip_empty = true
 exclude_lines = [
     "pragma: no cover",
