@@ -28,3 +28,8 @@ ENV SCCACHE_REGION="us-east-2"
 ENV SCCACHE_BUCKET="rapids-sccache-devs"
 ENV VAULT_HOST="https://vault.ops.k8s.rapids.ai"
 ENV HISTFILE="/home/coder/.cache/._bash_history"
+
+# Each device compilation uses ~4GB of memory.
+# Knowing this helps us compile as many archs
+# as possible in parallel without OOM'ing.
+ENV MAX_DEVICE_OBJ_MEMORY_USAGE=4
