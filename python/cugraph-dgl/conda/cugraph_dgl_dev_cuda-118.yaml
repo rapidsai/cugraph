@@ -12,8 +12,6 @@ channels:
 dependencies:
 - cugraph==23.10.*
 - dgl>=1.1.0.cu*
-- networkx>=2.5.1
-- numpy>=1.21
 - pandas
 - pre-commit
 - pylibcugraphops==23.10.*
