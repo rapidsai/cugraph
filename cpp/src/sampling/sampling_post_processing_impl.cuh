@@ -1036,21 +1036,84 @@ renumber_and_compress_sampled_edgelist(
                                                                  edgelist_label_offsets,
                                                                  src_is_major);
 
+  auto edgelist_majors = src_is_major ? std::move(edgelist_srcs) : std::move(edgelist_dsts);
+  auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
+
   if (do_expensive_check) {
     if (!compress_per_hop && edgelist_hops) {
       rmm::device_uvector<vertex_t> min_vertices(num_labels * num_hops, handle.get_stream());
       rmm::device_uvector<vertex_t> max_vertices(min_vertices.size(), handle.get_stream());
-      // FIXME:
-      // majors for hop N + 1 should be newly appeared vertices either hop N (as minors) or hop N +
-      // 1 (as majors)
+
+      auto label_index_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(size_t{0}),
+        [edgelist_label_offsets = edgelist_label_offsets
+                                    ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
+                                    : thrust::nullopt] __device__(size_t i) {
+          return edgelist_label_offsets
+                   ? static_cast<label_index_t>(
+                       thrust::distance((*edgelist_label_offsets).begin() + 1,
+                                        thrust::upper_bound(thrust::seq,
+                                                            (*edgelist_label_offsets).begin() + 1,
+                                                            (*edgelist_label_offsets).end(),
+                                                            i)))
+                   : label_index_t{0};
+        });
+      auto input_key_first =
+        thrust::make_zip_iterator(label_index_first, std::get<0>(*edgelist_hops).begin());
+      rmm::device_uvector<label_index_t> unique_key_label_indices(min_vertices.size(),
+                                                                  handle.get_stream());
+      rmm::device_uvector<int32_t> unique_key_hops(min_vertices.size(), handle.get_stream());
+      auto output_key_first =
+        thrust::make_zip_iterator(unique_key_label_indices.begin(), unique_key_hops.begin());
+
+      auto output_it =
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              input_key_first,
+                              input_key_first + edgelist_majors.size(),
+                              edgelist_majors.begin(),
+                              output_key_first,
+                              min_vertices.begin(),
+                              thrust::equal_to<thrust::tuple<label_index_t, int32_t>>{},
+                              thrust::minimum<vertex_t>{});
+      auto num_unique_keys =
+        static_cast<size_t>(thrust::distance(output_key_first, thrust::get<0>(output_it)));
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            input_key_first,
+                            input_key_first + edgelist_majors.size(),
+                            edgelist_majors.begin(),
+                            output_key_first,
+                            max_vertices.begin(),
+                            thrust::equal_to<thrust::tuple<label_index_t, int32_t>>{},
+                            thrust::maximum<vertex_t>{});
+      if (num_unique_keys > 1) {
+        auto num_invalids = thrust::count_if(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{1}),
+          thrust::make_counting_iterator(num_unique_keys),
+          [output_key_first,
+           min_vertices = raft::device_span<vertex_t const>(min_vertices.data(), num_unique_keys),
+           max_vertices = raft::device_span<vertex_t const>(max_vertices.data(),
+                                                            num_unique_keys)] __device__(size_t i) {
+            auto prev_key = *(output_key_first + (i - 1));
+            auto this_key = *(output_key_first + i);
+            if (thrust::get<0>(prev_key) == thrust::get<0>(this_key)) {
+              auto this_min = min_vertices[i];
+              auto prev_max = max_vertices[i - 1];
+              return prev_max >= this_min;
+            } else {
+              return false;
+            }
+          });
+        CUGRAPH_EXPECTS(num_invalids == 0,
+                        "Invalid input arguments: if @p compress_per_hop is false and @p "
+                        "edgelist_hops.has_value() is true, the minimum majors with hop N + 1 "
+                        "should be larger than the maximum majors with hop N after renumbering.");
+      }
     }
   }
 
   // 4. compute offsets for ((l), (h), major) triplets with non zero neighbors (update
   // compressed_label_indices, compressed_hops, compressed_nzd_vertices, and compressed_offsets)
-
-  auto edgelist_majors = src_is_major ? std::move(edgelist_srcs) : std::move(edgelist_dsts);
-  auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
 
   auto num_uniques = thrust::count_if(
     handle.get_thrust_policy(),
