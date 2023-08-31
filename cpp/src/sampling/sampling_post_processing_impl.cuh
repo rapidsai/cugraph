@@ -46,6 +46,77 @@ namespace cugraph {
 
 namespace {
 
+template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
+struct edge_order_t {
+  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
+  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
+  raft::device_span<vertex_t const> edgelist_majors{};
+  raft::device_span<vertex_t const> edgelist_minors{};
+
+  __device__ bool operator()(size_t l_idx, size_t r_idx) const
+  {
+    if (edgelist_label_offsets) {
+      auto l_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          (*edgelist_label_offsets).begin() + 1,
+                                                          (*edgelist_label_offsets).end(),
+                                                          (*edgelist_label_offsets)[0] + l_idx));
+      auto r_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          (*edgelist_label_offsets).begin() + 1,
+                                                          (*edgelist_label_offsets).end(),
+                                                          (*edgelist_label_offsets)[0] + r_idx));
+      if (l_label != r_label) { return l_label < r_label; }
+    }
+
+    if (edgelist_hops) {
+      auto l_hop = (*edgelist_hops)[l_idx];
+      auto r_hop = (*edgelist_hops)[r_idx];
+      if (l_hop != r_hop) { return l_hop < r_hop; }
+    }
+
+    auto l_major = edgelist_majors[l_idx];
+    auto r_major = edgelist_majors[r_idx];
+    if (l_major != r_major) { return l_major < r_major; }
+
+    auto l_minor = edgelist_minors[l_idx];
+    auto r_minor = edgelist_minors[r_idx];
+    if (l_minor != r_minor) { return l_minor < r_minor; }
+
+    return l_idx < r_idx;
+  }
+};
+
+template <typename vertex_t>
+struct is_first_in_run_t {
+  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
+  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
+  raft::device_span<vertex_t const> edgelist_majors{};
+
+  __device__ bool operator()(size_t i) const
+  {
+    if (i == 0) return true;
+    if (edgelist_label_offsets) {
+      auto prev_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
+                                         thrust::upper_bound(thrust::seq,
+                                                             (*edgelist_label_offsets).begin() + 1,
+                                                             (*edgelist_label_offsets).end(),
+                                                             i - 1));
+      auto this_label = thrust::distance(
+        (*edgelist_label_offsets).begin() + 1,
+        thrust::upper_bound(
+          thrust::seq, (*edgelist_label_offsets).begin() + 1, (*edgelist_label_offsets).end(), i));
+      if (this_label != prev_label) { return true; }
+    }
+    if (edgelist_hops) {
+      auto prev_hop = (*edgelist_hops)[i - 1];
+      auto this_hop = (*edgelist_hops)[i];
+      if (this_hop != prev_hop) { return true; }
+    }
+    return edgelist_majors[i] != edgelist_majors[i - 1];
+  }
+};
+
 template <typename label_index_t,
           typename vertex_t,
           typename weight_t,
@@ -759,78 +830,6 @@ renumber_sampled_edgelist(
                          std::move(renumber_map_label_offsets));
 }
 
-template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
-struct edge_order_t {
-  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
-  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
-  raft::device_span<vertex_t const> edgelist_majors{};
-  raft::device_span<vertex_t const> edgelist_minors{};
-
-  __device__ bool operator()(size_t l_idx, size_t r_idx) const
-  {
-    if (edgelist_label_offsets) {
-      auto l_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                      thrust::upper_bound(thrust::seq,
-                                                          (*edgelist_label_offsets).begin() + 1,
-                                                          (*edgelist_label_offsets).end(),
-                                                          (*edgelist_label_offsets)[0] + l_idx));
-      auto r_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                      thrust::upper_bound(thrust::seq,
-                                                          (*edgelist_label_offsets).begin() + 1,
-                                                          (*edgelist_label_offsets).end(),
-                                                          (*edgelist_label_offsets)[0] + r_idx));
-      if (l_label != r_label) { return l_label < r_label; }
-    }
-
-    if (edgelist_hops) {
-      auto l_hop = (*edgelist_hops)[l_idx];
-      auto r_hop = (*edgelist_hops)[r_idx];
-      if (l_hop != r_hop) { return l_hop < r_hop; }
-    }
-
-    auto l_major = edgelist_majors[l_idx];
-    auto r_major = edgelist_majors[r_idx];
-    if (l_major != r_major) { return l_major < r_major; }
-
-    auto l_minor = edgelist_minors[l_idx];
-    auto r_minor = edgelist_minors[r_idx];
-    if (l_minor != r_minor) { return l_minor < r_minor; }
-
-    return l_idx < r_idx;
-  }
-};
-
-// FIXME: this may conflict with is_first_in_run_t with device_functors.cuh
-template <typename vertex_t>
-struct is_first_in_run_t {
-  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
-  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
-  raft::device_span<vertex_t const> edgelist_majors{};
-
-  __device__ bool operator()(size_t i) const
-  {
-    if (i == 0) return true;
-    if (edgelist_label_offsets) {
-      auto prev_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                         thrust::upper_bound(thrust::seq,
-                                                             (*edgelist_label_offsets).begin() + 1,
-                                                             (*edgelist_label_offsets).end(),
-                                                             i - 1));
-      auto this_label = thrust::distance(
-        (*edgelist_label_offsets).begin() + 1,
-        thrust::upper_bound(
-          thrust::seq, (*edgelist_label_offsets).begin() + 1, (*edgelist_label_offsets).end(), i));
-      if (this_label != prev_label) { return true; }
-    }
-    if (edgelist_hops) {
-      auto prev_hop = (*edgelist_hops)[i - 1];
-      auto this_hop = (*edgelist_hops)[i];
-      if (this_hop != prev_hop) { return true; }
-    }
-    return edgelist_majors[i] != edgelist_majors[i - 1];
-  }
-};
-
 template <typename IndexIterator, typename ValueIterator>
 void permute_array(raft::handle_t const& handle,
                    IndexIterator index_first,
@@ -1523,6 +1522,8 @@ renumber_and_compress_sampled_edgelist(
     }
   }
 
+  edgelist_hops = std::nullopt;
+
   return std::make_tuple(std::move(compressed_nzd_vertices),
                          std::move(compressed_offsets),
                          std::move(edgelist_minors),
@@ -1662,6 +1663,8 @@ renumber_and_sort_sampled_edgelist(
                            (*edgelist_label_hop_offsets).end(),
                            (*edgelist_label_hop_offsets).begin());
   }
+
+  edgelist_hops = std::nullopt;
 
   return std::make_tuple(std::move(edgelist_srcs),
                          std::move(edgelist_dsts),
