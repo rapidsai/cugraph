@@ -40,7 +40,7 @@ IS_DIRECTED = [False, True]
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_wcc(dask_client, directed):
+def test_dask_mg_wcc(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")

@@ -196,7 +196,6 @@ set(CUGRAPH_SOURCES
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/traversal/legacy/bfs.cu
     src/link_prediction/legacy/jaccard.cu
     src/link_prediction/legacy/overlap.cu
     src/link_prediction/jaccard_sg.cu
@@ -235,7 +234,6 @@ set(CUGRAPH_SOURCES
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
     src/components/legacy/connectivity.cu
-    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
