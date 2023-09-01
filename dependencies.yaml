@@ -11,7 +11,6 @@ files:
       - cpp_build
       - cudatoolkit
       - docs
-      - python_build_wheel
       - python_build_cythonize
       - python_run_cugraph
       - python_run_pylibcugraph
@@ -325,8 +324,6 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - cython>=3.0.0
-          - scikit-build>=0.13.1
           - setuptools>=61.0.0
           - wheel
   python_build_cythonize:
@@ -335,6 +332,10 @@ dependencies:
         packages:
           - &pylibraft pylibraft==23.10.*
           - &rmm rmm==23.10.*
+      - output_types: [conda, pyproject, requirements]
+        packages:
+          - cython>=3.0.0
+          - scikit-build>=0.13.1
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
