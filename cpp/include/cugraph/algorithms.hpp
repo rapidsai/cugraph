@@ -1892,7 +1892,7 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
 /**
  * @brief Selects the type of compression to use for the output samples.
- * 
+ *
  * @param COO Outputs in COO format.  Default.
  * @param CSR Compresses in CSR format.  This means the row (src) column
  *            is compressed into a row pointer.
