@@ -364,7 +364,7 @@ if (USE_CUGRAPH_OPS)
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -377,7 +377,7 @@ else()
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -481,12 +481,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled_static>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
 )
 
 ################################################################################
