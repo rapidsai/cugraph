@@ -28,6 +28,12 @@ def _write_samples_to_parquet(
 ) -> cudf.Series:
     """
     Writes the samples to parquet.
+
+    Batches that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id.  This means that the output batch ids may not match
+    the input batch ids.
+
     results: cudf.DataFrame
         The results dataframe containing the sampled minibatches.
     offsets: cudf.DataFrame
@@ -62,9 +68,9 @@ def _write_samples_to_parquet(
     for p in range(0, len(offsets), batches_per_partition):
         offsets_p = offsets.iloc[p : p + batches_per_partition]
         start_batch_id = offsets_p.batch_id.iloc[0]
-        end_batch_id = offsets_p.batch_id.iloc[len(offsets_p)-1]
+        end_batch_id = offsets_p.batch_id.iloc[len(offsets_p) - 1]
 
-        reached_end = (end_batch_id == max_batch_id)
+        reached_end = end_batch_id == max_batch_id
 
         start_ix = offsets_p.offsets.iloc[0]
         if reached_end:
@@ -80,13 +86,8 @@ def _write_samples_to_parquet(
             # To properly account this, the remaining batches are
             # renumbered to have contiguous batch ids and the empty
             # samples are dropped.
-            offsets_p.drop('batch_id', axis=1, inplace=True)
-            batch_id_range = cudf.Series(
-                cupy.arange(
-                    start_batch_id,
-                    start_batch_id + len(offsets_p)
-                )
-            )
+            offsets_p.drop("batch_id", axis=1, inplace=True)
+            batch_id_range = cudf.Series(cupy.arange(len(offsets_p)))
             end_batch_id = start_batch_id + len(offsets_p) - 1
         else:
             batch_id_range = offsets_p.batch_id
@@ -160,6 +161,12 @@ def write_samples(
 ):
     """
     Writes the samples to parquet.
+
+    Batches in each partition that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id in the partition.
+    This means that the output batch ids may not match the input batch ids.
+
     results: cudf.DataFrame
         The results dataframe containing the sampled minibatches.
     offsets: cudf.DataFrame

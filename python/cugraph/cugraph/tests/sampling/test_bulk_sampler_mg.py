@@ -184,3 +184,66 @@ def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
                 ]
             ).nunique()
             assert len(map_current_batch) == n_unique
+
+
+@pytest.mark.mg
+def test_bulk_sampler_empty_batches(dask_client, scratch_dir):
+    edgelist = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 0, 1, 2, 3, 4, 5, 6, 4, 4],
+                "dst": [3, 2, 0, 7, 8, 9, 1, 2, 8, 1],
+            }
+        ),
+        npartitions=2,
+    )
+
+    batches = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "start": [0, 1, 2, 7, 8, 9, 3, 2, 7],
+                "batch": cudf.Series([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype="int32"),
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(edgelist, source="src", destination="dst")
+
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_empty_batches")
+    create_directory_with_overwrite(samples_path)
+
+    bs = BulkSampler(
+        batch_size=3,
+        output_path=samples_path,
+        graph=G,
+        fanout_vals=[-1, -1],
+        with_replacement=False,
+        batches_per_partition=6,
+        renumber=False,
+    )
+    bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
+    bs.flush()
+
+    assert len(os.listdir(samples_path)) == 1
+
+    df = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
+
+    assert df[
+        (df.batch_id == 0) & (df.hop_id == 0)
+    ].destinations.sort_values().values_host.tolist() == [0, 2, 3, 7]
+
+    assert df[
+        (df.batch_id == 0) & (df.hop_id == 1)
+    ].destinations.sort_values().values_host.tolist() == [2, 3, 7, 8]
+
+    assert df[
+        (df.batch_id == 1) & (df.hop_id == 0)
+    ].destinations.sort_values().values_host.tolist() == [7, 8]
+
+    assert len(df[(df.batch_id == 1) & (df.hop_id == 1)]) == 0
+
+    assert df.batch_id.max() == 1
+
+    shutil.rmtree(samples_path)

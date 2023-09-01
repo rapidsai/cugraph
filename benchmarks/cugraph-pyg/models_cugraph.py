@@ -32,7 +32,7 @@ class CuGraphSAGE(nn.Module):
         csc_time = end_csc - start_csc
         self._csc_time += csc_time
         self._num_iter += 1
-        print('mean csc time:', self._csc_time / self._num_iter)
+        #print('mean csc time:', self._csc_time / self._num_iter)
 
         x = x.cuda().to(torch.float32)
 

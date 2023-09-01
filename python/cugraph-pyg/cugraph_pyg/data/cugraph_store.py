@@ -211,7 +211,9 @@ class EXPERIMENTAL__CuGraphStore:
         F: cugraph.gnn.FeatureStore,
         G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
         num_nodes_dict: Dict[str, int],
+        *,
         multi_gpu: bool = False,
+        order="CSC",
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -256,6 +258,12 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
+
+        order: bool (Optional ["CSR", "CSC"], default = CSC)
+            The order to use for sampling.  Should nearly always be CSC
+            unless there is a specific expectation of "reverse" sampling.
+            It is also not uncommon to use CSR order for correctness
+            testing, which some cuGraph-PyG tests do.
         """
 
         if None in G:
@@ -289,6 +297,7 @@ class EXPERIMENTAL__CuGraphStore:
         self.__features = F
         self.__graph = None
         self.__is_graph_owner = False
+        self.__order = order
 
         if construct_graph:
             if multi_gpu:
@@ -297,7 +306,9 @@ class EXPERIMENTAL__CuGraphStore:
                 )
 
             if self.__graph is None:
-                self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+                self.__graph = self.__construct_graph(
+                    G, multi_gpu=multi_gpu, order=order
+                )
                 self.__is_graph_owner = True
 
         self.__subgraphs = {}
@@ -347,6 +358,7 @@ class EXPERIMENTAL__CuGraphStore:
         self,
         edge_info: Dict[Tuple[str, str, str], List[TensorType]],
         multi_gpu: bool = False,
+        order: str = "CSC",
     ) -> cugraph.MultiGraph:
         """
         This function takes edge information and uses it to construct
@@ -363,12 +375,23 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool (Optional, default=False)
             Whether to construct a single-GPU or multi-GPU cugraph Graph.
             Defaults to a single-GPU graph.
+
+        order: str (CSC or CSR)
+            Essentially whether to reverse edges so that the cuGraph
+            sampling algorithm operates on the CSC matrix instead of
+            the CSR matrix.  Should nearly always be CSC unless there
+            is a specific expectation of reverse sampling, or correctness
+            testing is being performed.
+
         Returns
         -------
         A newly-constructed directed cugraph.MultiGraph object.
         """
         # Ensure the original dict is not modified.
         edge_info_cg = {}
+
+        if order != "CSR" and order != "CSC":
+            raise ValueError("Order must be either CSC (default) or CSR!")
 
         # Iterate over the keys in sorted order so that the created
         # numerical types correspond to the lexicographic order
@@ -429,20 +452,43 @@ class EXPERIMENTAL__CuGraphStore:
 
         df = pandas.DataFrame(
             {
-                "src": pandas.Series(na_src),
-                "dst": pandas.Series(na_dst),
+                "src": pandas.Series(na_dst)
+                if order == "CSC"
+                else pandas.Series(na_src),
+                "dst": pandas.Series(na_src)
+                if order == "CSC"
+                else pandas.Series(na_dst),
                 "etp": pandas.Series(na_etp),
             }
         )
+        vertex_dtype = df.src.dtype
 
         if multi_gpu:
             nworkers = len(distributed.get_client().scheduler_info()["workers"])
-            df = dd.from_pandas(df, npartitions=nworkers).persist()
-            df = df.map_partitions(cudf.DataFrame.from_pandas)
-        else:
-            df = cudf.from_pandas(df)
+            df = dd.from_pandas(df, npartitions=nworkers if len(df) > 32 else 1)
 
-        df = df.reset_index(drop=True)
+            # Ensure the dataframe is constructed on each partition
+            # instead of adding additional synchronization head from potential
+            # host to device copies.
+            def get_empty_df():
+                return cudf.DataFrame(
+                    {
+                        "src": cudf.Series([], dtype=vertex_dtype),
+                        "dst": cudf.Series([], dtype=vertex_dtype),
+                        "etp": cudf.Series([], dtype="int32"),
+                    }
+                )
+
+            # Have to check for empty partitions and handle them appropriately
+            df = df.persist()
+            df = df.map_partitions(
+                lambda f: cudf.DataFrame.from_pandas(f)
+                if len(f) > 0
+                else get_empty_df(),
+                meta=get_empty_df(),
+            ).reset_index(drop=True)
+        else:
+            df = cudf.from_pandas(df).reset_index(drop=True)
 
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
@@ -466,6 +512,10 @@ class EXPERIMENTAL__CuGraphStore:
     @property
     def _edge_types_to_attrs(self) -> dict:
         return dict(self.__edge_types_to_attrs)
+
+    @property
+    def order(self) -> str:
+        return self.__order
 
     @property
     def node_types(self) -> List[NodeType]:
@@ -556,6 +606,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise ValueError("Graph is not in memory, cannot access edge index!")
 
         if attr.layout != EdgeLayout.COO:
+            # TODO support returning CSR/CSC (Issue #3802)
             raise TypeError("Only COO direct access is supported!")
 
         # Currently, graph creation enforces that input vertex ids are always of
@@ -565,12 +616,14 @@ class EXPERIMENTAL__CuGraphStore:
         # This may change in the future if/when renumbering or the graph
         # creation process is refactored.
         # See Issue #3201 for more details.
+        # Also note src/dst are flipped so that cuGraph sampling is done in
+        # CSC format rather than CSR format.
         if self._is_delayed:
-            src_col_name = self.__graph.renumber_map.renumbered_src_col_name
-            dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name
+            dst_col_name = self.__graph.renumber_map.renumbered_src_col_name
+            src_col_name = self.__graph.renumber_map.renumbered_dst_col_name
         else:
-            src_col_name = self.__graph.srcCol
-            dst_col_name = self.__graph.dstCol
+            dst_col_name = self.__graph.srcCol
+            src_col_name = self.__graph.dstCol
 
         # If there is only one edge type (homogeneous graph) then
         # bypass the edge filters for a significant speed improvement.
@@ -848,7 +901,11 @@ class EXPERIMENTAL__CuGraphStore:
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
                 pyg_can_edge_type = tuple(pyg_can_edge_type_str.split("__"))
-                src_type, _, dst_type = pyg_can_edge_type
+
+                if self.__order == "CSR":
+                    src_type, _, dst_type = pyg_can_edge_type
+                else:  # CSC
+                    dst_type, _, src_type = pyg_can_edge_type
 
                 # Get the de-offsetted destinations
                 dst_num_type = self._numeric_vertex_type_from_name(dst_type)
