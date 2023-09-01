@@ -21,14 +21,14 @@
 namespace cugraph {
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -44,14 +44,14 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -67,14 +67,14 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -90,14 +90,14 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -113,14 +113,14 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -136,14 +136,14 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>,
-           rmm::device_uvector<size_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<size_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -159,13 +159,13 @@ renumber_and_compress_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -179,13 +179,13 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -199,13 +199,13 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -219,13 +219,13 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -239,13 +239,13 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -259,13 +259,13 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int64_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,

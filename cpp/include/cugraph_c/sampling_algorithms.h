@@ -374,6 +374,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_result_get_majors
  * @brief     Get the source vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -383,12 +384,40 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
   const cugraph_sample_result_t* result);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_result_get_minors
  * @brief     Get the destination vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the destination vertices in device memory
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the major vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the major vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the minor vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the minor vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the major offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the major offsets in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -437,6 +466,15 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
+ * @brief     Get the hop offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the hop offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
  * @brief     Get the index from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -446,12 +484,22 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_get_get_label_offsets
  * @brief     Get the result offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the result offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the result label offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the result label offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_offsets(
   const cugraph_sample_result_t* result);
 
 /**

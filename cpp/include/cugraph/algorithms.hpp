@@ -1891,6 +1891,21 @@ k_core(raft::handle_t const& handle,
 enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
 /**
+ * @brief Selects the type of compression to use for the output samples.
+ * 
+ * @param COO Outputs in COO format.  Default.
+ * @param CSR Compresses in CSR format.  This means the row (src) column
+ *            is compressed into a row pointer.
+ * @param CSC Compresses in CSC format.  This means the col (dst) column
+ *            is compressed into a column pointer.
+ * @param DCSR Compresses in DCSR format.  This outputs an additional index
+ *             that avoids empty entries in the row pointer.
+ * @param DCSC Compresses in DCSC format.  This outputs an additional index
+ *             that avoid empty entries in the row pointer.
+ */
+enum class compression_type_t { COO = 0, CSR, CSC, DCSR, DCSC };
+
+/**
  * @brief Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
