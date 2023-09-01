@@ -17,7 +17,7 @@
 #include <utilities/base_fixture.hpp>
 
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/graph_functions.hpp>
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
