@@ -233,8 +233,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                                             vertex_partition_lasts,
                                                             do_expensive_check_);
 
-      std::optional<rmm::device_uvector<vertex_t> majors{std::nullopt};
-      rmm::device_uvector<vertex_t> minors;
+      std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};
+      rmm::device_uvector<vertex_t> minors(0, handle_.get_stream());
       std::optional<rmm::device_uvector<size_t>> major_offsets{std::nullopt};
 
       std::optional<rmm::device_uvector<size_t>> hop_offsets{std::nullopt};
@@ -243,11 +243,11 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
       if(options_.renumber_results_) {
-        bool_t src_is_major = (options_.compression_type_ == CSR) || (options_.compression_type_ == DCSR);
-        if(options_.compression_type_ != COO) {
-          bool_t doubly_compress = (options_.compression_type_ == DCSR) || (options_.compression_type_ == DCSC);
+        bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) || (options_.compression_type_ == cugraph::compression_type_t::DCSR);
+        if(options_.compression_type_ != cugraph::compression_type_t::COO) {
+          bool doubly_compress = (options_.compression_type_ == cugraph::compression_type_t::DCSR) || (options_.compression_type_ == cugraph::compression_type_t::DCSC);
 
-          std::tie(majors, major_offsets, minors, edge_id, edge_type, hop_offsets, renumber_map, renumber_map_offsets) = 
+          std::tie(majors, *major_offsets, minors, wgt, edge_id, edge_type, hop_offsets, *renumber_map, renumber_map_offsets) = 
             cugraph::renumber_and_compress_sampled_edgelist(
               handle_,
               std::move(src),
@@ -258,13 +258,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               hop ? std::make_optional(
                 std::make_tuple(
                   std::move(*hop),
-                  fan_out_.size_
-                ) : std::nullopt,
-              ),
-              std::make_optional(std::make_tuple(
-                raft::device_span<size_t const>{offsets->data(), offsets->size()}),
+                  fan_out_->size_
+              )) : std::nullopt,
+              offsets ? std::make_optional(std::make_tuple(
+                raft::device_span<size_t const>{offsets->data(), offsets->size()},
                 edge_label->size()
-              ),
+              )) : std::nullopt,
               src_is_major,
               options_.compress_per_hop_,
               doubly_compress,
@@ -272,7 +271,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             );
         } else {
           // COO
-          std::tie(*majors, minors, wgt, edge_id, edge_type, hop_offsets, renumber_map, renumber_map_offsets) =
+          std::tie(*majors, minors, wgt, edge_id, edge_type, hop_offsets, *renumber_map, renumber_map_offsets) =
             cugraph::renumber_and_sort_sampled_edgelist(
               handle_,
               std::move(src),
@@ -283,13 +282,13 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               hop ? std::make_optional(
                       std::make_tuple(
                         std::move(*hop),
-                        fan_out_.size_
+                        fan_out_->size_
                       )
                     ) : std::nullopt,
-              std::make_optional(std::make_tuple(
-                  raft::device_span<size_t const>{offsets->data(), offsets->size()}),
+              offsets ? std::make_optional(std::make_tuple(
+                  raft::device_span<size_t const>{offsets->data(), offsets->size()},
                   edge_label->size()
-                ),
+              )) : std::nullopt,
               src_is_major,
               do_expensive_check_
             );
@@ -322,7 +321,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*major_offsets, SIZE_T)
           : nullptr,
         (majors)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(majors, graph_->vertex_type_)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*majors, graph_->vertex_type_)
           : nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(minors, graph_->vertex_type_),
         (edge_id)
@@ -803,13 +802,18 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
 extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
-  delete internal_pointer->src_;
-  delete internal_pointer->dst_;
+  delete internal_pointer->major_offsets_;
+  delete internal_pointer->majors_;
+  delete internal_pointer->minors_;
   delete internal_pointer->edge_id_;
   delete internal_pointer->edge_type_;
   delete internal_pointer->wgt_;
   delete internal_pointer->hop_;
+  delete internal_pointer->hop_offsets_;
   delete internal_pointer->label_;
+  delete internal_pointer->label_offsets_;
+  delete internal_pointer->renumber_map_;
+  delete internal_pointer->renumber_map_offsets_;
   delete internal_pointer;
 }
 
