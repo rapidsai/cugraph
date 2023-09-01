@@ -114,6 +114,9 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/build-in-devcontainer.yaml@fea/devcontainers
     with:
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
+        sccache -s;
         CUDA_HOME="${CONDA_PREFIX:-${CUDA_HOME:-/usr/local/cuda}}" \
         build-cugraph;
+        sccache -s;
