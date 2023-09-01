@@ -116,7 +116,7 @@ class per_device_edgelist_t {
       pos += copy_count;
       current_pos_ += copy_count;
 
-      if (current_pos_ == src_.size()) { create_new_buffers(handle); }
+      if (current_pos_ == src_.back().size()) { create_new_buffers(handle); }
     }
 
     handle.raft_handle().sync_stream();
@@ -200,14 +200,18 @@ class per_device_edgelist_t {
                                std::vector<rmm::device_uvector<T>>& buffer,
                                size_t total_size)
   {
-    buffer[0].resize(total_size, stream);
     size_t pos = buffer[0].size();
+    buffer[0].resize(total_size, stream);
 
     for (size_t i = 1; i < buffer.size(); ++i) {
       raft::copy(buffer[0].data() + pos, buffer[i].data(), buffer[i].size(), stream);
       pos += buffer[i].size();
       buffer[i].resize(0, stream);
     }
+
+    std::vector<rmm::device_uvector<T>> new_buffer;
+    new_buffer.push_back(std::move(buffer[0]));
+    buffer = std::move(new_buffer);
   }
 
   void create_new_buffers(cugraph::mtmg::handle_t const& handle)
