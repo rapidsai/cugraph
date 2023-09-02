@@ -30,7 +30,7 @@ function(find_and_configure_raft)
       set(CPM_DOWNLOAD_raft ON)
     endif()
 
-    if(PKG_COMPILE_LIBRARY)
+    if(PKG_COMPILE_RAFT_LIB)
       if(NOT PKG_USE_RAFT_STATIC)
         string(APPEND RAFT_COMPONENTS " compiled")
       else()

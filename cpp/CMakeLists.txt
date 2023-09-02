@@ -346,11 +346,20 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
+set(COMPILED_RAFT_LIB_STATIC "")
+set(COMPILED_RAFT_LIB "")
 if(CUDA_STATIC_RUNTIME)
   get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
   target_include_directories(cugraph PUBLIC ${_includes})
   # Add CTK include paths because we make our CTK library links private below
   target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+    set(COMPILED_RAFT_LIB_STATIC raft::compiled_static)
+  endif()
+else()
+    if(CUGRAPH_COMPILE_RAFT_LIB)
+        set(COMPILED_RAFT_LIB raft::compiled)
+    endif()
 endif()
 
 ################################################################################
@@ -361,10 +370,10 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB_STATIC}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -374,10 +383,10 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB_STATIC}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -481,12 +490,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled_static>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled_static>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB_STATIC}>
 )
 
 ################################################################################
