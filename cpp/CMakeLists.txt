@@ -357,9 +357,9 @@ if(CUDA_STATIC_RUNTIME)
     set(COMPILED_RAFT_LIB_STATIC raft::compiled_static)
   endif()
 else()
-    if(CUGRAPH_COMPILE_RAFT_LIB)
-        set(COMPILED_RAFT_LIB raft::compiled)
-    endif()
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+      set(COMPILED_RAFT_LIB raft::compiled)
+  endif()
 endif()
 
 ################################################################################
