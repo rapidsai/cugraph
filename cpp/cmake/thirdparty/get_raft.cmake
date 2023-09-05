@@ -36,9 +36,6 @@ function(find_and_configure_raft)
       else()
         string(APPEND RAFT_COMPONENTS " compiled_static")
       endif()
-      set(RAFT_COMPILE_LIBRARY ON)
-    else()
-      set(RAFT_COMPILE_LIBRARY OFF)
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
