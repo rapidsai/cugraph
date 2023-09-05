@@ -121,6 +121,119 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
   return out_graph;
 }
 
+
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>>
+ktruss_subgraph_impl_(raft::handle_t const& handle,
+                     raft::device_span<vertex_t> src,
+                     raft::device_span<vertex_t> dst,
+                     size_t number_of_vertices,
+                     int k)
+{
+
+  using HornetGraph = hornet::gpu::Hornet<vertex_t>;
+  using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+  using Update      = hornet::gpu::BatchUpdate<vertex_t>;
+
+  HornetGraph hnt(number_of_vertices + 1);
+
+  // NOTE: Should a constant pointer be passed for @src and @dst
+  UpdatePtr ptr(static_cast<int>(src.size()), src.data(), dst.data());
+  Update batch(ptr);
+
+  hnt.insert(batch);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+
+  KTruss kt(hnt);
+
+  kt.init();
+  kt.reset();
+  kt.createOffSetArray();
+  // NOTE : These parameters will become obsolete once we move to the updated
+  // algorithm (https://ieeexplore.ieee.org/document/8547581)
+  kt.setInitParameters(4,      // Number of threads per block per list intersection
+                       8,      // Number of intersections per block
+                       2,      // log2(Number of threads)
+                       64000,  // Total number of blocks launched
+                       32);    // Thread block dimension
+  kt.reset();
+  kt.sortHornet();
+
+  kt.runForK(k);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
+
+  rmm::device_uvector<vertex_t> result_src(kt.getGraphEdgeCount(), handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
+  //std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
+
+  kt.copyGraph(result_src.data(), result_dst.data());
+  
+
+  kt.release();
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
+
+  return std::make_tuple(std::move(result_src),
+                         std::move(result_dst));
+
+}
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+weighted_ktruss_subgraph_impl_(raft::handle_t const& handle,
+                     raft::device_span<vertex_t> src,
+                     raft::device_span<vertex_t> dst,
+                     std::optional<raft::device_span<weight_t>> wgt,
+                     size_t number_of_vertices,
+                     int k)
+{
+  using HornetGraph = hornet::gpu::Hornet<vertex_t, hornet::EMPTY, hornet::TypeList<weight_t>>;
+  using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::TypeList<weight_t>, hornet::DeviceType::DEVICE>;
+  using Update      = hornet::gpu::BatchUpdate<vertex_t, hornet::TypeList<weight_t>>;
+
+  HornetGraph hnt(number_of_vertices + 1);
+
+  UpdatePtr ptr(static_cast<int>(src.size()), src.data(), dst.data(), wgt->data());
+  Update batch(ptr);
+
+  hnt.insert(batch);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+
+  KTrussWeighted<weight_t> kt(hnt);
+
+  kt.init();
+  kt.reset();
+  kt.createOffSetArray();
+  // NOTE : These parameters will become obsolete once we move to the updated
+  // algorithm (https://ieeexplore.ieee.org/document/8547581)
+  kt.setInitParameters(4,      // Number of threads per block per list intersection
+                       8,      // Number of intersections per block
+                       2,      // log2(Number of threads)
+                       64000,  // Total number of blocks launched
+                       32);    // Thread block dimension
+  kt.reset();
+  kt.sortHornet();
+
+  kt.runForK(k);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
+
+  rmm::device_uvector<vertex_t> result_src(kt.getGraphEdgeCount(), handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
+
+  result_wgt = rmm::device_uvector<weight_t>(kt.getGraphEdgeCount(), handle.get_stream());
+  kt.copyGraph(result_src.data(), result_dst.data(), result_wgt->data());
+
+  kt.release();
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
+
+  return std::make_tuple(std::move(result_src),
+                         std::move(result_dst),
+                         std::move(result_wgt));
+}
+
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
@@ -147,79 +260,41 @@ k_truss_subgraph<int, int, double>(legacy::GraphCOOView<int, int, double> const&
                                    int,
                                    rmm::mr::device_memory_resource*);
 
+
+
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<vertex_t const> src,
-                 raft::device_span<vertex_t const> dst,
-                 std::optional<raft::device_span<weight_t const>> wgt,
+                 raft::device_span<vertex_t> src,
+                 raft::device_span<vertex_t> dst,
+                 std::optional<raft::device_span<weight_t>> wgt,
                  size_t number_of_vertices,
                  int k)
 {
-  using HornetGraph = hornet::gpu::Hornet<vertex_t>;
-  using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::EMPTY, hornet::DeviceType::DEVICE>;
-  using Update      = hornet::gpu::BatchUpdate<vertex_t>;
-
-  HornetGraph hnt(number_of_vertices + 1);
-
-  if (wgt) {
-    UpdatePtr ptr(src.size(), src.data(), dst.data(), wgt->data());
-    Update batch(ptr);
-
-    hnt.insert(batch);
-    CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+  
+  
+  if (wgt.has_value()) {
+    return detail::weighted_ktruss_subgraph_impl_(handle, src, dst, wgt, number_of_vertices, k);
   } else {
-    UpdatePtr ptr(src.size(), src.data(), dst.data());
-    Update batch(ptr);
-
-    hnt.insert(batch);
-    CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+    //auto x =  detail::ktruss_subgraph_impl_(handle, src, dst, number_of_vertices, k);
+    auto [result_src, result_dst] = detail::ktruss_subgraph_impl_(handle, src, dst, number_of_vertices, k);
+    std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
+    return std::make_tuple(std::move(result_src),
+                         std::move(result_dst),
+                         std::move(result_wgt));
   }
 
-  KTruss kt(hnt);
-
-  kt.init();
-  kt.reset();
-  kt.createOffSetArray();
-  // NOTE : These parameters will become obsolete once we move to the updated
-  // algorithm (https://ieeexplore.ieee.org/document/8547581)
-  kt.setInitParameters(4,      // Number of threads per block per list intersection
-                       8,      // Number of intersections per block
-                       2,      // log2(Number of threads)
-                       64000,  // Total number of blocks launched
-                       32);    // Thread block dimension
-  kt.reset();
-  kt.sortHornet();
-
-  kt.runForK(k);
-  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
-
-  rmm::device_uvector<vertex_t> result_src(kt.getGraphEdgeCount(), handle.get_stream());
-  rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
-
-  if (wgt) {
-    result_wgt = rmm::device_uvector<weight_t>(kt.getGraphEdgeCount(), handle.get_stream());
-    kt.copyGraph(result_src.data(), result_dst.data(), result_wgt->data());
-  } else {
-    kt.copyGraph(result_src.data(), result_dst.data());
-  }
-
-  kt.release();
-  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
-
-  return out_graph;
 }
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<int32_t const> src,
-                 raft::device_span<int32_t const> dst,
-                 std::optional<raft::device_span<float const>> wgt,
+                 raft::device_span<int32_t> src,
+                 raft::device_span<int32_t> dst,
+                 std::optional<raft::device_span<float>> wgt,
                  size_t number_of_vertices,
                  int k);
 
@@ -227,9 +302,9 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<int32_t const> src,
-                 raft::device_span<int32_t const> dst,
-                 std::optional<raft::device_span<double const>> wgt,
+                 raft::device_span<int32_t> src,
+                 raft::device_span<int32_t> dst,
+                 std::optional<raft::device_span<double>> wgt,
                  size_t number_of_vertices,
                  int k);
 
