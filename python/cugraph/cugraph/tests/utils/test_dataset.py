@@ -94,6 +94,7 @@ def setup_deprecation_warning_tests():
 # Helpers
 
 # check if there is a row where src == dst
+# Should this be renamed to 'has_self_loop'?
 def has_loop(df):
     df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
     res = df.where(df["src"] == df["dst"])
