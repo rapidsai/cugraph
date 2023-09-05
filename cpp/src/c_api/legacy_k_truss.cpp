@@ -81,7 +81,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
-
+      // edge_ids ? std::make_optional(edge_ids->view()) : std::nullopt,
       rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
       std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
@@ -90,8 +90,8 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
         handle_,
         graph_view,
         edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
-        std::nullopt,
-        std::nullopt,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt),
         do_expensive_check_);
 
       auto [result_src, result_dst, result_wgt] = cugraph::k_truss_subgraph(
@@ -145,6 +145,7 @@ extern "C" cugraph_error_code_t cugraph_k_truss_subgraph(const cugraph_resource_
                                                          cugraph_induced_subgraph_result_t** result,
                                                          cugraph_error_t** error)
 {
+  std::cout << " I am in cugraph_k_truss_subgraph " << std::endl;
   k_truss_functor functor(handle, graph, k, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
