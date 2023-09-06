@@ -14,8 +14,13 @@ import sys
 
 import pylibcugraph as plc
 
-from cugraph_nx.convert import _to_undirected_graph
-from cugraph_nx.utils import _groupby, networkx_algorithm, not_implemented_for
+from nx_cugraph.convert import _to_undirected_graph
+from nx_cugraph.utils import (
+    _groupby,
+    _handle_seed,
+    networkx_algorithm,
+    not_implemented_for,
+)
 
 __all__ = ["louvain_communities"]
 
@@ -30,6 +35,7 @@ def louvain_communities(
     Extra parameter: `max_level` controls the maximum number of levels of the algorithm.
     """
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
+    seed = _handle_seed(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
     if G.row_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs gracefully!
