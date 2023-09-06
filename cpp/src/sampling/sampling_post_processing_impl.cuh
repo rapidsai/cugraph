@@ -393,8 +393,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
 template <typename vertex_t, typename label_index_t>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_index_t>>>
 compute_renumber_map(raft::handle_t const& handle,
-                     raft::device_span<vertex_t const> edgelist_srcs,
-                     raft::device_span<vertex_t const> edgelist_dsts,
+                     raft::device_span<vertex_t const> edgelist_majors,
+                     raft::device_span<vertex_t const> edgelist_minors,
                      std::optional<raft::device_span<int32_t const>> edgelist_hops,
                      std::optional<raft::device_span<size_t const>> edgelist_label_offsets)
 {
@@ -408,26 +408,26 @@ compute_renumber_map(raft::handle_t const& handle,
       detail::expand_sparse_offsets(*edgelist_label_offsets, label_index_t{0}, handle.get_stream());
   }
 
-  auto [unique_label_src_pair_label_indices,
-        unique_label_src_pair_vertices,
-        unique_label_src_pair_hops,
-        unique_label_src_pair_label_offsets] =
+  auto [unique_label_major_pair_label_indices,
+        unique_label_major_pair_vertices,
+        unique_label_major_pair_hops,
+        unique_label_major_pair_label_offsets] =
     compute_min_hop_for_unique_label_vertex_pairs(
       handle,
-      edgelist_srcs,
+      edgelist_majors,
       edgelist_hops,
       edgelist_label_indices ? std::make_optional<raft::device_span<label_index_t const>>(
                                  (*edgelist_label_indices).data(), (*edgelist_label_indices).size())
                              : std::nullopt,
       edgelist_label_offsets);
 
-  auto [unique_label_dst_pair_label_indices,
-        unique_label_dst_pair_vertices,
-        unique_label_dst_pair_hops,
-        unique_label_dst_pair_label_offsets] =
+  auto [unique_label_minor_pair_label_indices,
+        unique_label_minor_pair_vertices,
+        unique_label_minor_pair_hops,
+        unique_label_minor_pair_label_offsets] =
     compute_min_hop_for_unique_label_vertex_pairs(
       handle,
-      edgelist_dsts,
+      edgelist_minors,
       edgelist_hops,
       edgelist_label_indices ? std::make_optional<raft::device_span<label_index_t const>>(
                                  (*edgelist_label_indices).data(), (*edgelist_label_indices).size())
@@ -443,29 +443,29 @@ compute_renumber_map(raft::handle_t const& handle,
     rmm::device_uvector<label_index_t> renumber_map_label_indices(0, handle.get_stream());
 
     renumber_map.reserve(
-      (*unique_label_src_pair_label_indices).size() + (*unique_label_dst_pair_label_indices).size(),
+      (*unique_label_major_pair_label_indices).size() + (*unique_label_minor_pair_label_indices).size(),
       handle.get_stream());
     renumber_map_label_indices.reserve(renumber_map.capacity(), handle.get_stream());
 
-    auto num_chunks = (edgelist_srcs.size() + (approx_edges_to_sort_per_iteration - 1)) /
+    auto num_chunks = (edgelist_majors.size() + (approx_edges_to_sort_per_iteration - 1)) /
                       approx_edges_to_sort_per_iteration;
     auto chunk_size = (num_chunks > 0) ? ((num_labels + (num_chunks - 1)) / num_chunks) : 0;
 
     size_t copy_offset{0};
     for (size_t i = 0; i < num_chunks; ++i) {
-      auto src_start_offset =
-        (*unique_label_src_pair_label_offsets).element(chunk_size * i, handle.get_stream());
-      auto src_end_offset =
-        (*unique_label_src_pair_label_offsets)
+      auto major_start_offset =
+        (*unique_label_major_pair_label_offsets).element(chunk_size * i, handle.get_stream());
+      auto major_end_offset =
+        (*unique_label_major_pair_label_offsets)
           .element(std::min(chunk_size * (i + 1), num_labels), handle.get_stream());
-      auto dst_start_offset =
-        (*unique_label_dst_pair_label_offsets).element(chunk_size * i, handle.get_stream());
-      auto dst_end_offset =
-        (*unique_label_dst_pair_label_offsets)
+      auto minor_start_offset =
+        (*unique_label_minor_pair_label_offsets).element(chunk_size * i, handle.get_stream());
+      auto minor_end_offset =
+        (*unique_label_minor_pair_label_offsets)
           .element(std::min(chunk_size * (i + 1), num_labels), handle.get_stream());
 
       rmm::device_uvector<label_index_t> merged_label_indices(
-        (src_end_offset - src_start_offset) + (dst_end_offset - dst_start_offset),
+        (major_end_offset - major_start_offset) + (minor_end_offset - minor_start_offset),
         handle.get_stream());
       rmm::device_uvector<vertex_t> merged_vertices(merged_label_indices.size(),
                                                     handle.get_stream());
@@ -473,21 +473,21 @@ compute_renumber_map(raft::handle_t const& handle,
 
       if (edgelist_hops) {
         rmm::device_uvector<int32_t> merged_hops(merged_label_indices.size(), handle.get_stream());
-        auto src_quad_first =
-          thrust::make_zip_iterator((*unique_label_src_pair_label_indices).begin(),
-                                    unique_label_src_pair_vertices.begin(),
-                                    (*unique_label_src_pair_hops).begin(),
+        auto major_quad_first =
+          thrust::make_zip_iterator((*unique_label_major_pair_label_indices).begin(),
+                                    unique_label_major_pair_vertices.begin(),
+                                    (*unique_label_major_pair_hops).begin(),
                                     thrust::make_constant_iterator(int8_t{0}));
-        auto dst_quad_first =
-          thrust::make_zip_iterator((*unique_label_dst_pair_label_indices).begin(),
-                                    unique_label_dst_pair_vertices.begin(),
-                                    (*unique_label_dst_pair_hops).begin(),
+        auto minor_quad_first =
+          thrust::make_zip_iterator((*unique_label_minor_pair_label_indices).begin(),
+                                    unique_label_minor_pair_vertices.begin(),
+                                    (*unique_label_minor_pair_hops).begin(),
                                     thrust::make_constant_iterator(int8_t{1}));
         thrust::merge(handle.get_thrust_policy(),
-                      src_quad_first + src_start_offset,
-                      src_quad_first + src_end_offset,
-                      dst_quad_first + dst_start_offset,
-                      dst_quad_first + dst_end_offset,
+                      major_quad_first + major_start_offset,
+                      major_quad_first + major_end_offset,
+                      minor_quad_first + minor_start_offset,
+                      minor_quad_first + minor_end_offset,
                       thrust::make_zip_iterator(merged_label_indices.begin(),
                                                 merged_vertices.begin(),
                                                 merged_hops.begin(),
@@ -514,20 +514,20 @@ compute_renumber_map(raft::handle_t const& handle,
                             sort_key_first + merged_label_indices.size(),
                             merged_vertices.begin());
       } else {
-        auto src_triplet_first =
-          thrust::make_zip_iterator((*unique_label_src_pair_label_indices).begin(),
-                                    unique_label_src_pair_vertices.begin(),
+        auto major_triplet_first =
+          thrust::make_zip_iterator((*unique_label_major_pair_label_indices).begin(),
+                                    unique_label_major_pair_vertices.begin(),
                                     thrust::make_constant_iterator(int8_t{0}));
-        auto dst_triplet_first =
-          thrust::make_zip_iterator((*unique_label_dst_pair_label_indices).begin(),
-                                    unique_label_dst_pair_vertices.begin(),
+        auto minor_triplet_first =
+          thrust::make_zip_iterator((*unique_label_minor_pair_label_indices).begin(),
+                                    unique_label_minor_pair_vertices.begin(),
                                     thrust::make_constant_iterator(int8_t{1}));
         thrust::merge(
           handle.get_thrust_policy(),
-          src_triplet_first + src_start_offset,
-          src_triplet_first + src_end_offset,
-          dst_triplet_first + dst_start_offset,
-          dst_triplet_first + dst_end_offset,
+          major_triplet_first + major_start_offset,
+          major_triplet_first + major_end_offset,
+          minor_triplet_first + minor_start_offset,
+          minor_triplet_first + minor_end_offset,
           thrust::make_zip_iterator(
             merged_label_indices.begin(), merged_vertices.begin(), merged_flags.begin()));
 
@@ -573,30 +573,30 @@ compute_renumber_map(raft::handle_t const& handle,
   } else {
     if (edgelist_hops) {
       rmm::device_uvector<vertex_t> merged_vertices(
-        unique_label_src_pair_vertices.size() + unique_label_dst_pair_vertices.size(),
+        unique_label_major_pair_vertices.size() + unique_label_minor_pair_vertices.size(),
         handle.get_stream());
       rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
       rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
-      auto src_triplet_first = thrust::make_zip_iterator(unique_label_src_pair_vertices.begin(),
-                                                         (*unique_label_src_pair_hops).begin(),
+      auto major_triplet_first = thrust::make_zip_iterator(unique_label_major_pair_vertices.begin(),
+                                                         (*unique_label_major_pair_hops).begin(),
                                                          thrust::make_constant_iterator(int8_t{0}));
-      auto dst_triplet_first = thrust::make_zip_iterator(unique_label_dst_pair_vertices.begin(),
-                                                         (*unique_label_dst_pair_hops).begin(),
+      auto minor_triplet_first = thrust::make_zip_iterator(unique_label_minor_pair_vertices.begin(),
+                                                         (*unique_label_minor_pair_hops).begin(),
                                                          thrust::make_constant_iterator(int8_t{1}));
       thrust::merge(handle.get_thrust_policy(),
-                    src_triplet_first,
-                    src_triplet_first + unique_label_src_pair_vertices.size(),
-                    dst_triplet_first,
-                    dst_triplet_first + unique_label_dst_pair_vertices.size(),
+                    major_triplet_first,
+                    major_triplet_first + unique_label_major_pair_vertices.size(),
+                    minor_triplet_first,
+                    minor_triplet_first + unique_label_minor_pair_vertices.size(),
                     thrust::make_zip_iterator(
                       merged_vertices.begin(), merged_hops.begin(), merged_flags.begin()));
 
-      unique_label_src_pair_vertices.resize(0, handle.get_stream());
-      unique_label_src_pair_vertices.shrink_to_fit(handle.get_stream());
-      unique_label_src_pair_hops = std::nullopt;
-      unique_label_dst_pair_vertices.resize(0, handle.get_stream());
-      unique_label_dst_pair_vertices.shrink_to_fit(handle.get_stream());
-      unique_label_dst_pair_hops = std::nullopt;
+      unique_label_major_pair_vertices.resize(0, handle.get_stream());
+      unique_label_major_pair_vertices.shrink_to_fit(handle.get_stream());
+      unique_label_major_pair_hops = std::nullopt;
+      unique_label_minor_pair_vertices.resize(0, handle.get_stream());
+      unique_label_minor_pair_vertices.shrink_to_fit(handle.get_stream());
+      unique_label_minor_pair_hops = std::nullopt;
 
       merged_vertices.resize(
         thrust::distance(merged_vertices.begin(),
@@ -617,24 +617,24 @@ compute_renumber_map(raft::handle_t const& handle,
 
       return std::make_tuple(std::move(merged_vertices), std::nullopt);
     } else {
-      rmm::device_uvector<vertex_t> output_vertices(unique_label_dst_pair_vertices.size(),
+      rmm::device_uvector<vertex_t> output_vertices(unique_label_minor_pair_vertices.size(),
                                                     handle.get_stream());
       auto output_last = thrust::set_difference(handle.get_thrust_policy(),
-                                                unique_label_dst_pair_vertices.begin(),
-                                                unique_label_dst_pair_vertices.end(),
-                                                unique_label_src_pair_vertices.begin(),
-                                                unique_label_src_pair_vertices.end(),
+                                                unique_label_minor_pair_vertices.begin(),
+                                                unique_label_minor_pair_vertices.end(),
+                                                unique_label_major_pair_vertices.begin(),
+                                                unique_label_major_pair_vertices.end(),
                                                 output_vertices.begin());
 
-      auto num_unique_srcs = unique_label_src_pair_vertices.size();
-      auto renumber_map    = std::move(unique_label_src_pair_vertices);
+      auto num_unique_majors = unique_label_major_pair_vertices.size();
+      auto renumber_map    = std::move(unique_label_major_pair_vertices);
       renumber_map.resize(
         renumber_map.size() + thrust::distance(output_vertices.begin(), output_last),
         handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    output_vertices.begin(),
                    output_last,
-                   renumber_map.begin() + num_unique_srcs);
+                   renumber_map.begin() + num_unique_majors);
 
       return std::make_tuple(std::move(renumber_map), std::nullopt);
     }
@@ -650,8 +650,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<size_t>>>
 renumber_sampled_edgelist(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  rmm::device_uvector<vertex_t>&& edgelist_majors,
+  rmm::device_uvector<vertex_t>&& edgelist_minors,
   std::optional<std::tuple<raft::device_span<int32_t const>, size_t>>&& edgelist_hops,
   std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
   bool do_expensive_check)
@@ -660,8 +660,8 @@ renumber_sampled_edgelist(
 
   auto [renumber_map, renumber_map_label_indices] = compute_renumber_map<vertex_t, label_index_t>(
     handle,
-    raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-    raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
+    raft::device_span<vertex_t const>(edgelist_majors.data(), edgelist_majors.size()),
+    raft::device_span<vertex_t const>(edgelist_minors.data(), edgelist_minors.size()),
     edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
                       std::get<0>(*edgelist_hops).data(), std::get<0>(*edgelist_hops).size())
                   : std::nullopt,
@@ -789,12 +789,12 @@ renumber_sampled_edgelist(
       std::get<0>(*edgelist_label_offsets), label_index_t{0}, handle.get_stream());
 
     auto pair_first =
-      thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_label_indices.begin());
+      thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_label_indices.begin());
     thrust::transform(
       handle.get_thrust_policy(),
       pair_first,
-      pair_first + edgelist_srcs.size(),
-      edgelist_srcs.begin(),
+      pair_first + edgelist_majors.size(),
+      edgelist_majors.begin(),
       [renumber_map_label_offsets = raft::device_span<size_t const>(
          (*renumber_map_label_offsets).data(), (*renumber_map_label_offsets).size()),
        old_vertices = raft::device_span<vertex_t const>(segment_sorted_renumber_map.data(),
@@ -814,12 +814,12 @@ renumber_sampled_edgelist(
         return *(new_vertices.begin() + thrust::distance(old_vertices.begin(), it));
       });
 
-    pair_first = thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_label_indices.begin());
+    pair_first = thrust::make_zip_iterator(edgelist_minors.begin(), edgelist_label_indices.begin());
     thrust::transform(
       handle.get_thrust_policy(),
       pair_first,
-      pair_first + edgelist_dsts.size(),
-      edgelist_dsts.begin(),
+      pair_first + edgelist_minors.size(),
+      edgelist_minors.begin(),
       [renumber_map_label_offsets = raft::device_span<size_t const>(
          (*renumber_map_label_offsets).data(), (*renumber_map_label_offsets).size()),
        old_vertices = raft::device_span<vertex_t const>(segment_sorted_renumber_map.data(),
@@ -848,13 +848,13 @@ renumber_sampled_edgelist(
     auto kv_store_view = kv_store.view();
 
     kv_store_view.find(
-      edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_srcs.begin(), handle.get_stream());
+      edgelist_majors.begin(), edgelist_majors.end(), edgelist_majors.begin(), handle.get_stream());
     kv_store_view.find(
-      edgelist_dsts.begin(), edgelist_dsts.end(), edgelist_dsts.begin(), handle.get_stream());
+      edgelist_minors.begin(), edgelist_minors.end(), edgelist_minors.begin(), handle.get_stream());
   }
 
-  return std::make_tuple(std::move(edgelist_srcs),
-                         std::move(edgelist_dsts),
+  return std::make_tuple(std::move(edgelist_majors),
+                         std::move(edgelist_minors),
                          std::move(renumber_map),
                          std::move(renumber_map_label_offsets));
 }
@@ -890,16 +890,14 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>>
 sort_sampled_and_renumbered_edgelist(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  rmm::device_uvector<vertex_t>&& edgelist_majors,
+  rmm::device_uvector<vertex_t>&& edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
-  bool src_is_major)
+  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets)
 {
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::vector<size_t> h_label_offsets{};
   std::vector<size_t> h_edge_offsets{};
 
@@ -912,11 +910,11 @@ sort_sampled_and_renumbered_edgelist(
       detail::compute_offset_aligned_edge_chunks(handle,
                                                  std::get<0>(*edgelist_label_offsets).data(),
                                                  std::get<1>(*edgelist_label_offsets),
-                                                 edgelist_srcs.size(),
+                                                 edgelist_majors.size(),
                                                  approx_edges_to_sort_per_iteration);
   } else {
     h_label_offsets = {0, 1};
-    h_edge_offsets  = {0, edgelist_srcs.size()};
+    h_edge_offsets  = {0, edgelist_majors.size()};
   }
 
   auto num_chunks = h_label_offsets.size() - 1;
@@ -933,10 +931,10 @@ sort_sampled_and_renumbered_edgelist(
                         std::get<0>(*edgelist_hops).data() + h_edge_offsets[i], indices.size())
                     : thrust::nullopt,
       raft::device_span<vertex_t const>(
-        (src_is_major ? edgelist_srcs.data() : edgelist_dsts.data()) + h_edge_offsets[i],
+        edgelist_majors.data() + h_edge_offsets[i],
         indices.size()),
       raft::device_span<vertex_t const>(
-        (src_is_major ? edgelist_dsts.data() : edgelist_srcs.data()) + h_edge_offsets[i],
+        edgelist_minors.data() + h_edge_offsets[i],
         indices.size())};
     thrust::sort(handle.get_thrust_policy(), indices.begin(), indices.end(), edge_order_comp);
 
@@ -944,7 +942,7 @@ sort_sampled_and_renumbered_edgelist(
       handle,
       indices.begin(),
       indices.end(),
-      thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()) + h_edge_offsets[i]);
+      thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin()) + h_edge_offsets[i]);
 
     if (edgelist_weights) {
       permute_array(
@@ -969,8 +967,8 @@ sort_sampled_and_renumbered_edgelist(
     }
   }
 
-  return std::make_tuple(std::move(edgelist_srcs),
-                         std::move(edgelist_dsts),
+  return std::make_tuple(std::move(edgelist_majors),
+                         std::move(edgelist_minors),
                          std::move(edgelist_weights),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_edge_types),
@@ -1033,13 +1031,16 @@ renumber_and_compress_sampled_edgelist(
 
   // 2. renumber
 
+  auto edgelist_majors = src_is_major ? std::move(edgelist_srcs) : std::move(edgelist_dsts);
+  auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
+
   rmm::device_uvector<vertex_t> renumber_map(0, handle.get_stream());
   std::optional<rmm::device_uvector<size_t>> renumber_map_label_offsets{std::nullopt};
-  std::tie(edgelist_srcs, edgelist_dsts, renumber_map, renumber_map_label_offsets) =
+  std::tie(edgelist_majors, edgelist_minors, renumber_map, renumber_map_label_offsets) =
     renumber_sampled_edgelist<vertex_t, label_index_t>(
       handle,
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
+      std::move(edgelist_majors),
+      std::move(edgelist_minors),
       edgelist_hops ? std::make_optional(std::make_tuple(
                         raft::device_span<int32_t const>(std::get<0>(*edgelist_hops).data(),
                                                          std::get<0>(*edgelist_hops).size()),
@@ -1050,23 +1051,19 @@ renumber_and_compress_sampled_edgelist(
 
   // 3. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_srcs,
-           edgelist_dsts,
+  std::tie(edgelist_majors,
+           edgelist_minors,
            edgelist_weights,
            edgelist_edge_ids,
            edgelist_edge_types,
            edgelist_hops) = sort_sampled_and_renumbered_edgelist(handle,
-                                                                 std::move(edgelist_srcs),
-                                                                 std::move(edgelist_dsts),
+                                                                 std::move(edgelist_majors),
+                                                                 std::move(edgelist_minors),
                                                                  std::move(edgelist_weights),
                                                                  std::move(edgelist_edge_ids),
                                                                  std::move(edgelist_edge_types),
                                                                  std::move(edgelist_hops),
-                                                                 edgelist_label_offsets,
-                                                                 src_is_major);
-
-  auto edgelist_majors = src_is_major ? std::move(edgelist_srcs) : std::move(edgelist_dsts);
-  auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
+                                                                 edgelist_label_offsets);
 
   if (do_expensive_check) {
     if (!compress_per_hop && edgelist_hops) {
@@ -1310,13 +1307,12 @@ renumber_and_compress_sampled_edgelist(
                                   : thrust::nullopt,
        edgelist_majors =
          raft::device_span<vertex_t const>(edgelist_majors.data(), edgelist_majors.size()),
-       compress_per_hop,
        num_hops] __device__(size_t i) {
         size_t start_offset{0};
         auto end_offset = edgelist_majors.size();
 
         if (edgelist_label_offsets) {
-          auto l_idx   = static_cast<label_index_t>(i / (compress_per_hop ? num_hops : size_t{1}));
+          auto l_idx   = static_cast<label_index_t>(i / num_hops);
           start_offset = (*edgelist_label_offsets)[l_idx];
           end_offset   = (*edgelist_label_offsets)[l_idx + 1];
         }
@@ -1398,7 +1394,7 @@ renumber_and_compress_sampled_edgelist(
     thrust::tabulate(
       handle.get_thrust_policy(),
       offset_array_offsets.begin(),
-      offset_array_offsets.end(),
+      offset_array_offsets.begin() + (num_labels * num_hops),
       [major_vertex_counts =
          raft::device_span<vertex_t const>(major_vertex_counts.data(), major_vertex_counts.size()),
        minor_vertex_counts = minor_vertex_counts
@@ -1594,13 +1590,16 @@ renumber_and_sort_sampled_edgelist(
 
   // 2. renumber
 
+  auto edgelist_majors = src_is_major ? std::move(edgelist_srcs) : std::move(edgelist_dsts);
+  auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
+
   rmm::device_uvector<vertex_t> renumber_map(0, handle.get_stream());
   std::optional<rmm::device_uvector<size_t>> renumber_map_label_offsets{std::nullopt};
-  std::tie(edgelist_srcs, edgelist_dsts, renumber_map, renumber_map_label_offsets) =
+  std::tie(edgelist_majors, edgelist_minors, renumber_map, renumber_map_label_offsets) =
     renumber_sampled_edgelist<vertex_t, label_index_t>(
       handle,
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
+      std::move(edgelist_majors),
+      std::move(edgelist_minors),
       edgelist_hops ? std::make_optional(std::make_tuple(
                         raft::device_span<int32_t const>(std::get<0>(*edgelist_hops).data(),
                                                          std::get<0>(*edgelist_hops).size()),
@@ -1611,20 +1610,19 @@ renumber_and_sort_sampled_edgelist(
 
   // 3. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_srcs,
-           edgelist_dsts,
+  std::tie(edgelist_majors,
+           edgelist_minors,
            edgelist_weights,
            edgelist_edge_ids,
            edgelist_edge_types,
            edgelist_hops) = sort_sampled_and_renumbered_edgelist(handle,
-                                                                 std::move(edgelist_srcs),
-                                                                 std::move(edgelist_dsts),
+                                                                 std::move(edgelist_majors),
+                                                                 std::move(edgelist_minors),
                                                                  std::move(edgelist_weights),
                                                                  std::move(edgelist_edge_ids),
                                                                  std::move(edgelist_edge_types),
                                                                  std::move(edgelist_hops),
-                                                                 edgelist_label_offsets,
-                                                                 src_is_major);
+                                                                 edgelist_label_offsets);
 
   // 4. compute edgelist_label_hop_offsets
 
@@ -1648,7 +1646,7 @@ renumber_and_sort_sampled_edgelist(
                              std::get<0>(*edgelist_hops).data(), std::get<0>(*edgelist_hops).size())
                                   : thrust::nullopt,
        num_hops,
-       num_edges = edgelist_srcs.size()] __device__(size_t i) {
+       num_edges = edgelist_majors.size()] __device__(size_t i) {
         size_t start_offset{0};
         auto end_offset = num_edges;
 
@@ -1682,8 +1680,8 @@ renumber_and_sort_sampled_edgelist(
 
   edgelist_hops = std::nullopt;
 
-  return std::make_tuple(std::move(edgelist_srcs),
-                         std::move(edgelist_dsts),
+  return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
+                         std::move(src_is_major ? edgelist_minors : edgelist_majors),
                          std::move(edgelist_weights),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_edge_types),
