@@ -25,6 +25,9 @@
 namespace cugraph {
 namespace test {
 
+template <typename T>
+rmm::device_uvector<T> fill(raft::handle_t const& handle, size_t buffer_size, T value);
+
 template <typename value_buffer_type>
 value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values);
 
