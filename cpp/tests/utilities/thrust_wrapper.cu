@@ -36,24 +36,6 @@
 namespace cugraph {
 namespace test {
 
-template <typename T>
-rmm::device_uvector<T> fill(raft::handle_t const& handle, size_t buffer_size, T value)
-{
-  auto filled_values = rmm::device_uvector<T>(buffer_size, handle.get_stream());
-
-  thrust::fill(handle.get_thrust_policy(), filled_values.begin(), filled_values.end(), value);
-
-  return filled_values;
-}
-
-template rmm::device_uvector<int32_t> fill(raft::handle_t const& handle,
-                                           size_t buffer_size,
-                                           int32_t value);
-
-template rmm::device_uvector<int64_t> fill(raft::handle_t const& handle,
-                                           size_t buffer_size,
-                                           int64_t value);
-
 template <typename value_buffer_type>
 value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values)
 {
