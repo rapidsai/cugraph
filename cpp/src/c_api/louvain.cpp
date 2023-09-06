@@ -36,6 +36,7 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_;
   size_t max_level_;
+  double threshold_;
   double resolution_;
   bool do_expensive_check_;
   cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
@@ -43,12 +44,14 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
   louvain_functor(::cugraph_resource_handle_t const* handle,
                   ::cugraph_graph_t* graph,
                   size_t max_level,
+                  double threshold,
                   double resolution,
                   bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       max_level_(max_level),
+      threshold_(threshold),
       resolution_(resolution),
       do_expensive_check_(do_expensive_check)
   {
@@ -102,6 +105,7 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
                                                   .view()),
                          clusters.data(),
                          max_level_,
+                         static_cast<weight_t>(threshold_),
                          static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
@@ -121,12 +125,13 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
 extern "C" cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
                                                 cugraph_graph_t* graph,
                                                 size_t max_level,
+                                                double threshold,
                                                 double resolution,
                                                 bool_t do_expensive_check,
                                                 cugraph_hierarchical_clustering_result_t** result,
                                                 cugraph_error_t** error)
 {
-  louvain_functor functor(handle, graph, max_level, resolution, do_expensive_check);
+  louvain_functor functor(handle, graph, max_level, threshold, resolution, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
