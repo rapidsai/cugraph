@@ -14,14 +14,14 @@ files:
       - python_build_cythonize
       - python_run_cugraph
       - python_run_pylibcugraph
-      - python_run_cugraph_nx
+      - python_run_nx_cugraph
       - python_run_cugraph_dgl
       - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
-      - test_python_cugraph_nx
+      - test_python_nx_cugraph
   checks:
     output: none
     includes:
@@ -105,29 +105,29 @@ files:
     includes:
       - test_python_common
       - test_python_pylibcugraph
-  py_build_cugraph_nx:
+  py_build_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: build-system
     includes:
       - python_build_wheel
-  py_run_cugraph_nx:
+  py_run_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: project
     includes:
-      - python_run_cugraph_nx
-  py_test_cugraph_nx:
+      - python_run_nx_cugraph
+  py_test_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: project.optional-dependencies
       key: test
     includes:
       - test_python_common
-      - test_python_cugraph_nx
+      - test_python_nx_cugraph
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -375,7 +375,7 @@ dependencies:
         packages:
           - *pylibraft
           - *rmm
-  python_run_cugraph_nx:
+  python_run_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
@@ -482,12 +482,12 @@ dependencies:
         packages:
           - *cudf
           - *numpy
-  test_python_cugraph_nx:
+  test_python_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - packaging>=21
-            # not needed by cugraph-nx tests, but is required for running networkx tests
+            # not needed by nx-cugraph tests, but is required for running networkx tests
           - pytest-mpl
   cugraph_dgl_dev:
     common:
