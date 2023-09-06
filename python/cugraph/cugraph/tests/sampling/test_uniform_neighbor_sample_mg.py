@@ -10,22 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import gc
 import random
 import os
 
 import pytest
+
 import cupy
 import cudf
-import dask_cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.dask.common.mg_utils import is_single_gpu
-
-import cugraph.dask as dcg
 import cugraph
-
+import dask_cudf
+import cugraph.dask as dcg
+from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.dask import uniform_neighbor_sample
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.datasets import email_Eu_core, small_tree
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -53,7 +54,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

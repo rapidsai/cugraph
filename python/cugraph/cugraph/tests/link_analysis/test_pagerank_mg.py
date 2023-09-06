@@ -10,23 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
-import pytest
-import cugraph.dask as dcg
+
 import gc
+
+import pytest
+import numpy as np
+
+import cudf
 import cugraph
+import cugraph.dask as dcg
 import dask_cudf
 from cugraph.testing import utils
-import cudf
-
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-
-
 def personalize(vertices, personalization_perc):
     personalization = None
     if personalization_perc != 0:
@@ -89,7 +89,7 @@ def setup_function():
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
-def test_dask_pagerank(
+def test_dask_mg_pagerank(
     dask_client,
     personalization_perc,
     directed,
@@ -215,7 +215,7 @@ def test_pagerank_invalid_personalization_dtype(dask_client):
 
 
 @pytest.mark.mg
-def test_dask_pagerank_transposed_false(dask_client):
+def test_dask_mg_pagerank_transposed_false(dask_client):
     dg = create_distributed_karate_graph(store_transposed=False)
 
     warning_msg = (

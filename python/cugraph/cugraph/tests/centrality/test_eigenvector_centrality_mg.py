@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import numpy as np
-import pytest
-import cugraph.dask as dcg
 import gc
-import cugraph
-import dask_cudf
+
+import pytest
+
 import cudf
+import dask_cudf
+import cugraph
+import cugraph.dask as dcg
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import DATASETS
 
@@ -38,7 +39,7 @@ IS_DIRECTED = [True, False]
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("input_data_path", DATASETS)
-def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
+def test_dask_mg_eigenvector_centrality(dask_client, directed, input_data_path):
     input_data_path = input_data_path.as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
@@ -85,7 +86,7 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
 
 
 @pytest.mark.mg
-def test_dask_eigenvector_centrality_transposed_false(dask_client):
+def test_dask_mg_eigenvector_centrality_transposed_false(dask_client):
     input_data_path = DATASETS[0]
 
     chunksize = dcg.get_chunksize(input_data_path)

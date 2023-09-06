@@ -11,14 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
+
 import pytest
 
 import cudf
 import dask_cudf
-
-import os
-import shutil
-
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 from cugraph.utilities.utils import create_directory_with_overwrite
 
@@ -82,3 +81,92 @@ def test_bulk_sampler_io(scratch_dir):
     assert (df.batch_id == 1).all()
 
     shutil.rmtree(samples_path)
+
+
+@pytest.mark.sg
+def test_bulk_sampler_io_empty_batch(scratch_dir):
+    sources_array = [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        3,
+        4,
+        5,
+        5,
+        6,
+        7,
+        9,
+        9,
+        12,
+        13,
+        29,
+        29,
+        31,
+        14,
+    ]
+
+    destinations_array = [
+        1,
+        2,
+        3,
+        3,
+        3,
+        4,
+        1,
+        1,
+        6,
+        7,
+        2,
+        3,
+        12,
+        13,
+        18,
+        19,
+        31,
+        14,
+        15,
+        16,
+    ]
+
+    hops_array = [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+
+    results = cudf.DataFrame(
+        {
+            "sources": sources_array,
+            "destinations": destinations_array,
+            "edge_id": None,
+            "edge_type": None,
+            "weight": None,
+            "hop_id": hops_array,
+        }
+    )
+
+    results = dask_cudf.from_cudf(results, npartitions=1).repartition(
+        divisions=[0, 12, 19]
+    )
+
+    # some batches are missing
+    offsets = cudf.DataFrame({"offsets": [0, 8, 0, 4], "batch_id": [0, 3, 4, 10]})
+    offsets = dask_cudf.from_cudf(offsets, npartitions=1).repartition(
+        divisions=[0, 2, 3]
+    )
+
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io_empty_batch")
+    create_directory_with_overwrite(samples_path)
+
+    write_samples(results, offsets, None, 2, samples_path)
+
+    files = os.listdir(samples_path)
+    assert len(files) == 2
+
+    df0 = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
+
+    assert df0.batch_id.min() == 0
+    assert df0.batch_id.max() == 1
+
+    df1 = cudf.read_parquet(os.path.join(samples_path, "batch=4-5.parquet"))
+    assert df1.batch_id.min() == 4
+    assert df1.batch_id.max() == 5

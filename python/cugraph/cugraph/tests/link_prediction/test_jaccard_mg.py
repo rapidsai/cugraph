@@ -15,11 +15,12 @@ import gc
 import random
 
 import pytest
+
 import dask_cudf
-from pylibcugraph.testing import gen_fixture_params_product
-import cugraph.dask as dcg
 import cugraph
+import cugraph.dask as dcg
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -118,7 +119,7 @@ def input_expected_output(input_combo):
 
 
 @pytest.mark.mg
-def test_dask_jaccard(dask_client, benchmark, input_expected_output):
+def test_dask_mg_jaccard(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
 
@@ -153,7 +154,7 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_weighted_jaccard(dask_client):
+def test_dask_mg_weighted_jaccard(dask_client):
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

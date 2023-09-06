@@ -82,14 +82,14 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             *,
                             bool_t with_replacement,
                             bool_t do_expensive_check,
-                            bool_t with_edge_properties=<bool_t>False,
+                            with_edge_properties=False,
                             batch_id_list=None,
                             label_list=None,
                             label_to_output_comm_rank=None,
                             prior_sources_behavior=None,
-                            bool_t deduplicate_sources=<bool_t>False,
-                            bool_t return_hops=<bool_t>False,
-                            bool_t renumber=<bool_t>False,
+                            deduplicate_sources=False,
+                            return_hops=False,
+                            renumber=False,
                             random_state=None):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -176,6 +176,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
+
+    cdef bool_t c_deduplicate_sources = deduplicate_sources
+    cdef bool_t c_return_hops = return_hops
+    cdef bool_t c_renumber = renumber
 
     assert_CAI_type(start_list, "start_list")
     assert_CAI_type(batch_id_list, "batch_id_list", True)
@@ -271,10 +275,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     assert_success(error_code, error_ptr, "cugraph_sampling_options_create")
 
     cugraph_sampling_set_with_replacement(sampling_options, with_replacement)
-    cugraph_sampling_set_return_hops(sampling_options, return_hops)
-    cugraph_sampling_set_dedupe_sources(sampling_options, deduplicate_sources)
+    cugraph_sampling_set_return_hops(sampling_options, c_return_hops)
+    cugraph_sampling_set_dedupe_sources(sampling_options, c_deduplicate_sources)
     cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior_e)
-    cugraph_sampling_set_renumber_results(sampling_options, renumber)
+    cugraph_sampling_set_renumber_results(sampling_options, c_renumber)
 
     error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,

@@ -16,7 +16,7 @@ import pytest
 
 import dask_cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
 import cugraph.dask as dcg
@@ -41,7 +41,7 @@ SUBSET_SIZE_OPTIONS = [4, None]
 
 
 # email_Eu_core is too expensive to test
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = DATASETS_UNDIRECTED
 
 
 # =============================================================================
@@ -179,7 +179,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.mg
-def test_dask_edge_betweenness_centrality(
+def test_dask_mg_edge_betweenness_centrality(
     dask_client, benchmark, input_expected_output
 ):
     if input_expected_output is not None:

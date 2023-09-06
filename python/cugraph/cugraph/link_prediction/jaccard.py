@@ -58,8 +58,8 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> pairs = G.get_two_hop_neighbors()
     >>> df = cugraph.jaccard(G, pairs)
 
@@ -96,19 +96,19 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            the second vertex ID of each pair (will be identical to second if
             specified).
         df['jaccard_coeff'] : cudf.Series
-            The computed jaccard coefficient between the first and the second
+            The computed Jaccard coefficient between the first and the second
             vertex ID.
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.jaccard(G)
 
     """
@@ -182,13 +182,13 @@ def jaccard_coefficient(G, ebunch=None, do_expensive_check=True):
             the second vertex ID of each pair (will be identical to second if
             specified).
         df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the source and destination
-            vertices.
+            The computed Jaccard coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.jaccard_coefficient(G)
 
     """

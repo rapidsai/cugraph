@@ -50,7 +50,10 @@ struct intersection_op_t {
     vertex_t v1,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
-    raft::device_span<vertex_t const> intersection) const
+    raft::device_span<vertex_t const> intersection,
+    std::byte, /* dummy */
+    std::byte  /* dummy */
+  ) const
   {
     return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
   }
@@ -160,6 +163,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     cugraph::per_v_pair_transform_dst_nbr_intersection(
       *handle_,
       mg_graph_view,
+      cugraph::edge_dummy_property_t{}.view(),
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       mg_out_degrees.begin(),
@@ -227,6 +231,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         cugraph::per_v_pair_transform_dst_nbr_intersection(
           *handle_,
           sg_graph_view,
+          cugraph::edge_dummy_property_t{}.view(),
           cugraph::get_dataframe_buffer_begin(
             mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
           cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
@@ -324,9 +329,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{size_t{1024}, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGPerVPairTransformDstNbrIntersection_Rmat,

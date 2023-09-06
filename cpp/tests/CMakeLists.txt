@@ -240,15 +240,6 @@ ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
-# - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
-ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
-
-###################################################################################################
-# - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
-
-###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
@@ -383,6 +374,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
+
+###################################################################################################
+# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
@@ -628,6 +623,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
+    # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION tests -------------------------
+    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
+    prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
+    target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
@@ -635,6 +636,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+
+    ###############################################################################################
+    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
     # - MG SIMILARITY tests -----------------------------------------------------------------------

@@ -12,23 +12,14 @@
 # limitations under the License.
 
 import gc
+
 import pytest
+import networkx as nx
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.testing import utils, DEFAULT_DATASETS
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 print("Networkx version : {} ".format(nx.__version__))
 
@@ -37,7 +28,7 @@ RADIUS = [1, 2, 3]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_ego_graph_nx(graph_file, seed, radius):
@@ -58,7 +49,7 @@ def test_ego_graph_nx(graph_file, seed, radius):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
 def test_batched_ego_graphs(graph_file, seeds, radius):
@@ -83,7 +74,7 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_multi_column_ego_graph(graph_file, seed, radius):

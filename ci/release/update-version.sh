@@ -61,6 +61,7 @@ sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugr
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/__init__.py
 
 # Python pyproject.toml updates
 sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
@@ -69,6 +70,7 @@ sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg
 sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/pyproject.toml
 sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/pyproject.toml
 sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/pyproject.toml
 
 # Wheel testing script
 sed_runner "s/branch-.*/branch-${NEXT_SHORT_TAG}/g" ci/test_wheel_cugraph.sh

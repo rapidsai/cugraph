@@ -30,6 +30,7 @@ VALIDARGS="
    cpp-mgtests
    cugraph-pyg
    cugraph-dgl
+   nx-cugraph
    docs
    -v
    -g
@@ -53,6 +54,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    pylibcugraph               - build the pylibcugraph Python package
    cugraph-pyg                - build the cugraph-pyg Python package
    cugraph                    - build the cugraph Python package
+   nx-cugraph                 - build the nx-cugraph Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
@@ -175,7 +177,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e ."
+    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e"
 fi
 
 # Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
@@ -206,7 +208,8 @@ if hasArg uninstall; then
     # FIXME: if multiple versions of these packages are installed, this only
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
-    pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server cugraph-dgl cugraph-pyg
+    pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server \
+        cugraph-dgl cugraph-pyg nx-cugraph
 fi
 
 if hasArg clean; then
@@ -302,6 +305,22 @@ if buildAll || hasArg pylibcugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
+        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
+        # install -e" command, resulting in a broken editable wheel. Continue
+        # to use "setup.py bdist_ext --inplace" for a develop build until
+        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
+        if hasArg --pydevelop; then
+            cd ${REPODIR}/python/pylibcugraph
+            python setup.py build_ext \
+                   --inplace \
+                   -- \
+                   -DFIND_CUGRAPH_CPP=ON \
+                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+                   -- \
+                   -j${PARALLEL_LEVEL:-1}
+            cd -
+        fi
         SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
@@ -313,6 +332,22 @@ if buildAll || hasArg cugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
+        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
+        # install -e" command, resulting in a broken editable wheel. Continue
+        # to use "setup.py bdist_ext --inplace" for a develop build until
+        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
+        if hasArg --pydevelop; then
+            cd ${REPODIR}/python/cugraph
+            python setup.py build_ext \
+                   --inplace \
+                   -- \
+                   -DFIND_CUGRAPH_CPP=ON \
+                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+                   -- \
+                   -j${PARALLEL_LEVEL:-1}
+            cd -
+        fi
         SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
@@ -344,6 +379,15 @@ if hasArg cugraph-dgl; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
         python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
+    fi
+fi
+
+# Build and install the nx-cugraph Python package
+if hasArg nx-cugraph; then
+    if hasArg --clean; then
+        cleanPythonDir ${REPODIR}/python/nx-cugraph
+    else
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/nx-cugraph
     fi
 fi
 
