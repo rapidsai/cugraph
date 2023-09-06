@@ -48,12 +48,32 @@ struct is_vertex_edge_combo {
 };
 
 // meta-function that constrains
+// vertex_t and edge_t template param candidates to only int32_t:
+//
+template <typename vertex_t, typename edge_t>
+struct is_vertex_edge_combo_legacy {
+  static constexpr bool value = is_one_of<vertex_t, int32_t>::value &&
+                                is_one_of<edge_t, int32_t>::value &&
+                                (sizeof(vertex_t) <= sizeof(edge_t));
+};
+
+// meta-function that constrains
 // all 3 template param candidates:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct is_candidate {
   static constexpr bool value =
     is_vertex_edge_combo<vertex_t, edge_t>::value && is_one_of<weight_t, float, double>::value;
+};
+
+// meta-function that constrains
+// all 3 template param candidates where vertex_t and edge_t
+// are restricted to int32_t:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+struct is_candidate_legacy {
+  static constexpr bool value =
+    is_vertex_edge_combo_legacy<vertex_t, edge_t>::value && is_one_of<weight_t, float, double>::value;
 };
 
 }  // namespace cugraph
