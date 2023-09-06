@@ -59,10 +59,10 @@ def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_for
     conv2 = CuGraphSAGEConv(in_feat, out_feat, **kwargs).to(device)
 
     with torch.no_grad():
-        conv2.linear.weight.data[:, :in_feat] = conv1.fc_neigh.weight.data
-        conv2.linear.weight.data[:, in_feat:] = conv1.fc_self.weight.data
+        conv2.lin.weight.data[:, :in_feat] = conv1.fc_neigh.weight.data
+        conv2.lin.weight.data[:, in_feat:] = conv1.fc_self.weight.data
         if bias:
-            conv2.linear.bias.data[:] = conv1.fc_self.bias.data
+            conv2.lin.bias.data[:] = conv1.fc_self.bias.data
 
     out1 = conv1(g, feat)
     if sparse_format is not None:
@@ -76,15 +76,13 @@ def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block, sparse_for
     out2.backward(grad_out)
     assert torch.allclose(
         conv1.fc_neigh.weight.grad,
-        conv2.linear.weight.grad[:, :in_feat],
+        conv2.lin.weight.grad[:, :in_feat],
         atol=1e-6,
     )
     assert torch.allclose(
         conv1.fc_self.weight.grad,
-        conv2.linear.weight.grad[:, in_feat:],
+        conv2.lin.weight.grad[:, in_feat:],
         atol=1e-6,
     )
     if bias:
-        assert torch.allclose(
-            conv1.fc_self.bias.grad, conv2.linear.bias.grad, atol=1e-6
-        )
+        assert torch.allclose(conv1.fc_self.bias.grad, conv2.lin.bias.grad, atol=1e-6)
