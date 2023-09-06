@@ -103,7 +103,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     finding the maximal k-clique is known to be NP-Hard.
 
     In contrast, finding a k-truss is computationally tractable as its
-    key building block, namely triangle counting counting, can be executed
+    key building block, namely triangle counting, can be executed
     in polnymomial time.Typically, it takes many iterations of triangle
     counting to find the k-truss of a graph. Yet these iterations operate
     on a weakly monotonically shrinking graph.
