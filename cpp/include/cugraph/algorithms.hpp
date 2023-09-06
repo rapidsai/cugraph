@@ -488,9 +488,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<vertex_t const> src,
-                 raft::device_span<vertex_t const> dst,
-                 std::optional<raft::device_span<weight_t const>> wgt,
+                 raft::device_span<vertex_t> src,
+                 raft::device_span<vertex_t> dst,
+                 std::optional<raft::device_span<weight_t>> wgt,
                  size_t number_of_vertices,
                  int k);
 

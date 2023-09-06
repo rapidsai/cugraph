@@ -58,7 +58,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+    if constexpr (!cugraph::is_candidate_legacy<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else if constexpr (multi_gpu) {
       unsupported();
@@ -81,7 +81,6 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
-      // edge_ids ? std::make_optional(edge_ids->view()) : std::nullopt,
       rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
       std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
@@ -96,9 +95,9 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
 
       auto [result_src, result_dst, result_wgt] = cugraph::k_truss_subgraph(
         handle_,
-        raft::device_span<vertex_t const>(src.data(), src.size()),
-        raft::device_span<vertex_t const>(dst.data(), dst.size()),
-        wgt ? std::make_optional(raft::device_span<weight_t const>(wgt->data(), wgt->size()))
+        raft::device_span<vertex_t>(src.data(), src.size()),
+        raft::device_span<vertex_t>(dst.data(), dst.size()),
+        wgt ? std::make_optional(raft::device_span<weight_t>(wgt->data(), wgt->size()))
             : std::nullopt,
         graph_view.number_of_vertices(),
         k_);
@@ -120,7 +119,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
         do_expensive_check_);
 
       rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());
-      std::vector<size_t> h_edge_offsets{{0, src.size()}};
+      std::vector<size_t> h_edge_offsets{{0, result_src.size()}};
       raft::update_device(
         edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
 
@@ -145,7 +144,6 @@ extern "C" cugraph_error_code_t cugraph_k_truss_subgraph(const cugraph_resource_
                                                          cugraph_induced_subgraph_result_t** result,
                                                          cugraph_error_t** error)
 {
-  std::cout << " I am in cugraph_k_truss_subgraph " << std::endl;
   k_truss_functor functor(handle, graph, k, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
