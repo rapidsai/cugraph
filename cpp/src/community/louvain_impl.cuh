@@ -47,6 +47,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
+  weight_t threshold,
   weight_t resolution)
 {
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>;
@@ -169,7 +170,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     // during each iteration of the loop
     bool up_down = true;
 
-    while (new_Q > (cur_Q + 0.0001)) {
+    while (new_Q > (cur_Q + threshold)) {
       cur_Q = new_Q;
 
       next_clusters_v = detail::update_clustering_by_delta_modularity(handle,
@@ -291,12 +292,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
+  weight_t threshold,
   weight_t resolution)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
-  return detail::louvain(handle, graph_view, edge_weight_view, max_level, resolution);
+  return detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -317,6 +319,7 @@ std::pair<size_t, weight_t> louvain(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
   size_t max_level,
+  weight_t threshold,
   weight_t resolution)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
@@ -328,7 +331,7 @@ std::pair<size_t, weight_t> louvain(
   weight_t modularity;
 
   std::tie(dendrogram, modularity) =
-    detail::louvain(handle, graph_view, edge_weight_view, max_level, resolution);
+    detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 

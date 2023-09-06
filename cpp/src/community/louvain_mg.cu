@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,36 +25,42 @@ template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   graph_view_t<int32_t, int32_t, false, true> const&,
   std::optional<edge_property_view_t<int32_t, float const*>>,
   size_t,
+  float,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   raft::handle_t const&,
   graph_view_t<int32_t, int64_t, false, true> const&,
   std::optional<edge_property_view_t<int64_t, float const*>>,
   size_t,
+  float,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
   raft::handle_t const&,
   graph_view_t<int64_t, int64_t, false, true> const&,
   std::optional<edge_property_view_t<int64_t, float const*>>,
   size_t,
+  float,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
   graph_view_t<int32_t, int32_t, false, true> const&,
   std::optional<edge_property_view_t<int32_t, double const*>>,
   size_t,
+  double,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
   graph_view_t<int32_t, int64_t, false, true> const&,
   std::optional<edge_property_view_t<int64_t, double const*>>,
   size_t,
+  double,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
   raft::handle_t const&,
   graph_view_t<int64_t, int64_t, false, true> const&,
   std::optional<edge_property_view_t<int64_t, double const*>>,
   size_t,
+  double,
   double);
 
 template std::pair<size_t, float> louvain(
@@ -63,6 +69,7 @@ template std::pair<size_t, float> louvain(
   std::optional<edge_property_view_t<int32_t, float const*>>,
   int32_t*,
   size_t,
+  float,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
@@ -70,6 +77,7 @@ template std::pair<size_t, double> louvain(
   std::optional<edge_property_view_t<int32_t, double const*>>,
   int32_t*,
   size_t,
+  double,
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
@@ -77,6 +85,7 @@ template std::pair<size_t, float> louvain(
   std::optional<edge_property_view_t<int64_t, float const*>>,
   int32_t*,
   size_t,
+  float,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
@@ -84,6 +93,7 @@ template std::pair<size_t, double> louvain(
   std::optional<edge_property_view_t<int64_t, double const*>>,
   int32_t*,
   size_t,
+  double,
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
@@ -91,6 +101,7 @@ template std::pair<size_t, float> louvain(
   std::optional<edge_property_view_t<int64_t, float const*>>,
   int64_t*,
   size_t,
+  float,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
@@ -98,6 +109,7 @@ template std::pair<size_t, double> louvain(
   std::optional<edge_property_view_t<int64_t, double const*>>,
   int64_t*,
   size_t,
+  double,
   double);
 
 }  // namespace cugraph
