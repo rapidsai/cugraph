@@ -6,7 +6,7 @@
 {% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
-  name: cugraph-nx
+  name: nx-cugraph
   version: {{ version }}
 
 source:
@@ -29,7 +29,7 @@ requirements:
 
 tests:
   imports:
-    - cugraph_nx
+    - nx_cugraph
   commands:
     - pip check
   requires:

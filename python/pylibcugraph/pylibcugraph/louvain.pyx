@@ -51,7 +51,8 @@ from pylibcugraph.utils cimport (
 def louvain(ResourceHandle resource_handle,
             _GPUGraph graph,
             size_t max_level,
-            double resolution,
+            float threshold,
+            float resolution,
             bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -72,11 +73,16 @@ def louvain(ResourceHandle resource_handle,
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    resolution: double
+    threshold: float
+        Modularity gain threshold for each level. If the gain of
+        modularity between 2 levels of the algorithm is less than the
+        given threshold then the algorithm stops and returns the
+        resulting communities.
+
+    resolution: float
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
-        Defaults to 1.
 
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
@@ -100,7 +106,7 @@ def louvain(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, clusters, modularity) = pylibcugraph.louvain(
-                                resource_handle, G, 100, 1., False)
+                                resource_handle, G, 100, 1e-7, 1., False)
     >>> vertices
     [0, 1, 2]
     >>> clusters
@@ -119,6 +125,7 @@ def louvain(ResourceHandle resource_handle,
     error_code = cugraph_louvain(c_resource_handle_ptr,
                                  c_graph_ptr,
                                  max_level,
+                                 threshold,
                                  resolution,
                                  do_expensive_check,
                                  &result_ptr,
