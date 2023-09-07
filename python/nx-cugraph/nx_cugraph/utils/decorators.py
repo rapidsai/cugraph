@@ -14,10 +14,15 @@ from __future__ import annotations
 
 from functools import partial, update_wrapper
 
-from networkx.utils.backends import _registered_algorithms
 from networkx.utils.decorators import nodes_or_number, not_implemented_for
 
 from nx_cugraph.interface import BackendInterface
+
+try:
+    from networkx.utils.backends import _registered_algorithms
+except ModuleNotFoundError:
+    from networkx.classes.backends import _registered_algorithms
+
 
 __all__ = ["not_implemented_for", "nodes_or_number", "networkx_algorithm"]
 
