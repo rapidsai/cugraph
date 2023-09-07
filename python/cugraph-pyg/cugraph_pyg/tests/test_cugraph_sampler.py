@@ -36,6 +36,13 @@ def test_neighbor_sample(basic_graph_1):
         'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
     })
 
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+            "batch": cudf.Series(cupy.zeros(5, dtype="int32")),
+        }
+    )
+
     sampling_results = uniform_neighbor_sample(
         cugraph_store._subgraph(),
         batches,
@@ -92,6 +99,13 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
     })
 
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+            "batch": cudf.Series(cupy.zeros(5, dtype="int32")),
+        }
+    )
+
     sampling_results = uniform_neighbor_sample(
         cugraph_store._subgraph(),
         batches,
@@ -100,6 +114,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         with_edge_properties=True,
         random_state=62,
         return_offsets=False,
+        with_batch_ids=True,
     ).sort_values(by=["sources", "destinations"])
 
     out = _sampler_output_from_sampling_results(

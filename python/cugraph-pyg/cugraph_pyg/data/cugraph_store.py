@@ -387,6 +387,7 @@ class EXPERIMENTAL__CuGraphStore:
         -------
         A newly-constructed directed cugraph.MultiGraph object.
         """
+
         # Ensure the original dict is not modified.
         edge_info_cg = {}
 
