@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
 from typing import Optional, Tuple, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph

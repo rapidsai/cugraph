@@ -17,6 +17,9 @@ from cugraph_dgl.nn.conv.base import SparseGraph
 from cugraph_dgl.nn import SAGEConv as CuGraphSAGEConv
 from .common import create_graph1
 
+dgl = pytest.importorskip("dgl", reason="DGL not available")
+torch = pytest.importorskip("torch", reason="PyTorch not available")
+
 ATOL = 1e-6
 
 
@@ -27,14 +30,10 @@ ATOL = 1e-6
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
-def test_SAGEConv_equality(
+def test_sageconv_equality(
     aggr, bias, bipartite, idtype_int, max_in_degree, to_block, sparse_format
 ):
-    pytest.importorskip("dgl", reason="DGL not available")
-    pytest.importorskip("torch", reason="PyTorch not available")
-    import dgl
     from dgl.nn.pytorch import SAGEConv
-    import torch
 
     kwargs = {"aggregator_type": aggr, "bias": bias}
     g = create_graph1().to("cuda")
