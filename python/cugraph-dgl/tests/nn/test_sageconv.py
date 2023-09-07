@@ -83,7 +83,6 @@ def test_SAGEConv_equality(
         out2 = conv2(sg, feat, max_in_degree=max_in_degree)
     else:
         out2 = conv2(g, feat, max_in_degree=max_in_degree)
-    print(f"{feat = }")
     assert torch.allclose(out1, out2, atol=ATOL)
 
     grad_out = torch.rand_like(out1)
