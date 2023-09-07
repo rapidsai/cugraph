@@ -195,7 +195,7 @@ renumber_and_compress_sampled_edgelist(
  * and sorted edges (size = # labels * # hops + 1, where # labels =
  * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
  * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
- * otherwise, vlaid only if at least one of @p edgelist_label_offsets.has_value() or @p
+ * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
  * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
  * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
  * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
