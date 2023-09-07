@@ -195,7 +195,6 @@ set(CUGRAPH_SOURCES
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/traversal/legacy/bfs.cu
     src/link_prediction/legacy/jaccard.cu
     src/link_prediction/legacy/overlap.cu
     src/link_prediction/jaccard_sg.cu
@@ -235,7 +234,6 @@ set(CUGRAPH_SOURCES
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
     src/components/legacy/connectivity.cu
-    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
@@ -349,11 +347,19 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
+set(COMPILED_RAFT_LIB "")
 if(CUDA_STATIC_RUNTIME)
   get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
   target_include_directories(cugraph PUBLIC ${_includes})
   # Add CTK include paths because we make our CTK library links private below
   target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+    set(COMPILED_RAFT_LIB raft::compiled_static)
+  endif()
+else()
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+    set(COMPILED_RAFT_LIB raft::compiled)
+  endif()
 endif()
 
 ################################################################################
@@ -364,10 +370,10 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -377,10 +383,10 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -484,12 +490,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
 )
 
 ################################################################################

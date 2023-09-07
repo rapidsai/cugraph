@@ -32,7 +32,13 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         self,
         total_number_of_nodes: int,
         edge_dir: str,
+        return_type: str = "dgl.Block",
     ):
+        if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
+            raise ValueError(
+                "return_type must be either 'dgl.Block' or \
+                    'cugraph_dgl.nn.SparseGraph' "
+            )
         # TODO: Deprecate `total_number_of_nodes`
         # as it is no longer needed
         # in the next release
@@ -40,6 +46,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         self.edge_dir = edge_dir
         self._current_batch_fn = None
         self._input_files = None
+        self._return_type = return_type
 
     def __len__(self):
         return self.num_batches
@@ -55,7 +62,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         if fn != self._current_batch_fn:
             df = _load_sampled_file(dataset_obj=self, fn=fn)
             self._current_batches = create_homogeneous_sampled_graphs_from_dataframe(
-                df, self.edge_dir
+                sampled_df=df, edge_dir=self.edge_dir, return_type=self._return_type
             )
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
