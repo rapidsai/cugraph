@@ -19,4 +19,4 @@ is_multigraph: false
 is_symmetric: false
 number_of_edges: 530051354
 number_of_nodes: 21297772
-url: https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz
+url: https://data.rapids.ai/cugraph/datasets/benchmarks.tar
