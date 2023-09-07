@@ -21,12 +21,12 @@ import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
-import cugraph_nx as cnx
+import nx_cugraph as nxcg
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
-    from cugraph_nx.typing import (
+    from nx_cugraph.typing import (
         AttrKey,
         Dtype,
         EdgeTuple,
@@ -38,11 +38,11 @@ if TYPE_CHECKING:
 
 __all__ = ["Graph"]
 
-networkx_api = cnx.utils.decorators.networkx_class(nx.Graph)
+networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
 
 class Graph:
-    # Tell networkx to dispatch calls with this object to cugraph-nx
+    # Tell networkx to dispatch calls with this object to nx-cugraph
     __networkx_plugin__: ClassVar[str] = "cugraph"
 
     # networkx properties
@@ -248,7 +248,7 @@ class Graph:
         elif incoming_graph_data.__class__ is new_graph.__class__:
             new_graph = incoming_graph_data.copy()
         elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
-            new_graph = cnx.from_networkx(incoming_graph_data, preserve_all_attrs=True)
+            new_graph = nxcg.from_networkx(incoming_graph_data, preserve_all_attrs=True)
         else:
             raise NotImplementedError
         new_graph.graph.update(attr)
@@ -270,8 +270,8 @@ class Graph:
 
     @classmethod
     @networkx_api
-    def to_directed_class(cls) -> type[cnx.DiGraph]:
-        return cnx.DiGraph
+    def to_directed_class(cls) -> type[nxcg.DiGraph]:
+        return nxcg.DiGraph
 
     @classmethod
     def to_networkx_class(cls) -> type[nx.Graph]:
@@ -428,7 +428,7 @@ class Graph:
         return int((self.row_indices <= self.col_indices).sum())
 
     @networkx_api
-    def to_directed(self, as_view: bool = False) -> cnx.DiGraph:
+    def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
         return self._copy(as_view, self.to_directed_class())
 
     @networkx_api
@@ -531,6 +531,17 @@ class Graph:
             renumber=False,
             do_expensive_check=False,
         )
+
+    def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
+        """Convert an iterable of node IDs to an iterable of node keys."""
+        if (id_to_key := self.id_to_key) is not None:
+            return map(id_to_key.__getitem__, node_ids)
+        return node_ids
+
+    def _nodearray_to_list(self, node_ids: cp.ndarray[IndexValue]) -> list[NodeKey]:
+        if self.key_to_id is None:
+            return node_ids.tolist()
+        return list(self._nodeiter_to_iter(node_ids.tolist()))
 
     def _nodearrays_to_dict(
         self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]

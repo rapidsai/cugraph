@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import networkx as nx
 
-import cugraph_nx as cnx
+import nx_cugraph as nxcg
 
 
 class BackendInterface:
@@ -29,12 +29,12 @@ class BackendInterface:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        return cnx.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
+        return nxcg.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, cnx.Graph):
-            return cnx.to_networkx(obj)
+        if isinstance(obj, nxcg.Graph):
+            return nxcg.to_networkx(obj)
         return obj
 
     @staticmethod
@@ -59,8 +59,12 @@ class BackendInterface:
                 return (testname, frozenset({classname, filename}))
             return (testname, frozenset({filename}))
 
+        # Reasons for xfailing
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
+        louvain_different = (
+            "Louvain may be different due to RNG or unsupported threshold parameter"
+        )
 
         xfail = {}
 
@@ -69,6 +73,10 @@ class BackendInterface:
         nxver = parse(nx.__version__)
         if nxver.major == 3 and nxver.minor in {0, 1}:
             # MAINT: networkx 3.0, 3.1
+            # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
+            # raise NotImplementedError or `can_run` returns False. The tests below
+            # exercise behavior we have not implemented yet, so we mark them as xfail
+            # for previous versions of NetworkX.
             xfail.update(
                 {
                     key(
@@ -160,6 +168,18 @@ class BackendInterface:
                     ): no_multigraph,
                 }
             )
+        else:
+            xfail.update(
+                {
+                    key(
+                        "test_louvain.py:test_karate_club_partition"
+                    ): louvain_different,
+                    key("test_louvain.py:test_none_weight_param"): louvain_different,
+                    key("test_louvain.py:test_multigraph"): louvain_different,
+                    key("test_louvain.py:test_threshold"): louvain_different,
+                }
+            )
+
         for item in items:
             kset = set(item.keywords)
             for (test_name, keywords), reason in xfail.items():

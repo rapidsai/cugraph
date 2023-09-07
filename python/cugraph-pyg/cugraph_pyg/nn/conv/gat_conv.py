@@ -10,16 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
+from pylibcugraphops.pytorch.operators import mha_gat_n2n
 
 from .base import BaseConv
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
-ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):
@@ -174,9 +175,9 @@ class GATConv(BaseConv):
                 representation to the desired format.
             edge_attr: (torch.Tensor, optional) The edge features.
             max_num_neighbors (int, optional): The maximum number of neighbors
-                of a target node. It is only effective when operating in a
-                bipartite graph. When not given, will be computed on-the-fly,
-                leading to slightly worse performance. (default: :obj:`None`)
+                of a destination node. When enabled, it allows models to use
+                the message-flow-graph primitives in cugraph-ops.
+                (default: :obj:`None`)
         """
         bipartite = not isinstance(x, torch.Tensor)
         graph = self.get_cugraph(
@@ -210,7 +211,7 @@ class GATConv(BaseConv):
                 )
             x = self.lin(x)
 
-        out = ops_torch.operators.mha_gat_n2n(
+        out = mha_gat_n2n(
             (x_src, x_dst) if bipartite else x,
             self.att,
             graph,
