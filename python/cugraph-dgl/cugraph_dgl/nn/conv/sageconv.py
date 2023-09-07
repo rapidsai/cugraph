@@ -137,7 +137,8 @@ class SAGEConv(BaseConv):
         if max_in_degree is None:
             max_in_degree = -1
 
-        bipartite = isinstance(feat, (list, tuple))
+        feat_bipartite = isinstance(feat, (list, tuple))
+        graph_bipartite = feat_bipartite or self.aggregator_type == "pool"
 
         if isinstance(g, SparseGraph):
             assert "csc" in g.formats()
@@ -147,7 +148,7 @@ class SAGEConv(BaseConv):
                 indices=indices,
                 num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
-                is_bipartite=bipartite,
+                is_bipartite=graph_bipartite,
             )
         elif isinstance(g, dgl.DGLHeteroGraph):
             offsets, indices, _ = g.adj_tensors("csc")
@@ -156,7 +157,7 @@ class SAGEConv(BaseConv):
                 indices=indices,
                 num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
-                is_bipartite=bipartite,
+                is_bipartite=graph_bipartite,
             )
         else:
             raise TypeError(
@@ -164,16 +165,19 @@ class SAGEConv(BaseConv):
                 f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
             )
 
-        if bipartite:
+        if feat_bipartite:
             feat = (self.feat_drop(feat[0]), self.feat_drop(feat[1]))
         else:
             feat = self.feat_drop(feat)
 
-        if self.pre_lin is not None:
-            if bipartite:
+        if self.aggregator_type == "pool":
+            if feat_bipartite:
                 feat = (self.pre_lin(feat[0]).relu(), feat[1])
             else:
-                feat = self.pre_lin(feat).relu()
+                feat = (self.pre_lin(feat).relu(), feat[: g.num_dst_nodes()])
+            # force ctx.needs_input_grad=True in cugraph-ops autograd function
+            feat[0].requires_grad_()
+            feat[1].requires_grad_()
 
         out = ops_torch.operators.agg_concat_n2n(feat, _graph, self._aggr)[
             : g.num_dst_nodes()
