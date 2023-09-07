@@ -34,7 +34,7 @@ rapids-mamba-retry install \
   libcugraph \
   pylibcugraph \
   cugraph \
-  cugraph-nx \
+  nx-cugraph \
   cugraph-service-server \
   cugraph-service-client
 
@@ -93,28 +93,28 @@ pytest \
   cugraph/pytest-based/bench_algos.py
 popd
 
-rapids-logger "pytest cugraph-nx"
-pushd python/cugraph-nx/cugraph_nx
+rapids-logger "pytest nx-cugraph"
+pushd python/nx-cugraph/nx_cugraph
 pytest \
   --capture=no \
   --verbose \
   --cache-clear \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-nx.xml" \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-nx-cugraph.xml" \
   --cov-config=../../.coveragerc \
-  --cov=cugraph_nx \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-nx-coverage.xml" \
+  --cov=nx_cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/nx-cugraph-coverage.xml" \
   --cov-report=term \
   --benchmark-disable \
   tests
 popd
 
-rapids-logger "pytest networkx using cugraph-nx backend"
-pushd python/cugraph-nx
+rapids-logger "pytest networkx using nx-cugraph backend"
+pushd python/nx-cugraph
 ./run_nx_tests.sh
 # run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
-# in case cugraph-nx failed to load but fallback mode allowed the run to pass.
+# in case nx-cugraph failed to load but fallback mode allowed the run to pass.
 _coverage=$(coverage report|grep "^TOTAL")
-echo "cugraph-nx coverage from networkx tests: $_coverage"
+echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 popd
 
