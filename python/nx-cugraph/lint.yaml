@@ -74,7 +74,7 @@ repos:
       - id: codespell
         types_or: [python, rst, markdown]
         additional_dependencies: [tomli]
-        files: ^(cugraph_nx|docs)/
+        files: ^(nx_cugraph|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.0.286
     hooks:

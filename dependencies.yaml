@@ -14,14 +14,14 @@ files:
       - python_build_cythonize
       - python_run_cugraph
       - python_run_pylibcugraph
-      - python_run_cugraph_nx
+      - python_run_nx_cugraph
       - python_run_cugraph_dgl
       - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
-      - test_python_cugraph_nx
+      - test_python_nx_cugraph
   checks:
     output: none
     includes:
@@ -105,29 +105,29 @@ files:
     includes:
       - test_python_common
       - test_python_pylibcugraph
-  py_build_cugraph_nx:
+  py_build_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: build-system
     includes:
       - python_build_wheel
-  py_run_cugraph_nx:
+  py_run_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: project
     includes:
-      - python_run_cugraph_nx
-  py_test_cugraph_nx:
+      - python_run_nx_cugraph
+  py_test_nx_cugraph:
     output: pyproject
-    pyproject_dir: python/cugraph-nx
+    pyproject_dir: python/nx-cugraph
     extras:
       table: project.optional-dependencies
       key: test
     includes:
       - test_python_common
-      - test_python_cugraph_nx
+      - test_python_nx_cugraph
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -199,12 +199,24 @@ files:
     output: conda
     conda_dir: python/cugraph-dgl/conda
     includes:
+      - checks
       - cugraph_dgl_dev
+      - test_python_common
+  cugraph_pyg_dev:
+    matrix:
+      cuda: ["11.8"]
+    output: conda
+    conda_dir: python/cugraph-pyg/conda
+    includes:
+      - checks
+      - cugraph_pyg_dev
+      - test_python_common
 channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
   - pytorch
+  - pyg
   - dglteam/label/cu118
   - conda-forge
   - nvidia
@@ -377,7 +389,7 @@ dependencies:
         packages:
           - *pylibraft
           - *rmm
-  python_run_cugraph_nx:
+  python_run_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
@@ -484,12 +496,12 @@ dependencies:
         packages:
           - *cudf
           - *numpy
-  test_python_cugraph_nx:
+  test_python_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - packaging>=21
-            # not needed by cugraph-nx tests, but is required for running networkx tests
+            # not needed by nx-cugraph tests, but is required for running networkx tests
           - pytest-mpl
   cugraph_dgl_dev:
     common:
@@ -500,6 +512,12 @@ dependencies:
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - dgl>=1.1.0.cu*
-          - setuptools
-          - pre-commit
-          - pytest
+  cugraph_pyg_dev:
+    common:
+      - output_types: [conda]
+        packages:
+          - cugraph==23.10.*
+          - pylibcugraphops==23.10.*
+          - pytorch==2.0
+          - pytorch-cuda==11.8
+          - pyg=2.3.1=*torch_2.0.0*cu118*

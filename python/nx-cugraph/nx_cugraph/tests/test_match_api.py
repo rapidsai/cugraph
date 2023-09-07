@@ -15,13 +15,13 @@ import inspect
 
 import networkx as nx
 
-import cugraph_nx as cnx
-from cugraph_nx.utils import networkx_algorithm
+import nx_cugraph as nxcg
+from nx_cugraph.utils import networkx_algorithm
 
 
 def test_match_signature_and_names():
     """Simple test to ensure our signatures and basic module layout match networkx."""
-    for name, func in vars(cnx.interface.BackendInterface).items():
+    for name, func in vars(nxcg.interface.BackendInterface).items():
         if not isinstance(func, networkx_algorithm):
             continue
 
@@ -44,7 +44,7 @@ def test_match_signature_and_names():
         if not func.extra_params:
             assert orig_sig == func_sig
         else:
-            # Ignore extra parameters added to cugraph-nx algorithm
+            # Ignore extra parameters added to nx-cugraph algorithm
             assert orig_sig == func_sig.replace(
                 parameters=[
                     p
@@ -52,7 +52,7 @@ def test_match_signature_and_names():
                     if name not in func.extra_params
                 ]
             )
-        if func.can_run is not cnx.utils.decorators._default_can_run:
+        if func.can_run is not nxcg.utils.decorators._default_can_run:
             assert func_sig == inspect.signature(func.can_run)
 
         # Matching function names?
@@ -74,33 +74,33 @@ def test_match_signature_and_names():
         )
 
         # Matching package layout (i.e., which modules have the function)?
-        cnx_path = func.__module__
+        nxcg_path = func.__module__
         name = func.__name__
-        while "." in cnx_path:
+        while "." in nxcg_path:
             # This only walks up the module tree and does not check sibling modules
-            cnx_path, mod_name = cnx_path.rsplit(".", 1)
-            nx_path = cnx_path.replace("cugraph_nx", "networkx")
-            cnx_mod = importlib.import_module(cnx_path)
+            nxcg_path, mod_name = nxcg_path.rsplit(".", 1)
+            nx_path = nxcg_path.replace("nx_cugraph", "networkx")
+            nxcg_mod = importlib.import_module(nxcg_path)
             nx_mod = importlib.import_module(nx_path)
             # Is the function present in the current module?
-            present_in_cnx = hasattr(cnx_mod, name)
+            present_in_nxcg = hasattr(nxcg_mod, name)
             present_in_nx = hasattr(nx_mod, name)
-            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
-                if present_in_cnx:
+            if present_in_nxcg is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_nxcg:
                     raise AssertionError(
-                        f"{name} exists in {cnx_path}, but not in {nx_path}"
+                        f"{name} exists in {nxcg_path}, but not in {nx_path}"
                     )
                 raise AssertionError(
-                    f"{name} exists in {nx_path}, but not in {cnx_path}"
+                    f"{name} exists in {nx_path}, but not in {nxcg_path}"
                 )
             # Is the nested module present in the current module?
-            present_in_cnx = hasattr(cnx_mod, mod_name)
+            present_in_nxcg = hasattr(nxcg_mod, mod_name)
             present_in_nx = hasattr(nx_mod, mod_name)
-            if present_in_cnx is not present_in_nx:  # pragma: no cover (debug)
-                if present_in_cnx:
+            if present_in_nxcg is not present_in_nx:  # pragma: no cover (debug)
+                if present_in_nxcg:
                     raise AssertionError(
-                        f"{mod_name} exists in {cnx_path}, but not in {nx_path}"
+                        f"{mod_name} exists in {nxcg_path}, but not in {nx_path}"
                     )
                 raise AssertionError(
-                    f"{mod_name} exists in {nx_path}, but not in {cnx_path}"
+                    f"{mod_name} exists in {nx_path}, but not in {nxcg_path}"
                 )

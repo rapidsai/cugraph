@@ -10,9 +10,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
+import operator as op
+import sys
+from random import Random
+
 import cupy as cp
 
-__all__ = ["_groupby"]
+__all__ = ["_groupby", "_handle_seed"]
 
 
 def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:
@@ -43,3 +49,12 @@ def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:
         rv[i] = sorted_values[start:end]
         start = end
     return rv
+
+
+def _handle_seed(seed: int | Random | None) -> int:
+    """Handle seed argument and ensure it is what pylibcugraph needs: an int."""
+    if seed is None:
+        return
+    if isinstance(seed, Random):
+        return seed.randint(0, sys.maxsize)
+    return op.index(seed)  # Ensure seed is integral
