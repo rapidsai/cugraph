@@ -442,9 +442,9 @@ compute_renumber_map(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> renumber_map(0, handle.get_stream());
     rmm::device_uvector<label_index_t> renumber_map_label_indices(0, handle.get_stream());
 
-    renumber_map.reserve(
-      (*unique_label_major_pair_label_indices).size() + (*unique_label_minor_pair_label_indices).size(),
-      handle.get_stream());
+    renumber_map.reserve((*unique_label_major_pair_label_indices).size() +
+                           (*unique_label_minor_pair_label_indices).size(),
+                         handle.get_stream());
     renumber_map_label_indices.reserve(renumber_map.capacity(), handle.get_stream());
 
     auto num_chunks = (edgelist_majors.size() + (approx_edges_to_sort_per_iteration - 1)) /
@@ -577,12 +577,14 @@ compute_renumber_map(raft::handle_t const& handle,
         handle.get_stream());
       rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
       rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
-      auto major_triplet_first = thrust::make_zip_iterator(unique_label_major_pair_vertices.begin(),
-                                                         (*unique_label_major_pair_hops).begin(),
-                                                         thrust::make_constant_iterator(int8_t{0}));
-      auto minor_triplet_first = thrust::make_zip_iterator(unique_label_minor_pair_vertices.begin(),
-                                                         (*unique_label_minor_pair_hops).begin(),
-                                                         thrust::make_constant_iterator(int8_t{1}));
+      auto major_triplet_first =
+        thrust::make_zip_iterator(unique_label_major_pair_vertices.begin(),
+                                  (*unique_label_major_pair_hops).begin(),
+                                  thrust::make_constant_iterator(int8_t{0}));
+      auto minor_triplet_first =
+        thrust::make_zip_iterator(unique_label_minor_pair_vertices.begin(),
+                                  (*unique_label_minor_pair_hops).begin(),
+                                  thrust::make_constant_iterator(int8_t{1}));
       thrust::merge(handle.get_thrust_policy(),
                     major_triplet_first,
                     major_triplet_first + unique_label_major_pair_vertices.size(),
@@ -627,7 +629,7 @@ compute_renumber_map(raft::handle_t const& handle,
                                                 output_vertices.begin());
 
       auto num_unique_majors = unique_label_major_pair_vertices.size();
-      auto renumber_map    = std::move(unique_label_major_pair_vertices);
+      auto renumber_map      = std::move(unique_label_major_pair_vertices);
       renumber_map.resize(
         renumber_map.size() + thrust::distance(output_vertices.begin(), output_last),
         handle.get_stream());
@@ -930,19 +932,16 @@ sort_sampled_and_renumbered_edgelist(
       edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
                         std::get<0>(*edgelist_hops).data() + h_edge_offsets[i], indices.size())
                     : thrust::nullopt,
-      raft::device_span<vertex_t const>(
-        edgelist_majors.data() + h_edge_offsets[i],
-        indices.size()),
-      raft::device_span<vertex_t const>(
-        edgelist_minors.data() + h_edge_offsets[i],
-        indices.size())};
+      raft::device_span<vertex_t const>(edgelist_majors.data() + h_edge_offsets[i], indices.size()),
+      raft::device_span<vertex_t const>(edgelist_minors.data() + h_edge_offsets[i],
+                                        indices.size())};
     thrust::sort(handle.get_thrust_policy(), indices.begin(), indices.end(), edge_order_comp);
 
-    permute_array(
-      handle,
-      indices.begin(),
-      indices.end(),
-      thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin()) + h_edge_offsets[i]);
+    permute_array(handle,
+                  indices.begin(),
+                  indices.end(),
+                  thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin()) +
+                    h_edge_offsets[i]);
 
     if (edgelist_weights) {
       permute_array(
@@ -1536,15 +1535,16 @@ renumber_and_compress_sampled_edgelist(
 
   edgelist_hops = std::nullopt;
 
-  return std::make_tuple(std::move(compressed_nzd_vertices),
-                         std::move(compressed_offsets),
-                         std::move(edgelist_minors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types),
-                         std::move(compressed_offset_label_hop_offsets),
-                         std::move(renumber_map),
-                         std::move(renumber_map_label_offsets));
+  return std::make_tuple(
+    doubly_compress ? std::make_optional(std::move(compressed_nzd_vertices)) : std::nullopt,
+    std::move(compressed_offsets),
+    std::move(edgelist_minors),
+    std::move(edgelist_weights),
+    std::move(edgelist_edge_ids),
+    std::move(edgelist_edge_types),
+    std::move(compressed_offset_label_hop_offsets),
+    std::move(renumber_map),
+    std::move(renumber_map_label_offsets));
 }
 
 template <typename vertex_t,
