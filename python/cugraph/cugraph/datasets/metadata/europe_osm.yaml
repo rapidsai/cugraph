@@ -18,4 +18,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 54054660
 number_of_nodes: 50912018
-url: https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz
+url: https://data.rapids.ai/cugraph/datasets/europe_osm.csv

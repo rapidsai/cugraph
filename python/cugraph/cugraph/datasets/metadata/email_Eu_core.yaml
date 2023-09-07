@@ -26,4 +26,4 @@ is_multigraph: false
 is_symmetric: false
 number_of_edges: 25571
 number_of_nodes: 1005
-url: https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz
+url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv

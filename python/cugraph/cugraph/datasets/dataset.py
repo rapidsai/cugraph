@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
 import cudf
 import yaml
 import os
@@ -166,7 +165,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, cpu_only=False):
+    def get_edgelist(self, download=False, create_using=cudf):
         """
         Return an Edgelist
 
@@ -176,8 +175,9 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        cpu_only : Boolean (default=False)
-            Constrain the reading of the csv to the CPU using pandas instead of cuDF.
+        create_using : module (default=cudf)
+            Specify which module to use when reading the dataset. This module
+            must have a read_csv function.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -193,22 +193,23 @@ class Dataset:
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            if cpu_only:
-                self._edgelist = pd.read_csv(
-                    full_path,
-                    delimiter=self.metadata["delim"],
-                    names=self.metadata["col_names"],
-                    dtype=self.metadata["col_types"],
-                    header=header,
-                )
+            if create_using is None:
+                reader = cudf
+            elif str(type(create_using)) != "<class 'module'>":
+                raise RuntimeError("create_using must be a module.")
+            elif create_using.__name__ == "cudf" or "pandas":
+                reader = create_using
+            elif create_using.__name__ == "dask_cudf":
+                raise NotImplementedError()
             else:
-                self._edgelist = cudf.read_csv(
-                    full_path,
-                    delimiter=self.metadata["delim"],
-                    names=self.metadata["col_names"],
-                    dtype=self.metadata["col_types"],
-                    header=header,
-                )
+                raise NotImplementedError()
+            self._edgelist = reader.read_csv(
+                full_path,
+                delimiter=self.metadata["delim"],
+                names=self.metadata["col_names"],
+                dtype=self.metadata["col_types"],
+                header=header,
+            )
 
         return self._edgelist.copy()
 
@@ -218,7 +219,6 @@ class Dataset:
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
-        cpu_only=False,
     ):
         """
         Return a Graph object.
@@ -243,10 +243,6 @@ class Dataset:
         store_transposed: Boolean (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms, such as pagerank.
-
-        cpu_only: Boolean (default=False)
-            Constrain the reading of the edgelist to the CPU using pandas instead of
-            cuDF.
         """
         if self._edgelist is None:
             self.get_edgelist(download)
@@ -265,38 +261,21 @@ class Dataset:
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-        if cpu_only:
-            if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
-                G.from_pandas_edgelist(
-                    self._edgelist,
-                    source=self.metadata["col_names"][0],
-                    destination=self.metadata["col_names"][1],
-                    edge_attr=self.metadata["col_names"][2],
-                    store_transposed=store_transposed,
-                )
-            else:
-                G.from_pandas_edgelist(
-                    self._edgelist,
-                    source=self.metadata["col_names"][0],
-                    destination=self.metadata["col_names"][1],
-                    store_transposed=store_transposed,
-                )
+        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+            G.from_cudf_edgelist(
+                self._edgelist,
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                edge_attr=self.metadata["col_names"][2],
+                store_transposed=store_transposed,
+            )
         else:
-            if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
-                G.from_cudf_edgelist(
-                    self._edgelist,
-                    source=self.metadata["col_names"][0],
-                    destination=self.metadata["col_names"][1],
-                    edge_attr=self.metadata["col_names"][2],
-                    store_transposed=store_transposed,
-                )
-            else:
-                G.from_cudf_edgelist(
-                    self._edgelist,
-                    source=self.metadata["col_names"][0],
-                    destination=self.metadata["col_names"][1],
-                    store_transposed=store_transposed,
-                )
+            G.from_cudf_edgelist(
+                self._edgelist,
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                store_transposed=store_transposed,
+            )
         return G
 
     def get_path(self):

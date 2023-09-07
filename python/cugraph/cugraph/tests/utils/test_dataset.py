@@ -27,6 +27,7 @@ from cugraph.testing import (
     ALL_DATASETS,
     WEIGHTED_DATASETS,
     SMALL_DATASETS,
+    BENCHMARKING_DATASETS,
 )
 from cugraph import datasets
 
@@ -326,6 +327,25 @@ def test_is_symmetric(dataset):
 def test_is_multigraph(dataset):
     G = dataset.get_graph(download=True)
 
+    assert G.is_multigraph() == dataset.metadata["is_multigraph"]
+
+
+@pytest.mark.parametrize("dataset", BENCHMARKING_DATASETS)
+def test_benchmarking_datasets(dataset):
+    # The datasets used for benchmarks are in their own tests since downloading them
+    # repeatedly would increase testing overhead significantly. Would it be worthwhile
+    # to even include each of them? Downloading all 5 of these datasets takes ~90sec,
+    # according to notes from get_test_data.sh
+    G = dataset.get_graph(download=True)
+    df = dataset.get_edgelist()
+
+    assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
+    assert G.number_of_edges() == dataset.metadata["number_of_edges"]
+
+    assert G.is_directed() == dataset.metadata["is_directed"]
+
+    assert has_loop(df) == dataset.metadata["has_loop"]
+    assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
 

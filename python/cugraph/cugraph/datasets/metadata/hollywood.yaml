@@ -1,12 +1,13 @@
 name: hollywood
 file_type: .csv
 description:
-  A graph of movie actors where vertices are actors, and two actors are joined by an edge whenever they appeared in a movie together.
+  A graph of movie actors where vertices are actors, and two actors are
+  joined by an edge whenever they appeared in a movie together.
 author: Laboratory for Web Algorithmics (LAW)
 refs:
-  "The WebGraph Framework I: Compression Techniques," Paolo Boldi      
-  and Sebastiano Vigna, Proc. of the Thirteenth International          
-  World Wide Web Conference (WWW 2004), 2004, Manhattan, USA,          
+  The WebGraph Framework I Compression Techniques, Paolo Boldi
+  and Sebastiano Vigna, Proc. of the Thirteenth International
+  World Wide Web Conference (WWW 2004), 2004, Manhattan, USA,
   pp. 595--601, ACM Press.
 delim: " "
 header: None
