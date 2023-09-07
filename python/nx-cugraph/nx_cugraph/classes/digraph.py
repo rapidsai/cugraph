@@ -16,16 +16,16 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-import cugraph_nx as cnx
+import nx_cugraph as nxcg
 
 from .graph import Graph
 
 if TYPE_CHECKING:
-    from cugraph_nx.typing import NodeKey
+    from nx_cugraph.typing import NodeKey
 
 __all__ = ["DiGraph"]
 
-networkx_api = cnx.utils.decorators.networkx_class(nx.DiGraph)
+networkx_api = nxcg.utils.decorators.networkx_class(nx.DiGraph)
 
 
 class DiGraph(Graph):

@@ -16,7 +16,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-import cugraph_nx as cnx
+import nx_cugraph as nxcg
 
 try:
     import cugraph
@@ -50,19 +50,22 @@ def _bench_helper(gpubenchmark, N, attr_kind, create_using, method):
                 continue
             edgedict["x"] = random.randint(0, 100000)
         if attr_kind == "preserve":
-            gpubenchmark(cnx.from_networkx, G, preserve_edge_attrs=True)
+            gpubenchmark(nxcg.from_networkx, G, preserve_edge_attrs=True)
         elif attr_kind == "half_missing":
-            gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": None})
+            gpubenchmark(nxcg.from_networkx, G, edge_attrs={"x": None})
         elif attr_kind == "required":
-            gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": ...})
+            gpubenchmark(nxcg.from_networkx, G, edge_attrs={"x": ...})
         elif attr_kind == "required_dtype":
             gpubenchmark(
-                cnx.from_networkx, G, edge_attrs={"x": ...}, edge_dtypes={"x": np.int32}
+                nxcg.from_networkx,
+                G,
+                edge_attrs={"x": ...},
+                edge_dtypes={"x": np.int32},
             )
         else:  # full, half_default
-            gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": 0})
+            gpubenchmark(nxcg.from_networkx, G, edge_attrs={"x": 0})
     else:
-        gpubenchmark(cnx.from_networkx, G)
+        gpubenchmark(nxcg.from_networkx, G)
 
 
 def _bench_helper_cugraph(

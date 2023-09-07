@@ -30,7 +30,7 @@ VALIDARGS="
    cpp-mgtests
    cugraph-pyg
    cugraph-dgl
-   cugraph-nx
+   nx-cugraph
    docs
    -v
    -g
@@ -54,7 +54,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    pylibcugraph               - build the pylibcugraph Python package
    cugraph-pyg                - build the cugraph-pyg Python package
    cugraph                    - build the cugraph Python package
-   cugraph-nx                 - build the cugraph-nx Python package
+   nx-cugraph                 - build the nx-cugraph Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
@@ -209,7 +209,7 @@ if hasArg uninstall; then
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
     pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server \
-        cugraph-dgl cugraph-pyg cugraph-nx
+        cugraph-dgl cugraph-pyg nx-cugraph
 fi
 
 if hasArg clean; then
@@ -382,12 +382,12 @@ if hasArg cugraph-dgl; then
     fi
 fi
 
-# Build and install the cugraph-nx Python package
-if hasArg cugraph-nx; then
+# Build and install the nx-cugraph Python package
+if hasArg nx-cugraph; then
     if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-nx
+        cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-nx
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/nx-cugraph
     fi
 fi
 
