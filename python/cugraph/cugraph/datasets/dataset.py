@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pandas as pd
 import cudf
 import yaml
 import os
@@ -137,6 +138,12 @@ class Dataset:
 
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
+            if "benchmark.tar.gz" in url:
+                # Benchmark dataset first requires uncompressing
+                raise RuntimeError(
+                    "To download a dataset used for benchmarking, "
+                    "use download_all instead."
+                )
             df = cudf.read_csv(url)
             self._path = self._dl_path.path / filename
             df.to_csv(self._path, index=False)
@@ -159,7 +166,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False):
+    def get_edgelist(self, download=False, cpu_only=False):
         """
         Return an Edgelist
 
@@ -168,6 +175,9 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
+
+        cpu_only : Boolean (default=False)
+            Constrain the reading of the csv to the CPU using pandas instead of cuDF.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -183,13 +193,22 @@ class Dataset:
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            self._edgelist = cudf.read_csv(
-                full_path,
-                delimiter=self.metadata["delim"],
-                names=self.metadata["col_names"],
-                dtype=self.metadata["col_types"],
-                header=header,
-            )
+            if cpu_only:
+                self._edgelist = pd.read_csv(
+                    full_path,
+                    delimiter=self.metadata["delim"],
+                    names=self.metadata["col_names"],
+                    dtype=self.metadata["col_types"],
+                    header=header,
+                )
+            else:
+                self._edgelist = cudf.read_csv(
+                    full_path,
+                    delimiter=self.metadata["delim"],
+                    names=self.metadata["col_names"],
+                    dtype=self.metadata["col_types"],
+                    header=header,
+                )
 
         return self._edgelist.copy()
 
@@ -199,6 +218,7 @@ class Dataset:
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
+        cpu_only=False,
     ):
         """
         Return a Graph object.
@@ -219,6 +239,14 @@ class Dataset:
             dataset -if present- will be applied to the Graph. If the
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
+
+        store_transposed: Boolean (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms, such as pagerank.
+
+        cpu_only: Boolean (default=False)
+            Constrain the reading of the edgelist to the CPU using pandas instead of
+            cuDF.
         """
         if self._edgelist is None:
             self.get_edgelist(download)
@@ -237,22 +265,38 @@ class Dataset:
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-
-        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
-            G.from_cudf_edgelist(
-                self._edgelist,
-                source="src",
-                destination="dst",
-                edge_attr="wgt",
-                store_transposed=store_transposed,
-            )
+        if cpu_only:
+            if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+                G.from_pandas_edgelist(
+                    self._edgelist,
+                    source=self.metadata["col_names"][0],
+                    destination=self.metadata["col_names"][1],
+                    edge_attr=self.metadata["col_names"][2],
+                    store_transposed=store_transposed,
+                )
+            else:
+                G.from_pandas_edgelist(
+                    self._edgelist,
+                    source=self.metadata["col_names"][0],
+                    destination=self.metadata["col_names"][1],
+                    store_transposed=store_transposed,
+                )
         else:
-            G.from_cudf_edgelist(
-                self._edgelist,
-                source="src",
-                destination="dst",
-                store_transposed=store_transposed,
-            )
+            if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+                G.from_cudf_edgelist(
+                    self._edgelist,
+                    source=self.metadata["col_names"][0],
+                    destination=self.metadata["col_names"][1],
+                    edge_attr=self.metadata["col_names"][2],
+                    store_transposed=store_transposed,
+                )
+            else:
+                G.from_cudf_edgelist(
+                    self._edgelist,
+                    source=self.metadata["col_names"][0],
+                    destination=self.metadata["col_names"][1],
+                    store_transposed=store_transposed,
+                )
         return G
 
     def get_path(self):
@@ -279,13 +323,19 @@ def download_all(force=False):
     default_download_dir.path.mkdir(parents=True, exist_ok=True)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
+    # benchmarks_file_path = default_download_dir / "benchmarks.tar.gz"
+    # benchmarks_url = "https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz"
+    # urllib.request.urlretrieve(benchmarks_url, benchmarks_file_path)
+    # tar = tarfile.open(str(benchmarks_file_path), "r:gz")
+    # tar.extractall(str(default_download_dir))
+    # tar.close()
     for file in meta_path.iterdir():
         meta = None
         if file.suffix == ".yaml":
             with open(meta_path / file, "r") as metafile:
                 meta = yaml.safe_load(metafile)
 
-            if "url" in meta:
+            if "url" in meta and "benchmark" not in meta["url"]:
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:

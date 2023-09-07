@@ -38,8 +38,9 @@ small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
 toy_graph = Dataset(meta_path / "toy_graph.yaml")
 toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
-# soc_livejournal = Dataset(meta_path / "soc-livejournal1.yaml")    # 250MB
-# cit_patents = Dataset(meta_path / "cit-patents.yaml")             # 965MB
-# europe_osm = Dataset(meta_path / "europe_osm.yaml")               # 1.8GB
-# hollywood = Dataset(meta_path / "hollywood.yaml")                 # 1.5GB
-# twitter = Dataset(meta_path / "soc-twitter-2010.yaml")            # 8.8GB
+# TODO: Upload these benchmark datasets to s3 bucket
+soc_livejournal = Dataset(meta_path / "soc-livejournal1.yaml")  # 250MB
+cit_patents = Dataset(meta_path / "cit-patents.yaml")  # 965MB
+europe_osm = Dataset(meta_path / "europe_osm.yaml")  # 1.8GB
+hollywood = Dataset(meta_path / "hollywood.yaml")  # 1.5GB
+twitter = Dataset(meta_path / "soc-twitter-2010.yaml")  # 8.8GB

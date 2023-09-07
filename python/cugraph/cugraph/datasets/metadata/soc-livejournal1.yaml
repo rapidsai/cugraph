@@ -19,4 +19,4 @@ is_multigraph: false
 is_symmetric: false
 number_of_edges: 68993773
 number_of_nodes: 4847571
-url: https://data.rapids.ai/cugraph/datasets/soc-LiveJournal1.csv
+url: https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz
