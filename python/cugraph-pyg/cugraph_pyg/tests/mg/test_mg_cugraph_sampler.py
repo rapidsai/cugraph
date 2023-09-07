@@ -38,6 +38,13 @@ def test_neighbor_sample(dask_client, basic_graph_1):
         'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
     })
 
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+            "batch": cudf.Series(cupy.zeros(5, dtype="int32")),
+        }
+    )
+
     sampling_results = (
         uniform_neighbor_sample(
             cugraph_store._subgraph(),
@@ -99,6 +106,13 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
         'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
         'batches': cudf.Series(cupy.zeros(5, dtype="int32")),
     })
+
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
+            "batches": cudf.Series(cupy.zeros(5, dtype="int32")),
+        }
+    )
 
     sampling_results = (
         uniform_neighbor_sample(
