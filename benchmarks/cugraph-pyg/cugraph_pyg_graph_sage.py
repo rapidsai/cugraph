@@ -115,7 +115,7 @@ def train_epoch(model, loader, optimizer):
     time_feature_additional = 0.0
     start_time = time.perf_counter()
     end_time_backward = start_time
-    with td.algorithms.join.Join([model]):
+    with td.algorithms.join.Join([model, optimizer]):
         for iter_i, data in enumerate(loader):
             loader_time_iter = time.perf_counter() - end_time_backward
             time_loader += loader_time_iter
@@ -187,7 +187,6 @@ def train_epoch(model, loader, optimizer):
             time_backward += end_time_backward - start_time_backward
     
     end_time = time.perf_counter()
-    td.barrier()
     return total_loss, num_batches, ((end_time - start_time) / num_batches), (time_forward / num_batches), (time_backward / num_batches), (time_loader / num_batches), (time_feature_additional / num_batches)
 
 
