@@ -30,6 +30,9 @@ def get_info():
         "backend_name": "cugraph",
         "project": "nx-cugraph",
         "package": "nx_cugraph",
+        "url": "https://github.com/rapidsai/cugraph/tree/branch-23.10/python/nx-cugraph",
+        "short_summary": "GPU-accelerated backend.",
+        # "description": "TODO",
         "functions": {
             # BEGIN: functions
             "betweenness_centrality",
