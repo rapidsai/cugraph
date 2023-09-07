@@ -27,7 +27,9 @@ __all__ = ["louvain_communities"]
 
 @not_implemented_for("directed")
 @networkx_algorithm(
-    extra_params={"max_level": "Upper limit of the number of macro-iterations."}
+    extra_params={
+        "max_level : int, optional": "Upper limit of the number of macro-iterations."
+    }
 )
 def louvain_communities(
     G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None

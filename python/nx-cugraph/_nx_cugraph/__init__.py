@@ -47,7 +47,7 @@ def get_info():
         "extra_parameters": {
             # BEGIN: extra_parameters
             "louvain_communities": {
-                "max_level": "Upper limit of the number of macro-iterations.",
+                "max_level : int, optional": "Upper limit of the number of macro-iterations.",
             },
             # END: extra_parameters
         },
