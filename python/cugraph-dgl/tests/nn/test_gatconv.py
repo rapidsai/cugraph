@@ -28,10 +28,11 @@ ATOL = 1e-6
 @pytest.mark.parametrize("idtype_int", [False, True])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("residual", [False, True])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
 def test_gatconv_equality(
-    bipartite, idtype_int, max_in_degree, num_heads, to_block, sparse_format
+    bipartite, idtype_int, max_in_degree, num_heads, residual, to_block, sparse_format
 ):
     from dgl.nn.pytorch import GATConv
 
@@ -79,6 +80,9 @@ def test_gatconv_equality(
             conv2.lin_dst.weight.data = conv1.fc_dst.weight.data.detach().clone()
         else:
             conv2.lin.weight.data = conv1.fc.weight.data.detach().clone()
+        if residual and conv2.residual:
+            conv2.lin_res.weight.data = conv1.fc_res.weight.data.detach().clone()
+
     if sparse_format is not None:
         out2 = conv2(sg, nfeat, max_in_degree=max_in_degree)
     else:
