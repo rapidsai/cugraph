@@ -1228,66 +1228,35 @@ renumber_and_compress_sampled_edgelist(
 
       if (edgelist_label_offsets) {
         if (edgelist_hops) {
-          auto pair_first = thrust::make_zip_iterator((*compressed_label_indices).begin(),
+          auto pair_first       = thrust::make_zip_iterator((*compressed_label_indices).begin(),
                                                       (*compressed_hops).begin());
-          thrust::for_each(handle.get_thrust_policy(),
-                           thrust::make_counting_iterator(size_t{0}),
-                           thrust::make_counting_iterator(num_labels * num_hops),
-                           [offset_array_offsets = raft::device_span<size_t>(
-                              offset_array_offsets.data(), offset_array_offsets.size()),
-                            pair_first,
-                            num_nzd_vertices = compressed_nzd_vertices.size(),
-                            num_hops] __device__(size_t i) {
-                             auto l_idx              = static_cast<label_index_t>(i / num_hops);
-                             auto h                  = static_cast<int32_t>(i % num_hops);
-                             offset_array_offsets[i] = static_cast<size_t>(
-                               thrust::distance(thrust::lower_bound(thrust::seq,
-                                                                    pair_first,
-                                                                    pair_first + num_nzd_vertices,
-                                                                    thrust::make_tuple(l_idx, h)),
-                                                thrust::upper_bound(thrust::seq,
-                                                                    pair_first,
-                                                                    pair_first + num_nzd_vertices,
-                                                                    thrust::make_tuple(l_idx, h))));
-                           });
-        } else {
-          thrust::for_each(
-            handle.get_thrust_policy(),
-            thrust::make_counting_iterator(size_t{0}),
-            thrust::make_counting_iterator(num_labels * num_hops),
-            [offset_array_offsets =
-               raft::device_span<size_t>(offset_array_offsets.data(), offset_array_offsets.size()),
-             label_index_first = (*compressed_label_indices).begin(),
-             num_nzd_vertices  = compressed_nzd_vertices.size(),
-             num_hops] __device__(size_t i) {
-              auto l_idx              = static_cast<label_index_t>(i);
-              offset_array_offsets[i] = static_cast<size_t>(thrust::distance(
-                thrust::lower_bound(
-                  thrust::seq, label_index_first, label_index_first + num_nzd_vertices, l_idx),
-                thrust::upper_bound(
-                  thrust::seq, label_index_first, label_index_first + num_nzd_vertices, l_idx)));
+          auto value_pair_first = thrust::make_transform_iterator(
+            thrust::make_counting_iterator(size_t{0}), [num_hops] __device__(size_t i) {
+              return thrust::make_tuple(static_cast<label_index_t>(i / num_hops),
+                                        static_cast<int32_t>(i % num_hops));
             });
+          thrust::upper_bound(handle.get_thrust_policy(),
+                              pair_first,
+                              pair_first + (*compressed_label_indices).size(),
+                              value_pair_first,
+                              value_pair_first + (num_labels * num_hops),
+                              offset_array_offsets.begin() + 1);
+        } else {
+          thrust::upper_bound(handle.get_thrust_policy(),
+                              (*compressed_label_indices).begin(),
+                              (*compressed_label_indices).end(),
+                              thrust::make_counting_iterator(label_index_t{0}),
+                              thrust::make_counting_iterator(label_index_t{num_labels}),
+                              offset_array_offsets.begin() + 1);
         }
       } else {
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(num_labels * num_hops),
-          [offset_array_offsets =
-             raft::device_span<size_t>(offset_array_offsets.data(), offset_array_offsets.size()),
-           hop_first        = (*compressed_hops).begin(),
-           num_nzd_vertices = compressed_nzd_vertices.size(),
-           num_hops] __device__(size_t i) {
-            auto h                  = static_cast<int32_t>(i);
-            offset_array_offsets[i] = static_cast<size_t>(thrust::distance(
-              thrust::lower_bound(thrust::seq, hop_first, hop_first + num_nzd_vertices, h),
-              thrust::upper_bound(thrust::seq, hop_first, hop_first + num_nzd_vertices, h)));
-          });
+        thrust::upper_bound(handle.get_thrust_policy(),
+                            (*compressed_hops).begin(),
+                            (*compressed_hops).end(),
+                            thrust::make_counting_iterator(int32_t{0}),
+                            thrust::make_counting_iterator(int32_t{num_hops}),
+                            offset_array_offsets.begin() + 1);
       }
-      thrust::exclusive_scan(handle.get_thrust_policy(),
-                             offset_array_offsets.begin(),
-                             offset_array_offsets.end(),
-                             offset_array_offsets.begin());
 
       compressed_offset_label_hop_offsets = std::move(offset_array_offsets);
     }
