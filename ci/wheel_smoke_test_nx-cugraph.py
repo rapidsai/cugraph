@@ -20,7 +20,14 @@ import nx_cugraph
 if __name__ == "__main__":
     G = nx.Graph()
     G.add_edges_from([(0, 1), (1, 2), (2, 3)])
+
     nx_result = nx.betweenness_centrality(G)
+    # nx_cugraph is intended to be called via the NetworkX dispatcher, like
+    # this:
+    #    nxcu_result = nx.betweenness_centrality(G, backend="cugraph")
+    #
+    # but here it is being called directly since the NetworkX version that
+    # supports the "backend" kwarg may not be available in the testing env.
     nxcu_result = nx_cugraph.betweenness_centrality(G)
 
     nx_nodes = nx_result.keys()
