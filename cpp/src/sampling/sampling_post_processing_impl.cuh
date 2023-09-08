@@ -689,8 +689,8 @@ renumber_sampled_edgelist(
                           unique_label_indices.begin(),
                           vertex_counts.begin());
 
-    renumber_map_label_offsets = rmm::device_uvector<size_t>(
-      std::get<0>(*edgelist_label_offsets).size() + 1, handle.get_stream());
+    renumber_map_label_offsets =
+      rmm::device_uvector<size_t>(std::get<1>(*edgelist_label_offsets) + 1, handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  (*renumber_map_label_offsets).begin(),
                  (*renumber_map_label_offsets).end(),
@@ -1242,19 +1242,20 @@ renumber_and_compress_sampled_edgelist(
                               value_pair_first + (num_labels * num_hops),
                               offset_array_offsets.begin() + 1);
         } else {
-          thrust::upper_bound(handle.get_thrust_policy(),
-                              (*compressed_label_indices).begin(),
-                              (*compressed_label_indices).end(),
-                              thrust::make_counting_iterator(label_index_t{0}),
-                              thrust::make_counting_iterator(label_index_t{num_labels}),
-                              offset_array_offsets.begin() + 1);
+          thrust::upper_bound(
+            handle.get_thrust_policy(),
+            (*compressed_label_indices).begin(),
+            (*compressed_label_indices).end(),
+            thrust::make_counting_iterator(label_index_t{0}),
+            thrust::make_counting_iterator(static_cast<label_index_t>(num_labels)),
+            offset_array_offsets.begin() + 1);
         }
       } else {
         thrust::upper_bound(handle.get_thrust_policy(),
                             (*compressed_hops).begin(),
                             (*compressed_hops).end(),
                             thrust::make_counting_iterator(int32_t{0}),
-                            thrust::make_counting_iterator(int32_t{num_hops}),
+                            thrust::make_counting_iterator(static_cast<int32_t>(num_hops)),
                             offset_array_offsets.begin() + 1);
       }
 
