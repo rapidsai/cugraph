@@ -11,7 +11,7 @@ rapids-dependency-file-generator \
   --file_key test_python \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-conda-retry env create --force -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -28,7 +28,7 @@ mkdir -p "${RAPIDS_TESTS_DIR}" "${RAPIDS_COVERAGE_DIR}"
 
 rapids-print-env
 
-rapids-mamba-retry install \
+rapids-conda-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   libcugraph \
@@ -139,13 +139,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
+    rapids-conda-retry env create --force -f env.yaml -n test_cugraph_dgl
 
     # activate test_cugraph_dgl environment for dgl
     set +u
     conda activate test_cugraph_dgl
     set -u
-    rapids-mamba-retry install \
+    rapids-conda-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
@@ -190,7 +190,7 @@ fi
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
+    rapids-conda-retry env create --force -f env.yaml -n test_cugraph_pyg
 
     # Temporarily allow unbound variables for conda activation.
     set +u
@@ -198,7 +198,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     set -u
 
     # Install pytorch
-    rapids-mamba-retry install \
+    rapids-conda-retry install \
       --force-reinstall \
       --channel pyg \
       --channel pytorch \
@@ -207,7 +207,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
-    rapids-mamba-retry install \
+    rapids-conda-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \

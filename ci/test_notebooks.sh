@@ -11,7 +11,7 @@ rapids-dependency-file-generator \
   --file_key test_notebooks \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-conda-retry env create --force -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -24,7 +24,7 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
-rapids-mamba-retry install \
+rapids-conda-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   libcugraph pylibcugraph cugraph
