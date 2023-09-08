@@ -105,7 +105,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
         result_src.data(),
-        graph_view.number_of_vertices(),
+        result_src.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
@@ -113,7 +113,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
         result_dst.data(),
-        graph_view.number_of_vertices(),
+        result_dst.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
