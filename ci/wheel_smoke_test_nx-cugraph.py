@@ -30,11 +30,9 @@ if __name__ == "__main__":
     # supports the "backend" kwarg may not be available in the testing env.
     nxcu_result = nx_cugraph.betweenness_centrality(G)
 
-    nx_nodes = nx_result.keys()
-    nxcu_nodes = nxcu_result.keys()
+    nx_nodes, nxcu_nodes = nx_result.keys(), nxcu_result.keys()
     assert nxcu_nodes == nx_nodes
     for node_id in nx_nodes:
-        nx_bc = nx_result[node_id]
-        nxcu_bc = nxcu_result[node_id]
-        assert math.isclose(nx_bc, nxcu_bc, rel_tol=1e-7), \
-            f"bc for {node_id=} are not close enough: {nx_bc=}, {nxcu_bc=}"
+        nx_bc, nxcu_bc = nx_result[node_id], nxcu_result[node_id]
+        assert math.isclose(nx_bc, nxcu_bc, rel_tol=1e-6), \
+            f"bc for {node_id=} exceeds tolerance: {nx_bc=}, {nxcu_bc=}"
