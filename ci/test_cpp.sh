@@ -11,7 +11,7 @@ rapids-dependency-file-generator \
   --file_key test_cpp \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee env.yaml
 
-rapids-conda-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --force -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -24,7 +24,7 @@ mkdir -p "${RAPIDS_TESTS_DIR}"
 
 rapids-print-env
 
-rapids-conda-retry install \
+rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
     libcugraph libcugraph_etl libcugraph-tests
 

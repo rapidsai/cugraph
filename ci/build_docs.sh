@@ -11,7 +11,7 @@ rapids-dependency-file-generator \
   --file_key docs \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-conda-retry env create --force -f env.yaml -n docs
+rapids-mamba-retry env create --force -f env.yaml -n docs
 conda activate docs
 
 rapids-print-env
@@ -20,7 +20,7 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
-rapids-conda-retry install \
+rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   libcugraph \
@@ -35,7 +35,7 @@ rapids-conda-retry install \
 # since this package can currently only run in `11.6` CTK environments
 # due to the dependency version specifications in its conda recipe.
 rapids-logger "Install cugraph-dgl"
-rapids-conda-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
+rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 
 export RAPIDS_VERSION_NUMBER="23.10"
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
