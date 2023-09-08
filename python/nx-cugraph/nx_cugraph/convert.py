@@ -22,10 +22,10 @@ import cupy as cp
 import networkx as nx
 import numpy as np
 
-import cugraph_nx as cnx
+import nx_cugraph as nxcg
 
 if TYPE_CHECKING:
-    from cugraph_nx.typing import AttrKey, Dtype, EdgeValue, NodeValue
+    from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue
 
 __all__ = [
     "from_networkx",
@@ -51,8 +51,8 @@ def from_networkx(
     as_directed: bool = False,
     name: str | None = None,
     graph_name: str | None = None,
-) -> cnx.Graph:
-    """Convert a networkx graph to cugraph_nx graph; can convert all attributes.
+) -> nxcg.Graph:
+    """Convert a networkx graph to nx_cugraph graph; can convert all attributes.
 
     Parameters
     ----------
@@ -61,7 +61,7 @@ def from_networkx(
         Dict that maps edge attributes to default values if missing in ``G``.
         If None, then no edge attributes will be converted.
         If default value is None, then missing values are handled with a mask.
-        A default value of ``cnx.convert.REQUIRED`` or ``...`` indicates that
+        A default value of ``nxcg.convert.REQUIRED`` or ``...`` indicates that
         all edges have data for this attribute, and raise `KeyError` if not.
         For convenience, `edge_attrs` may be a single attribute with default 1;
         for example ``edge_attrs="weight"``.
@@ -70,7 +70,7 @@ def from_networkx(
         Dict that maps node attributes to default values if missing in ``G``.
         If None, then no node attributes will be converted.
         If default value is None, then missing values are handled with a mask.
-        A default value of ``cnx.convert.REQUIRED`` or ``...`` indicates that
+        A default value of ``nxcg.convert.REQUIRED`` or ``...`` indicates that
         all edges have data for this attribute, and raise `KeyError` if not.
         For convenience, `node_attrs` may be a single attribute with no default;
         for example ``node_attrs="weight"``.
@@ -94,7 +94,7 @@ def from_networkx(
 
     Returns
     -------
-    cugraph_nx.Graph
+    nx_cugraph.Graph
 
     Notes
     -----
@@ -111,7 +111,7 @@ def from_networkx(
 
     See Also
     --------
-    to_networkx : The opposite; convert cugraph_nx graph to networkx graph
+    to_networkx : The opposite; convert nx_cugraph graph to networkx graph
     """
     # This uses `graph._adj` and `graph._node`, which are private attributes in NetworkX
     if not isinstance(graph, nx.Graph):
@@ -352,9 +352,9 @@ def from_networkx(
                 # if vals.ndim > 1: ...
 
     if graph.is_directed() or as_directed:
-        klass = cnx.DiGraph
+        klass = nxcg.DiGraph
     else:
-        klass = cnx.Graph
+        klass = nxcg.Graph
     rv = klass.from_coo(
         N,
         row_indices,
@@ -398,14 +398,14 @@ def _iter_attr_dicts(
     return full_dicts
 
 
-def to_networkx(G: cnx.Graph) -> nx.Graph:
-    """Convert a cugraph_nx graph to networkx graph.
+def to_networkx(G: nxcg.Graph) -> nx.Graph:
+    """Convert a nx_cugraph graph to networkx graph.
 
     All edge and node attributes and ``G.graph`` properties are converted.
 
     Parameters
     ----------
-    G : cugraph_nx.Graph
+    G : nx_cugraph.Graph
 
     Returns
     -------
@@ -413,7 +413,7 @@ def to_networkx(G: cnx.Graph) -> nx.Graph:
 
     See Also
     --------
-    from_networkx : The opposite; convert networkx graph to cugraph_nx graph
+    from_networkx : The opposite; convert networkx graph to nx_cugraph graph
     """
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
@@ -463,13 +463,13 @@ def _to_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> cnx.Graph | cnx.DiGraph:
-    """Ensure that input type is a cugraph_nx graph, and convert if necessary.
+) -> nxcg.Graph | nxcg.DiGraph:
+    """Ensure that input type is a nx_cugraph graph, and convert if necessary.
 
     Directed and undirected graphs are both allowed.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, cnx.Graph):
+    if isinstance(G, nxcg.Graph):
         return G
     if isinstance(G, nx.Graph):
         return from_networkx(
@@ -484,15 +484,15 @@ def _to_directed_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> cnx.DiGraph:
-    """Ensure that input type is a cugraph_nx DiGraph, and convert if necessary.
+) -> nxcg.DiGraph:
+    """Ensure that input type is a nx_cugraph DiGraph, and convert if necessary.
 
     Undirected graphs will be converted to directed.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, cnx.DiGraph):
+    if isinstance(G, nxcg.DiGraph):
         return G
-    if isinstance(G, cnx.Graph):
+    if isinstance(G, nxcg.Graph):
         return G.to_directed()
     if isinstance(G, nx.Graph):
         return from_networkx(
@@ -510,13 +510,13 @@ def _to_undirected_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> cnx.Graph:
-    """Ensure that input type is a cugraph_nx Graph, and convert if necessary.
+) -> nxcg.Graph:
+    """Ensure that input type is a nx_cugraph Graph, and convert if necessary.
 
     Only undirected graphs are allowed. Directed graphs will raise ValueError.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, cnx.Graph):
+    if isinstance(G, nxcg.Graph):
         if G.is_directed():
             raise ValueError("Only undirected graphs supported; got a directed graph")
         return G

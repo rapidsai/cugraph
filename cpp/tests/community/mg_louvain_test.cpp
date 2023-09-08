@@ -41,6 +41,7 @@
 //
 struct Louvain_Usecase {
   size_t max_level_{100};
+  double threshold_{1e-7};
   double resolution_{1};
   bool check_correctness_{true};
 };
@@ -72,6 +73,7 @@ class Tests_MGLouvain
     cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
     cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
+    weight_t threshold,
     weight_t resolution,
     weight_t mg_modularity)
   {
@@ -100,6 +102,7 @@ class Tests_MGLouvain
        &sg_edge_weights,
        &sg_modularity,
        &handle,
+       threshold,
        resolution,
        comm_rank](size_t i) {
         rmm::device_uvector<vertex_t> d_mg_aggregate_cluster_v(0, handle.get_stream());
@@ -128,6 +131,7 @@ class Tests_MGLouvain
                                                                   sg_edge_weight_view,
                                                                   d_sg_cluster_v.data(),
                                                                   size_t{1},
+                                                                  threshold,
                                                                   resolution);
 
           EXPECT_TRUE(cugraph::test::check_invertible(
@@ -185,12 +189,13 @@ class Tests_MGLouvain
       hr_timer.start("MG Louvain");
     }
 
-    auto [dendrogram, mg_modularity] =
-      cugraph::louvain<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                         mg_graph_view,
-                                                         mg_edge_weight_view,
-                                                         louvain_usecase.max_level_,
-                                                         louvain_usecase.resolution_);
+    auto [dendrogram, mg_modularity] = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
+      *handle_,
+      mg_graph_view,
+      mg_edge_weight_view,
+      louvain_usecase.max_level_,
+      static_cast<weight_t>(louvain_usecase.threshold_),
+      static_cast<weight_t>(louvain_usecase.resolution_));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -206,6 +211,7 @@ class Tests_MGLouvain
                                                      mg_graph_view,
                                                      mg_edge_weight_view,
                                                      *dendrogram,
+                                                     louvain_usecase.threshold_,
                                                      louvain_usecase.resolution_,
                                                      mg_modularity);
     }
@@ -257,15 +263,16 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLouvain_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Louvain_Usecase{100, 1}),
+    ::testing::Values(Louvain_Usecase{100, double{1e-7}, 1}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
-                         Tests_MGLouvain_Rmat,
-                         ::testing::Combine(::testing::Values(Louvain_Usecase{100, 1}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_tests,
+  Tests_MGLouvain_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Louvain_Usecase{100, double{1e-7}, 1}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -276,7 +283,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLouvain_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Louvain_Usecase{100, 1, false}),
+    ::testing::Values(Louvain_Usecase{100, double{1e-7}, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -288,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLouvain_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Louvain_Usecase{100, 1, false}),
+    ::testing::Values(Louvain_Usecase{100, double{1e-7}, 1, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
