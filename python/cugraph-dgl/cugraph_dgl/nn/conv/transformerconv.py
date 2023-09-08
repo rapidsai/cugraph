@@ -10,9 +10,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from typing import Optional, Tuple, Union
 
-from cugraph_dgl.nn.conv.base import BaseConv
+from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -114,7 +115,7 @@ class TransformerConv(BaseConv):
 
     def forward(
         self,
-        g: dgl.DGLHeteroGraph,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
         nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
@@ -130,16 +131,32 @@ class TransformerConv(BaseConv):
         efeat: torch.Tensor, optional
             Edge feature tensor. Default: ``None``.
         """
-        offsets, indices, _ = g.adj_tensors("csc")
-        graph = ops_torch.CSC(
-            offsets=offsets,
-            indices=indices,
-            num_src_nodes=g.num_src_nodes(),
-            is_bipartite=True,
-        )
-
-        if isinstance(nfeat, torch.Tensor):
+        bipartite = isinstance(nfeat, (list, tuple))
+        if not bipartite:
             nfeat = (nfeat, nfeat)
+
+        if isinstance(g, SparseGraph):
+            assert "csc" in g.formats()
+            offsets, indices = g.csc()
+            _graph = ops_torch.CSC(
+                offsets=offsets,
+                indices=indices,
+                num_src_nodes=g.num_src_nodes(),
+                is_bipartite=True,
+            )
+        elif isinstance(g, dgl.DGLHeteroGraph):
+            offsets, indices, _ = g.adj_tensors("csc")
+            _graph = ops_torch.CSC(
+                offsets=offsets,
+                indices=indices,
+                num_src_nodes=g.num_src_nodes(),
+                is_bipartite=True,
+            )
+        else:
+            raise TypeError(
+                f"The graph has to be either a 'SparseGraph' or "
+                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
+            )
 
         query = self.lin_query(nfeat[1][: g.num_dst_nodes()])
         key = self.lin_key(nfeat[0])
@@ -157,7 +174,7 @@ class TransformerConv(BaseConv):
             key_emb=key,
             query_emb=query,
             value_emb=value,
-            graph=graph,
+            graph=_graph,
             num_heads=self.num_heads,
             concat_heads=self.concat,
             edge_emb=efeat,
