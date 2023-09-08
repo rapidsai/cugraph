@@ -396,6 +396,10 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         self.__input_nodes = input_nodes
         self.inner_loader_args = kwargs
 
+    @property
+    def batch_size(self) -> int:
+        return self.__batch_size
+
     def __iter__(self):
         self.current_loader = EXPERIMENTAL__BulkSampleLoader(
             self.__feature_store,

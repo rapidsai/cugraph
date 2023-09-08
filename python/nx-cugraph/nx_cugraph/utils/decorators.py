@@ -14,7 +14,7 @@ from functools import partial, update_wrapper
 
 from networkx.utils.decorators import not_implemented_for
 
-from cugraph_nx.interface import BackendInterface
+from nx_cugraph.interface import BackendInterface
 
 __all__ = ["not_implemented_for", "networkx_algorithm"]
 
