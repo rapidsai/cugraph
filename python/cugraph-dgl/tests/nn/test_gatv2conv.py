@@ -23,14 +23,13 @@ torch = pytest.importorskip("torch", reason="PyTorch not available")
 ATOL = 1e-6
 
 
-@pytest.mark.parametrize("bipartite", [False])
+@pytest.mark.parametrize("bipartite", [False, True])
 @pytest.mark.parametrize("idtype_int", [False, True])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("num_heads", [1, 2, 7])
 @pytest.mark.parametrize("residual", [False, True])
 @pytest.mark.parametrize("to_block", [False, True])
-# @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
-@pytest.mark.parametrize("sparse_format", [None])
+@pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
 def test_gatv2conv_equality(
     bipartite, idtype_int, max_in_degree, num_heads, residual, to_block, sparse_format
 ):
@@ -74,8 +73,7 @@ def test_gatv2conv_equality(
     with torch.no_grad():
         conv2.attn.data = conv1.attn.data.flatten()
         conv2.lin_src.weight.data = conv1.fc_src.weight.data.detach().clone()
-        if bipartite:
-            conv2.lin_dst.weight.data = conv1.fc_dst.weight.data.detach().clone()
+        conv2.lin_dst.weight.data = conv1.fc_dst.weight.data.detach().clone()
         if residual and conv2.residual:
             conv2.lin_res.weight.data = conv1.fc_res.weight.data.detach().clone()
 
@@ -99,3 +97,51 @@ def test_gatv2conv_equality(
     )
 
     assert torch.allclose(conv1.attn.grad, conv1.attn.grad, atol=ATOL)
+
+
+@pytest.mark.parametrize("bias", [False, True])
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("concat", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8, 800])
+@pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("to_block", [False, True])
+@pytest.mark.parametrize("use_edge_feats", [False, True])
+def test_gatv2conv_edge_feats(
+    bias, bipartite, concat, max_in_degree, num_heads, to_block, use_edge_feats
+):
+    g = create_graph1().to("cuda")
+
+    if to_block:
+        g = dgl.to_block(g)
+
+    if bipartite:
+        in_feats = (10, 3)
+        nfeat = (
+            torch.rand(g.num_src_nodes(), in_feats[0]).cuda(),
+            torch.rand(g.num_dst_nodes(), in_feats[1]).cuda(),
+        )
+    else:
+        in_feats = 10
+        nfeat = torch.rand(g.num_src_nodes(), in_feats).cuda()
+    out_feats = 2
+
+    if use_edge_feats:
+        edge_feats = 3
+        efeat = torch.rand(g.num_edges(), edge_feats).cuda()
+    else:
+        edge_feats = None
+        efeat = None
+
+    conv = CuGraphGATv2Conv(
+        in_feats,
+        out_feats,
+        num_heads,
+        concat=concat,
+        edge_feats=edge_feats,
+        bias=bias,
+        allow_zero_in_degree=True,
+    ).cuda()
+    out = conv(g, nfeat, efeat=efeat, max_in_degree=max_in_degree)
+
+    grad_out = torch.rand_like(out)
+    out.backward(grad_out)

@@ -93,12 +93,18 @@ class GATv2Conv(BaseConv):
         self.share_weights = share_weights
 
         self.lin_src = nn.Linear(self.in_feats_src, num_heads * out_feats, bias=bias)
-        if isinstance(in_feats, (list, tuple)):
+        if share_weights:
+            if self.in_feats_src != self.in_feats_dst:
+                raise ValueError(
+                    f"Input feature size of source and destination "
+                    f"nodes must be identical when share_weights is enabled, "
+                    f"but got {self.in_feats_src} and {self.in_feats_dst}."
+                )
+            self.lin_dst = self.lin_src
+        else:
             self.lin_dst = nn.Linear(
                 self.in_feats_dst, num_heads * out_feats, bias=bias
             )
-        else:
-            self.lin_dst = self.lin_src
 
         self.attn = nn.Parameter(torch.Tensor(num_heads * out_feats))
 
@@ -108,11 +114,11 @@ class GATv2Conv(BaseConv):
             self.register_parameter("lin_edge", None)
 
         if bias and concat:
-            self.bias = nn.Parameter(torch.Tensor(num_heads * out_feats))
+            self.bias = nn.Parameter(torch.Tensor(num_heads, out_feats))
         elif bias and not concat:
             self.bias = nn.Parameter(torch.Tensor(out_feats))
         else:
-            self.register_parameter("bias", None)
+            self.register_buffer("bias", None)
 
         self.residual = residual and self.in_feats_dst != out_feats * num_heads
         if self.residual:
@@ -175,7 +181,8 @@ class GATv2Conv(BaseConv):
         if max_in_degree is None:
             max_in_degree = -1
 
-        bipartite = isinstance(nfeat, (list, tuple))
+        nfeat_bipartite = isinstance(nfeat, (list, tuple))
+        graph_bipartite = nfeat_bipartite or self.share_weights is False
 
         if isinstance(g, SparseGraph):
             assert "csc" in g.formats()
@@ -185,7 +192,7 @@ class GATv2Conv(BaseConv):
                 indices=indices,
                 num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
-                is_bipartite=bipartite,
+                is_bipartite=graph_bipartite,
             )
         elif isinstance(g, dgl.DGLHeteroGraph):
             if not self.allow_zero_in_degree:
@@ -207,7 +214,7 @@ class GATv2Conv(BaseConv):
                 indices=indices,
                 num_src_nodes=g.num_src_nodes(),
                 dst_max_in_degree=max_in_degree,
-                is_bipartite=bipartite,
+                is_bipartite=graph_bipartite,
             )
         else:
             raise TypeError(
@@ -215,7 +222,7 @@ class GATv2Conv(BaseConv):
                 f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
             )
 
-        if bipartite:
+        if nfeat_bipartite:
             nfeat = (self.feat_drop(nfeat[0]), self.feat_drop(nfeat[1]))
             nfeat_dst_orig = nfeat[1]
         else:
@@ -230,8 +237,10 @@ class GATv2Conv(BaseConv):
                 )
             efeat = self.lin_edge(efeat)
 
-        if bipartite:
+        if nfeat_bipartite:
             nfeat = (self.lin_src(nfeat[0]), self.lin_dst(nfeat[1]))
+        elif graph_bipartite:
+            nfeat = (self.lin_src(nfeat), self.lin_dst(nfeat[: g.num_dst_nodes()]))
         else:
             nfeat = self.lin_src(nfeat)
 
