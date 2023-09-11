@@ -37,8 +37,11 @@ class handle_t {
    * @param raft_handle   Raft handle for the resources
    * @param thread_rank   Rank for this thread
    */
-  handle_t(std::shared_ptr<raft::handle_t>& raft_handle, int thread_rank, size_t device_id)
-    : raft_handle_(raft_handle), thread_rank_(thread_rank), device_id_(device_id)
+  handle_t(raft::handle_t const& raft_handle, int thread_rank, size_t device_id)
+    : raft_handle_(raft_handle),
+      thread_rank_(thread_rank),
+      local_rank_(raft_handle.get_comms().get_rank()),  // FIXME: update for multi-node
+      device_id_(device_id)
   {
   }
 
@@ -47,7 +50,7 @@ class handle_t {
    *
    * @return const reference to a raft handle
    */
-  raft::handle_t const& raft_handle() const { return *raft_handle_; }
+  raft::handle_t const& raft_handle() const { return raft_handle_; }
 
   /**
    * @brief Get cuda stream
@@ -56,9 +59,9 @@ class handle_t {
    */
   rmm::cuda_stream_view get_stream() const
   {
-    return raft_handle_->is_stream_pool_initialized()
-             ? raft_handle_->get_stream_from_stream_pool(device_id_)
-             : raft_handle_->get_stream();
+    return raft_handle_.is_stream_pool_initialized()
+             ? raft_handle_.get_stream_from_stream_pool(device_id_)
+             : raft_handle_.get_stream();
   }
 
   /**
@@ -73,18 +76,34 @@ class handle_t {
    *
    * @return number of gpus
    */
-  int get_size() const { return raft_handle_->get_comms().get_size(); }
+  int get_size() const { return raft_handle_.get_comms().get_size(); }
+
+  /**
+   * @brief Get number of local gpus
+   *
+   * @return number of local gpus
+   */
+  // FIXME: wrong for multi-node
+  int get_local_size() const { return raft_handle_.get_comms().get_size(); }
 
   /**
    * @brief Get gpu rank
    *
    * @return gpu rank
    */
-  int get_rank() const { return raft_handle_->get_comms().get_rank(); }
+  int get_rank() const { return raft_handle_.get_comms().get_rank(); }
+
+  /**
+   * @brief Get local gpu rank
+   *
+   * @return local gpu rank
+   */
+  int get_local_rank() const { return local_rank_; }
 
  private:
-  std::shared_ptr<raft::handle_t> raft_handle_;
+  raft::handle_t const& raft_handle_;
   int thread_rank_;
+  int local_rank_;
   size_t device_id_;
 };
 

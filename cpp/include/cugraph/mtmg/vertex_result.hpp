@@ -16,28 +16,24 @@
 
 #pragma once
 
-#include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
-#include <cugraph/mtmg/graph_view.hpp>
-#include <cugraph/mtmg/handle.hpp>
-#include <cugraph/mtmg/renumber_map.hpp>
-
-#include <raft/core/device_span.hpp>
-#include <rmm/device_uvector.hpp>
+#include <cugraph/mtmg/detail/device_shared_device_vector.hpp>
+#include <cugraph/mtmg/vertex_result_view.hpp>
 
 namespace cugraph {
 namespace mtmg {
 
+/**
+ * @brief An MTMG device vector for storing vertex results
+ */
 template <typename result_t>
-class vertex_result_t : public detail::device_shared_wrapper_t<rmm::device_uvector<result_t>> {
- public:
-  vertex_result_t() : detail::device_shared_wrapper_t<rmm::device_uvector<result_t>>() {}
+class vertex_result_t : public detail::device_shared_device_vector_t<result_t> {
+  using parent_t = detail::device_shared_device_vector_t<result_t>;
 
-  template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-  rmm::device_uvector<result_t> gather(
-    handle_t const& handle,
-    raft::device_span<vertex_t const> vertices,
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-    std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map);
+ public:
+  /**
+   * @brief Create a vertex result view (read only)
+   */
+  auto view() { return static_cast<vertex_result_view_t<result_t>>(this->parent_t::view()); }
 };
 
 }  // namespace mtmg

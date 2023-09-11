@@ -31,17 +31,24 @@ namespace mtmg {
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 class graph_t : public detail::device_shared_wrapper_t<
                   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>> {
- public:
-  graph_t()
-    : detail::device_shared_wrapper_t<
-        cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>>()
-  {
-  }
+  using parent_t = detail::device_shared_wrapper_t<
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>>;
 
-  void set_view(handle_t const& handle,
-                cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>& views)
+ public:
+  /**
+   * @brief Create an MTMG graph view (read only)
+   */
+  auto view()
   {
-    views.initialize_pointer(handle, this->get_pointer(handle)->view());
+    std::lock_guard<std::mutex> lock(parent_t::lock_);
+
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> result;
+
+    std::for_each(parent_t::objects_.begin(), parent_t::objects_.end(), [&result](auto& p) {
+      result.set(p.first, std::move(p.second.view()));
+    });
+
+    return result;
   }
 };
 
@@ -90,10 +97,10 @@ void create_graph_from_edgelist(
   CUGRAPH_EXPECTS(renumber_map.has_value() == renumber,
                   "Renumbering set to true, but no space for renumber map");
 
-  auto my_edgelist = edgelist.get_pointer(handle);
+  auto& my_edgelist = edgelist.get(handle);
 
-  CUGRAPH_EXPECTS(my_edgelist->get_src().size() > 0, "Cannot create graph without an edge list");
-  CUGRAPH_EXPECTS(my_edgelist->get_src().size() == 1,
+  CUGRAPH_EXPECTS(my_edgelist.get_src().size() > 0, "Cannot create graph without an edge list");
+  CUGRAPH_EXPECTS(my_edgelist.get_src().size() == 1,
                   "Must consolidate edges into a single list before creating graph");
 
   auto [local_graph, local_edge_weights, local_edge_ids, local_edge_types, local_renumber_map] =
@@ -106,24 +113,23 @@ void create_graph_from_edgelist(
                                         multi_gpu>(
       handle.raft_handle(),
       std::nullopt,
-      std::move(my_edgelist->get_src()[0]),
-      std::move(my_edgelist->get_dst()[0]),
-      my_edgelist->get_wgt() ? std::make_optional(std::move((*my_edgelist->get_wgt())[0]))
-                             : std::nullopt,
-      my_edgelist->get_edge_id() ? std::make_optional(std::move((*my_edgelist->get_edge_id())[0]))
-                                 : std::nullopt,
-      my_edgelist->get_edge_type()
-        ? std::make_optional(std::move((*my_edgelist->get_edge_type())[0]))
-        : std::nullopt,
+      std::move(my_edgelist.get_src()[0]),
+      std::move(my_edgelist.get_dst()[0]),
+      my_edgelist.get_wgt() ? std::make_optional(std::move((*my_edgelist.get_wgt())[0]))
+                            : std::nullopt,
+      my_edgelist.get_edge_id() ? std::make_optional(std::move((*my_edgelist.get_edge_id())[0]))
+                                : std::nullopt,
+      my_edgelist.get_edge_type() ? std::make_optional(std::move((*my_edgelist.get_edge_type())[0]))
+                                  : std::nullopt,
       graph_properties,
       renumber,
       do_expensive_check);
 
-  (*graph.get_pointer(handle)) = std::move(local_graph);
-  if (edge_weights) (*edge_weights->get_pointer(handle)) = std::move(*local_edge_weights);
-  if (edge_ids) (*edge_ids->get_pointer(handle)) = std::move(*local_edge_ids);
-  if (edge_types) (*edge_types->get_pointer(handle)) = std::move(*local_edge_types);
-  if (renumber) (*renumber_map->get_pointer(handle)) = std::move(*local_renumber_map);
+  graph.set(handle, std::move(local_graph));
+  if (edge_weights) edge_weights->set(handle, std::move(*local_edge_weights));
+  if (edge_ids) edge_ids->set(handle, std::move(*local_edge_ids));
+  if (edge_types) edge_types->set(handle, std::move(*local_edge_types));
+  if (renumber) renumber_map->set(handle, std::move(*local_renumber_map));
 }
 
 }  // namespace mtmg

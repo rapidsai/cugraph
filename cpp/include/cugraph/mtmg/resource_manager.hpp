@@ -55,6 +55,9 @@ namespace mtmg {
  */
 class resource_manager_t {
  public:
+  /**
+   * @brief Default constructor
+   */
   resource_manager_t() {}
 
   /**
@@ -78,7 +81,7 @@ class resource_manager_t {
 
     local_rank_map_.insert(std::pair(rank, device_id));
 
-    cudaSetDevice(device_id.value());
+    RAFT_CUDA_TRY(cudaSetDevice(device_id.value()));
 
     // FIXME: There is a bug in the cuda_memory_resource that results in a Hang.
     //   using the pool resource as a work-around.
@@ -101,17 +104,6 @@ class resource_manager_t {
 
     rmm::mr::set_per_device_resource(device_id, per_device_it.first->second.get());
   }
-
-#if 0
-  /**
-   * @brief add a remote GPU to the resource manager.
-   *
-   * FIXME: Need some sort of comms information for the remote GPU here...
-   *
-   * @param rank    The rank to assign to the remote GPU
-   */
-  void register_remote_gpu(int rank, TBD const& remote_info);
-#endif
 
   /**
    * @brief Create an instance using a subset of the registered resources
@@ -138,8 +130,8 @@ class resource_manager_t {
                         "requesting inclusion of an invalid rank");
       });
 
-    std::vector<std::shared_ptr<ncclComm_t>> nccl_comms{};
-    std::vector<std::shared_ptr<raft::handle_t>> handles{};
+    std::vector<std::unique_ptr<ncclComm_t>> nccl_comms{};
+    std::vector<std::unique_ptr<raft::handle_t>> handles{};
     std::vector<rmm::cuda_device_id> device_ids{};
 
     nccl_comms.reserve(ranks_to_include.size());
@@ -156,13 +148,13 @@ class resource_manager_t {
     for (size_t i = 0; i < ranks_to_include.size(); ++i) {
       int rank = ranks_to_include[i];
       auto pos = local_rank_map_.find(rank);
-      cudaSetDevice(pos->second.value());
+      RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
 
       raft::handle_t tmp_handle;
 
-      nccl_comms.push_back(std::make_shared<ncclComm_t>());
+      nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
-        std::make_shared<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
+        std::make_unique<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
     }
 
@@ -179,9 +171,9 @@ class resource_manager_t {
                                     &handles]() {
         int rank = ranks_to_include[idx];
         auto pos = local_rank_map.find(rank);
-        cudaSetDevice(pos->second.value());
+        RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
 
-        ncclCommInitRank(nccl_comms[idx].get(), comm_size, instance_manager_id, rank);
+        NCCL_TRY(ncclCommInitRank(nccl_comms[idx].get(), comm_size, instance_manager_id, rank));
 
         raft::comms::build_comms_nccl_only(handles[idx].get(), *nccl_comms[idx], comm_size, rank);
 
@@ -191,8 +183,9 @@ class resource_manager_t {
 
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
 
+    // FIXME: Update for multi-node
     return std::make_unique<instance_manager_t>(
-      std::move(handles), std::move(nccl_comms), std::move(device_ids));
+      std::move(handles), std::move(nccl_comms), std::move(device_ids), ranks_to_include.size());
   }
 
   /**
@@ -222,19 +215,7 @@ class resource_manager_t {
  private:
   mutable std::mutex lock_{};
   std::map<int, rmm::cuda_device_id> local_rank_map_{};
-  // Look at making this immutable (normal)
-  mutable std::map<int, std::shared_ptr<rmm::mr::device_memory_resource>>
-    per_device_rmm_resources_{};
-
-#if 0
-  //
-  // TBD: Probably a map with rank used as the key and
-  //    some sort of comms class as the value.  Needs
-  //    to be something we can make a raft handle and
-  //    initialize comms
-  //
-  std::map<int, TBD> remote_rank_map_{};
-#endif
+  std::map<int, std::shared_ptr<rmm::mr::device_memory_resource>> per_device_rmm_resources_{};
 };
 
 }  // namespace mtmg

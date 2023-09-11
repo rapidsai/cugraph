@@ -35,10 +35,15 @@ class instance_manager_t {
    *
    * @param handles   Vector of RAFT handles, one for each device on this node
    */
-  instance_manager_t(std::vector<std::shared_ptr<raft::handle_t>>&& handles,
-                     std::vector<std::shared_ptr<ncclComm_t>>&& nccl_comms,
-                     std::vector<rmm::cuda_device_id>&& device_ids)
-    : thread_counter_{0}, raft_handle_{handles}, nccl_comms_{nccl_comms}, device_ids_{device_ids}
+  instance_manager_t(std::vector<std::unique_ptr<raft::handle_t>>&& handles,
+                     std::vector<std::unique_ptr<ncclComm_t>>&& nccl_comms,
+                     std::vector<rmm::cuda_device_id>&& device_ids,
+                     int local_gpu_count)
+    : thread_counter_{0},
+      raft_handle_{std::move(handles)},
+      nccl_comms_{std::move(nccl_comms)},
+      device_ids_{std::move(device_ids)},
+      local_gpu_count_{local_gpu_count}
   {
   }
 
@@ -57,8 +62,8 @@ class instance_manager_t {
   {
     int local_id = thread_counter_++;
 
-    cudaSetDevice(device_ids_[local_id % raft_handle_.size()].value());
-    return handle_t(raft_handle_[local_id % raft_handle_.size()],
+    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[local_id % raft_handle_.size()].value()));
+    return handle_t(*raft_handle_[local_id % raft_handle_.size()],
                     local_id / raft_handle_.size(),
                     static_cast<size_t>(local_id % raft_handle_.size()));
   }
@@ -71,16 +76,22 @@ class instance_manager_t {
    */
   void reset_threads() { thread_counter_.store(0); }
 
- private:
-  std::atomic<int> thread_counter_{0};
+  /**
+   * @brief Number of local GPUs in the instance
+   */
+  int get_local_gpu_count() { return local_gpu_count_; }
 
+ private:
   // FIXME: Should this be an std::map<> where the key is the rank?
   //        On a multi-node system we might have nodes with fewer
   //        (or no) GPUs, so mapping rank to a handle might be a challenge
   //
-  std::vector<std::shared_ptr<raft::handle_t>> raft_handle_{};
-  std::vector<std::shared_ptr<ncclComm_t>> nccl_comms_{};
+  std::vector<std::unique_ptr<raft::handle_t>> raft_handle_{};
+  std::vector<std::unique_ptr<ncclComm_t>> nccl_comms_{};
   std::vector<rmm::cuda_device_id> device_ids_{};
+  int local_gpu_count_{};
+
+  std::atomic<int> thread_counter_{0};
 };
 
 }  // namespace mtmg

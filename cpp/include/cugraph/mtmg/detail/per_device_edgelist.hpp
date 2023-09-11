@@ -19,7 +19,9 @@
 #include <cugraph/mtmg/handle.hpp>
 
 // FIXME: Could use std::span once compiler supports C++20
-#include <raft/core/span.hpp>
+#include <raft/core/host_span.hpp>
+
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace mtmg {
@@ -36,10 +38,25 @@ namespace detail {
  *
  * When we try and use the edgelist we will consolidate the buffers, since at that
  * time we know the entire size required.
+ *
+ * Important note, the expectation is that this object will be used in two phases:
+ *  1) The append() method will be used to fill buffers with edges
+ *  2) The edges will be consumed to create a graph
+ *
+ * These two phases are expected to be disjoint.  The calling process is expected to
+ * manage some barrier so that all threads are guaranteed to be completed before changing
+ * phases.  If an append() call (part of the filling phase) overlaps with calls to
+ * finalize_buffer(), consolidate_and_shuffle(), get_src(), get_dst(), get_wgt(),
+ * get_edge_id() and get_edge_type() then the behavior is undefined (data might change
+ * in some non-deterministic way).
  */
 template <typename vertex_t, typename weight_t, typename edge_t, typename edge_type_t>
 class per_device_edgelist_t {
  public:
+  per_device_edgelist_t(per_device_edgelist_t const&)            = delete;
+  per_device_edgelist_t& operator=(per_device_edgelist_t const&) = delete;
+  per_device_edgelist_t& operator=(per_device_edgelist_t&&)      = default;
+
   per_device_edgelist_t(cugraph::mtmg::handle_t const& handle,
                         size_t device_buffer_size,
                         bool use_weight,
@@ -62,6 +79,17 @@ class per_device_edgelist_t {
     }
 
     create_new_buffers(handle);
+  }
+
+  per_device_edgelist_t(per_device_edgelist_t&& other)
+    : device_buffer_size_{other.device_buffer_size_},
+      current_pos_{0},
+      src_{std::move(other.src_)},
+      dst_{std::move(other.dst_)},
+      wgt_{std::move(other.wgt_)},
+      edge_id_{std::move(other.edge_id_)},
+      edge_type_{std::move(other.edge_type_)}
+  {
   }
 
   /**
@@ -207,6 +235,7 @@ class per_device_edgelist_t {
       raft::copy(buffer[0].data() + pos, buffer[i].data(), buffer[i].size(), stream);
       pos += buffer[i].size();
       buffer[i].resize(0, stream);
+      buffer[i].shrink_to_fit(stream);
     }
   }
 

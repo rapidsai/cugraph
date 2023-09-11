@@ -36,10 +36,10 @@ namespace mtmg {
  * method.  This allows the CPU to GPU transfers to be larger (and consequently more efficient).
  */
 template <typename vertex_t, typename weight_t, typename edge_t, typename edge_type_t>
-class thread_edgelist_t {
+class per_thread_edgelist_t {
  public:
-  thread_edgelist_t()                         = delete;
-  thread_edgelist_t(thread_edgelist_t const&) = delete;
+  per_thread_edgelist_t()                             = delete;
+  per_thread_edgelist_t(per_thread_edgelist_t const&) = delete;
 
   /**
    * @brief Only constructor
@@ -47,7 +47,7 @@ class thread_edgelist_t {
    * @param edgelist            The edge list this thread_edgelist_t should be associated with
    * @param thread_buffer_size  Size of the local buffer for accumulating edges on the CPU
    */
-  thread_edgelist_t(
+  per_thread_edgelist_t(
     detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>& edgelist,
     size_t thread_buffer_size)
     : edgelist_{edgelist},
