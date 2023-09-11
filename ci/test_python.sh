@@ -34,6 +34,7 @@ rapids-mamba-retry install \
   libcugraph \
   pylibcugraph \
   cugraph \
+  nx-cugraph \
   cugraph-service-server \
   cugraph-service-client
 
@@ -62,6 +63,10 @@ pytest \
   tests
 popd
 
+# FIXME: TEMPORARILY disable single-GPU "MG" testing until
+# https://github.com/rapidsai/cugraph/issues/3790 is closed
+# When closed, replace -k "not _mg" with
+#  -k "not test_property_graph_mg" \
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 export DASK_WORKER_DEVICES="0"
@@ -74,7 +79,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not _mg" \
   tests
 popd
 
@@ -86,6 +91,31 @@ pytest \
   -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
+popd
+
+rapids-logger "pytest nx-cugraph"
+pushd python/nx-cugraph/nx_cugraph
+pytest \
+  --capture=no \
+  --verbose \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-nx-cugraph.xml" \
+  --cov-config=../../.coveragerc \
+  --cov=nx_cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/nx-cugraph-coverage.xml" \
+  --cov-report=term \
+  --benchmark-disable \
+  tests
+popd
+
+rapids-logger "pytest networkx using nx-cugraph backend"
+pushd python/nx-cugraph
+./run_nx_tests.sh
+# run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
+# in case nx-cugraph failed to load but fallback mode allowed the run to pass.
+_coverage=$(coverage report|grep "^TOTAL")
+echo "nx-cugraph coverage from networkx tests: $_coverage"
+echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"

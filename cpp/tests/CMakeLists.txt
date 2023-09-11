@@ -240,15 +240,6 @@ ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
-# - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
-ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
-
-###################################################################################################
-# - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
-
-###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
