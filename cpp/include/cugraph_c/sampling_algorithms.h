@@ -206,6 +206,17 @@ typedef enum cugraph_prior_sources_behavior_t {
 } cugraph_prior_sources_behavior_t;
 
 /**
+ * @brief     Enumeration for compression type
+ */
+typedef enum cugraph_compression_type_t {
+  COO = 0,
+  CSR,
+  CSC,
+  DCSR,
+  DCSC
+} cugraph_compression_type_t;
+
+/**
  * @brief   Create sampling options object
  *
  * All sampling options set to FALSE
@@ -226,6 +237,14 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
 void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @brief   Set whether to compress per-hop (True) or globally (False)
+ * 
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options, bool_t value);
+
+/**
  * @brief   Set flag to sample with_replacement
  *
  * @param options - opaque pointer to the sampling options
@@ -240,6 +259,14 @@ void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, 
  * @param value - Boolean value to assign to the option
  */
 void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @brief   Set compression type
+ * 
+ * @param options - opaque pointer to the sampling options
+ * @param value - Enum defining the compresion type
+ */
+void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options, cugraph_compression_type_t value);
 
 /**
  * @brief   Set prior sources behavior
