@@ -24,8 +24,8 @@ ops_torch = import_optional("pylibcugraphops.pytorch")
 
 class SAGEConv(BaseConv):
     r"""An accelerated GraphSAGE layer from `Inductive Representation Learning
-    on Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__ that leverages the
-    highly-optimized aggregation primitives in cugraph-ops.
+    on Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`, with the sparse
+    aggregation accelerated by cugraph-ops.
 
     Parameters
     ----------

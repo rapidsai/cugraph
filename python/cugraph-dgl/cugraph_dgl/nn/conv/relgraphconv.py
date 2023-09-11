@@ -10,10 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Torch Module for Relational graph convolution layer using the aggregation
-primitives in cugraph-ops"""
-# pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
-from __future__ import annotations
+
 import math
 from typing import Optional
 
@@ -29,13 +26,8 @@ ops_torch = import_optional("pylibcugraphops.pytorch")
 class RelGraphConv(BaseConv):
     r"""An accelerated relational graph convolution layer from `Modeling
     Relational Data with Graph Convolutional Networks
-    <https://arxiv.org/abs/1703.06103>`__ that leverages the highly-optimized
-    aggregation primitives in cugraph-ops.
-
-    See :class:`dgl.nn.pytorch.conv.RelGraphConv` for mathematical model.
-
-    This module depends on :code:`pylibcugraphops` package, which can be
-    installed via :code:`conda install -c nvidia pylibcugraphops>=23.02`.
+    <https://arxiv.org/abs/1703.06103>`__, with the sparse aggregation
+    accelerated by cugraph-ops.
 
     Parameters
     ----------
@@ -84,7 +76,6 @@ class RelGraphConv(BaseConv):
             [-1.4335, -2.3758],
             [-1.4331, -2.3295]], device='cuda:0', grad_fn=<AddBackward0>)
     """
-    MAX_IN_DEGREE_MFG = 500
 
     def __init__(
         self,
@@ -167,12 +158,11 @@ class RelGraphConv(BaseConv):
             so any input of other integer types will be casted into int32,
             thus introducing some overhead. Pass in int32 tensors directly
             for best performance.
-        max_in_degree : int, optional
-            Maximum in-degree of destination nodes. It is only effective when
-            :attr:`g` is a :class:`DGLBlock`, i.e., bipartite graph. When
-            :attr:`g` is generated from a neighbor sampler, the value should be
-            set to the corresponding :attr:`fanout`. If not given,
-            :attr:`max_in_degree` will be calculated on-the-fly.
+        max_in_degree : int
+            Maximum in-degree of destination nodes. When :attr:`g` is generated
+            from a neighbor sampler, the value should be set to the corresponding
+            :attr:`fanout`. This option is used to invoke the MFG-variant of
+            cugraph-ops kernel.
 
         Returns
         -------
