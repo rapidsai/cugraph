@@ -24,9 +24,9 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/mtmg/edgelist.hpp>
 #include <cugraph/mtmg/graph.hpp>
+#include <cugraph/mtmg/per_thread_edgelist.hpp>
 #include <cugraph/mtmg/renumber_map.hpp>
 #include <cugraph/mtmg/resource_manager.hpp>
-#include <cugraph/mtmg/thread_edgelist.hpp>
 #include <cugraph/mtmg/vertex_result.hpp>
 
 #include <raft/util/cudart_utils.hpp>
