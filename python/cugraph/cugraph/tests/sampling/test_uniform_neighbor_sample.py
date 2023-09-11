@@ -362,8 +362,8 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
     assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
 
     if return_offsets:
-        assert sampling_offsets["batch_id"].values_host.tolist() == [0, 1]
-        assert sampling_offsets["offsets"].values_host.tolist() == [0, 6]
+        assert sampling_offsets["batch_id"].dropna().values_host.tolist() == [0, 1]
+        assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 6, 12]
     else:
         assert sampling_results["batch_id"].values_host.tolist() == ([0] * 6 + [1] * 6)
 
@@ -776,6 +776,63 @@ def test_uniform_neighbor_sample_renumber(hops):
             renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
         )
     assert (renumber_map.batch_id == 0).all()
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+def test_uniform_neighbor_sample_offset_renumber(hops):
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results_unrenumbered, offsets_unrenumbered = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=False,
+        return_offsets=True,
+        random_state=62,
+    )
+
+    sampling_results_renumbered, offsets_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=True,
+        return_offsets=True,
+        random_state=62,
+    )
+
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
+    for hop in range(len(hops)):
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
+    
+    renumber_map_offsets = renumber_map.renumber_map_offsets.dropna()
+    assert len(renumber_map_offsets) == 2
+    assert renumber_map_offsets.iloc[0] == 0
+    assert renumber_map_offsets.iloc[-1] == len(renumber_map)
+
+    assert len(offsets_renumbered) == len(hops) + 1
 
 
 @pytest.mark.sg

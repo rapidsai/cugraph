@@ -20,14 +20,17 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
-    cugraph_sample_result_get_sources,
-    cugraph_sample_result_get_destinations,
+    cugraph_sample_result_get_majors,
+    cugraph_sample_result_get_minors,
+    cugraph_sample_result_get_label_hop_offsets,
+    cugraph_sample_result_get_sources, # deprecated
+    cugraph_sample_result_get_destinations, # deprecated
     cugraph_sample_result_get_edge_weight,
     cugraph_sample_result_get_edge_id,
     cugraph_sample_result_get_edge_type,
-    cugraph_sample_result_get_hop,
+    cugraph_sample_result_get_hop, # deprecated
     cugraph_sample_result_get_start_labels,
-    cugraph_sample_result_get_offsets,
+    cugraph_sample_result_get_offsets, # deprecated
     cugraph_sample_result_get_renumber_map,
     cugraph_sample_result_get_renumber_map_offsets,
     cugraph_sample_result_free,
@@ -60,7 +63,28 @@ cdef class SamplingResult:
     cdef set_ptr(self, cugraph_sample_result_t* sample_result_ptr):
         self.c_sample_result_ptr = sample_result_ptr
 
+    def get_majors(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_majors(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_minors(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_minors(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
     def get_sources(self):
+        # Deprecated
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -71,6 +95,7 @@ cdef class SamplingResult:
                                                      self)
 
     def get_destinations(self):
+        # Deprecated
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -95,6 +120,7 @@ cdef class SamplingResult:
                                                      self)
 
     def get_indices(self):
+        # Deprecated
         return self.get_edge_weights()
     
     def get_edge_ids(self):
@@ -135,6 +161,17 @@ cdef class SamplingResult:
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
+    def get_label_hop_offsets(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_label_hop_offsets(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    # Deprecated
     def get_offsets(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -145,6 +182,7 @@ cdef class SamplingResult:
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
+    # Deprecated
     def get_hop_ids(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "

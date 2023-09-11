@@ -67,6 +67,7 @@ def uniform_neighbor_sample(
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
+    use_legacy_names=True, # deprecated
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -128,6 +129,11 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
+    
+    use_legacy_names: bool, optional (default=True)
+        Whether to use the legacy column names (sources, destinations).
+        If True, will use "sources" and "destinations" as the column names.
+        If False, will use "majors" and "minors" as the column names.
 
     Returns
     -------
@@ -192,6 +198,18 @@ def uniform_neighbor_sample(
                     renumber_df['offsets']: cudf.Series
                         Contains the batch offsets for the renumber maps
     """
+
+    if use_legacy_names:
+        major_col_name = "sources"
+        minor_col_name = "destinations"
+        warning_msg = (
+            "The legacy column names (sources, destinations)"
+            " will no longer be supported for uniform_neighbor_sample"
+            " in release 23.12.  The use_legacy_names=False option will"
+            " become the only option, and (majors, minors) will be the"
+            " only supported column names."
+        )
+        warnings.warn(warning_msg, FutureWarning)
 
     if with_edge_properties:
         warning_msg = (
@@ -279,35 +297,37 @@ def uniform_neighbor_sample(
         # TODO use a dictionary at PLC w/o breaking users
         if renumber:
             (
-                sources,
-                destinations,
+                majors,
+                minors,
                 weights,
                 edge_ids,
                 edge_types,
                 batch_ids,
-                offsets,
+                label_hop_offsets,
                 hop_ids,
                 renumber_map,
                 renumber_map_offsets,
             ) = sampling_result
         else:
             (
-                sources,
-                destinations,
+                majors,
+                minors,
                 weights,
                 edge_ids,
                 edge_types,
                 batch_ids,
-                offsets,
+                label_hop_offsets,
                 hop_ids,
             ) = sampling_result
 
-        df["sources"] = sources
-        df["destinations"] = destinations
+        df[major_col_name] = majors
+        df[minor_col_name] = minors
         df["weight"] = weights
         df["edge_id"] = edge_ids
         df["edge_type"] = edge_types
-        df["hop_id"] = hop_ids
+        if hop_ids is not None:
+            df["hop_id"] = hop_ids
+        
 
         if renumber:
             renumber_df = cudf.DataFrame(
@@ -318,34 +338,57 @@ def uniform_neighbor_sample(
 
             if not return_offsets:
                 batch_ids_r = cudf.Series(batch_ids).repeat(
-                    cp.diff(renumber_map_offsets)
+                    cp.diff(renumber_map_offsets[:-1])
                 )
                 batch_ids_r.reset_index(drop=True, inplace=True)
                 renumber_df["batch_id"] = batch_ids_r
 
         if return_offsets:
-            offsets_df = cudf.DataFrame(
-                {
-                    "batch_id": batch_ids,
-                    "offsets": offsets[:-1],
-                }
+            batches_series = cudf.Series(
+                batch_ids,
+                name="batch_id",
             )
+            offsets_df = cudf.Series(
+                label_hop_offsets,
+                name="offsets",
+            ).to_frame()
+
+            if len(batches_series) > len(offsets_df):
+                # this is extremely rare so the inefficiency is ok
+                offsets_df = offsets_df.join(batches_series, how='outer').sort_index()
+            else:
+                offsets_df['batch_id'] = batches_series
 
             if renumber:
-                offsets_df["renumber_map_offsets"] = renumber_map_offsets[:-1]
+                renumber_offset_series = cudf.Series(
+                    renumber_map_offsets[:-1],
+                    name="renumber_map_offsets"
+                )
+
+                if len(renumber_offset_series) > len(renumber_df):
+                    # this is extremely rare so the inefficiency is ok
+                    renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
+                else:
+                    renumber_df['renumber_map_offsets'] = renumber_offset_series
+                
 
         else:
             if len(batch_ids) > 0:
-                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(offsets))
+                if renumber: # FIXME change this once Seunghwa updates the sampling API
+                    batch_ids = cudf.Series(cp.repeat(batch_ids, len(fanout_vals)))
+                
+                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(label_hop_offsets))
                 batch_ids.reset_index(drop=True, inplace=True)
+                print('output batch ids:', batch_ids)
 
             df["batch_id"] = batch_ids
 
     else:
+        # TODO this is deprecated, remove it in 23.12
         sources, destinations, indices = sampling_result
 
-        df["sources"] = sources
-        df["destinations"] = destinations
+        df[major_col_name] = sources
+        df[minor_col_name] = destinations
 
         if indices is None:
             df["indices"] = None
@@ -359,8 +402,8 @@ def uniform_neighbor_sample(
                 df["indices"] = indices
 
     if G.renumbered and not renumber:
-        df = G.unrenumber(df, "sources", preserve_order=True)
-        df = G.unrenumber(df, "destinations", preserve_order=True)
+        df = G.unrenumber(df, major_col_name, preserve_order=True)
+        df = G.unrenumber(df, minor_col_name, preserve_order=True)
 
     if return_offsets:
         if renumber:

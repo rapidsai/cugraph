@@ -493,12 +493,12 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
- * @brief     Get the hop offsets from the sampling algorithm result
+ * @brief     Get the label-hop offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the hop offsets
+ * @return type erased array pointing to the label-hop offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop_offsets(
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -511,22 +511,13 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
- * @deprecated This call should be replaced with cugraph_sample_get_get_label_offsets
+ * @deprecated This call should be replaced with cugraph_sample_get_get_label_hop_offsets
  * @brief     Get the result offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the result offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
-  const cugraph_sample_result_t* result);
-
-/**
- * @brief     Get the result label offsets from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the result label offsets
- */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_offsets(
   const cugraph_sample_result_t* result);
 
 /**
