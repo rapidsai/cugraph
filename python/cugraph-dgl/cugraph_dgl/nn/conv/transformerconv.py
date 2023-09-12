@@ -131,32 +131,11 @@ class TransformerConv(BaseConv):
         efeat: torch.Tensor, optional
             Edge feature tensor. Default: ``None``.
         """
-        bipartite = isinstance(nfeat, (list, tuple))
-        if not bipartite:
+        feat_bipartite = isinstance(nfeat, (list, tuple))
+        if not feat_bipartite:
             nfeat = (nfeat, nfeat)
 
-        if isinstance(g, SparseGraph):
-            assert "csc" in g.formats()
-            offsets, indices, _ = g.csc()
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                is_bipartite=True,
-            )
-        elif isinstance(g, dgl.DGLHeteroGraph):
-            offsets, indices, _ = g.adj_tensors("csc")
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                is_bipartite=True,
-            )
-        else:
-            raise TypeError(
-                f"The graph has to be either a 'SparseGraph' or "
-                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
-            )
+        _graph = self.get_cugraph_ops_CSC(g, is_bipartite=True)
 
         query = self.lin_query(nfeat[1][: g.num_dst_nodes()])
         key = self.lin_key(nfeat[0])

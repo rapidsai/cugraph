@@ -17,38 +17,7 @@ from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
 ops_torch = import_optional("pylibcugraphops.pytorch")
-
-
-class BaseConv(torch.nn.Module):
-    r"""An abstract base class for cugraph-ops nn module."""
-
-    def __init__(self):
-        super().__init__()
-        self._cached_offsets_fg = None
-
-    def reset_parameters(self):
-        r"""Resets all learnable parameters of the module."""
-        raise NotImplementedError
-
-    def forward(self, *args):
-        r"""Runs the forward pass of the module."""
-        raise NotImplementedError
-
-    def pad_offsets(self, offsets: torch.Tensor, size: int) -> torch.Tensor:
-        r"""Pad zero-in-degree nodes to the end of offsets to reach size. This
-        is used to augment offset tensors from DGL blocks (MFGs) to be
-        compatible with cugraph-ops full-graph primitives."""
-        if self._cached_offsets_fg is None:
-            self._cached_offsets_fg = torch.empty(
-                size, dtype=offsets.dtype, device=offsets.device
-            )
-        elif self._cached_offsets_fg.numel() < size:
-            self._cached_offsets_fg.resize_(size)
-
-        self._cached_offsets_fg[: offsets.numel()] = offsets
-        self._cached_offsets_fg[offsets.numel() : size] = offsets[-1]
-
-        return self._cached_offsets_fg[:size]
+dgl = import_optional("dgl")
 
 
 def compress_ids(ids: torch.Tensor, size: int) -> torch.Tensor:
@@ -63,8 +32,9 @@ def decompress_ids(c_ids: torch.Tensor) -> torch.Tensor:
 
 
 class SparseGraph(object):
-    r"""A class to store different sparse formats needed by cugraph-ops
-    and facilitate sparse format conversions.
+    r"""A class to create and store different sparse formats needed by
+    cugraph-ops. It always creates a CSC representation and can provide COO- or
+    CSR-format if needed.
 
     Parameters
     ----------
@@ -98,12 +68,12 @@ class SparseGraph(object):
         when sorted.
 
     formats: str or tuple of str, optional
-        The desired sparse formats to create for the graph. Default: "csc".
-        Choose from: ["coo", "csc"], ["csc", "csr"]
+        The desired sparse formats to create for the graph. The formats tuple
+        must include "csc". Default: "csc".
 
     reduce_memory: bool, optional
         When set, the tensors are not required by the desired formats will be
-        set to `None`.
+        set to `None`. Default: True.
 
     Notes
     -----
@@ -111,13 +81,20 @@ class SparseGraph(object):
     """
 
     supported_formats = {
-        "coo": ("src_ids", "dst_ids"),
-        "csc": ("cdst_ids", "src_ids"),
-        "csr": ("csrc_ids", "dst_ids", "_perm_csc2csr"),
+        "coo": ("_src_ids", "_dst_ids"),
+        "csc": ("_cdst_ids", "_src_ids"),
+        "csr": ("_csrc_ids", "_dst_ids", "_perm_csc2csr"),
     }
 
     all_tensors = set(
-        ["src_ids", "dst_ids", "csrc_ids", "cdst_ids", "_perm_coo2csc", "_perm_csc2csr"]
+        [
+            "_src_ids",
+            "_dst_ids",
+            "_csrc_ids",
+            "_cdst_ids",
+            "_perm_coo2csc",
+            "_perm_csc2csr",
+        ]
     )
 
     def __init__(
@@ -130,7 +107,7 @@ class SparseGraph(object):
         values: Optional[torch.Tensor] = None,
         is_sorted: bool = False,
         formats: Union[str, Tuple[str]] = "csc",
-        reduce_memory: bool = False,
+        reduce_memory: bool = True,
     ):
         self._num_src_nodes, self._num_dst_nodes = size
         self._is_sorted = is_sorted
@@ -204,8 +181,6 @@ class SparseGraph(object):
     def reduce_memory(self):
         """Remove the tensors that are not necessary to create the desired sparse
         formats to reduce memory footprint."""
-
-        self._perm_coo2csc = None
         if self._formats is None:
             return
 
@@ -238,6 +213,9 @@ class SparseGraph(object):
     def num_dst_nodes(self):
         return self._num_dst_nodes
 
+    def values(self):
+        return self._values
+
     def formats(self):
         return self._formats
 
@@ -269,3 +247,100 @@ class SparseGraph(object):
         if value is not None:
             value = value[self._perm_csc2csr]
         return csrc_ids, dst_ids, value
+
+
+class BaseConv(torch.nn.Module):
+    r"""An abstract base class for cugraph-ops nn module."""
+
+    def __init__(self):
+        super().__init__()
+
+    def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
+        raise NotImplementedError
+
+    def forward(self, *args):
+        r"""Runs the forward pass of the module."""
+        raise NotImplementedError
+
+    def get_cugraph_ops_CSC(
+        self,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
+        is_bipartite: bool = False,
+        max_in_degree: Optional[int] = None,
+    ) -> ops_torch.CSC:
+        """Create CSC structure needed by cugraph-ops."""
+
+        if not isinstance(g, (SparseGraph, dgl.DGLHeteroGraph)):
+            raise TypeError(
+                f"The graph has to be either a 'cugraph_dgl.nn.SparseGraph' or "
+                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
+            )
+
+        # TODO: max_in_degree should default to None in pylibcugraphops
+        if max_in_degree is None:
+            max_in_degree = -1
+
+        if isinstance(g, SparseGraph):
+            offsets, indices, _ = g.csc()
+        else:
+            offsets, indices, _ = g.adj_tensors("csc")
+
+        graph = ops_torch.CSC(
+            offsets=offsets,
+            indices=indices,
+            num_src_nodes=g.num_src_nodes(),
+            dst_max_in_degree=max_in_degree,
+            is_bipartite=is_bipartite,
+        )
+
+        return graph
+
+    def get_cugraph_ops_HeteroCSC(
+        self,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
+        num_edge_types: int,
+        etypes: Optional[torch.Tensor] = None,
+        is_bipartite: bool = False,
+        max_in_degree: Optional[int] = None,
+    ) -> ops_torch.HeteroCSC:
+        """Create HeteroCSC structure needed by cugraph-ops."""
+
+        if not isinstance(g, (SparseGraph, dgl.DGLHeteroGraph)):
+            raise TypeError(
+                f"The graph has to be either a 'cugraph_dgl.nn.SparseGraph' or "
+                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
+            )
+
+        # TODO: max_in_degree should default to None in pylibcugraphops
+        if max_in_degree is None:
+            max_in_degree = -1
+
+        if isinstance(g, SparseGraph):
+            offsets, indices, etypes = g.csc()
+            if etypes is None:
+                raise ValueError(
+                    "SparseGraph must have 'values' to create HeteroCSC. "
+                    "Pass in edge types as 'values' when creating the SparseGraph."
+                )
+            etypes = etypes.int()
+        else:
+            if etypes is None:
+                raise ValueError(
+                    "'etypes' is required when creating HeteroCSC "
+                    "from dgl.DGLHeteroGraph."
+                )
+            offsets, indices, perm = g.adj_tensors("csc")
+            etypes = etypes[perm].int()
+
+        graph = ops_torch.HeteroCSC(
+            offsets=offsets,
+            indices=indices,
+            edge_types=etypes,
+            num_src_nodes=g.num_src_nodes(),
+            num_edge_types=num_edge_types,
+            dst_max_in_degree=max_in_degree,
+            is_bipartite=is_bipartite,
+        )
+
+        return graph

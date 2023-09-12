@@ -178,23 +178,8 @@ class GATv2Conv(BaseConv):
             :math:`H` is the number of heads, and :math:`D_{out}` is size of
             output feature.
         """
-        if max_in_degree is None:
-            max_in_degree = -1
 
-        nfeat_bipartite = isinstance(nfeat, (list, tuple))
-        graph_bipartite = nfeat_bipartite or self.share_weights is False
-
-        if isinstance(g, SparseGraph):
-            assert "csc" in g.formats()
-            offsets, indices, _ = g.csc()
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                dst_max_in_degree=max_in_degree,
-                is_bipartite=graph_bipartite,
-            )
-        elif isinstance(g, dgl.DGLHeteroGraph):
+        if isinstance(g, dgl.DGLHeteroGraph):
             if not self.allow_zero_in_degree:
                 if (g.in_degrees() == 0).any():
                     raise dgl.base.DGLError(
@@ -208,19 +193,13 @@ class GATv2Conv(BaseConv):
                         "to be `True` when constructing this module will "
                         "suppress the check and let the code run."
                     )
-            offsets, indices, _ = g.adj_tensors("csc")
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                dst_max_in_degree=max_in_degree,
-                is_bipartite=graph_bipartite,
-            )
-        else:
-            raise TypeError(
-                f"The graph has to be either a 'SparseGraph' or "
-                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
-            )
+
+        nfeat_bipartite = isinstance(nfeat, (list, tuple))
+        graph_bipartite = nfeat_bipartite or self.share_weights is False
+
+        _graph = self.get_cugraph_ops_CSC(
+            g, is_bipartite=graph_bipartite, max_in_degree=max_in_degree
+        )
 
         if nfeat_bipartite:
             nfeat = (self.feat_drop(nfeat[0]), self.feat_drop(nfeat[1]))

@@ -12,9 +12,9 @@
 # limitations under the License.
 
 import math
-from typing import Optional
+from typing import Optional, Union
 
-from cugraph_dgl.nn.conv.base import BaseConv
+from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -139,7 +139,7 @@ class RelGraphConv(BaseConv):
 
     def forward(
         self,
-        g: dgl.DGLHeteroGraph,
+        g: Union[SparseGraph, dgl.DGLHeteroGraph],
         feat: torch.Tensor,
         etypes: torch.Tensor,
         max_in_degree: Optional[int] = None,
@@ -169,37 +169,13 @@ class RelGraphConv(BaseConv):
         torch.Tensor
             New node features. Shape: :math:`(|V|, D_{out})`.
         """
-        offsets, indices, edge_ids = g.adj_tensors("csc")
-        edge_types_perm = etypes[edge_ids.long()].int()
-
-        if g.is_block:
-            if max_in_degree is None:
-                max_in_degree = g.in_degrees().max().item()
-
-            if max_in_degree < self.MAX_IN_DEGREE_MFG:
-                _graph = ops_torch.SampledHeteroCSC(
-                    offsets,
-                    indices,
-                    edge_types_perm,
-                    max_in_degree,
-                    g.num_src_nodes(),
-                    self.num_rels,
-                )
-            else:
-                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                _graph = ops_torch.StaticHeteroCSC(
-                    offsets_fg,
-                    indices,
-                    edge_types_perm,
-                    self.num_rels,
-                )
-        else:
-            _graph = ops_torch.StaticHeteroCSC(
-                offsets,
-                indices,
-                edge_types_perm,
-                self.num_rels,
-            )
+        _graph = self.get_cugraph_ops_HeteroCSC(
+            g,
+            num_edge_types=self.num_rels,
+            etypes=etypes,
+            is_bipartite=False,
+            max_in_degree=max_in_degree,
+        )
 
         h = ops_torch.operators.agg_hg_basis_n2n_post(
             feat,

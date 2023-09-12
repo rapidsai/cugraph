@@ -133,36 +133,12 @@ class SAGEConv(BaseConv):
         torch.Tensor
             Output node features. Shape: :math:`(|V|, D_{out})`.
         """
-        if max_in_degree is None:
-            max_in_degree = -1
-
         feat_bipartite = isinstance(feat, (list, tuple))
         graph_bipartite = feat_bipartite or self.aggregator_type == "pool"
 
-        if isinstance(g, SparseGraph):
-            assert "csc" in g.formats()
-            offsets, indices, _ = g.csc()
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                dst_max_in_degree=max_in_degree,
-                is_bipartite=graph_bipartite,
-            )
-        elif isinstance(g, dgl.DGLHeteroGraph):
-            offsets, indices, _ = g.adj_tensors("csc")
-            _graph = ops_torch.CSC(
-                offsets=offsets,
-                indices=indices,
-                num_src_nodes=g.num_src_nodes(),
-                dst_max_in_degree=max_in_degree,
-                is_bipartite=graph_bipartite,
-            )
-        else:
-            raise TypeError(
-                f"The graph has to be either a 'SparseGraph' or "
-                f"'dgl.DGLHeteroGraph', but got '{type(g)}'."
-            )
+        _graph = self.get_cugraph_ops_CSC(
+            g, is_bipartite=graph_bipartite, max_in_degree=max_in_degree
+        )
 
         if feat_bipartite:
             feat = (self.feat_drop(feat[0]), self.feat_drop(feat[1]))
