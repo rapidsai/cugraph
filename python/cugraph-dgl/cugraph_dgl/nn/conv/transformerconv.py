@@ -137,7 +137,7 @@ class TransformerConv(BaseConv):
 
         if isinstance(g, SparseGraph):
             assert "csc" in g.formats()
-            offsets, indices = g.csc()
+            offsets, indices, _ = g.csc()
             _graph = ops_torch.CSC(
                 offsets=offsets,
                 indices=indices,
