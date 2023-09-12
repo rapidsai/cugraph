@@ -224,4 +224,72 @@ renumber_and_sort_sampled_edgelist(
   bool src_is_major       = true,
   bool do_expensive_check = false);
 
+/*
+ * @brief sort sampled edge list.
+ *
+ * Sampled edges are sorted based on the following rules.
+ *
+ * 1. If @p src_is_major is true, use ((hop), src, dst) as the key in sorting. If @p src_is_major is
+ * false, use ((hop), dst, src) instead. hop is used only if @p edgelist_hops.has_value() is true.
+ * 2. Edges in each label are sorted independently if @p edgelist_label_offsets.has_value() is true.
+ *
+ * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weight.  Needs to be floating point type
+ * @tparam edge_id_t Type of edge id.  Needs to be an integral type
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs A vector storing edgelist source vertices.
+ * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
+ * edgelist_srcs.size()).
+ * @param edgelist_weights An optional vector storing edgelist weights (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
+ * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
+ * non-decreasing within each label.
+ * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
+ * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
+ * labels.
+ * @param src_is_major A flag to determine whether to use the source or destination as the
+ * major key in renumbering and sorting.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
+ * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
+ * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
+ * edgelist_edge_types.has_value() is true), and optional (label, hop) offset values to the
+ * renumbered and sorted edges (size = # labels * # hops + 1, where # labels =
+ * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
+ * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
+ * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
+ * edgelist_hops.has_value() is true)
+ */
+template <typename vertex_t,
+          typename weight_t,
+          typename edge_id_t,
+          typename edge_type_t>
+std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
+           rmm::device_uvector<vertex_t>,                    // dsts
+           std::optional<rmm::device_uvector<weight_t>>,     // weights
+           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
+           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
+           std::optional<rmm::device_uvector<size_t>>>       // (label, hop) offsets to the edges
+sort_sampled_edgelist(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
+  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
+  bool src_is_major       = true,
+  bool do_expensive_check = false);
+
 }  // namespace cugraph
