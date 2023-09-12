@@ -16,13 +16,12 @@ import tarfile
 import urllib.request
 
 import cudf
-from cugraph.testing import utils
 from cugraph.datasets.dataset import (
     DefaultDownloadDir,
-    get_download_dir,
+    default_download_dir,
 )
 
-results_dir_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets"
+# results_dir_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "tests" / "resultsets"
 
 
 class Resultset:
@@ -51,14 +50,12 @@ class Resultset:
 _resultsets = {}
 
 
-def load_resultset(resultset_name, resultset_download_url):
-    """
-    Read a mapping file (<resultset_name>.csv) in the _results_dir and save the
-    mappings between each unique set of args/identifiers to UUIDs to the
-    _resultsets dictionary. If <resultset_name>.csv does not exist in
-    _results_dir, use resultset_download_url to download a file to
-    install/unpack/etc. to _results_dir first.
-    """
+"""def load_resultset(resultset_name, resultset_download_url):
+    #Read a mapping file (<resultset_name>.csv) in the _results_dir and save the
+    #mappings between each unique set of args/identifiers to UUIDs to the
+    #_resultsets dictionary. If <resultset_name>.csv does not exist in
+    #_results_dir, use resultset_download_url to download a file to
+    #install/unpack/etc. to _results_dir first.
     mapping_file_path = results_dir_path / (resultset_name + "_mappings.csv")
     if not mapping_file_path.exists():
         # Downloads a tar gz from s3 bucket, then unpacks the results files
@@ -104,7 +101,7 @@ def load_resultset(resultset_name, resultset_download_url):
                 ]
             )
 
-            _resultsets[resultset_key] = uuid
+            _resultsets[resultset_key] = uuid"""
 
 
 def get_resultset(resultset_name, **kwargs):
@@ -135,14 +132,18 @@ def get_resultset(resultset_name, **kwargs):
     if uuid is None:
         raise KeyError(f"results for {arg_dict} not found")
 
+    results_dir_path = default_resultset_download_dir.get_download_dir()
     results_filename = results_dir_path / (uuid + ".csv")
     return cudf.read_csv(results_filename)
 
 
-default_resultset_download_dir = DefaultDownloadDir()
+# This seems easily refactorable, this replaces
+default_resultset_download_dir = DefaultDownloadDir("tests/resultsets")
 
 
-def set_resultset_download_dir(path):
+# Left in case we don't want to move set_download_dir and get_download_dir into
+# DefaultDownloadDir.
+"""def set_resultset_download_dir(path):
     if path is None:
         default_resultset_download_dir.clear()
     else:
@@ -150,10 +151,10 @@ def set_resultset_download_dir(path):
 
 
 def get_resultset_download_dir():
-    return default_resultset_download_dir.path.absolute()
+    return default_resultset_download_dir.path.absolute()"""
 
 
-def load_resultset2(resultset_name, resultset_download_url):
+def load_resultset(resultset_name, resultset_download_url):
     """
     Read a mapping file (<resultset_name>.csv) in the _results_dir and save the
     mappings between each unique set of args/identifiers to UUIDs to the
@@ -161,8 +162,10 @@ def load_resultset2(resultset_name, resultset_download_url):
     _results_dir, use resultset_download_url to download a file to
     install/unpack/etc. to _results_dir first.
     """
-    curr_resultset_download_dir = get_resultset_download_dir()
-    curr_download_dir = get_download_dir()
+    # curr_resultset_download_dir = get_resultset_download_dir()
+    curr_resultset_download_dir = default_resultset_download_dir.get_download_dir()
+    # curr_download_dir = get_download_dir()
+    curr_download_dir = default_download_dir.get_download_dir()
     mapping_file_path = curr_resultset_download_dir / (resultset_name + "_mappings.csv")
     if not mapping_file_path.exists():
         # Downloads a tar gz from s3 bucket, then unpacks the results files
