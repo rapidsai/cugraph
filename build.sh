@@ -32,6 +32,7 @@ VALIDARGS="
    cugraph-nx
    cugraph-pyg
    cugraph-dgl
+   nx-cugraph
    docs
    -v
    -g
@@ -57,7 +58,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    cugraph                    - build the cugraph Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
-   cugraph-nx                 - build the cugraph-nx Python package
+   nx-cugraph                 - build the nx-cugraph Python package
    cugraph-pyg                - build the cugraph-pyg Python package
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
    docs                       - build the docs
@@ -381,11 +382,11 @@ if All || hasArg cugraph-service; then
 fi
 
 # Build and install the cugraph-nx Python package
-if All || hasArg cugraph-nx; then
+if All || hasArg nx-cugraph; then
     if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-nx
+        cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-nx
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/nx-cugraph
     fi
 fi
 
