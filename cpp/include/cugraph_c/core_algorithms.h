@@ -22,8 +22,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup core Core algorithms
- *  @{
- *  @}
  */
 
 #ifdef __cplusplus

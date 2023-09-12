@@ -1,18 +1,28 @@
-Similarity
+Traversal
 ==========
 
 
-Jaccard
--------
-.. doxygenfunction:: cugraph_jaccard_coefficients
+Breadth First Search (BFS)
+--------------------------
+.. doxygenfunction:: cugraph_bfs
     :project: libcugraph
 
-Sorensen
---------
-.. jaccard:: cugraph_sorensen_coefficients
+Single-Source Shortest-Path (SSSP)
+----------------------------------
+.. jaccard:: cugraph_sssp
     :project: libcugraph
 
-Overlap
+Path Extraction
+---------------
+.. doxygenfunction:: cugraph_extract_paths
+    :project: libcugraph
+
+Extract Max Path Length
+-----------------------
+.. doxygenfunction:: cugraph_extract_paths_result_get_max_path_length
+    :project: libcugraph
+
+Support
 -------
-.. doxygenfunction:: cugraph_overlap_coefficients
+.. doxygenfunction:: traversal
     :project: libcugraph

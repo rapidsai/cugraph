@@ -25,9 +25,6 @@ extern "C" {
 #endif
 
 /** @defgroup labeling Labeling algorithms
- *  @ingroup c_api
- *  @{
- *  @}
  */
 
 /**
@@ -108,4 +105,3 @@ cugraph_error_code_t cugraph_strongly_connected_components(const cugraph_resourc
 #ifdef __cplusplus
 }
 #endif
-

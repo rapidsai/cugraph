@@ -23,10 +23,7 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup centrality Centrality algorithms
- *  @ingroup c_api
- *  @{
- *  @}
- */ // end of centrality
+ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +38,7 @@ typedef struct {
 
 /**
  * @ingroup centrality
- * @brief     Get the vertex ids from the centrality result
+ * @brief   Get the vertex ids from the centrality result
  *
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array of vertex ids
@@ -51,7 +48,7 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
 
 /**
  * @ingroup centrality
-  * @brief     Get the centrality values from a centrality algorithm result
+ * @brief   Get the centrality values from a centrality algorithm result
  *
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array view of centrality values
@@ -602,4 +599,3 @@ cugraph_error_code_t cugraph_hits(
 #ifdef __cplusplus
 }
 #endif
-

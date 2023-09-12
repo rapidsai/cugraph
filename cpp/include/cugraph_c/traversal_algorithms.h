@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup traversal Traversal Algorithms
- *  @ingroup c_api
- *  @{
  */
 
 #ifdef __cplusplus
@@ -40,6 +38,7 @@ typedef struct {
 } cugraph_paths_result_t;
 
 /**
+ * @ingroup traversal
  * @brief     Get the vertex ids from the paths result
  *
  * @param [in]   result   The result from bfs or sssp
@@ -49,6 +48,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
   cugraph_paths_result_t* result);
 
 /**
+ * @ingroup traversal
  * @brief     Get the distances from the paths result
  *
  * @param [in]   result   The result from bfs or sssp
@@ -58,6 +58,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
   cugraph_paths_result_t* result);
 
 /**
+ * @ingroup traversal
  * @brief     Get the predecessors from the paths result
  *
  * @param [in]   result   The result from bfs or sssp
@@ -69,6 +70,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
   cugraph_paths_result_t* result);
 
 /**
+ * @ingroup traversal
  * @brief     Free paths result
  *
  * @param [in]   result   The result from bfs or sssp
@@ -188,6 +190,7 @@ cugraph_error_code_t cugraph_extract_paths(
 size_t cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_result_t* result);
 
 /**
+ * @ingroup traversal
  * @brief     Get the matrix (row major order) of paths
  *
  * @param [in]   result   The result from extract_paths
@@ -197,6 +200,7 @@ cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
   cugraph_extract_paths_result_t* result);
 
 /**
+ * @ingroup traversal
  * @brief     Free extract_paths result
  *
  * @param [in]   result   The result from extract_paths
@@ -206,7 +210,3 @@ void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
 #ifdef __cplusplus
 }
 #endif
-
-/**
- *  @}
- */

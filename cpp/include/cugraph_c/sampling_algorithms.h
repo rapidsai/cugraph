@@ -22,16 +22,11 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup sampling Sampling algorithms
- *  @ingroup c_api
- *  @{
- *  @}
  */
 
 /**
  *  @defgroup sampling_test
  *  @ingroup c_api
- *  @{
- *  @}
  */
 
 #ifdef __cplusplus
@@ -598,4 +593,3 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
 #ifdef __cplusplus
 }
 #endif
-

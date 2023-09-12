@@ -23,8 +23,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
- *  @{
- *  @}
  */
 
 #ifdef __cplusplus
@@ -414,4 +412,3 @@ void cugraph_clustering_result_free(cugraph_clustering_result_t* result);
 #ifdef __cplusplus
 }
 #endif
-

@@ -16,3 +16,8 @@ Overlap
 -------
 .. doxygenfunction:: cugraph_overlap_coefficients
     :project: libcugraph
+
+Support
+-------
+.. doxygenfunction:: similarity
+    :project: libcugraph
