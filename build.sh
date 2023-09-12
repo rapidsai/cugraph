@@ -216,7 +216,7 @@ if hasArg uninstall; then
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
     pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server \
-        cugraph-dgl cugraph-pyg cugraph-nx
+        cugraph-dgl cugraph-pyg nx-cugraph
 fi
 
 if hasArg clean; then
@@ -407,6 +407,7 @@ if All || hasArg cugraph-dgl; then
         python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
     fi
 fi
+
 
 # Build the docs
 # - build the CPP docs first using doxygen, then create the Python docs

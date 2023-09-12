@@ -97,6 +97,7 @@ typedef struct {
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  max_level    Maximum level in hierarchy
+ * @param [in]  threshold    Threshold parameter, defines convergence at each level of hierarchy
  * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
  *                           This changes the size of the communities.  Higher resolutions
  *                           lead to more smaller communities, lower resolutions lead to
@@ -111,6 +112,7 @@ typedef struct {
 cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
                                      cugraph_graph_t* graph,
                                      size_t max_level,
+                                     double threshold,
                                      double resolution,
                                      bool_t do_expensive_check,
                                      cugraph_hierarchical_clustering_result_t** result,
