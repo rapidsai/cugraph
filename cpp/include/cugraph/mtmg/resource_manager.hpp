@@ -86,6 +86,9 @@ class resource_manager_t {
     // FIXME: There is a bug in the cuda_memory_resource that results in a Hang.
     //   using the pool resource as a work-around.
     //
+    // There is a deprecated environment variable: NCCL_LAUNCH_MODE=GROUP
+    // which should temporarily work around this problem.
+    //
     // Ultimately there should be some RMM parameters passed into this function
     // (or the constructor of the object) to configure this behavior
 #if 0
