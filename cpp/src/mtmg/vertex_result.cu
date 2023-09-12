@@ -34,24 +34,24 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<vertex_t>>& renumber_map_view)
 {
-  auto my_graph_view = graph_view.get(handle);
+  auto this_gpu_graph_view = graph_view.get(handle);
 
   rmm::device_uvector<vertex_t> local_vertices(vertices.size(), handle.get_stream());
-  rmm::device_uvector<int> vertex_gpu(vertices.size(), handle.get_stream());
+  rmm::device_uvector<int> vertex_gpu_ids(vertices.size(), handle.get_stream());
   rmm::device_uvector<size_t> vertex_pos(vertices.size(), handle.get_stream());
   rmm::device_uvector<result_t> result(vertices.size(), handle.get_stream());
 
   raft::copy(local_vertices.data(), vertices.data(), vertices.size(), handle.get_stream());
   cugraph::detail::scalar_fill(
-    handle.get_stream(), vertex_gpu.data(), vertex_gpu.size(), handle.get_rank());
+    handle.get_stream(), vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
   cugraph::detail::sequence_fill(
     handle.get_stream(), vertex_pos.data(), vertex_pos.size(), size_t{0});
 
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-    my_graph_view.vertex_partition_range_lasts().size(), handle.get_stream());
+    this_gpu_graph_view.vertex_partition_range_lasts().size(), handle.get_stream());
   raft::update_device(d_vertex_partition_range_lasts.data(),
-                      my_graph_view.vertex_partition_range_lasts().data(),
-                      my_graph_view.vertex_partition_range_lasts().size(),
+                      this_gpu_graph_view.vertex_partition_range_lasts().data(),
+                      this_gpu_graph_view.vertex_partition_range_lasts().size(),
                       handle.get_stream());
 
   if (renumber_map_view) {
@@ -60,8 +60,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       local_vertices.data(),
       local_vertices.size(),
       renumber_map_view->get(handle).data(),
-      my_graph_view.local_vertex_partition_range_first(),
-      my_graph_view.local_vertex_partition_range_last());
+      this_gpu_graph_view.local_vertex_partition_range_first(),
+      this_gpu_graph_view.local_vertex_partition_range_last());
   }
 
   auto const major_comm_size =
@@ -69,12 +69,12 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   auto const minor_comm_size =
     handle.raft_handle().get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
 
-  std::forward_as_tuple(local_vertices, std::tie(vertex_gpu, vertex_pos), std::ignore) =
+  std::forward_as_tuple(local_vertices, std::tie(vertex_gpu_ids, vertex_pos), std::ignore) =
     groupby_gpu_id_and_shuffle_kv_pairs(
       handle.raft_handle().get_comms(),
       local_vertices.begin(),
       local_vertices.end(),
-      thrust::make_zip_iterator(vertex_gpu.begin(), vertex_pos.begin()),
+      thrust::make_zip_iterator(vertex_gpu_ids.begin(), vertex_pos.begin()),
       cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
         raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                           d_vertex_partition_range_lasts.size()),
@@ -90,7 +90,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   auto& wrapped = this->get(handle);
 
   auto vertex_partition = vertex_partition_device_view_t<vertex_t, multi_gpu>(
-    my_graph_view.local_vertex_partition_view());
+    this_gpu_graph_view.local_vertex_partition_view());
 
   auto iter =
     thrust::make_transform_iterator(local_vertices.begin(), [vertex_partition] __device__(auto v) {
@@ -109,8 +109,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   std::forward_as_tuple(std::ignore, std::tie(std::ignore, vertex_pos, tmp_result), std::ignore) =
     groupby_gpu_id_and_shuffle_kv_pairs(
       handle.raft_handle().get_comms(),
-      vertex_gpu.begin(),
-      vertex_gpu.end(),
+      vertex_gpu_ids.begin(),
+      vertex_gpu_ids.end(),
       thrust::make_zip_iterator(local_vertices.begin(), vertex_pos.begin(), tmp_result.begin()),
       [] __device__(int gpu) { return gpu; },
       handle.get_stream());
