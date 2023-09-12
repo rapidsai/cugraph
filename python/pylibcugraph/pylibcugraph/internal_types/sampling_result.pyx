@@ -20,6 +20,7 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
+    cugraph_sample_result_get_major_offsets,
     cugraph_sample_result_get_majors,
     cugraph_sample_result_get_minors,
     cugraph_sample_result_get_label_hop_offsets,
@@ -63,6 +64,20 @@ cdef class SamplingResult:
     cdef set_ptr(self, cugraph_sample_result_t* sample_result_ptr):
         self.c_sample_result_ptr = sample_result_ptr
 
+    def get_major_offsets(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_major_offsets(self.c_sample_result_ptr)
+        )
+        if device_array_view_ptr is NULL:
+            return None
+        
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
     def get_majors(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -70,6 +85,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_majors(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -80,6 +98,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_minors(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -91,6 +112,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_sources(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -102,6 +126,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_destinations(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -158,6 +185,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_start_labels(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -168,6 +198,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_label_hop_offsets(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -179,6 +212,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_offsets(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -190,6 +226,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_hop(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -200,6 +239,9 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_renumber_map(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -210,5 +252,8 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_renumber_map_offsets(self.c_sample_result_ptr)
         )
+        if device_array_view_ptr is NULL:
+            return None
+        
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)

@@ -68,6 +68,8 @@ def uniform_neighbor_sample(
     deduplicate_sources: bool = False,
     renumber: bool = False,
     use_legacy_names=True, # deprecated
+    compress_per_hop=False,
+    compression='COO',
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -134,6 +136,14 @@ def uniform_neighbor_sample(
         Whether to use the legacy column names (sources, destinations).
         If True, will use "sources" and "destinations" as the column names.
         If False, will use "majors" and "minors" as the column names.
+    
+    compress_per_hop: bool, optional (default=False)
+        Whether to compress globally (default), or to produce a separate
+        compressed edgelist per hop.
+
+    compression: str, optional (default=COO)
+        Sets the compression type for the output minibatches.
+        Valid options are COO (default), CSR, CSR, DCSR, and DCSR.
 
     Returns
     -------
@@ -210,6 +220,9 @@ def uniform_neighbor_sample(
             " only supported column names."
         )
         warnings.warn(warning_msg, FutureWarning)
+    else:
+        major_col_name = "majors"
+        minor_col_name = "minors"
 
     if with_edge_properties:
         warning_msg = (
@@ -289,56 +302,41 @@ def uniform_neighbor_sample(
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
+        compression=compression,
+        compress_per_hop=compress_per_hop,
+        return_dict=True,
     )
 
-    df = cudf.DataFrame()
+    results_df = cudf.DataFrame()
 
     if with_edge_properties:
-        # TODO use a dictionary at PLC w/o breaking users
-        if renumber:
-            (
-                majors,
-                minors,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                label_hop_offsets,
-                hop_ids,
-                renumber_map,
-                renumber_map_offsets,
-            ) = sampling_result
-        else:
-            (
-                majors,
-                minors,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                label_hop_offsets,
-                hop_ids,
-            ) = sampling_result
+        results_df_cols = [
+            'majors',
+            'minors',
+            'weight',
+            'edge_id',
+            'edge_type',
+            'hop_id'
+        ]
+        for col in results_df_cols:
+            array = sampling_result[col]
+            if array is not None:
+                # The length of each of these arrays should be the same
+                results_df[col] = array
 
-        df[major_col_name] = majors
-        df[minor_col_name] = minors
-        df["weight"] = weights
-        df["edge_id"] = edge_ids
-        df["edge_type"] = edge_types
-        if hop_ids is not None:
-            df["hop_id"] = hop_ids
-        
+        results_df.rename(columns={'majors':major_col_name, 'minors':minor_col_name},inplace=True)
+
+        label_hop_offsets = sampling_result['label_hop_offsets']
+        batch_ids = sampling_result['batch_id']
 
         if renumber:
-            renumber_df = cudf.DataFrame(
-                {
-                    "map": renumber_map,
-                }
-            )
+            renumber_df = cudf.DataFrame({
+                'map': sampling_result['renumber_map'],   
+            })
 
             if not return_offsets:
                 batch_ids_r = cudf.Series(batch_ids).repeat(
-                    cp.diff(renumber_map_offsets[:-1])
+                    cp.diff(sampling_result['renumber_map_offsets'][:-1])
                 )
                 batch_ids_r.reset_index(drop=True, inplace=True)
                 renumber_df["batch_id"] = batch_ids_r
@@ -361,7 +359,7 @@ def uniform_neighbor_sample(
 
             if renumber:
                 renumber_offset_series = cudf.Series(
-                    renumber_map_offsets[:-1],
+                    sampling_result['renumber_map_offsets'][:-1],
                     name="renumber_map_offsets"
                 )
 
@@ -370,7 +368,6 @@ def uniform_neighbor_sample(
                     renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
                 else:
                     renumber_df['renumber_map_offsets'] = renumber_offset_series
-                
 
         else:
             if len(batch_ids) > 0:
@@ -381,37 +378,48 @@ def uniform_neighbor_sample(
                 batch_ids.reset_index(drop=True, inplace=True)
                 print('output batch ids:', batch_ids)
 
-            df["batch_id"] = batch_ids
+            results_df["batch_id"] = batch_ids
+        
+        if major_col_name not in results_df:
+            if use_legacy_names:
+                raise ValueError("Can't use legacy names with major offsets")
+
+            major_offsets_series = cudf.Series(sampling_result['major_offsets'], name='major_offsets')
+            if len(major_offsets_series) > len(results_df):
+                # this is extremely rare so the inefficiency is ok
+                results_df = results_df.join(major_offsets_series, how='outer').sort_index()
+            else:
+                results_df['major_offsets'] = major_offsets_series
 
     else:
         # TODO this is deprecated, remove it in 23.12
-        sources, destinations, indices = sampling_result
 
-        df[major_col_name] = sources
-        df[minor_col_name] = destinations
+        results_df[major_col_name] = sampling_result['sources']
+        results_df[minor_col_name] = sampling_result['destinations']
+        indices = sampling_result['indices']
 
         if indices is None:
-            df["indices"] = None
+            results_df["indices"] = None
         else:
-            df["indices"] = indices
+            results_df["indices"] = indices
             if weight_t == "int32":
-                df["indices"] = indices.astype("int32")
+                results_df["indices"] = indices.astype("int32")
             elif weight_t == "int64":
-                df["indices"] = indices.astype("int64")
+                results_df["indices"] = indices.astype("int64")
             else:
-                df["indices"] = indices
+                results_df["indices"] = indices
 
     if G.renumbered and not renumber:
-        df = G.unrenumber(df, major_col_name, preserve_order=True)
-        df = G.unrenumber(df, minor_col_name, preserve_order=True)
+        results_df = G.unrenumber(results_df, major_col_name, preserve_order=True)
+        results_df = G.unrenumber(results_df, minor_col_name, preserve_order=True)
 
     if return_offsets:
         if renumber:
-            return df, offsets_df, renumber_df
+            return results_df, offsets_df, renumber_df
         else:
-            return df, offsets_df
+            return results_df, offsets_df
 
     if renumber:
-        return df, renumber_df
+        return results_df, renumber_df
 
-    return df
+    return results_df
