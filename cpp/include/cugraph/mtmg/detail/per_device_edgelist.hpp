@@ -53,9 +53,10 @@ namespace detail {
 template <typename vertex_t, typename weight_t, typename edge_t, typename edge_type_t>
 class per_device_edgelist_t {
  public:
+  per_device_edgelist_t()                                        = delete;
   per_device_edgelist_t(per_device_edgelist_t const&)            = delete;
   per_device_edgelist_t& operator=(per_device_edgelist_t const&) = delete;
-  per_device_edgelist_t& operator=(per_device_edgelist_t&&)      = default;
+  per_device_edgelist_t& operator=(per_device_edgelist_t&&)      = delete;
 
   per_device_edgelist_t(cugraph::mtmg::handle_t const& handle,
                         size_t device_buffer_size,
@@ -83,7 +84,7 @@ class per_device_edgelist_t {
 
   per_device_edgelist_t(per_device_edgelist_t&& other)
     : device_buffer_size_{other.device_buffer_size_},
-      current_pos_{0},
+      current_pos_{other.current_pos_},
       src_{std::move(other.src_)},
       dst_{std::move(other.dst_)},
       wgt_{std::move(other.wgt_)},
@@ -260,13 +261,13 @@ class per_device_edgelist_t {
   mutable std::mutex lock_{};
 
   size_t current_pos_{0};
-  size_t device_buffer_size_;
+  size_t device_buffer_size_{0};
 
-  std::vector<rmm::device_uvector<vertex_t>> src_;
-  std::vector<rmm::device_uvector<vertex_t>> dst_;
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> wgt_;
-  std::optional<std::vector<rmm::device_uvector<edge_t>>> edge_id_;
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_type_;
+  std::vector<rmm::device_uvector<vertex_t>> src_{};
+  std::vector<rmm::device_uvector<vertex_t>> dst_{};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> wgt_{};
+  std::optional<std::vector<rmm::device_uvector<edge_t>>> edge_id_{};
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_type_{};
 };
 
 }  // namespace detail

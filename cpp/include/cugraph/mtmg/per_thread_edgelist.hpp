@@ -163,11 +163,11 @@ class per_thread_edgelist_t {
  private:
   detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>& edgelist_;
   size_t current_pos_{0};
-  std::vector<vertex_t> src_;
-  std::vector<vertex_t> dst_;
-  std::optional<std::vector<weight_t>> wgt_;
-  std::optional<std::vector<edge_t>> edge_id_;
-  std::optional<std::vector<edge_type_t>> edge_type_;
+  std::vector<vertex_t> src_{};
+  std::vector<vertex_t> dst_{};
+  std::optional<std::vector<weight_t>> wgt_{};
+  std::optional<std::vector<edge_t>> edge_id_{};
+  std::optional<std::vector<edge_type_t>> edge_type_{};
 };
 
 }  // namespace mtmg
