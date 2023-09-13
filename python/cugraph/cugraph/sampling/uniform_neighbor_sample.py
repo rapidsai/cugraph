@@ -76,17 +76,17 @@ def uniform_neighbor_sample(
     ----------
     G : cugraph.Graph
         cuGraph graph, which contains connectivity information as dask cudf
-        edge list dataframe
+        edge list dataframe.
 
     start_list : list or cudf.Series (int32)
-        a list of starting vertices for sampling
+        a list of starting vertices for sampling.
 
     fanout_vals : list (int32)
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
     with_replacement: bool, optional (default=True)
-        Flag to specify if the random sampling is done with replacement
+        Flag to specify if the random sampling is done with replacement.
 
     with_edge_properties: bool, optional (default=False)
         Deprecated.
@@ -95,7 +95,7 @@ def uniform_neighbor_sample(
 
     with_batch_ids: bool, optional (default=False)
         Flag to specify whether batch ids are present in the start_list
-        Assumes they are the last column in the start_list dataframe
+        Assumes they are the last column in the start_list dataframe.
 
     random_state: int, optional
         Random seed to use when making sampling calls.
@@ -112,12 +112,11 @@ def uniform_neighbor_sample(
         Defaults to True.
 
     prior_sources_behavior: str, optional (default=None)
-        Options are "carryover", and "exclude".
+        Options are 'carryover', and 'exclude'.
         Default will leave the source list as-is.
         Carryover will carry over sources from previous hops to the
-        current hop.
-        Exclude will exclude sources from previous hops from reappearing
-        as sources in future hops.
+        current hop. Exclude will exclude sources from previous hops from
+        reappearing as sources in future hops.
 
     deduplicate_sources: bool, optional (default=False)
         Whether to first deduplicate the list of possible sources
@@ -191,6 +190,7 @@ def uniform_neighbor_sample(
                         Contains the renumber maps for each batch
                     renumber_df['offsets']: cudf.Series
                         Contains the batch offsets for the renumber maps
+
     """
 
     if with_edge_properties:

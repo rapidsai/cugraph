@@ -37,7 +37,6 @@
 #include <tuple>
 
 /** @ingroup cpp_api
- *  @{
  */
 
 namespace cugraph {
@@ -2078,7 +2077,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  std::tuple<raft::device_span<vertex_t const>,raft::device_span<vertex_t const>> vertex_pairs,
   bool do_expensive_check = false);
 
 /**
@@ -2162,7 +2161,3 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::random::RngState& rng_state);
 
 }  // namespace cugraph
-
-/**
- * @}
- */

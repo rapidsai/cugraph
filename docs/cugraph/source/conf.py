@@ -38,10 +38,10 @@ from github_link import make_linkcode_resolve # noqa
 # ones.
 extensions = [
     "breathe",
+    "numpydoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "numpydoc",
     "sphinx_markdown_tables",
     'sphinx.ext.doctest',
     'sphinx.ext.linkcode',

@@ -9,7 +9,7 @@ Jaccard
 
 Sorensen
 --------
-.. jaccard:: cugraph_sorensen_coefficients
+.. doxygenfunction:: cugraph_sorensen_coefficients
     :project: libcugraph
 
 Overlap
@@ -19,5 +19,7 @@ Overlap
 
 Support
 -------
-.. doxygenfunction:: similarity
-    :project: libcugraph
+.. doxygengroup:: similarity
+     :project: libcugraph
+     :members:
+     :content-only:

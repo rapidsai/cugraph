@@ -4,7 +4,7 @@ Similarity
 
 Jaccard
 -------
-.. doxygenfunction:: cugraph::jaccard
+.. doxygenfunction:: cugraph::jaccard_coefficients
     :project: libcugraph
 
 Sorensen
@@ -14,5 +14,5 @@ Sorensen
 
 Overlap
 -------
-.. doxygenfunction:: cugraph::overlap
+.. doxygenfunction:: cugraph::overlap_coefficients
     :project: libcugraph

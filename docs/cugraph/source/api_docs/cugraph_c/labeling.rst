@@ -8,7 +8,7 @@ Weakly Connected Components
     :project: libcugraph
 
 Strongly Connected Components
---------
+-----------------------------
 .. doxygenfunction:: cugraph_strongly_connected_components
     :project: libcugraph
 

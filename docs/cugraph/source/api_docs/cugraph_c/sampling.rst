@@ -29,13 +29,9 @@ Uniform Neighborhood Sampling
 .. doxygenfunction:: cugraph_uniform_neighbor_sample
     :project: libcugraph
 
-Sampling Testing
-----------------
-.. doxygenfunction:: sampling_test
-    :project: libcugraph
-
 Support
 -------
-.. doxygenfunction:: sampling
-    :project: libcugraph
-
+.. doxygengroup:: samplingC
+     :project: libcugraph
+     :members:
+     :content-only:
