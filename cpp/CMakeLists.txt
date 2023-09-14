@@ -154,7 +154,7 @@ rapids_cpm_init()
 ###
 
 # Putting this before raft to override RAFT from pulling them in.
-include(cmake/thirdparty/get_libcudacxx.cmake)
+include(cmake/thirdparty/get_thrust.cmake)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 
