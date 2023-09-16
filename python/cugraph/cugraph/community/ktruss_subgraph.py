@@ -11,14 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
 )
 
+from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
+from pylibcugraph import ResourceHandle
+import warnings
+
 from numba import cuda
+import cudf
 
 
 # FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
@@ -141,7 +145,10 @@ def ktruss_subgraph(G, k, use_weights=True):
         The desired k to be used for extracting the k-truss subgraph.
 
     use_weights : bool, optional (default=True)
-        whether the output should contain the edge weights if G has them
+        Whether the output should contain the edge weights if G has them.
+        
+        Deprecated: If 'weights' were passed at the graph creation, they will
+        be used.
 
     Returns
     -------
@@ -161,8 +168,28 @@ def ktruss_subgraph(G, k, use_weights=True):
     KTrussSubgraph = Graph()
     if G.is_directed():
         raise ValueError("input graph must be undirected")
+    
+    if use_weights:
+        warning_msg = (
+            "The use_weights flag is deprecated "
+            "and will be removed in the next release. if weights "
+            "were passed at the graph creation, they will be used."
+        )
+        warnings.warn(warning_msg, DeprecationWarning)
 
-    subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
+    sources, destinations, edge_weights, _ = pylibcugraph_k_truss_subgraph(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        k=k,
+        do_expensive_check=True,
+    )
+
+    subgraph_df = cudf.DataFrame()
+    subgraph_df["src"] = sources
+    subgraph_df["dst"] = destinations
+    if edge_weights is not None:
+        subgraph_df["weight"] = edge_weights
+
     if G.renumbered:
         subgraph_df = G.unrenumber(subgraph_df, "src")
         subgraph_df = G.unrenumber(subgraph_df, "dst")
