@@ -430,36 +430,6 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
- * @brief     Compute k truss for a graph
- *
- * K Truss is the maximal subgraph of a graph which contains at least three
- * vertices where every edge is incident to at least k-2 triangles.
- *
- * Note that current implementation does not support a weighted graph.
- *
- * @throws                           cugraph::logic_error with a custom message when an error
- * occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a COO
- * @param[in] k                      The order of the truss
- * @param[in] mr                     Memory resource used to allocate the returned graph
- * @return                           Unique pointer to K Truss subgraph in COO format
- *
- */
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  legacy::GraphCOOView<VT, ET, WT> const& graph,
-  int k,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
-
-/**
  * @brief     Compute k truss for a graph  ** temporary
  *
  * K Truss is the maximal subgraph of a graph which contains at least three
