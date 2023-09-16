@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure.graph_classes import Graph
+from typing import Union
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
@@ -23,6 +24,14 @@ import warnings
 
 from numba import cuda
 import cudf
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# ktruss_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 # FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
@@ -43,7 +52,10 @@ def _ensure_compatible_cuda_version():
         )
 
 
-def k_truss(G, k):
+def k_truss(
+    G: Union[Graph, "networkx.Graph"],
+    k: int
+) -> Union[Graph, "networkx.Graph"]:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
@@ -94,7 +106,11 @@ def k_truss(G, k):
 # FIXME: merge this function with k_truss
 
 
-def ktruss_subgraph(G, k, use_weights=True):
+def ktruss_subgraph(
+    G: Union[Graph, "networkx.Graph"],
+    k: int,
+    use_weights=True, # deprecated
+) -> Graph:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
