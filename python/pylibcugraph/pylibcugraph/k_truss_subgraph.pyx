@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -69,7 +69,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
         The input graph.
 
     k: size_t
-        The desired k to be used for extracting the k-truss subgraph
+        The desired k to be used for extracting the k-truss subgraph.
 
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
@@ -77,31 +77,37 @@ def k_truss_subgraph(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays containing the sources, destinations and edge_weights
+    A tuple of device arrays containing the sources, destinations,
+    edge_weights and edge_offsets.
 
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 3, 4], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 4, 5, 5], dtype=numpy.int32)
+    >>> srcs = cupy.asarray([0, 1, 1, 3, 1, 4, 2, 0, 2, 1, 2,
+    ...     3, 3, 4, 3, 5, 4, 5], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 0, 3, 1, 4, 1, 0, 2, 1, 2, 3,
+    ...     2, 4, 3, 5, 3, 5, 4], dtype=numpy.int32)
     >>> weights = cupy.asarray(
-    ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 6.1], dtype=numpy.float32)
+    ...     [0.1, 0.1, 2.1, 2.1, 1.1, 1.1, 7.2, 7.2, 2.1, 2.1,
+    ...     1.1, 1.1, 7.2, 7.2, 3.2, 3.2, 6.1, 6.1]
+    ...     ,dtype=numpy.float32)   
     >>> k = 2
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
-    ...     is_symmetric=False, is_multigraph=False)
+    ...     is_symmetric=True, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
     ...     pylibcugraph.k_truss_subgraph(resource_handle, G, k, False)
-    # FIXME: update results
     >>> sources
-    [0, 1, 1, 3, 1, 1, 3, 3, 4]
+    [0 0 1 1 1 1 2 2 2 3 3 3 3 4 4 4 5 5]
     >>> destinations
-    [1, 3, 4, 4, 3, 4, 4, 5, 5]
+    [1 2 0 2 3 4 0 1 3 1 2 4 5 1 3 5 3 4]
     >>> edge_weights
-    [0.1, 2.1, 1.1, 7.2, 2.1, 1.1, 7.2, 3.2, 6.1]
+    [0.1 7.2 0.1 2.1 2.1 1.1 7.2 2.1 1.1 2.1 1.1 7.2 3.2 1.1 7.2 6.1 3.2 6.1]
+    >>> subgraph_offsets
+    [0 18]
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -145,6 +151,8 @@ def k_truss_subgraph(ResourceHandle resource_handle,
     else:
         cupy_edge_weights = None
     
+    # FIXME: Should we keep the offsets array or just drop it from the final
+    # solution?
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 
