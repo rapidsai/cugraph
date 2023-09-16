@@ -47,6 +47,16 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             cugraph_centrality_result_t* result
         )
 
+    cdef size_t \
+        cugraph_centrality_result_get_num_iterations(
+            cugraph_centrality_result_t* result
+        )
+
+    cdef bool_t \
+        cugraph_centrality_result_converged(
+            cugraph_centrality_result_t* result
+        )
+
     cdef void \
         cugraph_centrality_result_free(
             cugraph_centrality_result_t* result
@@ -69,7 +79,41 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         )
 
     cdef cugraph_error_code_t \
+        cugraph_pagerank_allow_nonconvergence(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_guess_values,
+            double alpha,
+            double epsilon,
+            size_t max_iterations,
+            bool_t do_expensive_check,
+            cugraph_centrality_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_error_code_t \
         cugraph_personalized_pagerank(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_guess_values,
+            const cugraph_type_erased_device_array_view_t* personalization_vertices,
+            const cugraph_type_erased_device_array_view_t* personalization_values,
+            double alpha,
+            double epsilon,
+            size_t max_iterations,
+            bool_t do_expensive_check,
+            cugraph_centrality_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_personalized_pagerank_allow_nonconvergence(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
@@ -166,5 +210,47 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             bool_t include_endpoints,
             bool_t do_expensive_check,
             cugraph_centrality_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    ###########################################################################
+    # edge betweenness centrality
+
+    ctypedef struct cugraph_edge_centrality_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edge_centrality_result_get_src_vertices(
+            cugraph_edge_centrality_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edge_centrality_result_get_dst_vertices(
+            cugraph_edge_centrality_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edge_centrality_result_get_edge_ids(
+            cugraph_edge_centrality_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edge_centrality_result_get_values(
+            cugraph_edge_centrality_result_t* result
+        )
+    
+    cdef void \
+        cugraph_edge_centrality_result_free(
+            cugraph_edge_centrality_result_t* result
+        )
+    
+    cdef cugraph_error_code_t \
+        cugraph_edge_betweenness_centrality(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertex_list,
+            bool_t normalized,
+            bool_t do_expensive_check,
+            cugraph_edge_centrality_result_t** result,
             cugraph_error_t** error
         )

@@ -19,6 +19,7 @@ outputs:
       string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_family: APACHE
       license_file: ../../../LICENSE
@@ -27,9 +28,9 @@ outputs:
     requirements:
       host:
         - pip
-        - python x.x
+        - python
       run:
-        - python x.x
+        - python
         - thriftpy2 >=0.4.15
 
   - name: cugraph-service-server
@@ -39,6 +40,7 @@ outputs:
       string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_family: APACHE
       license_file: ../../../LICENSE
@@ -47,7 +49,7 @@ outputs:
     requirements:
       host:
         - pip
-        - python x.x
+        - python
         - setuptools
         - wheel
       run:
@@ -57,9 +59,10 @@ outputs:
         - cupy >=12.0.0
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
-        - distributed ==2023.3.2.1
-        - numpy
-        - python x.x
+        - distributed >=2023.7.1
+        - numba >=0.57
+        - numpy >=1.21
+        - python
         - thriftpy2 >=0.4.15
         - ucx-py {{ ucx_py_version }}
 

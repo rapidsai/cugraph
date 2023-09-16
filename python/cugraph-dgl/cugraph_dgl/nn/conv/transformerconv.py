@@ -15,12 +15,10 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import BipartiteCSC, StaticCSC
-from pylibcugraphops.pytorch.operators import mha_simple_n2n
-
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class TransformerConv(BaseConv):
@@ -132,31 +130,34 @@ class TransformerConv(BaseConv):
         efeat: torch.Tensor, optional
             Edge feature tensor. Default: ``None``.
         """
-        bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_tensors("csc")
+        graph = ops_torch.CSC(
+            offsets=offsets,
+            indices=indices,
+            num_src_nodes=g.num_src_nodes(),
+            is_bipartite=True,
+        )
 
-        if bipartite:
-            src_feats, dst_feats = nfeat
-            _graph = BipartiteCSC(
-                offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
-            )
-        else:
-            src_feats = dst_feats = nfeat
-            if g.is_block:
-                offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-            _graph = StaticCSC(offsets=offsets, indices=indices)
+        if isinstance(nfeat, torch.Tensor):
+            nfeat = (nfeat, nfeat)
 
-        query = self.lin_query(dst_feats)
-        key = self.lin_key(src_feats)
-        value = self.lin_value(src_feats)
-        if self.lin_edge is not None:
+        query = self.lin_query(nfeat[1][: g.num_dst_nodes()])
+        key = self.lin_key(nfeat[0])
+        value = self.lin_value(nfeat[0])
+
+        if efeat is not None:
+            if self.lin_edge is None:
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.edge_feats must be set to allow "
+                    f"edge features."
+                )
             efeat = self.lin_edge(efeat)
 
-        out = mha_simple_n2n(
+        out = ops_torch.operators.mha_simple_n2n(
             key_emb=key,
             query_emb=query,
             value_emb=value,
-            graph=_graph,
+            graph=graph,
             num_heads=self.num_heads,
             concat_heads=self.concat,
             edge_emb=efeat,
@@ -165,7 +166,7 @@ class TransformerConv(BaseConv):
         )[: g.num_dst_nodes()]
 
         if self.root_weight:
-            res = self.lin_skip(dst_feats[: g.num_dst_nodes()])
+            res = self.lin_skip(nfeat[1][: g.num_dst_nodes()])
             if self.lin_beta is not None:
                 beta = self.lin_beta(torch.cat([out, res, out - res], dim=-1))
                 beta = beta.sigmoid()

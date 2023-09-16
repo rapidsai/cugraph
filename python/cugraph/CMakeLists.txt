@@ -12,9 +12,9 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-set(cugraph_version 23.06.00)
+set(cugraph_version 23.10.00)
 
 include(../../fetch_rapids.cmake)
 
@@ -65,7 +65,7 @@ if(NOT cugraph_FOUND)
     # Statically link dependencies if building wheels
     set(CUDA_STATIC_RUNTIME ON)
     set(USE_RAFT_STATIC ON)
-    set(CUGRAPH_COMPILE_RAFT_DIST_LIBS OFF)
+    set(CUGRAPH_COMPILE_RAFT_LIB ON)
     set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
     set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
     set(ALLOW_CLONE_CUGRAPH_OPS ON)
@@ -82,12 +82,10 @@ endif()
 
 rapids_cython_init()
 
-add_subdirectory(cugraph/centrality)
 add_subdirectory(cugraph/community)
 add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/structure)
-add_subdirectory(cugraph/generators)
 add_subdirectory(cugraph/internals)
 add_subdirectory(cugraph/layout)
 add_subdirectory(cugraph/linear_assignment)

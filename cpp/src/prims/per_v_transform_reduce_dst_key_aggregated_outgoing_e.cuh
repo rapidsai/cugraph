@@ -762,7 +762,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         : thrust::nullopt;
     std::conditional_t<KVStoreViewType::binary_search,
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,
-                       detail::kv_cuco_store_device_view_t<KVStoreViewType>>
+                       detail::kv_cuco_store_find_device_view_t<KVStoreViewType>>
       dst_key_value_map_device_view(
         GraphViewType::is_multi_gpu ? multi_gpu_minor_key_value_map_ptr->view() : kv_store_view);
     thrust::transform(handle.get_thrust_policy(),

@@ -15,14 +15,13 @@ import gc
 import random
 
 import pytest
-import dask_cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-
-# from cugraph.dask.common.mg_utils import is_single_gpu
+import dask_cudf
 import cugraph.dask as dcg
-from cugraph.experimental.datasets import DATASETS_SMALL, karate_asymmetric
+from cugraph.testing import SMALL_DATASETS
+from cugraph.datasets import karate_asymmetric
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================
@@ -41,7 +40,7 @@ IS_DIRECTED = [True, False]
 # Pytest fixtures
 # =============================================================================
 
-datasets = DATASETS_SMALL + [karate_asymmetric]
+datasets = SMALL_DATASETS + [karate_asymmetric]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
@@ -203,7 +202,7 @@ def input_graph(request):
 
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
-def test_dask_random_walks(dask_client, benchmark, input_graph):
+def test_dask_mg_random_walks(dask_client, benchmark, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
     check_random_walks(input_graph, path_data, seeds, max_depth, df_G)

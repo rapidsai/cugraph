@@ -15,12 +15,12 @@ import gc
 import random
 
 import pytest
-import dask_cudf
-from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
+import dask_cudf
 import cugraph.dask as dcg
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -122,7 +122,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.mg
-def test_dask_overlap(dask_client, benchmark, input_expected_output):
+def test_dask_mg_overlap(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
 
@@ -157,7 +157,7 @@ def test_dask_overlap(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_weighted_overlap():
+def test_dask_mg_weighted_overlap():
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

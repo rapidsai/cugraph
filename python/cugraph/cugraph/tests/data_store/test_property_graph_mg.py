@@ -10,21 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import gc
 
-import dask_cudf
 import pytest
 import pandas as pd
-import cudf
-import cupy as cp
 import numpy as np
-from cudf.testing import assert_frame_equal, assert_series_equal
-from cupy.testing import assert_array_equal
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import cudf
+import cugraph
+import dask_cudf
+import cupy as cp
 import cugraph.dask as dcg
-from cugraph.experimental.datasets import cyber
-from cugraph.experimental.datasets import netscience
+from cupy.testing import assert_array_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.datasets import cyber, netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -37,8 +39,6 @@ except ImportError:
     import pytest_benchmark
 
     gpubenchmark = pytest_benchmark.plugin.benchmark
-
-import cugraph
 
 
 def type_is_categorical(pG):
@@ -991,6 +991,7 @@ def test_renumber_vertices_edges_dtypes(dask_client):
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.parametrize("set_index", [True, False])
 def test_add_data_noncontiguous(dask_client, set_index):
     from cugraph.experimental import MGPropertyGraph

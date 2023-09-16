@@ -11,13 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 
-
-from typing import Tuple, List, Union, Sequence, Dict
+from typing import Sequence
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.data.cugraph_store import TensorType
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -34,16 +31,72 @@ HeteroSamplerOutput = (
 )
 
 
-def _sampler_output_from_sampling_results(
+def _count_unique_nodes(
     sampling_results: cudf.DataFrame,
     graph_store: CuGraphStore,
+    node_type: str,
+    node_position: str,
+) -> int:
+    """
+    Counts the number of unique nodes of a given node type.
+
+    Parameters
+    ----------
+    sampling_results: cudf.DataFrame
+        The dataframe containing sampling results or filtered sampling results
+        (i.e. sampling results for hop 2)
+    graph_store: CuGraphStore
+        The graph store containing the structure of the sampled graph.
+    node_type: str
+        The node type to count the number of unique nodes of.
+    node_position: str ('src' or 'dst')
+        Whether to examine source or destination nodes.
+
+    Returns
+    -------
+    int
+        The number of unique nodes of the given node type.
+    """
+    if node_position == "src":
+        edge_index = "sources"
+        edge_sel = 0
+    elif node_position == "dst":
+        edge_index = "destinations"
+        edge_sel = -1
+    else:
+        raise ValueError(f"Illegal value {node_position} for node_position")
+
+    etypes = [
+        graph_store.canonical_edge_type_to_numeric(et)
+        for et in graph_store.edge_types
+        if et[edge_sel] == node_type
+    ]
+    if len(etypes) > 0:
+        f = sampling_results.edge_type == etypes[0]
+        for et in etypes[1:]:
+            f |= sampling_results.edge_type == et
+
+        sampling_results_node = sampling_results[f]
+    else:
+        return 0
+
+    return sampling_results_node[edge_index].nunique()
+
+
+def _sampler_output_from_sampling_results(
+    sampling_results: cudf.DataFrame,
+    renumber_map: cudf.Series,
+    graph_store: CuGraphStore,
     metadata: Sequence = None,
-) -> Union[HeteroSamplerOutput, Dict[str, dict]]:
+) -> HeteroSamplerOutput:
     """
     Parameters
     ----------
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results.
+    renumber_map: cudf.Series
+        The series containing the renumber map, or None if there
+        is no renumber map.
     graph_store: CuGraphStore
         The graph store containing the structure of the sampled graph.
     metadata: Tensor
@@ -51,160 +104,152 @@ def _sampler_output_from_sampling_results(
 
     Returns
     -------
-    HeteroSamplerOutput, if PyG is installed.
-    dict, if PyG is not installed.
-    """
-    nodes_of_interest = torch.unique(
-        torch.stack(
-            [
-                torch.as_tensor(sampling_results.destinations.values, device="cuda"),
-                torch.as_tensor(sampling_results.sources.values, device="cuda"),
-            ]
-        )
-    )
-    # unique will always sort this array
-
-    # Get the grouped node index (for creating the renumbered grouped edge index)
-    noi_index = graph_store._get_vertex_groups_from_sample(
-        nodes_of_interest, is_sorted=True
-    )
-
-    # Get the new edge index (by type as expected for HeteroData)
-    # FIXME handle edge ids/types after the C++ updates
-    row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
-        sampling_results, noi_index
-    )
-
-    out = (noi_index, row_dict, col_dict, None)
-
-    # FIXME no longer allow torch_geometric to be missing.
-    if isinstance(torch_geometric, MissingModule):
-        return {"out": out, "metadata": metadata}
-    else:
-        return HeteroSamplerOutput(*out, metadata=metadata)
-
-
-class EXPERIMENTAL__CuGraphSampler:
-    """
-    Duck-typed version of PyG's BaseSampler
+    HeteroSamplerOutput
     """
 
-    UNIFORM_NEIGHBOR = "uniform_neighbor"
-    SAMPLING_METHODS = [
-        UNIFORM_NEIGHBOR,
+    hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
+    hops = torch.searchsorted(
+        torch.as_tensor(sampling_results.hop_id.values, device="cuda"), hops
+    )
+
+    num_nodes_per_hop_dict = {}
+    num_edges_per_hop_dict = {}
+
+    # Fill out hop 0 in num_nodes_per_hop_dict, which is based on src instead of dst
+    sampling_results_hop_0 = sampling_results.iloc[
+        0 : (hops[1] if len(hops) > 1 else len(sampling_results))
     ]
-
-    def __init__(
-        self,
-        data: Tuple[CuGraphStore, CuGraphStore],
-        method: str = UNIFORM_NEIGHBOR,
-        **kwargs,
-    ):
-        if method not in self.SAMPLING_METHODS:
-            raise ValueError(f"{method} is not a valid sampling method")
-        self.__method = method
-        self.__sampling_args = kwargs
-
-        fs, gs = data
-        self.__feature_store = fs
-        self.__graph_store = gs
-
-    # FIXME Make HeteroSamplerOutput the only return type
-    # after PyG becomes a hard requirement
-    def sample_from_nodes(
-        self, sampler_input: Tuple[TensorType, TensorType, TensorType]
-    ) -> Union[HeteroSamplerOutput, dict]:
-        """
-        Sample nodes using this CuGraphSampler's sampling method
-        (which is set at initialization)
-        and the input node data passed to this function.  Matches
-        the interface provided by PyG's NodeSamplerInput.
-
-        Parameters
-        ----------
-        sampler_input: tuple(index, input_nodes, input_time)
-            index: The sample indices to store as metadata
-            input_nodes: Input nodes to pass to the sampler
-            input_time: Node timestamps (if performing temporal
-            sampling which is currently not supported)
-
-        Returns
-        -------
-        HeteroSamplerOutput, if PyG is installed.
-        dict, if PyG is not installed.
-        """
-        index, input_nodes, input_time = sampler_input
-
-        if input_time is not None:
-            raise ValueError("Temporal sampling is currently unsupported in cuGraph")
-
-        if self.__method == self.UNIFORM_NEIGHBOR:
-            return self.__neighbor_sample(
-                input_nodes, **self.__sampling_args, metadata=index
+    for node_type in graph_store.node_types:
+        if len(graph_store.node_types) == 1:
+            num_unique_nodes = sampling_results_hop_0.sources.nunique()
+        else:
+            num_unique_nodes = _count_unique_nodes(
+                sampling_results_hop_0, graph_store, node_type, "src"
             )
 
-    def sample_from_edges(self, index):
-        raise NotImplementedError("Edge sampling currently unsupported")
+        if num_unique_nodes > 0:
+            num_nodes_per_hop_dict[node_type] = torch.zeros(
+                len(hops) + 1, dtype=torch.int64
+            )
+            num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
 
-    @property
-    def method(self) -> str:
-        return self.__method
+    if renumber_map is not None:
+        if len(graph_store.node_types) > 1 or len(graph_store.edge_types) > 1:
+            raise ValueError(
+                "Precomputing the renumber map is currently "
+                "unsupported for heterogeneous graphs."
+            )
 
-    @property
-    def edge_permutation(self):
-        return None
+        node_type = graph_store.node_types[0]
+        if not isinstance(node_type, str):
+            raise ValueError("Node types must be strings")
+        noi_index = {node_type: torch.as_tensor(renumber_map.values, device="cuda")}
 
-    """
-    SAMPLER IMPLEMENTATIONS
-    """
+        edge_type = graph_store.edge_types[0]
+        if (
+            not isinstance(edge_type, tuple)
+            or not isinstance(edge_type[0], str)
+            or len(edge_type) != 3
+        ):
+            raise ValueError("Edge types must be 3-tuples of strings")
+        if edge_type[0] != node_type or edge_type[2] != node_type:
+            raise ValueError("Edge src/dst type must match for homogeneous graphs")
+        row_dict = {
+            edge_type: torch.as_tensor(sampling_results.sources.values, device="cuda"),
+        }
+        col_dict = {
+            edge_type: torch.as_tensor(
+                sampling_results.destinations.values, device="cuda"
+            ),
+        }
+    else:
+        # Calculate nodes of interest based on unique nodes in order of appearance
+        # Use hop 0 sources since those are the only ones not included in destinations
+        # Use torch.concat based on benchmark performance (vs. cudf.concat)
+        nodes_of_interest = (
+            cudf.Series(
+                torch.concat(
+                    [
+                        torch.as_tensor(
+                            sampling_results_hop_0.sources.values, device="cuda"
+                        ),
+                        torch.as_tensor(
+                            sampling_results.destinations.values, device="cuda"
+                        ),
+                    ]
+                ),
+                name="nodes_of_interest",
+            )
+            .drop_duplicates()
+            .sort_index()
+        )
+        del sampling_results_hop_0
 
-    def __neighbor_sample(
-        self,
-        index: TensorType,
-        num_neighbors: List[int],
-        replace: bool = True,
-        directed: bool = True,
-        edge_types: List[str] = None,
-        metadata=None,
-        **kwargs,
-    ) -> Union[dict, HeteroSamplerOutput]:
-        if not directed:
-            raise ValueError("Undirected sampling not currently supported")
+        # Get the grouped node index (for creating the renumbered grouped edge index)
+        noi_index = graph_store._get_vertex_groups_from_sample(
+            torch.as_tensor(nodes_of_interest.values, device="cuda")
+        )
+        del nodes_of_interest
 
-        if edge_types is None:
-            edge_types = [
-                attr.edge_type for attr in self.__graph_store.get_all_edge_attrs()
-            ]
-
-        if isinstance(num_neighbors, dict):
-            # FIXME support variable num neighbors per edge type
-            num_neighbors = list(num_neighbors.values())[0]
-
-        if not index.is_cuda:
-            index = index.cuda()
-
-        G = self.__graph_store._subgraph(edge_types)
-
-        index = cudf.Series(index)
-
-        sample_fn = (
-            cugraph.dask.uniform_neighbor_sample
-            if self.__graph_store._is_delayed
-            else cugraph.uniform_neighbor_sample
+        # Get the new edge index (by type as expected for HeteroData)
+        # FIXME handle edge ids/types after the C++ updates
+        row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
+            sampling_results, noi_index
         )
 
-        sampling_results = sample_fn(
-            G,
-            index,
-            # conversion required by cugraph api
-            list(num_neighbors),
-            replace,
-            with_edge_properties=True,
-        )
+    for hop in range(len(hops)):
+        hop_ix_start = hops[hop]
+        hop_ix_end = hops[hop + 1] if hop < len(hops) - 1 else len(sampling_results)
+        sampling_results_hop = sampling_results.iloc[hop_ix_start:hop_ix_end]
 
-        if self.__graph_store._is_delayed:
-            sampling_results = sampling_results.compute()
+        for node_type in graph_store.node_types:
+            if len(graph_store.node_types) == 1:
+                num_unique_nodes = sampling_results_hop.destinations.nunique()
+            else:
+                num_unique_nodes = _count_unique_nodes(
+                    sampling_results_hop, graph_store, node_type, "dst"
+                )
 
-        return _sampler_output_from_sampling_results(
-            sampling_results, self.__graph_store, metadata
-        )
+            if num_unique_nodes > 0:
+                if node_type not in num_nodes_per_hop_dict:
+                    num_nodes_per_hop_dict[node_type] = torch.zeros(
+                        len(hops) + 1, dtype=torch.int64
+                    )
+                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes
+
+        if len(graph_store.edge_types) == 1:
+            edge_type = graph_store.edge_types[0]
+            if edge_type not in num_edges_per_hop_dict:
+                num_edges_per_hop_dict[edge_type] = torch.zeros(
+                    len(hops), dtype=torch.int64
+                )
+            num_edges_per_hop_dict[graph_store.edge_types[0]][hop] = len(
+                sampling_results_hop
+            )
+        else:
+            numeric_etypes, counts = torch.unique(
+                torch.as_tensor(sampling_results_hop.edge_type.values, device="cuda"),
+                return_counts=True,
+            )
+            numeric_etypes = list(numeric_etypes)
+            counts = list(counts)
+            for num_etype, count in zip(numeric_etypes, counts):
+                can_etype = graph_store.numeric_edge_type_to_canonical(num_etype)
+                if can_etype not in num_edges_per_hop_dict:
+                    num_edges_per_hop_dict[can_etype] = torch.zeros(
+                        len(hops), dtype=torch.int64
+                    )
+                num_edges_per_hop_dict[can_etype][hop] = count
+
+    if HeteroSamplerOutput is None:
+        raise ImportError("Error importing from pyg")
+
+    return HeteroSamplerOutput(
+        node=noi_index,
+        row=row_dict,
+        col=col_dict,
+        edge=None,
+        num_sampled_nodes=num_nodes_per_hop_dict,
+        num_sampled_edges=num_edges_per_hop_dict,
+        metadata=metadata,
+    )

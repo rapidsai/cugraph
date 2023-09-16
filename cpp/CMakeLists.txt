@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
 include(../fetch_rapids.cmake)
 include(rapids-cmake)
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.06.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.10.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -192,11 +192,9 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
-    src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/traversal/legacy/bfs.cu
     src/link_prediction/legacy/jaccard.cu
     src/link_prediction/legacy/overlap.cu
     src/link_prediction/jaccard_sg.cu
@@ -219,16 +217,22 @@ set(CUGRAPH_SOURCES
     src/community/egonet_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
-    src/sampling/detail/sampling_utils_mg.cu
-    src/sampling/detail/sampling_utils_sg.cu
+    src/sampling/detail/prepare_next_frontier_sg.cu
+    src/sampling/detail/prepare_next_frontier_mg.cu
+    src/sampling/detail/gather_one_hop_edgelist_sg.cu
+    src/sampling/detail/gather_one_hop_edgelist_mg.cu
+    src/sampling/detail/remove_visited_vertices_from_frontier.cu
+    src/sampling/detail/sample_edges_sg.cu
+    src/sampling/detail/sample_edges_mg.cu
+    src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/renumber_sampled_edgelist_sg.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
     src/components/legacy/connectivity.cu
-    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
@@ -264,6 +268,7 @@ set(CUGRAPH_SOURCES
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
+    src/traversal/od_shortest_distances_sg.cu
     src/traversal/sssp_mg.cu
     src/link_analysis/hits_sg.cu
     src/link_analysis/hits_mg.cu
@@ -341,11 +346,19 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
+set(COMPILED_RAFT_LIB "")
 if(CUDA_STATIC_RUNTIME)
   get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
   target_include_directories(cugraph PUBLIC ${_includes})
   # Add CTK include paths because we make our CTK library links private below
   target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+    set(COMPILED_RAFT_LIB raft::compiled_static)
+  endif()
+else()
+  if(CUGRAPH_COMPILE_RAFT_LIB)
+    set(COMPILED_RAFT_LIB raft::compiled)
+  endif()
 endif()
 
 ################################################################################
@@ -356,10 +369,10 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -369,10 +382,10 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -476,12 +489,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
 )
 
 ################################################################################

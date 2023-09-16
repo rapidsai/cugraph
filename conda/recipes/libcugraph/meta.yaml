@@ -4,7 +4,6 @@
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
-{% set cuda_spec = ">=" + cuda_major ~ ",<" + (cuda_major | int + 1) ~ ".0a0" %} # i.e. >=11,<12.0a0
 {% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
@@ -34,29 +33,45 @@ build:
 requirements:
   build:
     - {{ compiler('c') }}
-    - {{ compiler('cuda') }} {{ cuda_version }}
+    {% if cuda_major == "11" %}
+    - {{ compiler('cuda11') }} {{ cuda_version }}
+    {% else %}
+    - {{ compiler('cuda') }}
+    {% endif %}
+    - cuda-version ={{ cuda_version }}
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
     - ninja
     - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
+    {% if cuda_major == "11" %}
+    - cudatoolkit
     - cuda-nvtx ={{ cuda_version }}
-    - cuda-profiler-api {{ cuda_profiler_api_version }}
-    - cudatoolkit ={{ cuda_version }}
+    - cuda-profiler-api {{ cuda11_cuda_profiler_api_host_version }}
+    - libcublas {{ cuda11_libcublas_host_version }}
+    - libcublas-dev {{ cuda11_libcublas_host_version }}
+    - libcurand {{ cuda11_libcurand_host_version }}
+    - libcurand-dev {{ cuda11_libcurand_host_version }}
+    - libcusolver {{ cuda11_libcusolver_host_version }}
+    - libcusolver-dev {{ cuda11_libcusolver_host_version }}
+    - libcusparse {{ cuda11_libcusparse_host_version }}
+    - libcusparse-dev {{ cuda11_libcusparse_host_version }}
+    {% else %}
+    - cuda-nvtx-dev
+    - cuda-profiler-api
+    - cuda-cudart-dev
+    - libcublas-dev
+    - libcurand-dev
+    - libcusolver-dev
+    - libcusparse-dev
+    {% endif %}
+    - cuda-version ={{ cuda_version }}
     - doxygen {{ doxygen_version }}
     - gmock {{ gtest_version }}
     - gtest {{ gtest_version }}
-    - libcublas {{ libcublas_host_version }}
-    - libcublas-dev {{ libcublas_host_version }}
     - libcudf ={{ minor_version }}
     - libcugraphops ={{ minor_version }}
-    - libcurand {{ libcurand_host_version }}
-    - libcurand-dev {{ libcurand_host_version }}
-    - libcusolver {{ libcusolver_host_version }}
-    - libcusolver-dev {{ libcusolver_host_version }}
-    - libcusparse {{ libcusparse_host_version }}
-    - libcusparse-dev {{ libcusparse_host_version }}
     - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - librmm ={{ minor_version }}
@@ -71,12 +86,30 @@ outputs:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
-        - {{ compiler('cuda') }}
+        {% if cuda_major == "11" %}
+        - {{ compiler('cuda11') }}
+        {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
+      host:
+        - cuda-version ={{ cuda_version }}
       run:
-        - cudatoolkit {{ cuda_spec }}
+        - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
+        {% if cuda_major == "11" %}
+        - cuda-profiler-api {{ cuda11_cuda_profiler_api_run_version }}
+        - cudatoolkit
+        - libcublas {{ cuda11_libcublas_run_version }}
+        - libcurand {{ cuda11_libcurand_run_version }}
+        - libcusolver {{ cuda11_libcusolver_run_version }}
+        - libcusparse {{ cuda11_libcusparse_run_version }}
+        {% else %}
+        - cuda-profiler-api
+        - libcublas
+        - libcurand
+        - libcusolver
+        - libcusparse
+       {% endif %}
         - libcugraphops ={{ minor_version }}
         - libraft ={{ minor_version }}
         - libraft-headers ={{ minor_version }}
@@ -85,6 +118,7 @@ outputs:
         - ucx-proc=*=gpu
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph library
@@ -95,17 +129,25 @@ outputs:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
-        - {{ compiler('cuda') }}
+        {% if cuda_major == "11" %}
+        - {{ compiler('cuda11') }}
+        {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
+      host:
+        - cuda-version ={{ cuda_version }}
       run:
+        - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         - {{ pin_subpackage('libcugraph', exact=True) }}
-        - cudatoolkit {{ cuda_spec }}
+        {% if cuda_major == "11" %}
+        - cudatoolkit
+        {% endif %}
         - libcudf ={{ minor_version }}
         - librmm ={{ minor_version }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph_etl library
@@ -116,18 +158,26 @@ outputs:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
-        - {{ compiler('cuda') }}
+        {% if cuda_major == "11" %}
+        - {{ compiler('cuda11') }}
+        {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
+      host:
+        - cuda-version ={{ cuda_version }}
       run:
+        - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         - {{ pin_subpackage('libcugraph_etl', exact=True) }}
         - {{ pin_subpackage('libcugraph', exact=True) }}
-        - cudatoolkit {{ cuda_spec }}
+        {% if cuda_major == "11" %}
+        - cudatoolkit
+        {% endif %}
         - gmock {{ gtest_version }}
         - gtest {{ gtest_version }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph test & benchmark executables

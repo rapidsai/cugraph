@@ -56,12 +56,13 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(raft::handle_t const& handle
                                                     double b,
                                                     double c,
                                                     bool_t clip_and_flip,
+                                                    bool_t scramble_vertex_ids,
                                                     cugraph::c_api::cugraph_coo_t** result,
                                                     cugraph::c_api::cugraph_error_t** error)
 {
   try {
     auto [src, dst] = cugraph::generate_rmat_edgelist<vertex_t>(
-      handle, rng_state, scale, num_edges, a, b, c, clip_and_flip);
+      handle, rng_state, scale, num_edges, a, b, c, clip_and_flip, scramble_vertex_ids);
 
     *result = new cugraph::c_api::cugraph_coo_t{
       std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(src, vertex_dtype),
@@ -90,6 +91,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
   cugraph_generator_distribution_t size_distribution,
   cugraph_generator_distribution_t edge_distribution,
   bool_t clip_and_flip,
+  bool_t scramble_vertex_ids,
   cugraph::c_api::cugraph_coo_list_t** result,
   cugraph::c_api::cugraph_error_t** error)
 {
@@ -103,7 +105,8 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
       edge_factor,
       static_cast<cugraph::generator_distribution_t>(size_distribution),
       static_cast<cugraph::generator_distribution_t>(edge_distribution),
-      clip_and_flip);
+      clip_and_flip,
+      scramble_vertex_ids);
 
     *result = new cugraph::c_api::cugraph_coo_list_t;
     (*result)->list_.resize(tuple_vector.size());
@@ -200,6 +203,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelist(
   double b,
   double c,
   bool_t clip_and_flip,
+  bool_t scramble_vertex_ids,
   cugraph_coo_t** result,
   cugraph_error_t** error)
 {
@@ -219,6 +223,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelist(
       b,
       c,
       clip_and_flip,
+      scramble_vertex_ids,
       reinterpret_cast<cugraph::c_api::cugraph_coo_t**>(result),
       reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
   } else {
@@ -232,6 +237,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelist(
       b,
       c,
       clip_and_flip,
+      scramble_vertex_ids,
       reinterpret_cast<cugraph::c_api::cugraph_coo_t**>(result),
       reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
   }
@@ -247,6 +253,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelists(
   cugraph_generator_distribution_t size_distribution,
   cugraph_generator_distribution_t edge_distribution,
   bool_t clip_and_flip,
+  bool_t scramble_vertex_ids,
   cugraph_coo_list_t** result,
   cugraph_error_t** error)
 {
@@ -267,6 +274,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelists(
       size_distribution,
       edge_distribution,
       clip_and_flip,
+      scramble_vertex_ids,
       reinterpret_cast<cugraph::c_api::cugraph_coo_list_t**>(result),
       reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
   } else {
@@ -281,6 +289,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelists(
       size_distribution,
       edge_distribution,
       clip_and_flip,
+      scramble_vertex_ids,
       reinterpret_cast<cugraph::c_api::cugraph_coo_list_t**>(result),
       reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
   }

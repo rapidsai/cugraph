@@ -25,6 +25,8 @@ class NumberMap:
     class SingleGPU:
         def __init__(self, df, src_col_names, dst_col_names, id_type, store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
+            # FIXME: rename the next two attributes to its singular conterpart as there
+            # is only one 'src' and 'dst' col name
             self.src_col_names = src_col_names
             self.dst_col_names = dst_col_names
             self.df = df
@@ -141,6 +143,8 @@ class NumberMap:
             self, ddf, src_col_names, dst_col_names, id_type, store_transposed
         ):
             self.col_names = NumberMap.compute_vals(src_col_names)
+            self.src_col_names = src_col_names
+            self.dst_col_names = dst_col_names
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
             self.val_types["count"] = np.int32
             self.id_type = id_type
@@ -258,6 +262,7 @@ class NumberMap:
         # The column name 'id' contains the renumbered vertices and the other column(s)
         # contain the original vertices
         self.df_internal_to_external = None
+        self.internal_to_external_col_names = {}
 
     @staticmethod
     def compute_vals_types(df, column_names):
@@ -480,7 +485,15 @@ class NumberMap:
 
         # For columns with mismatch dtypes, set the renumbered
         # id_type to either 'int32' or 'int64'
-        if df.dtypes.nunique() > 1:
+        if isinstance(src_col_names, list):
+            vertex_col_names = src_col_names.copy()
+        else:
+            vertex_col_names = [src_col_names]
+        if isinstance(dst_col_names, list):
+            vertex_col_names += dst_col_names
+        else:
+            vertex_col_names += [dst_col_names]
+        if df[vertex_col_names].dtypes.nunique() > 1:
             # can't determine the edgelist input type
             unrenumbered_id_type = None
         else:
@@ -503,7 +516,9 @@ class NumberMap:
             renumbered = True
 
         renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type, renumbered)
-        if not isinstance(src_col_names, list):
+        renumber_map.input_src_col_names = src_col_names
+        renumber_map.input_dst_col_names = dst_col_names
+        if not isinstance(renumber_map.input_src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
 
@@ -512,6 +527,10 @@ class NumberMap:
         # renumbered_dst_col_name)
         renumber_map.set_renumbered_col_names(src_col_names, dst_col_names, df.columns)
 
+        # FIXME: Remove 'src_col_names' and 'dst_col_names' from this initialization as
+        # those will capture 'simpleGraph.srcCol' and 'simpleGraph.dstCol'.
+        # In fact the input src and dst col names are already captured in
+        # 'renumber_map.input_src_col_names' and 'renumber_map.input_dst_col_names'.
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
                 df,
@@ -648,6 +667,35 @@ class NumberMap:
                 mapping[nm] = nm + "_" + column_name
             col_names = list(mapping.values())
 
+        if isinstance(self.input_src_col_names, list):
+            input_src_col_names = self.input_src_col_names.copy()
+            input_dst_col_names = self.input_dst_col_names.copy()
+        else:
+            # Assuming the src and dst columns are of the same length
+            # if they are lists.
+            input_src_col_names = [self.input_src_col_names]
+            input_dst_col_names = [self.input_dst_col_names]
+        if not isinstance(col_names, list):
+            col_names = [col_names]
+
+        if column_name in [
+            self.renumbered_src_col_name,
+            self.implementation.src_col_names,
+        ]:
+            self.internal_to_external_col_names.update(
+                dict(zip(col_names, input_src_col_names))
+            )
+        elif column_name in [
+            self.renumbered_dst_col_name,
+            self.implementation.dst_col_names,
+        ]:
+            self.internal_to_external_col_names.update(
+                dict(zip(col_names, input_dst_col_names))
+            )
+
+        if len(self.implementation.col_names) == 1:
+            col_names = col_names[0]
+
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)
             df[index_name] = df.index
@@ -665,6 +713,9 @@ class NumberMap:
             df = df.map_partitions(lambda df: df.rename(columns=mapping, copy=False))
         else:
             df = df.rename(columns=mapping, copy=False)
+        # FIXME: This parameter is not working as expected as it oesn't return
+        # the unrenumbered column names: leverage 'self.internal_to_external_col_names'
+        # instead.
         if get_column_names:
             return df, col_names
         else:

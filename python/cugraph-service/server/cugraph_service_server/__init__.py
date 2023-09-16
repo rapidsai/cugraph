@@ -61,4 +61,4 @@ def start_server_blocking(
     server.serve()  # blocks until Ctrl-C (kill -2)
 
 
-__version__ = "23.06.00"
+__version__ = "23.10.00"

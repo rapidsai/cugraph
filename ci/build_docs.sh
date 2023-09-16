@@ -19,7 +19,6 @@ rapids-print-env
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-VERSION_NUMBER="23.06"
 
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
@@ -38,24 +37,26 @@ rapids-mamba-retry install \
 rapids-logger "Install cugraph-dgl"
 rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 
-rapids-logger "Build Doxygen docs"
+export RAPIDS_VERSION_NUMBER="23.10"
+export RAPIDS_DOCS_DIR="$(mktemp -d)"
+
+rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
+mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/html"
+mv html/* "${RAPIDS_DOCS_DIR}/libcugraph/html"
 popd
 
-rapids-logger "Build Sphinx docs"
+rapids-logger "Build Python docs"
 pushd docs/cugraph
 # Ensure cugraph is importable, since sphinx does not report details about this
 # type of failure well.
 python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
 sphinx-build -b dirhtml source _html
 sphinx-build -b text source _text
+mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/"{html,txt}
+mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
+mv _text/* "${RAPIDS_DOCS_DIR}/cugraph/txt"
 popd
 
-
-if [[ "${RAPIDS_BUILD_TYPE}" != "pull-request" ]]; then
-  rapids-logger "Upload Docs to S3"
-  aws s3 sync --no-progress --delete docs/cugraph/_html "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/html"
-  aws s3 sync --no-progress --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/txt"
-  aws s3 sync --no-progress --delete cpp/doxygen/html "s3://rapidsai-docs/libcugraph/${VERSION_NUMBER}/html"
-fi
+rapids-upload-docs

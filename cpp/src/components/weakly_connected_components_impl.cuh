@@ -223,7 +223,7 @@ struct v_op_t {
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
     static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
   // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
-  // placing the atomic barrier on managed memory and this adds additional complication.
+  // placing the atomic variable on managed memory and this adds additional complication.
   size_t* num_edge_inserts{};
   size_t bucket_idx_next{};
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
@@ -501,7 +501,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto edge_buffer =
       allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
     // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
-    // requires placing the atomic variable on managed memory and this make it less attractive.
+    // requires placing the atomic variable on managed memory and this adds additional complication.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
     auto edge_dst_components =

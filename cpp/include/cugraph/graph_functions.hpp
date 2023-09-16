@@ -350,12 +350,14 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the graph to be decompressed.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param renumber_map If valid, return the renumbered edge list based on the provided @p
  * renumber_map
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of edge sources, destinations, and (optional) edge weights (if @p
- * edge_weight_view.has_value() is true).
+ * @return Tuple of edge sources, destinations, (optional) edge weights (if
+ * @p edge_weight_view.has_value() is true) and (optional) edge ids (if
+ * @p edge_id_view.has_value() is true).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -364,11 +366,13 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>>
 decompress_to_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check = false);
 
@@ -910,6 +914,59 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
+  bool do_expensive_check = false);
+
+/**
+ * @brief renumber sampling output
+ *
+ * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs satisfying the
+ * following requirements.
+ *
+ * 1. If @p edgelist_hops is valid, we can consider (vertex ID, flag=src, hop) triplets for each
+ * vertex ID in @p edgelist_srcs and (vertex ID, flag=dst, hop) triplets for each vertex ID in @p
+ * edgelist_dsts. From these triplets, we can find the minimum (hop, flag) pairs for every unique
+ * vertex ID (hop is the primary key and flag is the secondary key, flag=src is considered smaller
+ * than flag=dst if hop numbers are same). Vertex IDs with smaller (hop, flag) pairs precede vertex
+ * IDs with larger (hop, flag) pairs in renumbering. Ordering can be arbitrary among the vertices
+ * with the same (hop, flag) pairs.
+ * 2. If @p edgelist_hops is invalid, unique vertex IDs in @p edgelist_srcs precede vertex IDs that
+ * appear only in @p edgelist_dsts.
+ * 3. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
+ * separately.
+ *
+ * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam label_t Type of labels. Needs to be an integral type.
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs A vector storing original edgelist source vertices.
+ * @param edgelist_dsts A vector storing original edgelist destination vertices (size = @p
+ * edgelist_srcs.size()).
+ * @param edgelist_hops An optional pointer to the array storing hops for each edge list (source,
+ * destination) pairs (size = @p edgelist_srcs.size() if valid).
+ * @param label_offsets An optional tuple of unique labels and the input edge list (@p
+ * edgelist_srcs, @p edgelist_hops, and @p edgelist_dsts) offsets for the labels (siez = # unique
+ * labels + 1).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of vectors storing renumbered edge sources (size = @p edgelist_srcs.size()) ,
+ * renumbered edge destinations (size = @p edgelist_dsts.size()), renumber_map to query original
+ * verties (size = # unique vertices or aggregate # unique vertices for every label), and
+ * renumber_map offsets (size = std::get<0>(*label_offsets).size() + 1, valid only if @p
+ * label_offsets.has_value() is true).
+ */
+template <typename vertex_t, typename label_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<size_t>>>
+renumber_sampled_edgelist(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<raft::device_span<int32_t const>> edgelist_hops,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<size_t const>>>
+    label_offsets,
   bool do_expensive_check = false);
 
 }  // namespace cugraph

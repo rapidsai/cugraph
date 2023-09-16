@@ -39,7 +39,7 @@ _seed = 42
 def create_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
-    """    
+    """
     print("Initalize Pool on client")
     rmm.reinitialize(pool_allocator=True)
     # Assume strings are names of datasets in the datasets package
@@ -77,7 +77,7 @@ def create_graph(graph_data):
     num_nodes_dict = {'_N':num_nodes}
 
     gs = CuGraphStorage(num_nodes_dict=num_nodes_dict, single_gpu=True)
-    gs.add_edge_data(edgelist_df,   
+    gs.add_edge_data(edgelist_df,
                     # reverse to make same graph as cugraph
                     node_col_names=['dst', 'src'],
                     canonical_etype=['_N', 'connects', '_N'])
@@ -90,11 +90,9 @@ def create_mg_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
     """
-    ## Reserving GPU 0 for client(trainer/service project)
-    n_devices = os.getenv('DASK_NUM_WORKERS', 4)
-    n_devices = int(n_devices)
+    # range starts at 1 to let let 0 be used by benchmark/client process
+    visible_devices = os.getenv("DASK_WORKER_DEVICES", "1,2,3,4")
 
-    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
     cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
@@ -137,7 +135,7 @@ def create_mg_graph(graph_data):
     num_nodes_dict = {'_N':num_nodes}
 
     gs = CuGraphStorage(num_nodes_dict=num_nodes_dict,  single_gpu=False)
-    gs.add_edge_data(edgelist_df,   
+    gs.add_edge_data(edgelist_df,
                     node_col_names=['dst', 'src'],
                     canonical_etype=['_N', 'C', '_N'])
     return (gs, client, cluster)
@@ -166,7 +164,7 @@ def get_uniform_neighbor_sample_args(
         num_start_verts = int(num_verts * 0.25)
     else:
         num_start_verts = batch_size
-    
+
     srcs = G.graphstore.gdata.get_edge_data()['_SRC_']
     start_list = srcs.head(num_start_verts)
     assert len(start_list) == num_start_verts
@@ -229,7 +227,7 @@ def bench_cugraph_dgl_uniform_neighbor_sample(
     fanout_val.reverse()
     sampler = dgl.dataloading.NeighborSampler(uns_args["fanout"])
     sampler_f = sampler.sample_blocks
-    
+
     # Warmup
     _ = sampler_f(g=G, seed_nodes=uns_args["seed_nodes"])
     # print(f"\n{uns_args}")

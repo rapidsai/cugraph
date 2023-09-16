@@ -11,16 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask as dcg
 import gc
+
 import pytest
-import cugraph
+
 import dask_cudf
 import cupy
 import cudf
-
-
-# from cugraph.dask.common.mg_utils import is_single_gpu
+import cugraph
+import cugraph.dask as dcg
 from cugraph.testing import utils
 from pylibcugraph.testing import gen_fixture_params_product
 
@@ -160,7 +159,7 @@ def input_expected_output(input_combo):
 
 
 @pytest.mark.mg
-def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_output):
+def test_dask_mg_betweenness_centrality(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     k = input_expected_output["k"]

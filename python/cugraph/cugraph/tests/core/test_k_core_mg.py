@@ -14,14 +14,14 @@
 import gc
 
 import pytest
-import dask_cudf
-from cudf.testing.testing import assert_frame_equal
-from pylibcugraph.testing import gen_fixture_params_product
 
+import dask_cudf
 import cugraph
-from cugraph.testing import utils
 import cugraph.dask as dcg
+from cugraph.testing import utils
+from cudf.testing.testing import assert_frame_equal
 from cugraph.structure.symmetrize import symmetrize_df
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -83,9 +83,12 @@ def input_expected_output(dask_client, input_combo):
     )
     sg_k_core_results = sg_k_core_graph.view_edge_list()
     # FIXME: The result will come asymetric. Symmetrize the results
+    srcCol = sg_k_core_graph.source_columns
+    dstCol = sg_k_core_graph.destination_columns
+    wgtCol = sg_k_core_graph.weight_column
     sg_k_core_results = (
-        symmetrize_df(sg_k_core_results, "src", "dst", "weights")
-        .sort_values(["src", "dst"])
+        symmetrize_df(sg_k_core_results, srcCol, dstCol, wgtCol)
+        .sort_values([srcCol, dstCol])
         .reset_index(drop=True)
     )
 
@@ -134,7 +137,7 @@ def test_sg_k_core(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_k_core(dask_client, benchmark, input_expected_output):
+def test_dask_mg_k_core(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     core_number = input_expected_output["core_number"]
@@ -144,7 +147,10 @@ def test_dask_k_core(dask_client, benchmark, input_expected_output):
     expected_k_core_results = input_expected_output["sg_k_core_results"]
 
     k_core_results = (
-        k_core_results.compute().sort_values(["src", "dst"]).reset_index(drop=True)
+        k_core_results.compute()
+        .sort_values(["src", "dst"])
+        .reset_index(drop=True)
+        .rename(columns={"weights": "weight"})
     )
 
     assert_frame_equal(
@@ -153,7 +159,7 @@ def test_dask_k_core(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_k_core_invalid_input(dask_client):
+def test_dask_mg_k_core_invalid_input(dask_client):
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

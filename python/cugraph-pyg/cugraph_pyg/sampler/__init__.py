@@ -10,11 +10,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from cugraph.utilities.api_tools import experimental_warning_wrapper
-
-from cugraph_pyg.sampler.cugraph_sampler import (
-    EXPERIMENTAL__CuGraphSampler,
-)
-
-CuGraphSampler = experimental_warning_wrapper(EXPERIMENTAL__CuGraphSampler)

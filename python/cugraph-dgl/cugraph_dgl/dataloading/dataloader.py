@@ -138,6 +138,7 @@ class DataLoader(torch.utils.data.DataLoader):
         self._sampling_output_dir = sampling_output_dir
         self._batches_per_partition = batches_per_partition
         self._seeds_per_call = seeds_per_call
+        self._rank = None
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
@@ -187,16 +188,16 @@ class DataLoader(torch.utils.data.DataLoader):
                         f"Fetch cugraph_dgl_mg_graph_ds to worker_id {rank}",
                         "from worker_id 0 failed",
                     )
-            self._rank = rank
         else:
+            rank = 0
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
                 etype_id_dict=graph._etype_id_dict,
                 edge_dir=graph_sampler.edge_dir,
             )
-            self._rank = 0
-        self._cugraph_graph = G
 
+        self._rank = rank
+        self._cugraph_graph = G
         super().__init__(
             self.cugraph_dgl_dataset,
             batch_size=None,
@@ -209,6 +210,15 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
+        if isinstance(self.cugraph_dgl_dataset, HomogenousBulkSamplerDataset):
+            deduplicate_sources = True
+            prior_sources_behavior = "carryover"
+            renumber = True
+        else:
+            deduplicate_sources = False
+            prior_sources_behavior = None
+            renumber = False
+
         bs = BulkSampler(
             output_path=output_dir,
             batch_size=self._batch_size,
@@ -217,6 +227,9 @@ class DataLoader(torch.utils.data.DataLoader):
             seeds_per_call=self._seeds_per_call,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
+            deduplicate_sources=deduplicate_sources,
+            prior_sources_behavior=prior_sources_behavior,
+            renumber=renumber,
         )
         if self.shuffle:
             self.tensorized_indices_ds.shuffle()

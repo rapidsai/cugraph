@@ -169,11 +169,13 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
     edge_partition,
     edge_partition_weight_view,
     std::nullopt,
+    std::nullopt,
     raft::device_span<vertex_t>(edgelist_majors.data(), edgelist_majors.size()),
     raft::device_span<vertex_t>(edgelist_minors.data(), edgelist_minors.size()),
     edgelist_weights ? std::make_optional<raft::device_span<weight_t>>((*edgelist_weights).data(),
                                                                        (*edgelist_weights).size())
                      : std::nullopt,
+    std::nullopt,
     segment_offsets);
 
   auto pair_first =

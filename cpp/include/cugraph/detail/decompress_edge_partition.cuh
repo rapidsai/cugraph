@@ -214,11 +214,14 @@ void decompress_edge_partition_to_edgelist(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   std::optional<edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>
     edge_partition_weight_view,
+  std::optional<edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>
+    edge_partition_id_view,
   std::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
     edge_partition_mask_view,
   raft::device_span<vertex_t> edgelist_majors /* [OUT] */,
   raft::device_span<vertex_t> edgelist_minors /* [OUT] */,
   std::optional<raft::device_span<weight_t>> edgelist_weights /* [OUT] */,
+  std::optional<raft::device_span<edge_t>> edgelist_ids /* [OUT] */,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = edge_partition.number_of_edges();
@@ -250,6 +253,21 @@ void decompress_edge_partition_to_edgelist(
                    (*edge_partition_weight_view).value_first(),
                    (*edge_partition_weight_view).value_first() + number_of_edges,
                    (*edgelist_weights).begin());
+    }
+  }
+  if (edge_partition_id_view) {
+    assert(edgelist_ids.has_value());
+    if (edge_partition_mask_view) {
+      copy_if_mask_set(handle,
+                       (*edge_partition_id_view).value_first(),
+                       (*edge_partition_id_view).value_first() + number_of_edges,
+                       (*edge_partition_mask_view).value_first(),
+                       (*edgelist_ids).begin());
+    } else {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*edge_partition_id_view).value_first(),
+                   (*edge_partition_id_view).value_first() + number_of_edges,
+                   (*edgelist_ids).begin());
     }
   }
 }

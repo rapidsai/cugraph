@@ -52,11 +52,13 @@ template <typename vertex_t,
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>,
                             rmm::device_uvector<vertex_t>,
-                            std::optional<rmm::device_uvector<weight_t>>>>
+                            std::optional<rmm::device_uvector<weight_t>>,
+                            std::optional<rmm::device_uvector<edge_t>>>>
 decompress_to_edgelist_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check)
 {
@@ -86,6 +88,9 @@ decompress_to_edgelist_impl(
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
+  auto edgelist_ids     = edge_id_view ? std::make_optional<rmm::device_uvector<edge_t>>(
+                                       edgelist_majors.size(), handle.get_stream())
+                                       : std::nullopt;
   auto edgelist_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
                                                edgelist_majors.size(), handle.get_stream())
                                            : std::nullopt;
@@ -101,12 +106,19 @@ decompress_to_edgelist_impl(
             detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
             (*edge_weight_view), i)
         : std::nullopt,
+      edge_id_view ? std::make_optional<
+                       detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
+                       (*edge_id_view), i)
+                   : std::nullopt,
       std::nullopt,
       raft::device_span<vertex_t>(edgelist_majors.data() + cur_size, edgelist_edge_counts[i]),
       raft::device_span<vertex_t>(edgelist_minors.data() + cur_size, edgelist_edge_counts[i]),
       edgelist_weights ? std::make_optional<raft::device_span<weight_t>>(
                            (*edgelist_weights).data() + cur_size, edgelist_edge_counts[i])
                        : std::nullopt,
+      edgelist_ids ? std::make_optional<raft::device_span<edge_t>>(
+                       (*edgelist_ids).data() + cur_size, edgelist_edge_counts[i])
+                   : std::nullopt,
       graph_view.local_edge_partition_segment_offsets(i));
     cur_size += edgelist_edge_counts[i];
   }
@@ -133,16 +145,34 @@ decompress_to_edgelist_impl(
       major_ptrs[i] = edgelist_majors.data() + cur_size;
       minor_ptrs[i] = edgelist_minors.data() + cur_size;
       if (edgelist_weights) {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            thrust::make_zip_iterator(thrust::make_tuple(
-                              major_ptrs[i], (*edgelist_weights).data() + cur_size)));
+        if (edgelist_ids) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            minor_ptrs[i],
+            minor_ptrs[i] + edgelist_edge_counts[i],
+            thrust::make_zip_iterator(thrust::make_tuple(major_ptrs[i],
+                                                         (*edgelist_ids).data() + cur_size,
+                                                         (*edgelist_weights).data() + cur_size)));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              minor_ptrs[i],
+                              minor_ptrs[i] + edgelist_edge_counts[i],
+                              thrust::make_zip_iterator(thrust::make_tuple(
+                                major_ptrs[i], (*edgelist_weights).data() + cur_size)));
+        }
       } else {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            major_ptrs[i]);
+        if (edgelist_ids) {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              minor_ptrs[i],
+                              minor_ptrs[i] + edgelist_edge_counts[i],
+                              thrust::make_zip_iterator(thrust::make_tuple(
+                                major_ptrs[i], (*edgelist_ids).data() + cur_size)));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              minor_ptrs[i],
+                              minor_ptrs[i] + edgelist_edge_counts[i],
+                              major_ptrs[i]);
+        }
       }
       rmm::device_uvector<size_t> d_segment_offsets(d_thresholds.size(), handle.get_stream());
       thrust::lower_bound(handle.get_thrust_policy(),
@@ -174,7 +204,8 @@ decompress_to_edgelist_impl(
 
   return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
                          store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+                         std::move(edgelist_weights),
+                         std::move(edgelist_ids));
 }
 
 template <typename vertex_t,
@@ -185,11 +216,13 @@ template <typename vertex_t,
 std::enable_if_t<!multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>,
                             rmm::device_uvector<vertex_t>,
-                            std::optional<rmm::device_uvector<weight_t>>>>
+                            std::optional<rmm::device_uvector<weight_t>>,
+                            std::optional<rmm::device_uvector<edge_t>>>>
 decompress_to_edgelist_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check)
 {
@@ -208,6 +241,9 @@ decompress_to_edgelist_impl(
   auto edgelist_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
                                                edgelist_majors.size(), handle.get_stream())
                                            : std::nullopt;
+  auto edgelist_ids     = edge_id_view ? std::make_optional<rmm::device_uvector<edge_t>>(
+                                       edgelist_majors.size(), handle.get_stream())
+                                       : std::nullopt;
   detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
     handle,
     edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
@@ -217,12 +253,19 @@ decompress_to_edgelist_impl(
           detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
           (*edge_weight_view), 0)
       : std::nullopt,
+    edge_id_view ? std::make_optional<
+                     detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
+                     (*edge_id_view), 0)
+                 : std::nullopt,
     std::nullopt,
     raft::device_span<vertex_t>(edgelist_majors.data(), edgelist_majors.size()),
     raft::device_span<vertex_t>(edgelist_minors.data(), edgelist_minors.size()),
     edgelist_weights ? std::make_optional<raft::device_span<weight_t>>((*edgelist_weights).data(),
                                                                        (*edgelist_weights).size())
                      : std::nullopt,
+    edgelist_ids ? std::make_optional<raft::device_span<edge_t>>((*edgelist_ids).data(),
+                                                                 (*edgelist_ids).size())
+                 : std::nullopt,
     graph_view.local_edge_partition_segment_offsets());
 
   if (renumber_map) {
@@ -237,7 +280,8 @@ decompress_to_edgelist_impl(
 
   return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
                          store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+                         std::move(edgelist_weights),
+                         std::move(edgelist_ids));
 }
 
 }  // namespace
@@ -249,18 +293,20 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>>
 decompress_to_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   return decompress_to_edgelist_impl(
-    handle, graph_view, edge_weight_view, renumber_map, do_expensive_check);
+    handle, graph_view, edge_weight_view, edge_id_view, renumber_map, do_expensive_check);
 }
 
 }  // namespace cugraph

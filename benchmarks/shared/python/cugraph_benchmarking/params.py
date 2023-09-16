@@ -11,32 +11,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
-
 import pytest
 
-from cugraph.testing import utils
 from pylibcugraph.testing.utils import gen_fixture_params
+from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.experimental.datasets import (
+    Dataset,
+    karate,
+)
 
+# Create Dataset objects from .csv files.
+# Once the cugraph.dataset package is updated to include the metadata files for
+# these (like karate), these will no longer need to be explicitly instantiated.
+hollywood = Dataset(
+    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/undirected/hollywood.csv",
+    csv_col_names=["src", "dst"],
+    csv_col_dtypes=["int32", "int32"])
+europe_osm = Dataset(
+    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/undirected/europe_osm.csv",
+    csv_col_names=["src", "dst"],
+    csv_col_dtypes=["int32", "int32"])
+cit_patents = Dataset(
+    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/directed/cit-Patents.csv",
+    csv_col_names=["src", "dst"],
+    csv_col_dtypes=["int32", "int32"])
+soc_livejournal = Dataset(
+    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/directed/soc-LiveJournal1.csv",
+    csv_col_names=["src", "dst"],
+    csv_col_dtypes=["int32", "int32"])
 
-# FIXME: omitting soc-twitter-2010.csv due to OOM error on some workstations.
+# Assume all "file_data" (.csv file on disk) datasets are too small to be useful for MG.
 undirected_datasets = [
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv",
-                 marks=[pytest.mark.tiny, pytest.mark.undirected]),
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/undirected/hollywood.csv",
-                 marks=[pytest.mark.small, pytest.mark.undirected]),
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/undirected/europe_osm.csv",
-                 marks=[pytest.mark.undirected]),
-    # pytest.param("../datasets/csv/undirected/soc-twitter-2010.csv",
-    #              marks=[pytest.mark.undirected]),
+    pytest.param(karate,
+                 marks=[pytest.mark.tiny,
+                        pytest.mark.undirected,
+                        pytest.mark.file_data,
+                        pytest.mark.sg,
+                        ]),
+    pytest.param(hollywood,
+                 marks=[pytest.mark.small,
+                        pytest.mark.undirected,
+                        pytest.mark.file_data,
+                        pytest.mark.sg,
+                        ]),
+    pytest.param(europe_osm,
+                 marks=[pytest.mark.undirected,
+                        pytest.mark.file_data,
+                        pytest.mark.sg,
+                        ]),
 ]
 
 directed_datasets = [
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/directed/cit-Patents.csv",
-                 marks=[pytest.mark.small, pytest.mark.directed]),
-    pytest.param(Path(
-        utils.RAPIDS_DATASET_ROOT_DIR) / "csv/directed/soc-LiveJournal1.csv",
-        marks=[pytest.mark.directed]),
+    pytest.param(cit_patents,
+                 marks=[pytest.mark.small,
+                        pytest.mark.directed,
+                        pytest.mark.file_data,
+                        pytest.mark.sg,
+                        ]),
+    pytest.param(soc_livejournal,
+                 marks=[pytest.mark.directed,
+                        pytest.mark.file_data,
+                        pytest.mark.sg,
+                        ]),
 ]
 
 managed_memory = [

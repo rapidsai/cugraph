@@ -10,13 +10,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dask_cudf
-import cudf
+
+import pytest
 import pandas as pd
 import numpy as np
-import cupy as cp
-import pytest
 
+import dask_cudf
+import cudf
+import cupy as cp
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import DGLUniformSampler
 
 

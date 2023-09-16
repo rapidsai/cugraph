@@ -39,46 +39,44 @@ build:
 requirements:
   build:
     - {{ compiler('c') }}
-    - {{ compiler('cuda') }} {{ cuda_version }}
     - {{ compiler('cxx') }}
+    {% if cuda_major == "11" %}
+    - {{ compiler('cuda11') }} {{ cuda_version }}
+    {% else %}
+    - {{ compiler('cuda') }}
+    {% endif %}
+    - cuda-version ={{ cuda_version }}
     - cmake {{ cmake_version }}
     - ninja
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - cudatoolkit ={{ cuda_version }}
-    - cudf ={{ minor_version }}
-    - cython >=0.29,<0.30
-    - libcublas {{ libcublas_host_version }}
-    - libcublas-dev {{ libcublas_host_version }}
+    - cuda-version ={{ cuda_version }}
+    {% if cuda_major == "11" %}
+    - cudatoolkit
+    {% endif %}
+    - cython >=3.0.0
     - libcugraph ={{ version }}
-    - libcurand {{ libcurand_host_version }}
-    - libcurand-dev {{ libcurand_host_version }}
-    - libcusolver {{ libcusolver_host_version }}
-    - libcusolver-dev {{ libcusolver_host_version }}
-    - libcusparse {{ libcusparse_host_version }}
-    - libcusparse-dev {{ libcusparse_host_version }}
-    - libraft ={{ minor_version }}
-    - libraft-headers ={{ minor_version }}
-    - pylibraft ={{ minor_version}}
-    - python x.x
-    - rmm ={{ minor_version }}
+    - pylibraft ={{ minor_version }}
+    - python
     - scikit-build >=0.13.1
     - setuptools
-    - ucx-proc=*=gpu
-    - ucx-py {{ ucx_py_version }}
   run:
-    - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
+    {% if cuda_major == "11" %}
+    - cudatoolkit
+    {% endif %}
     - libcugraph ={{ version }}
-    - python x.x
+    - python
 
 tests:
   requirements:
-    - cudatoolkit ={{ cuda_version }}
+    - cuda-version ={{ cuda_version }}
   imports:
     - pylibcugraph
 
 about:
   home: https://rapids.ai/
+  dev_url: https://github.com/rapidsai/cugraph
   license: Apache-2.0
   license_file: ../../../LICENSE
   summary: pylibcugraph library

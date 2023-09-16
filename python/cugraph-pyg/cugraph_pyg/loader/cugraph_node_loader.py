@@ -44,13 +44,14 @@ class EXPERIMENTAL__BulkSampleLoader:
         self,
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
-        input_nodes: Union[InputNodes, int] = None,
+        input_nodes: InputNodes = None,
         batch_size: int = 0,
-        shuffle=False,
+        shuffle: bool = False,
         edge_types: Sequence[Tuple[str]] = None,
-        directory=None,
-        starting_batch_id=0,
-        batches_per_partition=100,
+        directory: Union[str, tempfile.TemporaryDirectory] = None,
+        input_files: List[str] = None,
+        starting_batch_id: int = 0,
+        batches_per_partition: int = 100,
         # Sampler args
         num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] = None,
         replace: bool = True,
@@ -69,9 +70,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         graph_store: CuGraphStore
             The graph store containing the graph structure.
 
-        input_nodes: Union[InputNodes, int]
+        input_nodes: InputNodes
             The input nodes associated with this sampler.
-            If this is an integer N, this loader will load N batches
+            If None, this loader will load batches
             from disk rather than performing sampling in memory.
 
         batch_size: int
@@ -92,10 +93,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             The path of the directory to write samples to.
             Defaults to a new generated temporary directory.
 
+        input_files: List[str] (optional, default=None)
+            The input files to read from the directory containing
+            samples.  This argument is only used when loading
+            alread-sampled batches from disk.
+
         starting_batch_id: int (optional, default=0)
             The starting id for each batch.  Defaults to 0.
-            Generally used when loading previously-sampled
-            batches from disk.
 
         batches_per_partition: int (optional, default=100)
             The number of batches in each output partition.
@@ -121,11 +125,17 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
-        if isinstance(input_nodes, int):
+        if input_nodes is None:
             # Will be loading from disk
             self.__num_batches = input_nodes
             self.__directory = directory
-            iter(os.listdir(self.__directory))
+            if input_files is None:
+                if isinstance(self.__directory, str):
+                    self.__input_files = iter(os.listdir(self.__directory))
+                else:
+                    self.__input_files = iter(os.listdir(self.__directory.name))
+            else:
+                self.__input_files = iter(input_files)
             return
 
         input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
@@ -144,6 +154,15 @@ class EXPERIMENTAL__BulkSampleLoader:
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
+        renumber = (
+            True
+            if (
+                (len(self.__graph_store.node_types) == 1)
+                and (len(self.__graph_store.edge_types) == 1)
+            )
+            else False
+        )
+
         bulk_sampler = BulkSampler(
             batch_size,
             self.__directory.name,
@@ -151,6 +170,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
+            renumber=renumber,
             **kwargs,
         )
 
@@ -201,13 +221,20 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
             # Will raise StopIteration if there are no files left
-            fname = next(self.__input_files)
+            try:
+                fname = next(self.__input_files)
+            except StopIteration as ex:
+                # Won't delete a non-temp dir (since it would just be deleting a string)
+                del self.__directory
+                self.__directory = None
+                raise StopIteration(ex)
 
             m = self.__ex_parquet_file.match(fname)
             if m is None:
                 raise ValueError(f"Invalid parquet filename {fname}")
 
-            self.__next_batch, end_inclusive = [int(g) for g in m.groups()]
+            self.__start_inclusive, end_inclusive = [int(g) for g in m.groups()]
+            self.__next_batch = self.__start_inclusive
             self.__end_exclusive = end_inclusive + 1
 
             parquet_path = os.path.join(
@@ -221,25 +248,37 @@ class EXPERIMENTAL__BulkSampleLoader:
                 # 'edge_id':'int64',
                 "edge_type": "int32",
                 "batch_id": "int32",
-                # 'hop_id':'int32'
+                "hop_id": "int32",
             }
-            self.__data = cudf.read_parquet(parquet_path)
-            self.__data = self.__data[list(columns.keys())].astype(columns)
+
+            raw_sample_data = cudf.read_parquet(parquet_path)
+            if "map" in raw_sample_data.columns:
+                self.__renumber_map = raw_sample_data["map"]
+                raw_sample_data.drop("map", axis=1, inplace=True)
+            else:
+                self.__renumber_map = None
+
+            self.__data = raw_sample_data[list(columns.keys())].astype(columns)
+            self.__data.dropna(inplace=True)
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
+        if self.__renumber_map is not None:
+            i = self.__next_batch - self.__start_inclusive
+            ix = self.__renumber_map.iloc[[i, i + 1]]
+            ix_start, ix_end = ix.iloc[0], ix.iloc[1]
+            current_renumber_map = self.__renumber_map.iloc[ix_start:ix_end]
+            if len(current_renumber_map) != ix_end - ix_start:
+                raise ValueError("invalid renumber map")
+        else:
+            current_renumber_map = None
 
         sampler_output = _sampler_output_from_sampling_results(
-            self.__data[f], self.__graph_store
+            self.__data[f], current_renumber_map, self.__graph_store
         )
 
         # Get ready for next iteration
-        # If there is no next iteration, make sure results are deleted
         self.__next_batch += 1
-        if self.__next_batch >= self.__num_batches + self.__starting_batch_id:
-            # Won't delete a non-temp dir (since it would just be deleting a string)
-            del self.__directory
-            self.__directory = None
 
         # Get and return the sampled subgraph
         if isinstance(torch_geometric, MissingModule):
@@ -311,6 +350,10 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         self.__batch_size = batch_size
         self.__input_nodes = input_nodes
         self.inner_loader_args = kwargs
+
+    @property
+    def batch_size(self) -> int:
+        return self.__batch_size
 
     def __iter__(self):
         self.current_loader = EXPERIMENTAL__BulkSampleLoader(

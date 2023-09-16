@@ -15,11 +15,11 @@ import gc
 
 import pytest
 import pandas as pd
-import dask_cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import dask_cudf
 import cugraph
 from cugraph.testing import utils
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================

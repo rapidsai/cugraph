@@ -399,11 +399,12 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
         if (retry_segment_indices) {
           retry_degrees =
             rmm::device_uvector<edge_t>((*retry_segment_indices).size(), handle.get_stream());
-          thrust::transform(handle.get_thrust_policy(),
-                            (*retry_segment_indices).begin(),
-                            (*retry_segment_indices).end(),
-                            (*retry_degrees).begin(),
-                            indirection_t<decltype(segment_degree_first)>{segment_degree_first});
+          thrust::transform(
+            handle.get_thrust_policy(),
+            (*retry_segment_indices).begin(),
+            (*retry_segment_indices).end(),
+            (*retry_degrees).begin(),
+            indirection_t<size_t, decltype(segment_degree_first)>{segment_degree_first});
           retry_sample_nbr_indices = rmm::device_uvector<edge_t>(
             (*retry_segment_indices).size() * high_partition_over_sampling_K, handle.get_stream());
           retry_sample_indices = rmm::device_uvector<int32_t>(
@@ -809,8 +810,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     }
 
     auto edge_partition_frontier_local_degrees = edge_partition.compute_local_degrees(
-      raft::device_span<vertex_t const>(edge_partition_frontier_major_first,
-                                        local_frontier_sizes[i]),
+      edge_partition_frontier_major_first,
+      edge_partition_frontier_major_first + local_frontier_sizes[i],
       handle.get_stream());
 
     if (minor_comm_size > 1) {

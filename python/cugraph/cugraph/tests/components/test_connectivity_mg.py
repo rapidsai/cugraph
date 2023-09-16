@@ -11,17 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
-import cugraph.dask as dcg
 import gc
 
-# import pytest
-import cugraph
-import dask_cudf
-import cudf
+import pytest
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
+import cudf
+import dask_cudf
+import cugraph
+import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -41,7 +40,7 @@ IS_DIRECTED = [False, True]
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_wcc(dask_client, directed):
+def test_dask_mg_wcc(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")

@@ -33,12 +33,23 @@ distributed = import_optional("dask.distributed")
 dask_cudf = import_optional("dask_cudf")
 
 torch = import_optional("torch")
+torch_geometric = import_optional("torch_geometric")
 
 Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 DaskCudfSeries = None if isinstance(dask_cudf, MissingModule) else dask_cudf.Series
 
 TensorType = Union[Tensor, NdArray, cudf.Series, DaskCudfSeries]
+NodeType = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.typing.NodeType
+)
+EdgeType = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.typing.EdgeType
+)
 
 
 class EdgeLayout(Enum):
@@ -356,6 +367,7 @@ class EXPERIMENTAL__CuGraphStore:
         -------
         A newly-constructed directed cugraph.MultiGraph object.
         """
+
         # Ensure the original dict is not modified.
         edge_info_cg = {}
 
@@ -455,6 +467,20 @@ class EXPERIMENTAL__CuGraphStore:
     @property
     def _edge_types_to_attrs(self) -> dict:
         return dict(self.__edge_types_to_attrs)
+
+    @property
+    def node_types(self) -> List[NodeType]:
+        return list(self.__vertex_type_offsets["type"])
+
+    @property
+    def edge_types(self) -> List[EdgeType]:
+        return list(self.__edge_types_to_attrs.keys())
+
+    def canonical_edge_type_to_numeric(self, etype: EdgeType) -> int:
+        return np.searchsorted(self.__edge_type_offsets["type"], "__".join(etype))
+
+    def numeric_edge_type_to_canonical(self, etype: int) -> EdgeType:
+        return tuple(self.__edge_type_offsets["type"][etype].split("__"))
 
     @cached_property
     def _is_delayed(self):
@@ -657,23 +683,21 @@ class EXPERIMENTAL__CuGraphStore:
         self, nodes_of_interest: TensorType, is_sorted: bool = False
     ) -> dict:
         """
-        Given a cudf (NOT dask_cudf) Series of nodes of interest, this
+        Given a tensor of nodes of interest, this
         method a single dictionary, noi_index.
 
         noi_index is the original vertex ids grouped by vertex type.
 
-        Example Input: [5, 2, 10, 11, 8]
-        Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
+        Example Input: [5, 2, 1, 10, 11, 8]
+        Output: {'red_vertex': [5, 1, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
         """
-        if not is_sorted:
-            nodes_of_interest, _ = torch.sort(nodes_of_interest)
 
         noi_index = {}
 
         vtypes = cudf.Series(self.__vertex_type_offsets["type"])
         if len(vtypes) == 1:
-            noi_index[vtypes[0]] = nodes_of_interest
+            noi_index[vtypes.iloc[0]] = nodes_of_interest
         else:
             noi_type_indices = torch.searchsorted(
                 torch.as_tensor(self.__vertex_type_offsets["stop"], device="cuda"),
@@ -765,17 +789,26 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            sources = torch.as_tensor(sampling_results.sources.values, device="cuda")
-            src_id_table = noi_index[src_type]
-            src = torch.searchsorted(src_id_table, sources)
-            row_dict[t_pyg_type] = src
-
-            destinations = torch.as_tensor(
-                sampling_results.destinations.values, device="cuda"
-            )
             dst_id_table = noi_index[dst_type]
-            dst = torch.searchsorted(dst_id_table, destinations)
-            col_dict[t_pyg_type] = dst
+            dst_id_map = (
+                cudf.Series(cupy.asarray(dst_id_table), name="dst")
+                .reset_index()
+                .rename(columns={"index": "new_id"})
+                .set_index("dst")
+            )
+            dst = dst_id_map["new_id"].loc[sampling_results.destinations]
+            col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+
+            src_id_table = noi_index[src_type]
+            src_id_map = (
+                cudf.Series(cupy.asarray(src_id_table), name="src")
+                .reset_index()
+                .rename(columns={"index": "new_id"})
+                .set_index("src")
+            )
+            src = src_id_map["new_id"].loc[sampling_results.sources]
+            row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
+
         else:
             # This will retrieve the single string representation.
             # It needs to be converted to a tuple in the for loop below.
@@ -802,8 +835,14 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Create the row entry for this type
                 src_id_table = noi_index[src_type]
-                src = torch.searchsorted(src_id_table, sources)
-                row_dict[pyg_can_edge_type] = src
+                src_id_map = (
+                    cudf.Series(cupy.asarray(src_id_table), name="src")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("src")
+                )
+                src = src_id_map["new_id"].loc[cupy.asarray(sources)]
+                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
 
                 # Get the de-offsetted destinations
                 destinations = torch.as_tensor(
@@ -816,8 +855,14 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
-                dst = torch.searchsorted(dst_id_table, destinations)
-                col_dict[pyg_can_edge_type] = dst
+                dst_id_map = (
+                    cudf.Series(cupy.asarray(dst_id_table), name="dst")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("dst")
+                )
+                dst = dst_id_map["new_id"].loc[cupy.asarray(destinations)]
+                col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device="cuda")
 
         return row_dict, col_dict
 

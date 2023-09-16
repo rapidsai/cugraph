@@ -81,4 +81,12 @@ from pylibcugraph.leiden import leiden
 
 from pylibcugraph.select_random_vertices import select_random_vertices
 
-__version__ = "23.06.00"
+from pylibcugraph.edge_betweenness_centrality import edge_betweenness_centrality
+
+from pylibcugraph.generate_rmat_edgelist import generate_rmat_edgelist
+
+from pylibcugraph.generate_rmat_edgelists import generate_rmat_edgelists
+
+from pylibcugraph import exceptions
+
+__version__ = "23.10.00"

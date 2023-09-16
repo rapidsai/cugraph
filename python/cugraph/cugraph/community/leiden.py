@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import louvain as pylibcugraph_leiden
+from pylibcugraph import leiden as pylibcugraph_leiden
 from pylibcugraph import ResourceHandle
 from cugraph.structure import Graph
 import cudf
@@ -31,7 +31,11 @@ networkx = import_optional("networkx")
 
 
 def leiden(
-    G: Union[Graph, "networkx.Graph"], max_iter: int = 100, resolution: float = 1.0
+    G: Union[Graph, "networkx.Graph"],
+    max_iter: int = 100,
+    resolution: float = 1.0,
+    random_state: int = None,
+    theta: int = 1.0,
 ) -> Tuple[cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -64,6 +68,15 @@ def leiden(
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
 
+    random_state: int, optional(default=None)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+
+    theta: float, optional (default=1.0)
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
+
     Returns
     -------
     parts : cudf.DataFrame
@@ -81,8 +94,8 @@ def leiden(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> parts, modularity_score = cugraph.leiden(G)
 
     """
@@ -93,9 +106,11 @@ def leiden(
 
     vertex, partition, modularity_score = pylibcugraph_leiden(
         resource_handle=ResourceHandle(),
+        random_state=random_state,
         graph=G._plc_graph,
         max_level=max_iter,
         resolution=resolution,
+        theta=theta,
         do_expensive_check=False,
     )
 

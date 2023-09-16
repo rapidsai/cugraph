@@ -35,4 +35,4 @@ extension_return_dtype_map.update(
 from cugraph_service_client.client import CugraphServiceClient
 from cugraph_service_client.remote_graph import RemoteGraph
 
-__version__ = "23.06.00"
+__version__ = "23.10.00"

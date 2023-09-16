@@ -118,5 +118,6 @@ from cugraph import experimental
 
 from cugraph import gnn
 
+from cugraph import exceptions
 
-__version__ = "23.06.00"
+__version__ = "23.10.00"
