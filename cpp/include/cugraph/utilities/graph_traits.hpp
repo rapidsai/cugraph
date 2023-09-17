@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,8 +72,8 @@ struct is_candidate {
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct is_candidate_legacy {
-  static constexpr bool value =
-    is_vertex_edge_combo_legacy<vertex_t, edge_t>::value && is_one_of<weight_t, float, double>::value;
+  static constexpr bool value = is_vertex_edge_combo_legacy<vertex_t, edge_t>::value &&
+                                is_one_of<weight_t, float, double>::value;
 };
 
 }  // namespace cugraph

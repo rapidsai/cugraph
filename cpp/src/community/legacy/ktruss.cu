@@ -35,15 +35,13 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>>
-ktruss_subgraph_impl(raft::handle_t const& handle,
-                     raft::device_span<vertex_t> src,
-                     raft::device_span<vertex_t> dst,
-                     size_t number_of_vertices,
-                     int k)
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> ktruss_subgraph_impl(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t> src,
+  raft::device_span<vertex_t> dst,
+  size_t number_of_vertices,
+  int k)
 {
-
   using HornetGraph = hornet::gpu::Hornet<vertex_t>;
   using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::EMPTY, hornet::DeviceType::DEVICE>;
   using Update      = hornet::gpu::BatchUpdate<vertex_t>;
@@ -79,14 +77,11 @@ ktruss_subgraph_impl(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
 
   kt.copyGraph(result_src.data(), result_dst.data());
-  
 
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 
-  return std::make_tuple(std::move(result_src),
-                         std::move(result_dst));
-
+  return std::make_tuple(std::move(result_src), std::move(result_dst));
 }
 
 template <typename vertex_t, typename weight_t>
@@ -94,15 +89,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 weighted_ktruss_subgraph_impl(raft::handle_t const& handle,
-                     raft::device_span<vertex_t> src,
-                     raft::device_span<vertex_t> dst,
-                     std::optional<raft::device_span<weight_t>> wgt,
-                     size_t number_of_vertices,
-                     int k)
+                              raft::device_span<vertex_t> src,
+                              raft::device_span<vertex_t> dst,
+                              std::optional<raft::device_span<weight_t>> wgt,
+                              size_t number_of_vertices,
+                              int k)
 {
   using HornetGraph = hornet::gpu::Hornet<vertex_t, hornet::EMPTY, hornet::TypeList<weight_t>>;
-  using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::TypeList<weight_t>, hornet::DeviceType::DEVICE>;
-  using Update      = hornet::gpu::BatchUpdate<vertex_t, hornet::TypeList<weight_t>>;
+  using UpdatePtr =
+    hornet::BatchUpdatePtr<vertex_t, hornet::TypeList<weight_t>, hornet::DeviceType::DEVICE>;
+  using Update = hornet::gpu::BatchUpdate<vertex_t, hornet::TypeList<weight_t>>;
 
   HornetGraph hnt(number_of_vertices + 1);
 
@@ -140,9 +136,7 @@ weighted_ktruss_subgraph_impl(raft::handle_t const& handle,
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 
-  return std::make_tuple(std::move(result_src),
-                         std::move(result_dst),
-                         std::move(result_wgt));
+  return std::make_tuple(std::move(result_src), std::move(result_dst), std::move(result_wgt));
 }
 
 }  // namespace detail
@@ -158,18 +152,14 @@ k_truss_subgraph(raft::handle_t const& handle,
                  size_t number_of_vertices,
                  int k)
 {
-  
-  
   if (wgt.has_value()) {
     return detail::weighted_ktruss_subgraph_impl(handle, src, dst, wgt, number_of_vertices, k);
   } else {
-    auto [result_src, result_dst] = detail::ktruss_subgraph_impl(handle, src, dst, number_of_vertices, k);
+    auto [result_src, result_dst] =
+      detail::ktruss_subgraph_impl(handle, src, dst, number_of_vertices, k);
     std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
-    return std::make_tuple(std::move(result_src),
-                         std::move(result_dst),
-                         std::move(result_wgt));
+    return std::make_tuple(std::move(result_src), std::move(result_dst), std::move(result_wgt));
   }
-
 }
 
 template std::tuple<rmm::device_uvector<int32_t>,

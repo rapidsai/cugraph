@@ -53,8 +53,7 @@ def _ensure_compatible_cuda_version():
 
 
 def k_truss(
-    G: Union[Graph, "networkx.Graph"],
-    k: int
+    G: Union[Graph, "networkx.Graph"], k: int
 ) -> Union[Graph, "networkx.Graph"]:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
@@ -109,7 +108,7 @@ def k_truss(
 def ktruss_subgraph(
     G: Union[Graph, "networkx.Graph"],
     k: int,
-    use_weights=True, # deprecated
+    use_weights=True,  # deprecated
 ) -> Graph:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
@@ -162,7 +161,7 @@ def ktruss_subgraph(
 
     use_weights : bool, optional (default=True)
         Whether the output should contain the edge weights if G has them.
-        
+
         Deprecated: If 'weights' were passed at the graph creation, they will
         be used.
 
@@ -184,7 +183,7 @@ def ktruss_subgraph(
     KTrussSubgraph = Graph()
     if G.is_directed():
         raise ValueError("input graph must be undirected")
-    
+
     if use_weights:
         warning_msg = (
             "The use_weights flag is deprecated "
