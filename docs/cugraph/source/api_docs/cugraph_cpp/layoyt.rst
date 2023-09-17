@@ -1,11 +1,12 @@
-Community
-=========
+Core
+====
 
 ``#include <cugraph/algorithms.hpp>``
 
-Community Functions
--------------------
- .. doxygengroup:: communityCPP
+Core Functions
+--------------
+ .. doxygengroup:: placementCPP
      :project: libcugraph
      :members:
      :content-only:
+

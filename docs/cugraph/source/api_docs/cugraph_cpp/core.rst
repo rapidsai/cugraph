@@ -1,14 +1,12 @@
 Core
 ====
 
+``#include <cugraph/algorithms.hpp>``
 
-Core Number
------------
-.. doxygenfunction:: cugraph::core_number
-    :project: libcugraph
-
-K-Core
-------
-.. doxygenfunction:: cugraph::k_core
-    :project: libcugraph
+Core Functions
+--------------
+ .. doxygengroup:: coreCPP
+     :project: libcugraph
+     :members:
+     :content-only:
 

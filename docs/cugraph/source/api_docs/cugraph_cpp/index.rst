@@ -9,8 +9,11 @@ cuGraph C++ API documentation
 
     centrality.rst
     community.rst
+    components.rst
     core.rst
-    labeling.rst
+    layout.rst
+    linear_assignment.rst
     sampling.rst
     similarity.rst
     traversal.rst
+    tree.rst
