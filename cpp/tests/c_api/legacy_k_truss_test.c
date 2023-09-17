@@ -30,10 +30,13 @@ int generic_k_truss_test(vertex_t* h_src,
                          weight_t* h_wgt,
                          vertex_t* h_expected_src,
                          vertex_t* h_expected_dst,
+                         weight_t* h_expected_wgt,
                          size_t* h_expected_offsets,
                          size_t num_vertices,
                          size_t num_edges,
                          size_t k,
+                         size_t num_expected_offsets,
+                         size_t num_expected_edges,
                          bool_t store_transposed)
 {
   int test_ret_value = 0;
@@ -56,26 +59,31 @@ int generic_k_truss_test(vertex_t* h_src,
   resource_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, resource_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(resource_handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(
+    resource_handle,
+    vertex_tid,
+    edge_tid,
+    h_src,
+    h_dst,
+    weight_tid,
+    h_wgt,
+    edge_type_tid,
+    NULL,
+    edge_id_tid,
+    NULL,
+    num_edges,
+    store_transposed,
+    FALSE,
+    TRUE,
+    FALSE,
+    &graph,
+    &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  /*
-  ret_code =
-    cugraph_type_erased_device_array_create(resource_handle, num_seeds, INT32, &seeds, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "seeds create failed.");
 
-  seeds_view = cugraph_type_erased_device_array_view(seeds);
-
-  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-    resource_handle, seeds_view, (byte_t*)h_seeds, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
-  */
-
-  printf(" Running k_truss subgraph");
   ret_code =
     cugraph_k_truss_subgraph(resource_handle, graph, k, FALSE, &result, &ret_error);
-  printf(" Done running k_truss subgraph");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_k_truss_subgraph failed.");
 
@@ -106,15 +114,45 @@ int generic_k_truss_test(vertex_t* h_src,
       resource_handle, (byte_t*)h_result_dst, dst, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
+    if (wgt != NULL){
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        resource_handle, (byte_t*)h_result_wgt, wgt, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+    }
+
+
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      resource_handle, (byte_t*)h_result_offsets, offsets, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    TEST_ASSERT(test_ret_value, num_result_edges == num_expected_edges, "results not the same size");
+
+    for (size_t i = 0; (i < num_expected_offsets) && (test_ret_value == 0); ++i) {
+      TEST_ASSERT(test_ret_value,
+                  h_expected_offsets[i] == h_result_offsets[i],
+                  "graph offsets should match");
+    }
+
+  for (size_t i = 0; (i < num_expected_edges) && (test_ret_value == 0); ++i) {
+    bool_t found = FALSE;
+    for (size_t j = 0; (j < num_expected_edges) && !found; ++j) {
+      if ((h_expected_src[i] == h_result_src[j]) && (h_expected_dst[i] == h_result_dst[j]))
+          if (wgt != NULL){
+            found = (nearlyEqual(h_expected_wgt[i], h_result_wgt[j], 0.001));
+          }
+          else{
+            found = TRUE;
+          }
+    }
+    TEST_ASSERT(test_ret_value, found, "extracted an edge that doesn't match");
+  }
+
 #if 0
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       resource_handle, (byte_t*)h_result_wgt, wgt, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 #endif
 
-    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-      resource_handle, (byte_t*)h_result_offsets, offsets, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     cugraph_type_erased_device_array_view_free(src);
     cugraph_type_erased_device_array_view_free(dst);
@@ -132,27 +170,64 @@ int generic_k_truss_test(vertex_t* h_src,
 
 int test_k_truss()
 {
-  size_t num_edges    = 9;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
   size_t k = 2;
 
-  vertex_t h_src[]   = {0, 1, 1, 2, 2, 2, 3, 3, 4};
-  vertex_t h_dst[]   = {1, 3, 4, 0, 1, 3, 4, 5, 5};
-  weight_t h_wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 6.1f};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  vertex_t h_result_src[]   = {0, 1, 1, 3, 1, 1, 3, 3, 4};
-  vertex_t h_result_dst[]   = {1, 3, 4, 4, 3, 4, 4, 5, 5};
-  size_t h_result_offsets[] = {0, 4, 9};
+  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 4, 0, 1, 3, 1, 2, 5, 1, 5, 3, 4};
+  weight_t h_result_wgt[]   = {0.1, 5.1, 0.1, 3.1, 2.1, 1.1, 5.1, 3.1, 4.1, 2.1, 4.1, 7.2, 1.1, 3.2, 7.2, 3.2};
+  size_t h_result_offsets[] = {0, 16};
+  size_t num_expected_edges = 16;
+  size_t num_expected_offsets = 2;
 
   return generic_k_truss_test(h_src,
                              h_dst,
                              h_wgt,
                              h_result_src,
                              h_result_dst,
+                             h_result_wgt,
                              h_result_offsets,
                              num_vertices,
                              num_edges,
                              k,
+                             num_expected_offsets,
+                             num_expected_edges,
+                             FALSE);
+}
+
+int test_k_truss_no_weights()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t k = 2;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+
+  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 4, 0, 1, 3, 1, 2, 5, 1, 5, 3, 4};
+  size_t h_result_offsets[] = {0, 16};
+  size_t num_expected_edges = 16;
+  size_t num_expected_offsets = 2;
+
+  return generic_k_truss_test(h_src,
+                             h_dst,
+                             NULL,
+                             h_result_src,
+                             h_result_dst,
+                             NULL,
+                             h_result_offsets,
+                             num_vertices,
+                             num_edges,
+                             k,
+                             num_expected_offsets,
+                             num_expected_edges,
                              FALSE);
 }
 
@@ -163,5 +238,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_k_truss);
+  result |= RUN_TEST(test_k_truss_no_weights);
   return result;
 }
