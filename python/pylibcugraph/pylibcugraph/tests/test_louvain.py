@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -77,6 +77,7 @@ def test_sg_louvain_cupy():
     )
 
     max_level = 100
+    threshold = 0.0001
     resolution = 1.0
 
     sg = SGGraph(
@@ -91,7 +92,7 @@ def test_sg_louvain_cupy():
     )
 
     vertices, clusters, modularity = louvain(
-        resource_handle, sg, max_level, resolution, do_expensive_check=False
+        resource_handle, sg, max_level, threshold, resolution, do_expensive_check=False
     )
 
     check_results(vertices, clusters, modularity)
@@ -130,6 +131,7 @@ def test_sg_louvain_cudf():
     )
 
     max_level = 100
+    threshold = 0.0001
     resolution = 1.0
 
     sg = SGGraph(
@@ -144,7 +146,7 @@ def test_sg_louvain_cudf():
     )
 
     vertices, clusters, modularity = louvain(
-        resource_handle, sg, max_level, resolution, do_expensive_check=False
+        resource_handle, sg, max_level, threshold, resolution, do_expensive_check=False
     )
 
     check_results(vertices, clusters, modularity)

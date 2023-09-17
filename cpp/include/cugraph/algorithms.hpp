@@ -594,6 +594,8 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param[in]  graph                 input graph object
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold             (optional) threshold for convergence at each level (default
+ * 1e-7)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
@@ -612,6 +614,7 @@ std::pair<size_t, weight_t> louvain(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
   size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -657,6 +660,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});
 
 /**
