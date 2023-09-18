@@ -190,7 +190,7 @@ def ktruss_subgraph(
             "and will be removed in the next release. if weights "
             "were passed at the graph creation, they will be used."
         )
-        warnings.warn(warning_msg, DeprecationWarning)
+        warnings.warn(warning_msg, FutureWarning)
 
     sources, destinations, edge_weights, _ = pylibcugraph_k_truss_subgraph(
         resource_handle=ResourceHandle(),
