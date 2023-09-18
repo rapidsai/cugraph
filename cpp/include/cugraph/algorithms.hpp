@@ -159,7 +159,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
                   WT* result);
 
 /**
-* @ingroup placementCPP
+ * @ingroup placementCPP
  * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
  * for handy network visualization.
  *
@@ -2140,7 +2140,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>,raft::device_span<vertex_t const>> vertex_pairs,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   bool do_expensive_check = false);
 
 /**
