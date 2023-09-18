@@ -27,8 +27,10 @@ from cugraph.datasets import metadata
 meta_path = Path(__file__).parent / "metadata"
 
 cyber = Dataset(meta_path / "cyber.yaml")
+dining_prefs = Dataset(meta_path / "dining_prefs.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
 email_Eu_core = Dataset(meta_path / "email_Eu_core.yaml")
+enron_edges = Dataset(meta_path / "enron_edges.yaml")
 karate = Dataset(meta_path / "karate.yaml")
 karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
 karate_disjoint = Dataset(meta_path / "karate_disjoint.yaml")

@@ -1,0 +1,23 @@
+name: enron_edges
+file_type: .csv
+author: J.L. Moreno
+url:  https://data.rapids.ai/cugraph/datasets/enron_edges.csv
+refs:
+  J. L. Moreno (1960). The Sociometry Reader. The Free Press, Glencoe, Illinois, pg.35
+delim: ","
+header: 0
+col_names:
+  - from
+  - to
+  - Count
+col_types:
+  - int
+  - int
+  - int
+has_loop: true
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 50898
+number_of_nodes: 6599
+number_of_lines: 50898
