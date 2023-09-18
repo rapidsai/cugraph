@@ -3,7 +3,7 @@ Sampling
 
 Sampling Functions
 ------------------
- .. doxygengroup:: samplingCPPs
+ .. doxygengroup:: samplingCPP
      :project: libcugraph
      :members:
      :content-only:

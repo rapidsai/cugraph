@@ -159,7 +159,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
                   WT* result);
 
 /**
-* @defgroup placementCPP
+* @ingroup placementCPP
  * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
  * for handy network visualization.
  *
@@ -416,7 +416,7 @@ enum class cugraph_cc_t {
 };
 
 /**
- * @defgroup labelingCPP
+ * @ingroup labelingCPP
  * @brief      Compute connected components.
  *
  * The weak version (for undirected graphs, only) was imported from cuML.
