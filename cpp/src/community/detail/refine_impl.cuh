@@ -46,12 +46,15 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
+#include <cuda/functional>
+
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
 // FIXME: a temporary workaround for a compiler error, should be deleted once cuco gets patched.
 namespace cuco {
 template <>
-struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {};
+struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {
+};
 }  // namespace cuco
 
 namespace cugraph {
@@ -236,16 +239,17 @@ refine_clustering(
                                                  weighted_degree_of_vertices.end(),
                                                  vertex_louvain_cluster_weights.end()));
 
-  thrust::transform(handle.get_thrust_policy(),
-                    wcut_deg_and_cluster_vol_triple_begin,
-                    wcut_deg_and_cluster_vol_triple_end,
-                    singleton_and_connected_flags.begin(),
-                    [resolution] __device__(auto wcut_wdeg_and_louvain_volume) {
-                      auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
-                      auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
-                      auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
-                      return wcut > (resolution * wdeg * (louvain_volume - wdeg));
-                    });
+  thrust::transform(
+    handle.get_thrust_policy(),
+    wcut_deg_and_cluster_vol_triple_begin,
+    wcut_deg_and_cluster_vol_triple_end,
+    singleton_and_connected_flags.begin(),
+    cuda::proclaim_return_type<uint8_t>([resolution] __device__(auto wcut_wdeg_and_louvain_volume) {
+      auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
+      auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
+      auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
+      return (wcut > (resolution * wdeg * (louvain_volume - wdeg))) ? uint8_t{1} : uint8_t{0};
+    }));
 
   edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);
   edge_src_property_t<GraphViewType, weight_t> src_cut_to_louvain_cache(handle);
@@ -714,11 +718,12 @@ refine_clustering(
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
       dst_vertices.begin(),
-      [dst_first = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
-       v_first   = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-        auto dst = *(dst_first + v - v_first);
-        return dst;
-      });
+      cuda::proclaim_return_type<vertex_t>(
+        [dst_first = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
+         v_first   = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
+          auto dst = *(dst_first + v - v_first);
+          return dst;
+        }));
 
     cugraph::resize_dataframe_buffer(gain_and_dst_output_pairs, 0, handle.get_stream());
     cugraph::shrink_to_fit_dataframe_buffer(gain_and_dst_output_pairs, handle.get_stream());

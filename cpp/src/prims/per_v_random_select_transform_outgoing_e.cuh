@@ -44,6 +44,8 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 #include <optional>
 #include <tuple>
 
@@ -287,7 +289,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
 #ifndef NO_CUGRAPH_OPS
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
-  size_t high_partition_over_sampling_K = K * 2;                         // tuning parameter
+  size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
   assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
@@ -596,8 +598,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -615,8 +618,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
 
       // copy the neighbor indices back to sample_nbr_indices
@@ -883,7 +887,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};        // relevant only when (minor_comm_size > 1)
+    std::nullopt};  // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (minor_comm_size > 1) {

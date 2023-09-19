@@ -35,6 +35,8 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 struct RenumberSampledEdgelist_Usecase {
   size_t num_vertices{};
   size_t num_sampled_edges{};
@@ -380,16 +382,17 @@ class Tests_RenumberSampledEdgelist
 
           auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
             merged_vertices.begin(),
-            [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                     sorted_org_vertices.size()),
-             matching_renumbered_vertices = raft::device_span<vertex_t const>(
-               matching_renumbered_vertices.data(),
-               matching_renumbered_vertices.size())] __device__(vertex_t src) {
-              auto it = thrust::lower_bound(
-                thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), src);
-              return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(),
-                                                                   it)];
-            });
+            cuda::proclaim_return_type<vertex_t>(
+              [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                       sorted_org_vertices.size()),
+               matching_renumbered_vertices = raft::device_span<vertex_t const>(
+                 matching_renumbered_vertices.data(),
+                 matching_renumbered_vertices.size())] __device__(vertex_t src) {
+                auto it = thrust::lower_bound(
+                  thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), src);
+                return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(),
+                                                                     it)];
+              }));
 
           thrust::reduce_by_key(handle.get_thrust_policy(),
                                 sort_key_first,
