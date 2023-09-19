@@ -336,7 +336,10 @@ def test_benchmarking_datasets(dataset):
     # repeatedly would increase testing overhead significantly. Would it be worthwhile
     # to even include each of them? Downloading all 5 of these datasets takes ~90sec,
     # according to notes from get_test_data.sh
-    G = dataset.get_graph(download=True)
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
     df = dataset.get_edgelist()
 
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
@@ -347,6 +350,7 @@ def test_benchmarking_datasets(dataset):
     assert has_loop(df) == dataset.metadata["has_loop"]
     assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
+    dataset.unload()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)

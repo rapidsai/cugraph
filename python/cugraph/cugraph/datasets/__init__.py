@@ -48,5 +48,5 @@ cit_patents = Dataset(meta_path / "cit-patents.yaml")
 europe_osm = Dataset(meta_path / "europe_osm.yaml")
 # 1.5 GB
 hollywood = Dataset(meta_path / "hollywood.yaml")
-# 8.8 GB
+# 8.8 GB (requires large memory)
 twitter = Dataset(meta_path / "soc-twitter-2010.yaml")

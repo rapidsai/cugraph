@@ -68,4 +68,5 @@ ALL_DATASETS = [
     toy_graph_undirected,
 ]
 DEFAULT_DATASETS = [dolphins, netscience, karate_disjoint]
-BENCHMARKING_DATASETS = [soc_livejournal, cit_patents, europe_osm, hollywood, twitter]
+# FIXME: should twitter be included within BENCHMARKING_DATASETS? May require dask_cudf first
+BENCHMARKING_DATASETS = [soc_livejournal, cit_patents, europe_osm, hollywood]
