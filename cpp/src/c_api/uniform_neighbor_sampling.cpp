@@ -28,6 +28,7 @@
 #include <cugraph/sampling_functions.hpp>
 
 #include <raft/core/handle.hpp>
+#include <iostream>
 
 namespace cugraph {
 namespace c_api {
@@ -189,6 +190,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
+      bool has_labels = start_vertex_labels_ != nullptr;
+
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
         cugraph::uniform_neighbor_sample(
           handle_,
@@ -215,6 +218,9 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           options_.prior_sources_behavior_,
           options_.dedupe_sources_,
           do_expensive_check_);
+
+      std::cout << "has labels? " << has_labels << std::endl;
+      std::cout << "has offsets? " << (offsets.has_value()) << std::endl;
 
       std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
 
@@ -324,9 +330,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        if (!offsets) {
-          //CUGRAPH_FAIL("Offsets are required!");
-        }
+        std::cout << "offsets? " << offsets.has_value() << std::endl;
 
         std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(
@@ -349,7 +353,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         majors.emplace(std::move(src));
         minors = std::move(dst);
         
-        renumber_map_offsets = std::move(offsets); // this is a temporary hack for debugging that lets me see the values of this array from Python
         hop.reset();
         offsets.reset();
       }

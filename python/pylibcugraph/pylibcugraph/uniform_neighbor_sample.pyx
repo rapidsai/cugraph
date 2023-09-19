@@ -401,7 +401,6 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                     'batch_id': cupy_batch_ids,
                     'label_hop_offsets': cupy_label_hop_offsets,
                     'hop_id': cupy_hop_ids,
-                    'renumber_map_offsets': result.get_renumber_map_offsets()
                 }
             else:
                 cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
