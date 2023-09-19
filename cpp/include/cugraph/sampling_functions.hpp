@@ -103,7 +103,11 @@ namespace cugraph {
  * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
  * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
  * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
+<<<<<<< HEAD
  * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
+=======
+ * edgelist_hops.has_value() is rue), renumber_map to query original vertices (size = # unique
+>>>>>>> 5f7616173069cee5d856348f6084684962c670d6
  * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
  * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
  * edgelist_label_offsets.has_value() is true).
@@ -119,6 +123,10 @@ std::tuple<std::optional<rmm::device_uvector<vertex_t>>,     // dcsr/dcsc major 
            std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
            std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
            std::optional<rmm::device_uvector<size_t>>,  // (label, hop) offsets to the (d)csr/(d)csc
+<<<<<<< HEAD
+=======
+                                                        // offset array
+>>>>>>> 5f7616173069cee5d856348f6084684962c670d6
            rmm::device_uvector<vertex_t>,               // renumber map
            std::optional<rmm::device_uvector<size_t>>>  // label offsets to the renumber map
 renumber_and_compress_sampled_edgelist(
