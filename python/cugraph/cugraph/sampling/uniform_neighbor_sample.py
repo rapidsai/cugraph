@@ -58,12 +58,14 @@ def uniform_neighbor_sample(
     G: Graph,
     start_list: Sequence,
     fanout_vals: List[int],
+    *,
     with_replacement: bool = True,
     with_edge_properties: bool = False,  # deprecated
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
     return_hops: bool = True,
+    include_hop_column: bool = True, # deprecated
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
@@ -113,6 +115,12 @@ def uniform_neighbor_sample(
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.
         Defaults to True.
+    
+    include_hop_column: bool, optional (default=True)
+        Deprecated.  Defaults to True.
+        If True, will include the hop column even if
+        return_offsets is True.  This option will
+        be removed in release 23.12.
 
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
@@ -368,6 +376,12 @@ def uniform_neighbor_sample(
                     renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
                 else:
                     renumber_df['renumber_map_offsets'] = renumber_offset_series
+            
+            if include_hop_column:
+                print(batch_ids)
+                print(label_hop_offsets)
+                print(sampling_result['renumber_map_offsets'])
+                raise ValueError("asdf")
 
         else:
             if len(batch_ids) > 0:

@@ -241,9 +241,10 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
-      if (options_.renumber_results_) {
-        bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) ||
+      bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) ||
                             (options_.compression_type_ == cugraph::compression_type_t::DCSR);
+
+      if (options_.renumber_results_) {
         if (options_.compression_type_ == cugraph::compression_type_t::COO) {
           // COO
           
@@ -319,10 +320,38 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         hop.reset();
         offsets.reset();
       } else {
+        if (options_.compression_type_ != cugraph::compression_type_t::COO) {
+          CUGRAPH_FAIL("Can only use COO format if not renumbering");
+        }
+
+        if (!offsets) {
+          //CUGRAPH_FAIL("Offsets are required!");
+        }
+
+        std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
+          cugraph::sort_sampled_edgelist(
+            handle_,
+            std::move(src),
+            std::move(dst),
+            wgt ? std::move(wgt) : std::nullopt,
+            edge_id ? std::move(edge_id) : std::nullopt,
+            edge_type ? std::move(edge_type) : std::nullopt,
+            hop ? std::make_optional(std::make_tuple(std::move(*hop), fan_out_->size_))
+                    : std::nullopt,
+            offsets ? std::make_optional(std::make_tuple(
+                            raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                            edge_label->size()))
+                        : std::nullopt,
+            src_is_major,
+            do_expensive_check_
+          );
+
         majors.emplace(std::move(src));
         minors = std::move(dst);
         
-        label_hop_offsets = std::move(offsets);
+        renumber_map_offsets = std::move(offsets);
+        hop.reset();
+        offsets.reset();
       }
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{
@@ -341,7 +370,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                     : nullptr,
         (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
               : nullptr,
-        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32) : nullptr, // FIXME get rid of this once Seunghwa updates the API
+        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32) : nullptr, // FIXME get rid of this 
         (label_hop_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
                       : nullptr,
         (edge_label)

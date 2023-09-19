@@ -389,7 +389,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                 cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
                 return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets)
         else:
-            cupy_hop_ids = result.get_hop_ids() # FIXME change this once Seunghwa updates the API
+            cupy_hop_ids = result.get_hop_ids() # FIXME remove this
             if return_dict:
                 return {
                     'major_offsets': cupy_major_offsets,
@@ -401,6 +401,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                     'batch_id': cupy_batch_ids,
                     'label_hop_offsets': cupy_label_hop_offsets,
                     'hop_id': cupy_hop_ids,
+                    'renumber_map_offsets': result.get_renumber_map_offsets()
                 }
             else:
                 cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors

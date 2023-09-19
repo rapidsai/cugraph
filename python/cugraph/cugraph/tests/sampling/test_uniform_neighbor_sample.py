@@ -151,7 +151,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
         G,
         input_combo["start_list"],
         input_combo["fanout_vals"],
-        input_combo["with_replacement"],
+        with_replacement=input_combo["with_replacement"],
     )
 
     print(input_df)
@@ -254,7 +254,12 @@ def test_uniform_neighbor_sample_tree(directed):
     start_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement)
+    result_nbr = uniform_neighbor_sample(
+        G,
+        start_list,
+        fanout_vals,
+        with_replacement=with_replacement
+    )
 
     result_nbr = result_nbr.drop_duplicates()
 
@@ -288,7 +293,7 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
         test_data["Graph"],
         test_data["start_list"].astype("int64"),
         test_data["fanout_vals"],
-        test_data["with_replacement"],
+        with_replacement=test_data["with_replacement"],
     )
 
     actual_src = sampling_results.sources
