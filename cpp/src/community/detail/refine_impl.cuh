@@ -53,8 +53,7 @@ CUCO_DECLARE_BITWISE_COMPARABLE(double)
 // FIXME: a temporary workaround for a compiler error, should be deleted once cuco gets patched.
 namespace cuco {
 template <>
-struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {
-};
+struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {};
 }  // namespace cuco
 
 namespace cugraph {

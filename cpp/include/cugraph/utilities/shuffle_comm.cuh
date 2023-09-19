@@ -497,7 +497,7 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
     key_first,
     key_last,
     key_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type, KeyToGroupIdOp>{
-        key_to_group_id_op, pivot}));
+      key_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_key_buffer =
