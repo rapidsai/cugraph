@@ -349,7 +349,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         majors.emplace(std::move(src));
         minors = std::move(dst);
         
-        renumber_map_offsets = std::move(offsets);
+        renumber_map_offsets = std::move(offsets); // this is a temporary hack for debugging that lets me see the values of this array from Python
         hop.reset();
         offsets.reset();
       }
