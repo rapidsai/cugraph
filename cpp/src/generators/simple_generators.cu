@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sequence.h>
 #include <thrust/tuple.h>
+
+#include <cuda/functional>
 
 #include <numeric>
 
@@ -264,23 +266,24 @@ generate_complete_graph_edgelist(
 
     auto transform_iter = thrust::make_transform_iterator(
       thrust::make_counting_iterator<size_t>(0),
-      [base_vertex_id, num_vertices, invalid_vertex] __device__(size_t index) {
-        size_t graph_index = index / (num_vertices * num_vertices);
-        size_t local_index = index % (num_vertices * num_vertices);
+      cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+        [base_vertex_id, num_vertices, invalid_vertex] __device__(size_t index) {
+          size_t graph_index = index / (num_vertices * num_vertices);
+          size_t local_index = index % (num_vertices * num_vertices);
 
-        vertex_t src = base_vertex_id + static_cast<vertex_t>(local_index / num_vertices);
-        vertex_t dst = base_vertex_id + static_cast<vertex_t>(local_index % num_vertices);
+          vertex_t src = base_vertex_id + static_cast<vertex_t>(local_index / num_vertices);
+          vertex_t dst = base_vertex_id + static_cast<vertex_t>(local_index % num_vertices);
 
-        if (src == dst) {
-          src = invalid_vertex;
-          dst = invalid_vertex;
-        } else {
-          src += (graph_index * num_vertices);
-          dst += (graph_index * num_vertices);
-        }
+          if (src == dst) {
+            src = invalid_vertex;
+            dst = invalid_vertex;
+          } else {
+            src += (graph_index * num_vertices);
+            dst += (graph_index * num_vertices);
+          }
 
-        return thrust::make_tuple(src, dst);
-      });
+          return thrust::make_tuple(src, dst);
+        }));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       transform_iter,

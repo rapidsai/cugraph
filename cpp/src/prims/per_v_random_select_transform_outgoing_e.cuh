@@ -44,6 +44,8 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 #include <optional>
 #include <tuple>
 
@@ -108,7 +110,7 @@ struct convert_pair_to_quadruplet_t {
             thrust::seq, displacement_first, displacement_first + minor_comm_size, nbr_idx))) -
         1;
       local_nbr_idx -= *(displacement_first + minor_comm_rank);
-      cuda::std::atomic_ref<size_t> counter(tx_counts[minor_comm_rank]);
+      cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(tx_counts[minor_comm_rank]);
       intra_partition_offset = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
     }
     return thrust::make_tuple(minor_comm_rank, intra_partition_offset, local_nbr_idx, key_idx);
@@ -252,7 +254,7 @@ struct count_t {
 
   __device__ size_t operator()(size_t key_idx) const
   {
-    cuda::std::atomic_ref<int32_t> counter(sample_counts[key_idx]);
+    cuda::atomic_ref<int32_t, cuda::thread_scope_device> counter(sample_counts[key_idx]);
     return counter.fetch_add(int32_t{1}, cuda::std::memory_order_relaxed);
   }
 };
@@ -596,8 +598,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -615,8 +618,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
 
       // copy the neighbor indices back to sample_nbr_indices

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuda/functional>
+
 namespace cugraph {
 
 template <typename vertex_t>
@@ -42,12 +44,13 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                   "Implementation cannot support specified value");
 
   auto random_iterator = thrust::make_transform_iterator(
-    thrust::make_counting_iterator<size_t>(0), [seed] __device__(size_t index) {
+    thrust::make_counting_iterator<size_t>(0),
+    cuda::proclaim_return_type<float>([seed] __device__(size_t index) {
       thrust::default_random_engine rng(seed);
       thrust::uniform_real_distribution<float> dist(0.0, 1.0);
       rng.discard(index);
       return dist(rng);
-    });
+    }));
 
   size_t count = thrust::count_if(handle.get_thrust_policy(),
                                   random_iterator,
@@ -69,13 +72,14 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                     indices_v.begin(),
                     indices_v.end(),
                     thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), src_v.end())),
-                    [num_vertices] __device__(size_t index) {
-                      size_t src = index / num_vertices;
-                      size_t dst = index % num_vertices;
+                    cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+                      [num_vertices] __device__(size_t index) {
+                        size_t src = index / num_vertices;
+                        size_t dst = index % num_vertices;
 
-                      return thrust::make_tuple(static_cast<vertex_t>(src),
-                                                static_cast<vertex_t>(dst));
-                    });
+                        return thrust::make_tuple(static_cast<vertex_t>(src),
+                                                  static_cast<vertex_t>(dst));
+                      }));
 
   handle.sync_stream();
 
