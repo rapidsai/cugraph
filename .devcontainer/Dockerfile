@@ -29,7 +29,5 @@ ENV SCCACHE_BUCKET="rapids-sccache-devs"
 ENV VAULT_HOST="https://vault.ops.k8s.rapids.ai"
 ENV HISTFILE="/home/coder/.cache/._bash_history"
 
-# Each device compilation uses ~4GB of memory.
-# Knowing this helps us compile as many archs
-# as possible in parallel without OOM'ing.
-ENV MAX_DEVICE_OBJ_MEMORY_USAGE=4
+# cugraph_pyg's setup.py needs this defined when building in a conda env
+ENV CUDA_HOME="${CUDA_HOME:-/home/coder/.conda/envs/$DEFAULT_CONDA_ENV}"

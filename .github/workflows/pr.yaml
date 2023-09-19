@@ -117,6 +117,5 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
         sccache -z;
-        CUDA_HOME="${CUDA_HOME:-${CUDA_PATH:-"/usr/local/cuda"}}" \
-          build-all;
+        build-all --verbose;
         sccache -s;
