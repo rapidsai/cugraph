@@ -380,7 +380,6 @@ def uniform_neighbor_sample(
             if include_hop_column:
                 print(batch_ids)
                 print(label_hop_offsets)
-                print(sampling_result['renumber_map_offsets'])
                 raise ValueError("asdf")
 
         else:
