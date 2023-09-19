@@ -12,10 +12,26 @@
 # limitations under the License.
 
 from cugraph.link_prediction import overlap
+import cudf
 import warnings
 
+from cugraph.structure import Graph
+from cugraph.utilities.utils import import_optional
 
-def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
+
+
+def overlap_w(
+    input_graph: Graph,
+    weights: cudf.DataFrame = None,  # deprecated
+    vertex_pair: cudf.DataFrame = None,
+    do_expensive_check: bool = False,  # deprecated
+):
     """
     Compute the weighted Overlap Coefficient between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -54,9 +70,11 @@ def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
-    do_expensive_check: bool (default=True)
-        When set to True, check if the vertices in the graph are (re)numbered
-        from 0 to V-1 where V is the total number of vertices.
+    do_expensive_check : bool, optional (default=False)
+        Deprecated.
+        Originally, when set to Ture, overlap implementation checked if
+        the vertices in the graph are (re)numbered from 0 to V-1 where
+        V is the total number of vertices.
 
     Returns
     -------
@@ -99,5 +117,5 @@ def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
         " overlap_w is deprecated. To compute weighted overlap, please use "
         "overlap(input_graph, vertex_pair=False, use_weight=True)"
     )
-    warnings.warn(warning_msg, DeprecationWarning)
+    warnings.warn(warning_msg, FutureWarning)
     return overlap(input_graph, vertex_pair, do_expensive_check, use_weight=True)

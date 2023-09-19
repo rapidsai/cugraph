@@ -21,6 +21,7 @@ import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import netscience
 from cudf.testing import assert_series_equal
+from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -32,8 +33,6 @@ MULTI_COL_SRC_0_COL = "src_0"
 MULTI_COL_DST_0_COL = "dst_0"
 MULTI_COL_SRC_1_COL = "src_1"
 MULTI_COL_DST_1_COL = "dst_1"
-
-print("Networkx version : {} ".format(nx.__version__))
 
 
 # =============================================================================
@@ -85,7 +84,11 @@ def compare_sorensen_two_hop(G, Gnx, use_weight=False):
             assert diff < 1.0e-6
     else:
         # FIXME: compare results against resultset api
-        pass
+        res_w_sorensen = cugraph.sorensen_w(G, vertex_pair=pairs)
+        res_w_sorensen = res_w_sorensen.sort_values(
+            [VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]
+        ).reset_index(drop=True)
+        assert_frame_equal(res_w_sorensen, df, check_dtype=False, check_like=True)
 
 
 def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False):
@@ -338,10 +341,6 @@ def test_sorensen_multi_column(graph_file, use_weight):
 @pytest.mark.sg
 def test_weighted_sorensen():
     karate = UNDIRECTED_DATASETS[0]
-    G = karate.get_graph(ignore_weights=True)
-    with pytest.raises(ValueError):
-        cugraph.sorensen(G, use_weight=True)
-
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(ValueError):
         cugraph.sorensen(G, use_weight=True)

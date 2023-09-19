@@ -12,7 +12,18 @@
 # limitations under the License.
 
 from cugraph.link_prediction import jaccard
+import cudf
 import warnings
+
+from cugraph.structure import Graph
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -34,7 +45,13 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     return vertex_pair
 
 
-def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
+# input_graph, weights, vertex_pair=None, do_expensive_check=False):
+def jaccard_w(
+    input_graph: Graph,
+    weights: cudf.DataFrame = None,  # deprecated
+    vertex_pair: cudf.DataFrame = None,
+    do_expensive_check: bool = False,  # deprecated
+):
     """
     Compute the weighted Jaccard similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -72,9 +89,11 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
-    do_expensive_check: bool (default=True)
-        When set to True, check if the vertices in the graph are (re)numbered
-        from 0 to V-1 where V is the total number of vertices.
+    do_expensive_check : bool, optional (default=False)
+        Deprecated.
+        Originally, when set to Ture, jaccard implementation checked if
+        the vertices in the graph are (re)numbered from 0 to V-1 where
+        V is the total number of vertices.
 
     Returns
     -------
@@ -116,5 +135,5 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=False):
         "jaccard_w is deprecated. To compute weighted jaccard, please use "
         "jaccard(input_graph, vertex_pair=False, use_weight=True)"
     )
-    warnings.warn(warning_msg, DeprecationWarning)
+    warnings.warn(warning_msg, FutureWarning)
     return jaccard(input_graph, vertex_pair, do_expensive_check, use_weight=True)

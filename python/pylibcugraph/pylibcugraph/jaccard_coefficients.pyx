@@ -86,6 +86,9 @@ def jaccard_coefficients(ResourceHandle resource_handle,
         Destination of the vertex pair.
     
     use_weight : bool, optional
+        If set to True, the  compute weighted jaccard_coefficients(
+            the input graph must be weighted in that case).
+        Otherwise, computed un-weighted jaccard_coefficients
 
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure

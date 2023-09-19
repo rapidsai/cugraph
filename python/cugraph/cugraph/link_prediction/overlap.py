@@ -18,11 +18,22 @@ from cugraph.utilities import (
 )
 import cudf
 import warnings
+from typing import Union, Iterable
 
 from pylibcugraph import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
 )
 from pylibcugraph import ResourceHandle
+
+from cugraph.structure import Graph
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -43,28 +54,38 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     return vertex_pair
 
 
-def overlap_coefficient(G, ebunch=None, do_expensive_check=False):
+def overlap_coefficient(
+    G: Union[Graph, "networkx.Graph"],
+    ebunch: Union[cudf.DataFrame, Iterable[Union[int, str, float]]] = None,
+    do_expensive_check: bool = False,  # deprecated
+):
     """
-    For NetworkX Compatability.  See `overlap`
+    Compute overlap coefficient.
 
     Parameters
     ----------
-    G : cugraph.Graph
-        cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not supported yet for this algorithm). The
-        graph should be undirected where an undirected edge is represented by a
-        directed edge in both direction. The adjacency list will be computed if
-        not already present.
+    G : cugraph.Graph or NetworkX.Graph
+        cuGraph or NetworkX Graph instance, should contain the connectivity
+        information as an edge list. The graph should be undirected where an
+        undirected edge is represented by a directed edge in both direction.
+        The adjacency list will be computed if not already present.
 
-    ebunch : cudf.DataFrame, optional (default=None)
+        This implementation only supports undirected, non-multi edge Graph.
+
+    ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the Overlap coefficient is computed for the
-        given vertex pairs.  If the vertex_pair is not provided then the
-        current implementation computes the overlap coefficient for all
-        adjacent vertices in the graph.
+        vertices or iterable of 2-tuples (u, v) where u and v are nodes in
+        the graph.
+
+        If provided, the Overlap coefficient is computed for the given vertex
+        pairs. Otherwise, the current implementation computes the overlap
+        coefficient for all adjacent vertices in the graph.
 
     do_expensive_check : bool, optional (default=False)
-        Deprecated, no longer needed
+        Deprecated.
+        Originally, when set to Ture, overlap implementation checked if
+        the vertices in the graph are (re)numbered from 0 to V-1 where
+        V is the total number of vertices.
 
     Returns
     -------
@@ -90,11 +111,6 @@ def overlap_coefficient(G, ebunch=None, do_expensive_check=False):
     >>> G = karate.get_graph(download=True, ignore_weights=True)
     >>> df = overlap_coefficient(G)
     """
-    if do_expensive_check:
-        warnings.warn(
-            "do_expensive_check is deprecated since it is no longer needed",
-            DeprecationWarning,
-        )
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
@@ -114,13 +130,12 @@ def overlap_coefficient(G, ebunch=None, do_expensive_check=False):
     return df
 
 
-# FIXME:
-# 1. Be consistent with column names for output/result DataFrame
-# 2. Enforce that 'vertex_pair' is a cudf Dataframe with only columns for vertex pairs
-# 3. We need to add support for multi-column vertices
-
-
-def overlap(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=False):
+def overlap(
+    input_graph: Graph,
+    vertex_pair: cudf.DataFrame = None,
+    do_expensive_check: bool = False,  # deprecated
+    use_weight: bool = False,
+):
     """
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -142,23 +157,25 @@ def overlap(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
     ----------
     input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not supported yet for this algorithm). The
-        adjacency list will be computed if not already present.
+        as an edge list. The adjacency list will be computed if not already
+        present.
 
-        This implementation only supports undirected, unweighted Graph.
-
+        This implementation only supports undirected, non-multi edge Graph.
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
     do_expensive_check : bool, optional (default=False)
-        Deprecated, no longer needed
+        Deprecated.
+        Originally, when set to Ture, overlap implementation checked if
+        the vertices in the graph are (re)numbered from 0 to V-1 where
+        V is the total number of vertices.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted overlap (if use_weight==True)
         or un-weighted overlap (if use_weight==False).
-        'input_graph' must be wighted if 'use_weight=True'.
+        'input_graph' must be weighted if 'use_weight=True'.
 
 
 
@@ -189,8 +206,9 @@ def overlap(input_graph, vertex_pair=None, do_expensive_check=False, use_weight=
     """
     if do_expensive_check:
         warnings.warn(
-            "do_expensive_check is deprecated since it is no longer needed",
-            DeprecationWarning,
+            "do_expensive_check is deprecated since vertex IDs are no longer "
+            "required to be consecutively numbered",
+            FutureWarning,
         )
 
     if input_graph.is_directed():

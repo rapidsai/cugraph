@@ -74,7 +74,6 @@ hits = promoted_experimental_warning_wrapper(hits)
 
 from pylibcugraph.node2vec import node2vec
 
-node2vec = promoted_experimental_warning_wrapper(node2vec)
 
 # from pylibcugraph.jaccard_coefficients import EXPERIMENTAL__jaccard_coefficients
 

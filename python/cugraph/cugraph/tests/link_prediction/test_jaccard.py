@@ -23,6 +23,7 @@ import cugraph
 from cugraph.datasets import netscience
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
+from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -34,9 +35,6 @@ MULTI_COL_SRC_0_COL = "src_0"
 MULTI_COL_DST_0_COL = "dst_0"
 MULTI_COL_SRC_1_COL = "src_1"
 MULTI_COL_DST_1_COL = "dst_1"
-
-
-print("Networkx version : {} ".format(nx.__version__))
 
 
 # =============================================================================
@@ -194,8 +192,20 @@ def test_jaccard(read_csv, gpubenchmark, use_weight):
         print("Mismatches:  %d" % err)
         assert err == 0
     else:
+        G = graph_file.get_graph()
+        res_w_jaccard = cugraph.jaccard_w(G, vertex_pair=M_cu[[SRC_COL, DST_COL]])
+        res_w_jaccard = res_w_jaccard.sort_values(
+            [VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]
+        ).reset_index(drop=True)
+        res_jaccard = cudf.DataFrame()
+        res_jaccard[VERTEX_PAIR_FIRST_COL] = cu_src
+        res_jaccard[VERTEX_PAIR_SECOND_COL] = cu_dst
+        res_jaccard[JACCARD_COEFF_COL] = cu_coeff
+        assert_frame_equal(
+            res_w_jaccard, res_jaccard, check_dtype=False, check_like=True
+        )
+
         # FIXME: compare weighted jaccard results against resultset api
-        pass
 
 
 @pytest.mark.sg
@@ -344,10 +354,6 @@ def test_jaccard_multi_column(graph_file, use_weight):
 @pytest.mark.sg
 def test_weighted_jaccard():
     karate = UNDIRECTED_DATASETS[0]
-    G = karate.get_graph(ignore_weights=True)
-    with pytest.raises(ValueError):
-        cugraph.jaccard(G, use_weight=True)
-
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(ValueError):
         cugraph.jaccard(G, use_weight=True)

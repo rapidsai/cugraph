@@ -21,6 +21,7 @@ import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
+from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -66,6 +67,9 @@ def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
     df = df.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
         drop=True
     )
+    if use_weight:
+        res_w_overlap = cugraph.overlap_w(G, vertex_pair=pairs)
+        assert_frame_equal(res_w_overlap, df, check_dtype=False, check_like=True)
 
     return df[OVERLAP_COEFF_COL].to_numpy()
 
@@ -237,10 +241,6 @@ def test_overlap_multi_column(graph_file, use_weight):
 @pytest.mark.sg
 def test_weighted_overlap():
     karate = UNDIRECTED_DATASETS[0]
-    G = karate.get_graph(ignore_weights=True)
-    with pytest.raises(ValueError):
-        cugraph.overlap(G, use_weight=True)
-
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(ValueError):
         cugraph.overlap(G, use_weight=True)

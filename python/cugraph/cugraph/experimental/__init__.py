@@ -51,3 +51,19 @@ find_bicliques = deprecated_warning_wrapper(
 from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
 
 BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)
+
+
+from cugraph.link_prediction.jaccard import jaccard, jaccard_coefficient
+
+jaccard = promoted_experimental_warning_wrapper(jaccard)
+jaccard_coefficient = promoted_experimental_warning_wrapper(jaccard_coefficient)
+
+from cugraph.link_prediction.sorensen import sorensen, sorensen_coefficient
+
+sorensen = promoted_experimental_warning_wrapper(sorensen)
+sorensen_coefficient = promoted_experimental_warning_wrapper(sorensen_coefficient)
+
+from cugraph.link_prediction.overlap import overlap, overlap_coefficient
+
+overlap = promoted_experimental_warning_wrapper(overlap)
+overlap_coefficient = promoted_experimental_warning_wrapper(overlap_coefficient)
