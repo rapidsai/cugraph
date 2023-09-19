@@ -147,13 +147,6 @@ int generic_k_truss_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, found, "extracted an edge that doesn't match");
   }
 
-#if 0
-    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-      resource_handle, (byte_t*)h_result_wgt, wgt, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-#endif
-
-
     cugraph_type_erased_device_array_view_free(src);
     cugraph_type_erased_device_array_view_free(dst);
     cugraph_type_erased_device_array_view_free(wgt);
@@ -172,18 +165,18 @@ int test_k_truss()
 {
   size_t num_edges    = 16;
   size_t num_vertices = 6;
-  size_t k = 2;
+  size_t k = 3;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
-  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 4, 0, 1, 3, 1, 2, 5, 1, 5, 3, 4};
-  weight_t h_result_wgt[]   = {0.1, 5.1, 0.1, 3.1, 2.1, 1.1, 5.1, 3.1, 4.1, 2.1, 4.1, 7.2, 1.1, 3.2, 7.2, 3.2};
-  size_t h_result_offsets[] = {0, 16};
-  size_t num_expected_edges = 16;
+  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3};
+  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 0, 1, 3, 1, 2};
+  weight_t h_result_wgt[]   = {0.1, 5.1, 0.1, 3.1, 2.1, 5.1, 3.1, 4.1, 2.1, 4.1};
+  size_t h_result_offsets[] = {0, 10};
+  size_t num_expected_edges = 10;
   size_t num_expected_offsets = 2;
 
   return generic_k_truss_test(h_src,
@@ -205,15 +198,15 @@ int test_k_truss_no_weights()
 {
   size_t num_edges    = 16;
   size_t num_vertices = 6;
-  size_t k = 2;
+  size_t k = 3;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
 
-  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
-  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 4, 0, 1, 3, 1, 2, 5, 1, 5, 3, 4};
-  size_t h_result_offsets[] = {0, 16};
-  size_t num_expected_edges = 16;
+  vertex_t h_result_src[]   = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3};
+  vertex_t h_result_dst[]   = {1, 2, 0, 2, 3, 0, 1, 3, 1, 2};
+  size_t h_result_offsets[] = {0, 10};
+  size_t num_expected_edges = 10;
   size_t num_expected_offsets = 2;
 
   return generic_k_truss_test(h_src,
