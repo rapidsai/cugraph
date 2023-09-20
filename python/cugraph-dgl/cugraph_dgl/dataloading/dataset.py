@@ -87,7 +87,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         )
 
 
-class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
+class HeterogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         num_nodes_dict: Dict[str, int],
@@ -141,9 +141,9 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
         ----------
         input_directory: str
             input_directory which contains all the files that will be
-            loaded by HetrogenousBulkSamplerDataset
+            loaded by HeterogenousBulkSamplerDataset
         input_file_paths: List[str]
-            File names that will be loaded by the HetrogenousBulkSamplerDataset
+            File names that will be loaded by the HeterogenousBulkSamplerDataset
         """
         _set_input_files(
             self, input_directory=input_directory, input_file_paths=input_file_paths
@@ -181,7 +181,7 @@ def get_batch_to_fn_d(files):
 
 
 def _set_input_files(
-    dataset_obj: Union[HomogenousBulkSamplerDataset, HetrogenousBulkSamplerDataset],
+    dataset_obj: Union[HomogenousBulkSamplerDataset, HeterogenousBulkSamplerDataset],
     input_directory: Optional[str] = None,
     input_file_paths: Optional[List[str]] = None,
 ) -> None:

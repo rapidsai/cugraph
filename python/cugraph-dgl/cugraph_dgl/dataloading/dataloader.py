@@ -21,7 +21,7 @@ from cugraph.experimental import BulkSampler
 from dask.distributed import default_client, Event
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
-    HetrogenousBulkSamplerDataset,
+    HeterogenousBulkSamplerDataset,
 )
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
@@ -160,7 +160,7 @@ class DataLoader(torch.utils.data.DataLoader):
         else:
             etype_id_to_etype_str_dict = {v: k for k, v in graph._etype_id_dict.items()}
 
-            self.cugraph_dgl_dataset = HetrogenousBulkSamplerDataset(
+            self.cugraph_dgl_dataset = HeterogenousBulkSamplerDataset(
                 num_nodes_dict=graph.num_nodes_dict,
                 etype_id_dict=etype_id_to_etype_str_dict,
                 etype_offset_dict=graph._etype_offset_d,
