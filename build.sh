@@ -239,8 +239,8 @@ if hasArg clean; then
     done
 
     # Doc cleanup
-    rm -r ${REPODIR}/docs/cugraph/libcugraph
-    rm -r ${REPODIR}/docs/cugraph/build
+    rm -rf ${REPODIR}/docs/cugraph/libcugraph
+    rm -rf ${REPODIR}/docs/cugraph/build
 
     # Go back to failing on first error for all other operations
     set -e
