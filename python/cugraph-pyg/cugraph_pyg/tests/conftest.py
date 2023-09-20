@@ -265,3 +265,22 @@ def abc_graph():
     )
 
     return F, G, N
+
+
+@pytest.fixture
+def basic_pyg_graph_1():
+    edge_index = torch.tensor([[0, 1, 2, 3], [0, 0, 1, 1]])
+    size = (4, 4)
+    return edge_index, size
+
+
+@pytest.fixture
+def basic_pyg_graph_2():
+    edge_index = torch.tensor(
+        [
+            [0, 1, 0, 2, 3, 0, 4, 0, 5, 0, 6, 7, 0, 8, 9],
+            [1, 9, 2, 9, 9, 4, 9, 5, 9, 6, 9, 9, 8, 9, 0],
+        ]
+    )
+    size = (10, 10)
+    return edge_index, size
