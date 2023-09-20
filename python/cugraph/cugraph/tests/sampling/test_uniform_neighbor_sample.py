@@ -845,7 +845,9 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
 
-    assert len(offsets_renumbered) == len(hops) + 1
+    assert len(offsets_renumbered) == 2
+
+    # TODO add tests for (D)CSR/(D)CSC
 
 
 @pytest.mark.sg

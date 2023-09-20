@@ -345,8 +345,6 @@ def uniform_neighbor_sample(
 
             if not return_offsets:
                 if len(batch_ids) > 0:
-                    print(batch_ids)
-                    print(sampling_result['renumber_map_offsets'])
                     batch_ids_r = cudf.Series(batch_ids).repeat(
                         cp.diff(sampling_result['renumber_map_offsets'])
                     )
@@ -380,7 +378,7 @@ def uniform_neighbor_sample(
 
             if renumber:
                 renumber_offset_series = cudf.Series(
-                    sampling_result['renumber_map_offsets'][:-1],
+                    sampling_result['renumber_map_offsets'],
                     name="renumber_map_offsets"
                 )
 
@@ -405,8 +403,6 @@ def uniform_neighbor_sample(
             if len(batch_ids) > 0:
                 hop_ids_r = cudf.Series(cp.arange(len(fanout_vals)))
                 hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids),ignore_index=True)
-                print(len(hop_ids_r))
-                print(len(label_hop_offsets))
 
                 # generate the hop column
                 hop_ids_r = cudf.Series(hop_ids_r, name='hop_id').repeat(
