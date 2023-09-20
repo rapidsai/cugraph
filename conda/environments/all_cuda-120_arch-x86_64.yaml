@@ -10,6 +10,7 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
+- breathe
 - aiohttp
 - c-compiler
 - cmake>=3.26.4
