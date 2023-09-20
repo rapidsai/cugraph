@@ -104,11 +104,12 @@ def sampling_results_from_cupy_array_dict(cupy_array_dict, weight_t, num_hops, w
                     name="renumber_map_offsets"
                 )
 
-                if len(renumber_offset_series) > len(renumber_df):
+                if len(renumber_offset_series) > len(offsets_df):
                     # this is extremely rare so the inefficiency is ok
-                    renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
+                    offsets_df = offsets_df.join(renumber_offset_series, how='outer').sort_index()
                 else:
-                    renumber_df['renumber_map_offsets'] = renumber_offset_series
+                    offsets_df['renumber_map_offsets'] = renumber_offset_series
+                
 
         else:
             if len(batch_ids) > 0:

@@ -18,7 +18,7 @@ import cupy
 from typing import Union, Optional
 
 
-def _write_samples_to_parquet(
+def _write_samples_to_parquet_coo(
     results: cudf.DataFrame,
     offsets: cudf.DataFrame,
     renumber_map: cudf.DataFrame,
@@ -60,8 +60,10 @@ def _write_samples_to_parquet(
     if partition_info != "sg" and (not isinstance(partition_info, dict)):
         raise ValueError("Invalid value of partition_info")
 
+    offsets = offsets[:-1]
+
     # Offsets is always in order, so the last batch id is always the highest
-    max_batch_id = offsets.batch_id.iloc[len(offsets) - 1]
+    max_batch_id = offsets.batch_id.iloc[-1]
     results.dropna(axis=1, how="all", inplace=True)
     results["hop_id"] = results["hop_id"].astype("uint8")
 
@@ -182,9 +184,18 @@ def write_samples(
     output_path: str
         The output path (where parquet files should be written to).
     """
+    
+    print(results)
+    if ('majors' in results) and ('minors' in results):
+        write_fn = _write_samples_to_parquet_coo
+    
+    # TODO these names will be deprecated in release 23.12
+    if ('sources' in results) and ('destinations' in results):
+        write_fn = _write_samples_to_parquet_coo
+
     if hasattr(results, "compute"):
         results.map_partitions(
-            _write_samples_to_parquet,
+            write_fn,
             offsets,
             renumber_map,
             batches_per_partition,
@@ -194,7 +205,7 @@ def write_samples(
         ).compute()
 
     else:
-        _write_samples_to_parquet(
+        write_fn(
             results,
             offsets,
             renumber_map,
