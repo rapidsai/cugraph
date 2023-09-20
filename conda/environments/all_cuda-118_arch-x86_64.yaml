@@ -10,8 +10,8 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
-- breathe
 - aiohttp
+- breathe
 - c-compiler
 - cmake>=3.26.4
 - cuda-version=11.8
