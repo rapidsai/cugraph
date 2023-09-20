@@ -327,6 +327,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
+@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     n_workers = len(dask_client.scheduler_info()["workers"])
     if n_workers <= 1:

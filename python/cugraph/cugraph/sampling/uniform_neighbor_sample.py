@@ -16,6 +16,8 @@ from __future__ import annotations
 from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
+from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
+
 import numpy
 
 import cudf
@@ -237,7 +239,7 @@ def uniform_neighbor_sample(
             "The with_edge_properties flag is deprecated"
             " and will be removed in the next release."
         )
-        warnings.warn(warning_msg, DeprecationWarning)
+        warnings.warn(warning_msg, FutureWarning)
 
     if isinstance(start_list, int):
         start_list = [start_list]
@@ -295,7 +297,7 @@ def uniform_neighbor_sample(
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
     
-    sampling_result = pylibcugraph_uniform_neighbor_sample(
+    sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_list=start_list[start_col_name],
@@ -316,143 +318,22 @@ def uniform_neighbor_sample(
         return_dict=True,
     )
 
-    results_df = cudf.DataFrame()
-
-    if with_edge_properties:
-        results_df_cols = [
-            'majors',
-            'minors',
-            'weight',
-            'edge_id',
-            'edge_type',
-            'hop_id'
-        ]
-        for col in results_df_cols:
-            array = sampling_result[col]
-            if array is not None:
-                # The length of each of these arrays should be the same
-                results_df[col] = array
-
-        results_df.rename(columns={'majors':major_col_name, 'minors':minor_col_name},inplace=True)
-
-        label_hop_offsets = sampling_result['label_hop_offsets']
-        batch_ids = sampling_result['batch_id']
-
-        if renumber:
-            renumber_df = cudf.DataFrame({
-                'map': sampling_result['renumber_map'],   
-            })
-
-            if not return_offsets:
-                if len(batch_ids) > 0:
-                    batch_ids_r = cudf.Series(batch_ids).repeat(
-                        cp.diff(sampling_result['renumber_map_offsets'])
-                    )
-                    batch_ids_r.reset_index(drop=True, inplace=True)
-                    renumber_df["batch_id"] = batch_ids_r
-                else:
-                    renumber_df['batch_id'] = None
-
-        if return_offsets:
-            batches_series = cudf.Series(
-                batch_ids,
-                name="batch_id",
-            )
-            if include_hop_column:
-                # TODO remove this logic in release 23.12
-                offsets_df = cudf.Series(
-                    label_hop_offsets[cp.arange(len(batch_ids)+1) * len(fanout_vals)],
-                    name='offsets',
-                ).to_frame()
-            else:
-                offsets_df = cudf.Series(
-                    label_hop_offsets,
-                    name="offsets",
-                ).to_frame()
-
-            if len(batches_series) > len(offsets_df):
-                # this is extremely rare so the inefficiency is ok
-                offsets_df = offsets_df.join(batches_series, how='outer').sort_index()
-            else:
-                offsets_df['batch_id'] = batches_series
-
-            if renumber:
-                renumber_offset_series = cudf.Series(
-                    sampling_result['renumber_map_offsets'],
-                    name="renumber_map_offsets"
-                )
-
-                if len(renumber_offset_series) > len(renumber_df):
-                    # this is extremely rare so the inefficiency is ok
-                    renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
-                else:
-                    renumber_df['renumber_map_offsets'] = renumber_offset_series
-
-        else:
-            if len(batch_ids) > 0:
-                batch_ids_r = cudf.Series(cp.repeat(batch_ids, len(fanout_vals)))
-                batch_ids_r = cudf.Series(batch_ids_r).repeat(cp.diff(label_hop_offsets))                    
-                batch_ids_r.reset_index(drop=True, inplace=True)
-
-                results_df["batch_id"] = batch_ids_r
-            else:
-                results_df['batch_id'] = None
-        
-        # TODO remove this logic in release 23.12, hops will always returned as offsets
-        if include_hop_column:
-            if len(batch_ids) > 0:
-                hop_ids_r = cudf.Series(cp.arange(len(fanout_vals)))
-                hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids),ignore_index=True)
-
-                # generate the hop column
-                hop_ids_r = cudf.Series(hop_ids_r, name='hop_id').repeat(
-                    cp.diff(label_hop_offsets)
-                ).reset_index(drop=True)
-            else:
-                hop_ids_r = cudf.Series(name='hop_id', dtype='int32')
-
-            results_df = results_df.join(hop_ids_r, how='outer').sort_index()
-
-        if major_col_name not in results_df:
-            if use_legacy_names:
-                raise ValueError("Can't use legacy names with major offsets")
-
-            major_offsets_series = cudf.Series(sampling_result['major_offsets'], name='major_offsets')
-            if len(major_offsets_series) > len(results_df):
-                # this is extremely rare so the inefficiency is ok
-                results_df = results_df.join(major_offsets_series, how='outer').sort_index()
-            else:
-                results_df['major_offsets'] = major_offsets_series
-
-    else:
-        # TODO this is deprecated, remove it in 23.12
-
-        results_df[major_col_name] = sampling_result['sources']
-        results_df[minor_col_name] = sampling_result['destinations']
-        indices = sampling_result['indices']
-
-        if indices is None:
-            results_df["indices"] = None
-        else:
-            results_df["indices"] = indices
-            if weight_t == "int32":
-                results_df["indices"] = indices.astype("int32")
-            elif weight_t == "int64":
-                results_df["indices"] = indices.astype("int64")
-            else:
-                results_df["indices"] = indices
+    dfs = sampling_results_from_cupy_array_dict(
+        sampling_result_array_dict,
+        weight_t,
+        len(fanout_vals),
+        with_edge_properties=with_edge_properties,
+        return_offsets=return_offsets,
+        renumber=renumber,
+        use_legacy_names=use_legacy_names,
+        include_hop_column=include_hop_column
+    )
 
     if G.renumbered and not renumber:
-        results_df = G.unrenumber(results_df, major_col_name, preserve_order=True)
-        results_df = G.unrenumber(results_df, minor_col_name, preserve_order=True)
+        dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
+        dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
 
-    if return_offsets:
-        if renumber:
-            return results_df, offsets_df, renumber_df
-        else:
-            return results_df, offsets_df
-
-    if renumber:
-        return results_df, renumber_df
-
-    return results_df
+    if len(dfs) > 1:
+        return dfs
+    
+    return dfs[0]
