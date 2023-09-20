@@ -11,6 +11,7 @@ files:
       - cpp_build
       - cudatoolkit
       - docs
+      - python_build_wheel
       - python_build_cythonize
       - python_run_cugraph
       - python_run_pylibcugraph
