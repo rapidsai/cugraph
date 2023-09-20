@@ -365,7 +365,6 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         cupy_edge_types = result.get_edge_types()
         cupy_batch_ids = result.get_batch_ids()
         cupy_label_hop_offsets = result.get_label_hop_offsets()
-        
 
         if renumber:
             cupy_renumber_map = result.get_renumber_map()

@@ -15,6 +15,7 @@ import random
 
 import pytest
 
+import cupy
 import cudf
 import cugraph
 from cugraph import uniform_neighbor_sample
@@ -847,7 +848,60 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
 
     assert len(offsets_renumbered) == 2
 
-    # TODO add tests for (D)CSR/(D)CSC
+
+@pytest.mark.sg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+def test_uniform_neighbor_sample_csr_csc_global(hops):
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        [5,5],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        prior_sources_behavior='exclude',
+        renumber=True,
+        return_offsets=True,
+        random_state=62,
+        use_legacy_names=False,
+        compress_per_hop=True,
+        compression='CSC',
+        include_hop_column=False,
+    )
+
+    assert 'hop_id' not in sampling_results
+    assert 'majors' not in sampling_results
+
+    majors = cupy.arange(len(sampling_results['major_offsets']) - 1)
+    majors = cupy.repeat(majors, cupy.diff(sampling_results['major_offsets'].values))
+
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
+    for hop in range(len(hops)):
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
+    
+    renumber_map_offsets = renumber_map.renumber_map_offsets.dropna()
+    assert len(renumber_map_offsets) == 2
+    assert renumber_map_offsets.iloc[0] == 0
+    assert renumber_map_offsets.iloc[-1] == len(renumber_map)
+
+    assert len(offsets_renumbered) == 2
 
 
 @pytest.mark.sg

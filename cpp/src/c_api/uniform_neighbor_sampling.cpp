@@ -294,7 +294,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                    edge_id,
                    edge_type,
                    label_hop_offsets,
-                   renumber_map,
+                   output_renumber_map,
                    renumber_map_offsets) =
             cugraph::renumber_and_compress_sampled_edgelist(
               handle_,
