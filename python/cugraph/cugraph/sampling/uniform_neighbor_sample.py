@@ -146,6 +146,8 @@ def uniform_neighbor_sample(
         Whether to use the legacy column names (sources, destinations).
         If True, will use "sources" and "destinations" as the column names.
         If False, will use "majors" and "minors" as the column names.
+        Deprecated.  Will be removed in release 23.12 in favor of always
+        using the new names "majors" and "minors".
     
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
@@ -153,7 +155,7 @@ def uniform_neighbor_sample(
 
     compression: str, optional (default=COO)
         Sets the compression type for the output minibatches.
-        Valid options are COO (default), CSR, CSR, DCSR, and DCSR.
+        Valid options are COO (default), CSR, CSC, DCSR, and DCSC.
 
     Returns
     -------

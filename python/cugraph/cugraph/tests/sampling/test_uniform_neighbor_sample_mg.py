@@ -138,7 +138,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
         dg,
         input_combo["start_list"],
         input_combo["fanout_vals"],
-        input_combo["with_replacement"],
+        with_replacement=input_combo["with_replacement"],
     )
 
     # multi edges are dropped to easily verify that each edge in the
@@ -228,7 +228,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     start_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement)
+    result_nbr = uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=with_replacement)
 
     result_nbr = result_nbr.drop_duplicates()
 
@@ -283,7 +283,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     with_replacement = True
 
     sampling_results = uniform_neighbor_sample(
-        G, start_list, fanout_vals, with_replacement
+        G, start_list, fanout_vals, with_replacement=with_replacement
     )
 
     expected_src = [0, 0]
@@ -327,7 +327,6 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
-@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     n_workers = len(dask_client.scheduler_info()["workers"])
     if n_workers <= 1:
@@ -381,13 +380,14 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
             dfp = sampling_results.get_partition(i).compute()
             if len(dfp) > 0:
                 offsets_p = sampling_offsets.get_partition(i).compute()
+                print(offsets_p)
                 assert len(offsets_p) > 0
 
                 if offsets_p.batch_id.iloc[0] == 1:
                     batches_found[1] += 1
 
-                    assert offsets_p.batch_id.values_host.tolist() == [1]
-                    assert offsets_p.offsets.values_host.tolist() == [0]
+                    assert offsets_p.batch_id.dropna().values_host.tolist() == [1]
+                    assert offsets_p.offsets.dropna().values_host.tolist() == [0, len(dfp)]
 
                     assert sorted(dfp.sources.values_host.tolist()) == (
                         [1, 1, 3, 3, 4, 4]
@@ -398,8 +398,8 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                 elif offsets_p.batch_id.iloc[0] == 0:
                     batches_found[0] += 1
 
-                    assert offsets_p.batch_id.values_host.tolist() == [0]
-                    assert offsets_p.offsets.values_host.tolist() == [0]
+                    assert offsets_p.batch_id.dropna().values_host.tolist() == [0]
+                    assert offsets_p.offsets.dropna().values_host.tolist() == [0, len(dfp)]
 
                     assert sorted(dfp.sources.values_host.tolist()) == (
                         [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
@@ -704,7 +704,6 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     input_vertices = dask_cudf.concat([df.src, df.dst]).unique().compute()
@@ -746,6 +745,7 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
 
 
 @pytest.mark.mg
+@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
     df = dask_cudf.from_cudf(
         cudf.DataFrame(

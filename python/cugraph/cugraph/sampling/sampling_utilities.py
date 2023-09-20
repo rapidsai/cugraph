@@ -39,20 +39,21 @@ def sampling_results_from_cupy_array_dict(cupy_array_dict, weight_t, num_hops, w
         minor_col_name = "minors"
 
     if with_edge_properties:
+        majors = cupy_array_dict['majors']
+        if majors is not None:
+            results_df['majors'] = majors
+
         results_df_cols = [
-            'majors',
             'minors',
             'weight',
             'edge_id',
             'edge_type',
-            'hop_id'
         ]
 
         for col in results_df_cols:
             array = cupy_array_dict[col]
-            if array is not None:
-                # The length of each of these arrays should be the same
-                results_df[col] = array
+            # The length of each of these arrays should be the same
+            results_df[col] = array
 
         results_df.rename(columns={'majors':major_col_name, 'minors':minor_col_name},inplace=True)
 
