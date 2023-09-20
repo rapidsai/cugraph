@@ -308,7 +308,8 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
-def test_uniform_neighbor_sample_edge_properties(return_offsets):
+@pytest.mark.parametrize("include_hop_column", [True, False])
+def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_column):
     edgelist_df = cudf.DataFrame(
         {
             "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype="int32"),
@@ -342,6 +343,7 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         with_edge_properties=True,
         with_batch_ids=True,
         return_offsets=return_offsets,
+        include_hop_column=include_hop_column
     )
     if return_offsets:
         sampling_results, sampling_offsets = sampling_results
@@ -364,11 +366,17 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         == sampling_results["destinations"].values_host.tolist()
     )
 
-    assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
+    if include_hop_column:
+        assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
+    else:
+        assert 'hop_id' not in sampling_results
 
     if return_offsets:
         assert sampling_offsets["batch_id"].dropna().values_host.tolist() == [0, 1]
-        assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 6, 12]
+        if include_hop_column:
+            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 6, 12]
+        else:
+            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 2, 6, 8, 12]
     else:
         assert sampling_results["batch_id"].values_host.tolist() == ([0] * 6 + [1] * 6)
 

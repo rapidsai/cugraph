@@ -28,7 +28,6 @@
 #include <cugraph/sampling_functions.hpp>
 
 #include <raft/core/handle.hpp>
-#include <iostream>
 
 namespace cugraph {
 namespace c_api {
@@ -219,19 +218,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           options_.dedupe_sources_,
           do_expensive_check_);
 
-      std::cout << "has labels? " << has_labels << std::endl;
-      std::cout << "has offsets? " << (offsets.has_value()) << std::endl;
-
-      bool print=false;
-      if (offsets->size() < 10) {
-        print=true;
-        for(size_t k = 0; k < offsets->size(); ++k) std::cout << offsets->element(k, handle_.get_stream()) << " ";
-        std::cout << std::endl;
-
-        for(size_t k = 0; k < hop->size(); ++k) std::cout << hop->element(k, handle_.get_stream()) << " ";
-        std::cout << std::endl;
-      }
-
       std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
@@ -340,8 +326,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        std::cout << "offsets? " << offsets.has_value() << std::endl;
-
         std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(
             handle_,
@@ -365,12 +349,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         
         hop.reset();
         offsets.reset();
-
-        if(print && label_hop_offsets) {
-          std::cout << "printing label_hop_offsets: ";
-          for(size_t k = 0; k < label_hop_offsets->size(); ++k) std::cout << label_hop_offsets->element(k, handle_.get_stream());
-          std::cout << std::endl;
-        }
       }
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{

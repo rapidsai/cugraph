@@ -294,6 +294,7 @@ def uniform_neighbor_sample(
                 start_list = G.lookup_internal_vertex_id(start_list, columns)
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
+    
     sampling_result = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
@@ -343,21 +344,33 @@ def uniform_neighbor_sample(
             })
 
             if not return_offsets:
-                batch_ids_r = cudf.Series(batch_ids).repeat(
-                    cp.diff(sampling_result['renumber_map_offsets'][:-1])
-                )
-                batch_ids_r.reset_index(drop=True, inplace=True)
-                renumber_df["batch_id"] = batch_ids_r
+                if len(batch_ids) > 0:
+                    print(batch_ids)
+                    print(sampling_result['renumber_map_offsets'])
+                    batch_ids_r = cudf.Series(batch_ids).repeat(
+                        cp.diff(sampling_result['renumber_map_offsets'])
+                    )
+                    batch_ids_r.reset_index(drop=True, inplace=True)
+                    renumber_df["batch_id"] = batch_ids_r
+                else:
+                    renumber_df['batch_id'] = None
 
         if return_offsets:
             batches_series = cudf.Series(
                 batch_ids,
                 name="batch_id",
             )
-            offsets_df = cudf.Series(
-                label_hop_offsets,
-                name="offsets",
-            ).to_frame()
+            if include_hop_column:
+                # TODO remove this logic in release 23.12
+                offsets_df = cudf.Series(
+                    label_hop_offsets[cp.arange(len(batch_ids)+1) * len(fanout_vals)],
+                    name='offsets',
+                ).to_frame()
+            else:
+                offsets_df = cudf.Series(
+                    label_hop_offsets,
+                    name="offsets",
+                ).to_frame()
 
             if len(batches_series) > len(offsets_df):
                 # this is extremely rare so the inefficiency is ok
@@ -376,23 +389,34 @@ def uniform_neighbor_sample(
                     renumber_df = renumber_df.join(renumber_offset_series, how='outer').sort_index()
                 else:
                     renumber_df['renumber_map_offsets'] = renumber_offset_series
-            
-            if include_hop_column:
-                print(batch_ids)
-                print(label_hop_offsets)
-                raise ValueError("asdf")
 
         else:
             if len(batch_ids) > 0:
-                if renumber: # FIXME change this once Seunghwa updates the sampling API
-                    batch_ids = cudf.Series(cp.repeat(batch_ids, len(fanout_vals)))
-                
-                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(label_hop_offsets))
-                batch_ids.reset_index(drop=True, inplace=True)
-                print('output batch ids:', batch_ids)
+                batch_ids_r = cudf.Series(cp.repeat(batch_ids, len(fanout_vals)))
+                batch_ids_r = cudf.Series(batch_ids_r).repeat(cp.diff(label_hop_offsets))                    
+                batch_ids_r.reset_index(drop=True, inplace=True)
 
-            results_df["batch_id"] = batch_ids
+                results_df["batch_id"] = batch_ids_r
+            else:
+                results_df['batch_id'] = None
         
+        # TODO remove this logic in release 23.12, hops will always returned as offsets
+        if include_hop_column:
+            if len(batch_ids) > 0:
+                hop_ids_r = cudf.Series(cp.arange(len(fanout_vals)))
+                hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids),ignore_index=True)
+                print(len(hop_ids_r))
+                print(len(label_hop_offsets))
+
+                # generate the hop column
+                hop_ids_r = cudf.Series(hop_ids_r, name='hop_id').repeat(
+                    cp.diff(label_hop_offsets)
+                ).reset_index(drop=True)
+            else:
+                hop_ids_r = cudf.Series(name='hop_id', dtype='int32')
+
+            results_df = results_df.join(hop_ids_r, how='outer').sort_index()
+
         if major_col_name not in results_df:
             if use_legacy_names:
                 raise ValueError("Can't use legacy names with major offsets")
