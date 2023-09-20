@@ -28,11 +28,10 @@ from pylibcugraph import ResourceHandle
 from cugraph.structure import Graph
 from cugraph.utilities.utils import import_optional
 
-# FIXME: the networkx.Graph type used in the type annotation for
-# induced_subgraph() is specified using a string literal to avoid depending on
-# and importing networkx. Instead, networkx is imported optionally, which may
-# cause a problem for a type checker if run in an environment where networkx is
-# not installed.
+# FIXME: the networkx.Graph type used in type annotations is specified
+# using a string literal to avoid depending on and importing networkx.
+# Instead, networkx is imported optionally, which may cause a problem
+# for a type checker if run in an environment where networkx is not installed.
 networkx = import_optional("networkx")
 
 
@@ -124,9 +123,12 @@ def jaccard(
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
-        Originally, when set to Ture, jaccard implementation checked if
-        the vertices in the graph are (re)numbered from 0 to V-1 where
-        V is the total number of vertices.
+
+        This option added a check to ensure integer vertex IDs are sequential
+        values from 0 to V-1. That check is now redundant because cugraph
+        unconditionally renumbers and un-renumbers integer vertex IDs for
+        optimal performance, therefore this option is deprecated and will be
+        removed in a future version.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted jaccard (if use_weight==True)
@@ -244,9 +246,11 @@ def jaccard_coefficient(
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
-        Originally, when set to Ture, jaccard implementation checked if
-        the vertices in the graph are (re)numbered from 0 to V-1 where
-        V is the total number of vertices.
+                This option added a check to ensure integer vertex IDs are sequential
+        values from 0 to V-1. That check is now redundant because cugraph
+        unconditionally renumbers and un-renumbers integer vertex IDs for
+        optimal performance, therefore this option is deprecated and will be
+        removed in a future version.
 
     Returns
     -------
@@ -273,6 +277,13 @@ def jaccard_coefficient(
     >>> df = jaccard_coefficient(G)
 
     """
+    if do_expensive_check:
+        warnings.warn(
+            "do_expensive_check is deprecated since vertex IDs are no longer "
+            "required to be consecutively numbered",
+            FutureWarning,
+        )
+
     vertex_pair = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
