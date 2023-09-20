@@ -961,7 +961,6 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_renumber(dask_client, hops):
     # FIXME This test is not very good because there is a lot of
     # non-deterministic behavior that still exists despite passing
@@ -1004,6 +1003,81 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
             [sources_hop_0, sampling_results_renumbered.destinations]
         ).nunique()
     )
+
+@pytest.mark.sg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+@pytest.mark.tags("runme")
+def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
+    el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results_unrenumbered, offsets_unrenumbered = cugraph.dask.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=False,
+        return_offsets=True,
+        random_state=62,
+    )
+    sampling_results_unrenumbered = sampling_results_unrenumbered.compute()
+    offsets_unrenumbered = offsets_unrenumbered.compute()
+
+    sampling_results_renumbered, offsets_renumbered, renumber_map = cugraph.dask.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=True,
+        keep_batches_together=True,
+        min_batch_id=0,
+        max_batch_id=0,
+        return_offsets=True,
+        random_state=62,
+    )
+
+    # can't use compute() since empty batches still get a partition
+    n_workers = len(dask_client.scheduler_info()["workers"])
+    for p in range(n_workers):
+        partition = sampling_results_renumbered.get_partition(p).compute()
+        if len(partition) > 0:
+            break
+    
+    sampling_results_renumbered = sampling_results_renumbered.get_partition(p).compute()
+    offsets_renumbered = offsets_renumbered.get_partition(p).compute()
+    renumber_map = renumber_map.get_partition(p).compute()
+
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
+    for hop in range(len(hops)):
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
+    
+    renumber_map_offsets = renumber_map.renumber_map_offsets.dropna()
+    assert len(renumber_map_offsets) == 2
+    assert renumber_map_offsets.iloc[0] == 0
+    assert renumber_map_offsets.iloc[-1] == len(renumber_map)
+
+    assert len(offsets_renumbered) == 2
+
+    # TODO add tests for (D)CSR/(D)CSC
 
 
 # =============================================================================
