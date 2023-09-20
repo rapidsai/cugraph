@@ -1004,7 +1004,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
         ).nunique()
     )
 
-@pytest.mark.sg
+@pytest.mark.mg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 @pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):

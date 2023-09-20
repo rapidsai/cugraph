@@ -851,57 +851,91 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-def test_uniform_neighbor_sample_csr_csc_global(hops):
+@pytest.mark.parametrize("seed", [62, 66, 68])
+def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+    seeds = G.select_random_vertices(seed, int(0.0001 * len(el)))
 
     sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
         G,
         seeds,
-        [5,5],
+        hops,
         with_replacement=False,
         with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
-        prior_sources_behavior='exclude',
+        prior_sources_behavior='exclude', # carryover not valid because C++ sorts on (hop,src)
         renumber=True,
         return_offsets=True,
-        random_state=62,
+        random_state=seed,
         use_legacy_names=False,
-        compress_per_hop=True,
-        compression='CSC',
+        compress_per_hop=False,
+        compression='CSR',
         include_hop_column=False,
     )
 
-    assert 'hop_id' not in sampling_results
-    assert 'majors' not in sampling_results
-
-    majors = cupy.arange(len(sampling_results['major_offsets']) - 1)
-    majors = cupy.repeat(majors, cupy.diff(sampling_results['major_offsets'].values))
-
-    sources_hop_0 = sampling_results_unrenumbered[
-        sampling_results_unrenumbered.hop_id == 0
-    ].sources
-    for hop in range(len(hops)):
-        destinations_hop = sampling_results_unrenumbered[
-            sampling_results_unrenumbered.hop_id <= hop
-        ].destinations
-        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
-
-        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
-            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
-        )
+    major_offsets = sampling_results['major_offsets'].dropna().values
+    majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
+    majors = majors.repeat(cupy.diff(major_offsets))
     
-    renumber_map_offsets = renumber_map.renumber_map_offsets.dropna()
-    assert len(renumber_map_offsets) == 2
-    assert renumber_map_offsets.iloc[0] == 0
-    assert renumber_map_offsets.iloc[-1] == len(renumber_map)
+    minors = sampling_results['minors'].dropna()
+    assert len(majors) == len(minors)
 
-    assert len(offsets_renumbered) == 2
+    majors = renumber_map.map.iloc[majors]
+    minors = renumber_map.map.iloc[minors]
+
+    for i in range(len(majors)):
+        assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
+
+@pytest.mark.sg
+@pytest.mark.parametrize("seed", [62, 66, 68])
+@pytest.mark.parametrize("hops", [[5], [5,5], [5,5,5]])
+@pytest.mark.tags("runme")
+def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
+    el = email_Eu_core.get_edgelist(download=True)
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = [49,71] # hardcoded to ensure out-degree is high enough
+
+    sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        prior_sources_behavior='carryover',
+        renumber=True,
+        return_offsets=True,
+        random_state=seed,
+        use_legacy_names=False,
+        compress_per_hop=True,
+        compression='CSR',
+        include_hop_column=False,
+    )
+
+    for hop in range(len(hops)):
+        major_offsets = sampling_results['major_offsets'].iloc[
+            offsets.offsets.iloc[hop] : (offsets.offsets.iloc[hop+1] + 1)
+        ]
+
+        minors = sampling_results['minors'].iloc[major_offsets.iloc[0]:major_offsets.iloc[-1]]
+
+        majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
+        majors = majors.repeat(cupy.diff(major_offsets))
+
+        majors = renumber_map.map.iloc[majors]
+        minors = renumber_map.map.iloc[minors]
+
+        for i in range(len(majors)):
+            assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
 
 
 @pytest.mark.sg

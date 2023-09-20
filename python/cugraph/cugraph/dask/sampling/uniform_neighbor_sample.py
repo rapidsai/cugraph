@@ -517,7 +517,27 @@ def uniform_neighbor_sample(
             "The with_edge_properties flag is deprecated"
             " and will be removed in the next release."
         )
-        warnings.warn(warning_msg, DeprecationWarning)
+        warnings.warn(warning_msg, FutureWarning)
+
+    if (not compress_per_hop) and prior_sources_behavior != 'exclude':
+        raise ValueError(
+            'hop-agnostic compression is only supported with'
+            ' the exclude prior sources behavior due to limitations '
+            'of the libcugraph C++ API'
+        )
+    
+    if compress_per_hop and prior_sources_behavior != 'carryover':
+        raise ValueError(
+            'Compressing the edgelist per hop is only supported '
+            'with the carryover prior sources behavior due to limitations'
+            ' of the libcugraph C++ API'
+        )
+    
+    if include_hop_column and compression != 'COO':
+        raise ValueError(
+            'Including the hop id column is only supported '
+            'with COO compression.'
+        )
 
     if isinstance(start_list, int):
         start_list = [start_list]
