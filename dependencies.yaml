@@ -318,7 +318,7 @@ dependencies:
           - sphinx<6
           - sphinxcontrib-websupport
           - pylibcugraphops==23.10.*
-          - thriftpy2 >=0.4.15
+          - &thrift thriftpy2>=0.4.15
   py_version:
     specific:
       - output_types: [conda]
@@ -423,7 +423,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &thrift thriftpy2
+          - *thrift
   python_run_cugraph_service_server:
     common:
       - output_types: [conda, pyproject]

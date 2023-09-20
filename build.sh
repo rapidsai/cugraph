@@ -51,7 +51,7 @@ HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
    uninstall                  - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   all                        - build everything including docs
+   all                        - build every target
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
@@ -74,7 +74,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'pylibcugraph' then 'cugraph' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -122,12 +122,8 @@ function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-function buildAll {
-    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]\+ ")
-}
-
-function All {
-    hasArg all
+function noTargets {
+    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]* ")
 }
 
 function cleanPythonDir {
@@ -177,7 +173,7 @@ fi
 if hasArg --without_cugraphops; then
     BUILD_WITH_CUGRAPHOPS=OFF
 fi
-if hasArg cpp-mgtests; then
+if hasArg cpp-mgtests || hasArg all; then
     BUILD_CPP_MG_TESTS=ON
 fi
 if hasArg --cmake_default_generator; then
@@ -257,7 +253,7 @@ fi
 
 ################################################################################
 # Configure, build, and install libcugraph
-if buildAll || All || hasArg libcugraph; then
+if hasArg libcugraph || hasArg all || noTargets; then
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_BUILD_DIR} -mindepth 1 -delete
@@ -287,7 +283,7 @@ if buildAll || All || hasArg libcugraph; then
 fi
 
 # Configure, build, and install libcugraph_etl
-if buildAll || All || hasArg libcugraph_etl; then
+if hasArg libcugraph_etl || hasArg all; then
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_ETL_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_ETL_BUILD_DIR} -mindepth 1 -delete
@@ -318,7 +314,7 @@ if buildAll || All || hasArg libcugraph_etl; then
 fi
 
 # Build, and install pylibcugraph
-if buildAll || All || hasArg pylibcugraph; then
+if hasArg pylibcugraph || hasArg all || noTargets; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
@@ -345,7 +341,7 @@ if buildAll || All || hasArg pylibcugraph; then
 fi
 
 # Build and install the cugraph Python package
-if buildAll || All || hasArg cugraph; then
+if hasArg cugraph || hasArg all || noTargets; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
@@ -372,7 +368,7 @@ if buildAll || All || hasArg cugraph; then
 fi
 
 # Install the cugraph-service-client and cugraph-service-server Python packages
-if All || hasArg cugraph-service; then
+if hasArg all || hasArg cugraph-service; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
@@ -382,7 +378,7 @@ if All || hasArg cugraph-service; then
 fi
 
 # Build and install the cugraph-nx Python package
-if All || hasArg nx-cugraph; then
+if hasArg all || hasArg nx-cugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
@@ -391,7 +387,7 @@ if All || hasArg nx-cugraph; then
 fi
 
 # Build and install the cugraph-pyg Python package
-if All || hasArg cugraph-pyg; then
+if hasArg all || hasArg cugraph-pyg; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
@@ -400,7 +396,7 @@ if All || hasArg cugraph-pyg; then
 fi
 
 # Install the cugraph-dgl extensions for DGL
-if All || hasArg cugraph-dgl; then
+if hasArg all || hasArg cugraph-dgl; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
@@ -411,7 +407,7 @@ fi
 
 # Build the docs
 # - build the CPP docs first using doxygen, then create the Python docs
-if All || hasArg docs; then
+if hasArg all || hasArg docs; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
