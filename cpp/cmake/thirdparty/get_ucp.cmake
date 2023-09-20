@@ -1,4 +1,6 @@
+#=============================================================================
 # Copyright (c) 2023, NVIDIA CORPORATION.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,19 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#=============================================================================
 
-from .base import SparseGraph
-from .gatconv import GATConv
-from .gatv2conv import GATv2Conv
-from .relgraphconv import RelGraphConv
-from .sageconv import SAGEConv
-from .transformerconv import TransformerConv
+function(find_and_configure_ucp)
 
-__all__ = [
-    "SparseGraph",
-    "GATConv",
-    "GATv2Conv",
-    "RelGraphConv",
-    "SAGEConv",
-    "TransformerConv",
-]
+    if(TARGET UCP::UCP)
+        return()
+    endif()
+
+    rapids_find_generate_module(UCP
+        HEADER_NAMES ucp.h
+        LIBRARY_NAMES ucp
+        INCLUDE_SUFFIXES ucp/api
+    )
+
+    # Currently UCP has no CMake build-system so we require
+    # it built and installed on the machine already
+    rapids_find_package(UCP REQUIRED)
+
+endfunction()
+
+find_and_configure_ucp()

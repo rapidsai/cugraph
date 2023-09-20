@@ -214,7 +214,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         auto h_sg_predecessors = cugraph::test::to_host(*handle_, d_sg_predecessors);
 
         auto max_weight_element = std::max_element(h_sg_weights.begin(), h_sg_weights.end());
-        auto epsilon            = *max_weight_element* weight_t{1e-6};
+        auto epsilon            = *max_weight_element * weight_t{1e-6};
         auto nearly_equal       = [epsilon](auto lhs, auto rhs) {
           return std::fabs(lhs - rhs) < epsilon;
         };
