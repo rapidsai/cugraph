@@ -199,8 +199,6 @@ class Dataset:
                 raise RuntimeError("create_using must be a module.")
             elif create_using.__name__ == "cudf" or "pandas":
                 reader = create_using
-            elif create_using.__name__ == "dask_cudf":
-                raise NotImplementedError()
             else:
                 raise NotImplementedError()
             self._edgelist = reader.read_csv(
@@ -338,19 +336,13 @@ def download_all(force=False):
     default_download_dir.path.mkdir(parents=True, exist_ok=True)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
-    # benchmarks_file_path = default_download_dir / "benchmarks.tar.gz"
-    # benchmarks_url = "https://data.rapids.ai/cugraph/datasets/benchmarks.tar.gz"
-    # urllib.request.urlretrieve(benchmarks_url, benchmarks_file_path)
-    # tar = tarfile.open(str(benchmarks_file_path), "r:gz")
-    # tar.extractall(str(default_download_dir))
-    # tar.close()
     for file in meta_path.iterdir():
         meta = None
         if file.suffix == ".yaml":
             with open(meta_path / file, "r") as metafile:
                 meta = yaml.safe_load(metafile)
 
-            if "url" in meta and "benchmark" not in meta["url"]:
+            if "url" in meta:
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:
