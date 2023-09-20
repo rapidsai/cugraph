@@ -340,14 +340,36 @@ dependencies:
           - wheel
   python_build_cythonize:
     common:
-      - output_types: [conda, pyproject]
-        packages:
-          - &pylibraft pylibraft==23.10.*
-          - &rmm rmm==23.10.*
       - output_types: [conda, pyproject, requirements]
         packages:
           - cython>=3.0.0
           - scikit-build>=0.13.1
+      - output_types: conda
+        packages:
+          - &pylibraft_conda pylibraft==23.10.*
+          - &rmm_conda rmm==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          # This index is needed for cudf and rmm.
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &python_build_cythonize_cu12
+              - &pylibraft_cu12 pylibraft-cu12==23.10.*
+              - &rmm_cu12 rmm-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *python_build_cythonize_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *python_build_cythonize_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &python_build_cythonize_cu11
+              - &pylibraft_cu11 pylibraft-cu11==23.10.*
+              - &rmm_cu11 rmm-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *python_build_cythonize_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *python_build_cythonize_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *python_build_cythonize_cu11}
+          - {matrix: null, packages: [*pylibraft_conda, *rmm_conda] }
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -364,7 +386,7 @@ dependencies:
           - &dask_cudf dask-cudf==23.10.*
           - &numba numba>=0.57
           - raft-dask==23.10.*
-          - *rmm
+          - *rmm_conda
           - &ucx_py ucx-py==0.34.*
       - output_types: conda
         packages:
@@ -387,8 +409,8 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - *pylibraft
-          - *rmm
+          - *pylibraft_conda
+          - *rmm_conda
   python_run_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -435,7 +457,7 @@ dependencies:
           - *distributed
           - *numba
           - *numpy
-          - *rmm
+          - *rmm_conda
           - *thrift
           - *ucx_py
       - output_types: conda
