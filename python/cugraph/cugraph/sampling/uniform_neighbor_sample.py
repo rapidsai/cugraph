@@ -236,7 +236,7 @@ def uniform_neighbor_sample(
         major_col_name = "majors"
         minor_col_name = "minors"
 
-    if (not compress_per_hop) and prior_sources_behavior != 'exclude':
+    if (compression != 'COO') and (not compress_per_hop) and prior_sources_behavior != 'exclude':
         raise ValueError(
             'hop-agnostic compression is only supported with'
             ' the exclude prior sources behavior due to limitations '

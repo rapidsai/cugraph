@@ -894,14 +894,13 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
 @pytest.mark.sg
 @pytest.mark.parametrize("seed", [62, 66, 68])
 @pytest.mark.parametrize("hops", [[5], [5,5], [5,5,5]])
-@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
     el = email_Eu_core.get_edgelist(download=True)
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = [49,71] # hardcoded to ensure out-degree is high enough
+    seeds = cudf.Series([49,71], dtype='int32') # hardcoded to ensure out-degree is high enough
 
     sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
         G,

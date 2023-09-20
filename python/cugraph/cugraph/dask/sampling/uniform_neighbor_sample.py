@@ -291,8 +291,6 @@ def _mg_call_plc_uniform_neighbor_sample(
     if not isinstance(empty_df, (list, tuple)):
         empty_df = [empty_df]
 
-    print('expected meta:', empty_df)
-
     wait(result)
 
     nout = 1
@@ -519,7 +517,7 @@ def uniform_neighbor_sample(
         )
         warnings.warn(warning_msg, FutureWarning)
 
-    if (not compress_per_hop) and prior_sources_behavior != 'exclude':
+    if (compression != 'COO') and (not compress_per_hop) and prior_sources_behavior != 'exclude':
         raise ValueError(
             'hop-agnostic compression is only supported with'
             ' the exclude prior sources behavior due to limitations '
