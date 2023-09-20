@@ -1619,10 +1619,13 @@ renumber_and_sort_sampled_edgelist(
                  (*edgelist_label_hop_offsets).begin(),
                  (*edgelist_label_hop_offsets).end(),
                  size_t{0});
-    thrust::for_each(
+    // FIXME: the device lambda should be placed in cuda::proclaim_return_type<size_t>()
+    // once we update CCCL version to 2.x
+    thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_labels * num_hops),
+      (*edgelist_label_hop_offsets).begin(),
       [edgelist_label_offsets = edgelist_label_offsets
                                   ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
                                   : thrust::nullopt,
@@ -1743,10 +1746,13 @@ sort_sampled_edgelist(
                  (*edgelist_label_hop_offsets).begin(),
                  (*edgelist_label_hop_offsets).end(),
                  size_t{0});
-    thrust::for_each(
+    // FIXME: the device lambda should be placed in cuda::proclaim_return_type<size_t>()
+    // once we update CCCL version to 2.x
+    thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_labels * num_hops),
+      (*edgelist_label_hop_offsets).begin(),
       [edgelist_label_offsets = edgelist_label_offsets
                                   ? thrust::make_optional(std::get<0>(*edgelist_label_offsets))
                                   : thrust::nullopt,
