@@ -166,6 +166,7 @@ endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
+include(cmake/thirdparty/get_ucp.cmake)
 
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
@@ -228,6 +229,7 @@ set(CUGRAPH_SOURCES
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
     src/sampling/renumber_sampled_edgelist_sg.cu
+    src/sampling/sampling_post_processing_sg.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
@@ -291,6 +293,7 @@ set(CUGRAPH_SOURCES
     src/community/triangle_count_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
+    src/mtmg/vertex_result.cu
 )
 
 if(USE_CUGRAPH_OPS)

@@ -222,7 +222,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       }
 
       auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
-      auto epsilon            = *max_weight_element* weight_t{1e-6};
+      auto epsilon            = *max_weight_element * weight_t{1e-6};
       auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
       ASSERT_TRUE(std::equal(h_reference_distances.begin(),
