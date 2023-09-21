@@ -360,6 +360,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
   optional_property_buffer_view_t nbr_intersection_properties0{};
   optional_property_buffer_view_t nbr_intersection_properties1{};
   vertex_t invalid_id{};
+
   __device__ edge_t operator()(size_t i)
   {
     using edge_property_value_t = typename edge_partition_e_input_device_view_t::value_type;
@@ -399,7 +400,6 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         properties0 = raft::device_span<edge_property_value_t const>(
           edge_partition_e_value_input.value_first() + local_edge_offset0, local_degree0);
       }
-
     } else {
       auto idx           = first_element_to_idx_map.find(thrust::get<0>(pair));
       local_edge_offset0 = first_element_offsets[idx];
@@ -732,9 +732,9 @@ nbr_intersection(raft::handle_t const& handle,
                     "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
-  // 2. Collect neighbor lists for unique second pair elements (for the neighbors within the minor
-  // range for this GPU); Note that no need to collect for first pair elements as they already
-  // locally reside.
+  // 2. Collect neighbor lists (within the minor range for this GPU in multi-GPU) for unique second
+  // pair elements (all-gathered over minor_comm in multi-GPU); Note that no need to collect for
+  // first pair elements as they already locally reside.
 
   std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> major_to_idx_map_ptr{
     std::nullopt};
@@ -808,7 +808,7 @@ nbr_intersection(raft::handle_t const& handle,
         }
       }
 
-      // 2.2 Send majors and group (major_comm_rank, edge_partition_idx) counts
+      // 2.2 Send majors and group (major_comm_rank, local edge_partition_idx) counts
 
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       std::vector<size_t> rx_major_counts{};
@@ -1770,9 +1770,7 @@ nbr_intersection(raft::handle_t const& handle,
       nbr_intersection_properties0 = std::move(tmp_properties0);
       nbr_intersection_properties1 = std::move(tmp_properties1);
     }
-
 #else
-
     if constexpr (std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
       nbr_intersection_indices.resize(
         thrust::distance(nbr_intersection_indices.begin(),
