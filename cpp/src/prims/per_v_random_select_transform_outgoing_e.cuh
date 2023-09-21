@@ -108,7 +108,7 @@ struct convert_pair_to_quadruplet_t {
             thrust::seq, displacement_first, displacement_first + minor_comm_size, nbr_idx))) -
         1;
       local_nbr_idx -= *(displacement_first + minor_comm_rank);
-      cuda::std::atomic_ref<size_t> counter(tx_counts[minor_comm_rank]);
+      cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(tx_counts[minor_comm_rank]);
       intra_partition_offset = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
     }
     return thrust::make_tuple(minor_comm_rank, intra_partition_offset, local_nbr_idx, key_idx);
@@ -252,7 +252,7 @@ struct count_t {
 
   __device__ size_t operator()(size_t key_idx) const
   {
-    cuda::std::atomic_ref<int32_t> counter(sample_counts[key_idx]);
+    cuda::atomic_ref<int32_t, cuda::thread_scope_device> counter(sample_counts[key_idx]);
     return counter.fetch_add(int32_t{1}, cuda::std::memory_order_relaxed);
   }
 };
@@ -287,7 +287,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
 #ifndef NO_CUGRAPH_OPS
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
-  size_t high_partition_over_sampling_K = K * 2;                         // tuning parameter
+  size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
   assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
@@ -883,7 +883,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};        // relevant only when (minor_comm_size > 1)
+    std::nullopt};  // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (minor_comm_size > 1) {
