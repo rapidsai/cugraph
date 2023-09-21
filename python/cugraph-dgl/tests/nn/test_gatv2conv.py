@@ -35,6 +35,7 @@ def test_gatv2conv_equality(
 ):
     from dgl.nn.pytorch import GATv2Conv
 
+    torch.manual_seed(12345)
     g = create_graph1().to("cuda")
 
     if idtype_int:
@@ -109,6 +110,7 @@ def test_gatv2conv_equality(
 def test_gatv2conv_edge_feats(
     bias, bipartite, concat, max_in_degree, num_heads, to_block, use_edge_feats
 ):
+    torch.manual_seed(12345)
     g = create_graph1().to("cuda")
 
     if to_block:
