@@ -60,6 +60,7 @@ def _write_samples_to_parquet_coo(
     if partition_info != "sg" and (not isinstance(partition_info, dict)):
         raise ValueError("Invalid value of partition_info")
 
+    print('offsets:', offsets)
     offsets = offsets[:-1]
 
     # Offsets is always in order, so the last batch id is always the highest
@@ -71,6 +72,9 @@ def _write_samples_to_parquet_coo(
         offsets_p = offsets.iloc[p : p + batches_per_partition]
         start_batch_id = offsets_p.batch_id.iloc[0]
         end_batch_id = offsets_p.batch_id.iloc[len(offsets_p) - 1]
+
+        print('partition:', start_batch_id, end_batch_id)
+        print('max batch id:', max_batch_id)
 
         reached_end = end_batch_id == max_batch_id
 

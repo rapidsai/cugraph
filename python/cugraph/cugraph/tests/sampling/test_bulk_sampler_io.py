@@ -34,7 +34,9 @@ def test_bulk_sampler_io(scratch_dir):
         }
     )
 
-    offsets = cudf.DataFrame({"offsets": [0, 8], "batch_id": [0, 1]})
+    assert len(results) == 12
+
+    offsets = cudf.DataFrame({"offsets": [0, 8, 12], "batch_id": [0, 1, None]})
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io")
     create_directory_with_overwrite(samples_path)
@@ -138,8 +140,10 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
         }
     )
 
+    assert len(results) == 20
+
     # some batches are missing
-    offsets = cudf.DataFrame({"offsets": [0, 8, 12, 16], "batch_id": [0, 3, 4, 10]})
+    offsets = cudf.DataFrame({"offsets": [0, 8, 12, 16, 20], "batch_id": [0, 3, 4, 10, None]})
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_empty_batch")
     create_directory_with_overwrite(samples_path)
