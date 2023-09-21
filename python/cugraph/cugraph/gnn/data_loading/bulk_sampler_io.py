@@ -15,7 +15,139 @@ import os
 import cudf
 import cupy
 
+from math import ceil
+
+from pandas import isna
+
 from typing import Union, Optional
+
+
+def _write_samples_to_parquet_csr(
+    results: cudf.DataFrame,
+    offsets: cudf.DataFrame,
+    renumber_map: cudf.DataFrame,
+    batches_per_partition: int,
+    output_path: str,
+    partition_info: Optional[Union[dict, str]] = None,
+) -> cudf.Series:
+    """
+    Writes CSR/CSC compressed samples to parquet.
+
+    Batches that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id.  This means that the output batch ids may not match
+    the input batch ids.
+
+    results: cudf.DataFrame
+        The results dataframe containing the sampled minibatches.
+    offsets: cudf.DataFrame
+        The offsets dataframe indicating the start/end of each minibatch
+        in the reuslts dataframe.
+    renumber_map: cudf.DataFrame
+        The renumber map containing the mapping of renumbered vertex ids
+        to original vertex ids.
+    batches_per_partition: int
+        The maximum number of minibatches allowed per written parquet partition.
+    output_path: str
+        The output path (where parquet files should be written to).
+    partition_info: Union[dict, str]
+        Either a dictionary containing partition data from dask, the string 'sg'
+        indicating that this is a single GPU write, or None indicating that this
+        function should perform a no-op (required by dask).
+
+    Returns an empty cudf series.
+    """
+    # Required by dask; need to skip dummy partitions.
+    if partition_info is None or len(results) == 0:
+        return cudf.Series(dtype="int64")
+    if partition_info != "sg" and (not isinstance(partition_info, dict)):
+        raise ValueError("Invalid value of partition_info")
+
+    # Additional check to skip dummy partitions required for CSR format.
+    if isna(offsets.batch_id.iloc[0]):
+        return cudf.Series(dtype='int64')
+
+    # Output:
+    # major_offsets - CSR/CSC row/col pointers
+    # minors - CSR/CSC col/row indices
+    # edge id - edge ids (same shape as minors)
+    # edge type - edge types (same shape as minors)
+    # weight - edge weight (same shape as minors)
+    # renumber map - the original vertex ids
+    # renumber map offsets - start/end of the map for each batch
+    #                        (only 1 per batch b/c of framework
+    #                         stipulations making this legal)
+    # label-hop offsets - indicate the start/end of each hop
+    #                     for each batch
+    
+
+    batch_ids = offsets.batch_id
+    label_hop_offsets = offsets.offsets
+    renumber_map_offsets = offsets.renumber_map_offsets
+    del offsets
+
+    batch_ids.dropna(inplace=True)
+    label_hop_offsets.dropna(inplace=True)
+    renumber_map_offsets.dropna(inplace=True)
+
+    # Offsets is always in order, so the last batch id is always the highest    
+    #max_batch_id = batch_ids.iloc[-1]
+    
+    offsets_length = len(label_hop_offsets) - 1
+    if offsets_length % len(batch_ids) != 0:
+        raise ValueError('Invalid hop offsets')
+    fanout_length = int(offsets_length / len(batch_ids))
+    
+    results.dropna(axis=1, how="all", inplace=True)
+    results["hop_id"] = results["hop_id"].astype("uint8")
+    
+    for p in range(0, int(ceil(len(batch_ids) / batches_per_partition))):
+        partition_start = p * (batches_per_partition)
+        partition_end = (p + 1) * (batches_per_partition)
+
+        label_hop_offsets_current_partition = label_hop_offsets.iloc[partition_start * fanout_length : partition_end * fanout_length + 1].reset_index(drop=True)
+        batch_ids_current_partition = batch_ids.iloc[partition_start : partition_end]
+        
+        results_start = label_hop_offsets_current_partition.iloc[0]
+        results_end = label_hop_offsets_current_partition.iloc[-1] # legal since offsets has the 1 extra offset
+        # FIXME do above more efficiently
+            
+        results_current_partition = results.iloc[results_start : results_end].reset_index(drop=True)
+        
+        # no need to use end batch id, just ensure the batch is labeled correctly
+        start_batch_id = batch_ids_current_partition.iloc[0]
+        #end_batch_id = batch_ids_current_partition.iloc[-1]
+
+        # join the renumber map offsets
+        renumber_map_offsets_current_partition = renumber_map_offsets.iloc[partition_start : partition_end + 1].reset_index(drop=True)
+        renumber_map_start = renumber_map_offsets_current_partition[0]
+        renumber_map_end = renumber_map_offsets_current_partition[-1]
+        # FIXME do above more efficiently
+
+        if len(renumber_map_offsets_current_partition) > len(results_current_partition):
+            renumber_map_offsets_current_partition.name = "renumber_map_offsets"
+            results_current_partition = results_current_partition.join(renumber_map_offsets, how="outer").sort_index()
+        else:
+            results_current_partition['renumber_map_offsets'] = renumber_map_offsets_current_partition
+
+        # join the renumber map
+        renumber_map_current_partition = renumber_map.map.iloc[renumber_map_start : renumber_map_end]
+        if len(renumber_map_current_partition) > len(results_current_partition):
+            renumber_map_current_partition.name = "map"
+            results_current_partition = results_current_partition.join(renumber_map_current_partition, how='outer').sort_index()
+        else:
+            results_current_partition['map'] = renumber_map_current_partition
+
+        filename = f'batch={start_batch_id}-{start_batch_id + len(batch_ids_current_partition) - 1}.parquet'
+        full_output_path = os.path.join(
+            output_path, filename
+        )
+
+        results_current_partition.to_parquet(
+            full_output_path, compression=None, index=False, force_nullable_schema=True
+        )
+
+    return cudf.Series(dtype="int64")
 
 
 def _write_samples_to_parquet_coo(
@@ -27,7 +159,7 @@ def _write_samples_to_parquet_coo(
     partition_info: Optional[Union[dict, str]] = None,
 ) -> cudf.Series:
     """
-    Writes the samples to parquet.
+    Writes COO compressed samples to parquet.
 
     Batches that are empty are discarded, and the remaining non-empty
     batches are renumbered to be contiguous starting from the first
