@@ -185,7 +185,6 @@ def write_samples(
         The output path (where parquet files should be written to).
     """
     
-    print(results)
     if ('majors' in results) and ('minors' in results):
         write_fn = _write_samples_to_parquet_coo
     

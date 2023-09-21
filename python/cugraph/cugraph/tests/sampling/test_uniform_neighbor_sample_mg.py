@@ -1069,7 +1069,7 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
             renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
         )
     
-    renumber_map_offsets = renumber_map.renumber_map_offsets.dropna()
+    renumber_map_offsets = offsets_renumbered.renumber_map_offsets.dropna()
     assert len(renumber_map_offsets) == 2
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
