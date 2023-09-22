@@ -21,8 +21,6 @@ import dask_cudf
 import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
-import random
-
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
@@ -63,9 +61,7 @@ def test_dask_mg_bfs(dask_client, directed):
         return cudf.concat([df, temp_df])
 
     meta = ddf._meta
-    ddf = ddf.map_partitions(
-        modify_dataset, meta=meta, token="custom-" + str(random.random())
-    )
+    ddf = ddf.map_partitions(modify_dataset, meta=meta)
 
     df = cudf.read_csv(
         input_data_path,
