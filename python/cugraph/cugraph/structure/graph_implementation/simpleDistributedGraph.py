@@ -14,7 +14,6 @@
 import gc
 from typing import Union
 import warnings
-import random
 
 import cudf
 import cupy as cp
@@ -183,9 +182,7 @@ class simpleDistributedGraphImpl:
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
         # FIXME: Make a copy of the input ddf before implicitly altering it.
-        input_ddf = input_ddf.map_partitions(
-            lambda df: df.copy(), token="custom-" + str(random.random())
-        )
+        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -337,7 +334,7 @@ class simpleDistributedGraphImpl:
             )
             for w, edata in ddf.items()
         }
-        del ddf
+        # FIXME: For now, don't delete the copied dataframe to avoid crash
         self._plc_graph = {
             w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
             for w, delayed_task in delayed_tasks_d.items()
