@@ -9,9 +9,9 @@ package_dir=$2
 mkdir -p ./dist
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-# echo to expand wildcard before adding `[extra]` requires for pip
+# use 'ls' to expand wildcard before adding `[extra]` requires for pip
 RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
-python -m pip install $(echo ./dist/${package_name}*.whl)[test]
+python -m pip install $(ls ./dist/${package_name}*.whl)[test]
 
 # Run smoke tests for aarch64 pull requests
 arch=$(uname -m)

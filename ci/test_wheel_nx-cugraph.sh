@@ -3,4 +3,7 @@
 
 set -eoxu pipefail
 
-./ci/test_wheel.sh nx-cugraph python/nx-cugraph
+# special case: package name needs to use underscores since the test script
+# expects it to match the file name exactly. pip should allow - or _ when
+# installing, so users should not need to worry about this.
+./ci/test_wheel.sh nx_cugraph python/nx-cugraph
