@@ -939,6 +939,16 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
 
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
+def test_uniform_neighbor_sample_dcsr_dcsc_global():
+    raise NotImplementedError
+
+@pytest.mark.sg
+@pytest.mark.skip(reason="needs to be written!")
+def test_uniform_neighbor_sample_dcsr_dcsc_local():
+    raise NotImplementedError
+
+@pytest.mark.sg
+@pytest.mark.skip(reason="needs to be written!")
 def test_multi_client_sampling():
     # See gist for example test to write
     # https://gist.github.com/VibhuJawa/1b705427f7a0c5a2a4f58e0a3e71ef21

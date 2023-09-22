@@ -1199,6 +1199,16 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
             assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
 
 
+@pytest.mark.mg
+@pytest.mark.skip(reason="needs to be written!")
+def test_uniform_neighbor_sample_dcsr_dcsc_global():
+    raise NotImplementedError
+
+@pytest.mark.mg
+@pytest.mark.skip(reason="needs to be written!")
+def test_uniform_neighbor_sample_dcsr_dcsc_local():
+    raise NotImplementedError
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
