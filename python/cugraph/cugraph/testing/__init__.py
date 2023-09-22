@@ -23,6 +23,7 @@ from cugraph.testing.resultset import (
 )
 from cugraph.datasets import (
     cyber,
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,
@@ -47,6 +48,7 @@ from cugraph.datasets import (
 UNDIRECTED_DATASETS = [karate, dolphins]
 SMALL_DATASETS = [karate, dolphins, polbooks]
 WEIGHTED_DATASETS = [
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,
@@ -56,6 +58,7 @@ WEIGHTED_DATASETS = [
     small_tree,
 ]
 ALL_DATASETS = [
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,

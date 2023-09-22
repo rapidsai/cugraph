@@ -27,6 +27,7 @@ from cugraph.datasets import metadata
 meta_path = Path(__file__).parent / "metadata"
 
 cyber = Dataset(meta_path / "cyber.yaml")
+dining_prefs = Dataset(meta_path / "dining_prefs.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
 email_Eu_core = Dataset(meta_path / "email_Eu_core.yaml")
 karate = Dataset(meta_path / "karate.yaml")
