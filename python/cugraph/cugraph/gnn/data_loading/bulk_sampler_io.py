@@ -23,13 +23,14 @@ from typing import Union, Optional, List
 
 
 def create_df_from_disjoint_series(series_list: List[cudf.Series]):
-    series_list.sort(key=lambda s : len(s), reverse=True)
+    series_list.sort(key=lambda s: len(s), reverse=True)
 
     df = cudf.DataFrame()
     for s in series_list:
         df[s.name] = s
 
     return df
+
 
 def _write_samples_to_parquet_csr(
     results: cudf.DataFrame,
@@ -74,7 +75,7 @@ def _write_samples_to_parquet_csr(
 
     # Additional check to skip dummy partitions required for CSR format.
     if isna(offsets.batch_id.iloc[0]):
-        return cudf.Series(dtype='int64')
+        return cudf.Series(dtype="int64")
 
     # Output:
     # major_offsets - CSR/CSC row/col pointers
@@ -99,76 +100,106 @@ def _write_samples_to_parquet_csr(
     renumber_map_offsets.dropna(inplace=True)
 
     major_offsets_array = results.major_offsets
-    results.drop(columns='major_offsets', inplace=True)
+    results.drop(columns="major_offsets", inplace=True)
     major_offsets_array.dropna(inplace=True)
     major_offsets_array = major_offsets_array.values
 
     minors_array = results.minors
-    results.drop(columns='minors', inplace=True)
+    results.drop(columns="minors", inplace=True)
     minors_array.dropna(inplace=True)
     minors_array = minors_array.values
 
     weight_array = results.weight
-    results.drop(columns='weight', inplace=True)
+    results.drop(columns="weight", inplace=True)
     weight_array.dropna(inplace=True)
-    weight_array = cupy.array([], dtype='float32') if weight_array.empty else weight_array.values
+    weight_array = (
+        cupy.array([], dtype="float32") if weight_array.empty else weight_array.values
+    )
 
     edge_id_array = results.edge_id
-    results.drop(columns='edge_id', inplace=True)
+    results.drop(columns="edge_id", inplace=True)
     edge_id_array.dropna(inplace=True)
-    edge_id_array = cupy.array([], dtype='int64') if edge_id_array.empty else edge_id_array.values
+    edge_id_array = (
+        cupy.array([], dtype="int64") if edge_id_array.empty else edge_id_array.values
+    )
 
     edge_type_array = results.edge_type
-    results.drop(columns='edge_type', inplace=True)
+    results.drop(columns="edge_type", inplace=True)
     edge_type_array.dropna(inplace=True)
-    edge_type_array = cupy.array([], dtype='int32') if edge_type_array.empty else edge_type_array.values
+    edge_type_array = (
+        cupy.array([], dtype="int32")
+        if edge_type_array.empty
+        else edge_type_array.values
+    )
 
     del results
-    
+
     offsets_length = len(label_hop_offsets) - 1
     if offsets_length % len(batch_ids) != 0:
-        raise ValueError('Invalid hop offsets')
+        raise ValueError("Invalid hop offsets")
     fanout_length = int(offsets_length / len(batch_ids))
-    
+
     for p in range(0, int(ceil(len(batch_ids) / batches_per_partition))):
         partition_start = p * (batches_per_partition)
         partition_end = (p + 1) * (batches_per_partition)
 
-        label_hop_offsets_current_partition = label_hop_offsets.iloc[partition_start * fanout_length : partition_end * fanout_length + 1].reset_index(drop=True)
+        label_hop_offsets_current_partition = label_hop_offsets.iloc[
+            partition_start * fanout_length : partition_end * fanout_length + 1
+        ].reset_index(drop=True)
         label_hop_offsets_current_partition.name = "label_hop_offsets"
 
-        batch_ids_current_partition = batch_ids.iloc[partition_start : partition_end]
+        batch_ids_current_partition = batch_ids.iloc[partition_start:partition_end]
 
-        major_offsets_start, major_offsets_end = label_hop_offsets_current_partition.iloc[[0, -1]].values # legal since offsets has the 1 extra offset
-        results_start, results_end = major_offsets_array[[major_offsets_start, major_offsets_end]] # avoid d2h copy
-        
+        (
+            major_offsets_start,
+            major_offsets_end,
+        ) = label_hop_offsets_current_partition.iloc[
+            [0, -1]
+        ].values  # legal since offsets has the 1 extra offset
+        results_start, results_end = major_offsets_array[
+            [major_offsets_start, major_offsets_end]
+        ]  # avoid d2h copy
+
         # no need to use end batch id, just ensure the batch is labeled correctly
         start_batch_id = batch_ids_current_partition.iloc[0]
-        #end_batch_id = batch_ids_current_partition.iloc[-1]
+        # end_batch_id = batch_ids_current_partition.iloc[-1]
 
         # create the renumber map offsets
-        renumber_map_offsets_current_partition = renumber_map_offsets.iloc[partition_start : partition_end + 1].reset_index(drop=True)
+        renumber_map_offsets_current_partition = renumber_map_offsets.iloc[
+            partition_start : partition_end + 1
+        ].reset_index(drop=True)
         renumber_map_offsets_current_partition.name = "renumber_map_offsets"
 
-        renumber_map_start, renumber_map_end = renumber_map_offsets_current_partition.iloc[[0, -1]].values # avoid d2h copy
+        (
+            renumber_map_start,
+            renumber_map_end,
+        ) = renumber_map_offsets_current_partition.iloc[
+            [0, -1]
+        ].values  # avoid d2h copy
 
         results_current_partition = create_df_from_disjoint_series(
             [
-                cudf.Series(minors_array[results_start : results_end], name='minors'),
-                cudf.Series(renumber_map.map.values[renumber_map_start : renumber_map_end], name='map'),
+                cudf.Series(minors_array[results_start:results_end], name="minors"),
+                cudf.Series(
+                    renumber_map.map.values[renumber_map_start:renumber_map_end],
+                    name="map",
+                ),
                 label_hop_offsets_current_partition,
-                cudf.Series(major_offsets_array[results_start : results_end],name='major_offsets'),
-                cudf.Series(weight_array[results_start : results_end], name='weight'),
-                cudf.Series(edge_id_array[results_start : results_end], name='edge_id'),
-                cudf.Series(edge_type_array[results_start : results_end], name='edge_type'),
+                cudf.Series(
+                    major_offsets_array[results_start:results_end], name="major_offsets"
+                ),
+                cudf.Series(weight_array[results_start:results_end], name="weight"),
+                cudf.Series(edge_id_array[results_start:results_end], name="edge_id"),
+                cudf.Series(
+                    edge_type_array[results_start:results_end], name="edge_type"
+                ),
                 renumber_map_offsets_current_partition,
             ]
         )
 
-        filename = f'batch={start_batch_id}-{start_batch_id + len(batch_ids_current_partition) - 1}.parquet'
-        full_output_path = os.path.join(
-            output_path, filename
-        )
+        end_batch_id = start_batch_id + len(batch_ids_current_partition) - 1
+        filename = f"batch={start_batch_id}-{end_batch_id}.parquet"
+        full_output_path = os.path.join(output_path, filename)
 
         results_current_partition.to_parquet(
             full_output_path, compression=None, index=False, force_nullable_schema=True
@@ -343,19 +374,19 @@ def write_samples(
     output_path: str
         The output path (where parquet files should be written to).
     """
-    
-    if ('majors' in results) and ('minors' in results):
-        write_fn = _write_samples_to_parquet_coo
-    
-    # TODO these names will be deprecated in release 23.12
-    elif ('sources' in results) and ('destinations' in results):
+
+    if ("majors" in results) and ("minors" in results):
         write_fn = _write_samples_to_parquet_coo
 
-    elif ('major_offsets' in results and 'minors' in results):
+    # TODO these names will be deprecated in release 23.12
+    elif ("sources" in results) and ("destinations" in results):
+        write_fn = _write_samples_to_parquet_coo
+
+    elif "major_offsets" in results and "minors" in results:
         write_fn = _write_samples_to_parquet_csr
-    
+
     else:
-        raise ValueError('invalid columns')
+        raise ValueError("invalid columns")
 
     if hasattr(results, "compute"):
         results.map_partitions(

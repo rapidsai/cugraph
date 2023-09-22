@@ -256,10 +256,7 @@ def test_uniform_neighbor_sample_tree(directed):
     fanout_vals = [4, 1, 3]
     with_replacement = True
     result_nbr = uniform_neighbor_sample(
-        G,
-        start_list,
-        fanout_vals,
-        with_replacement=with_replacement
+        G, start_list, fanout_vals, with_replacement=with_replacement
     )
 
     result_nbr = result_nbr.drop_duplicates()
@@ -344,7 +341,7 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_col
         with_edge_properties=True,
         with_batch_ids=True,
         return_offsets=return_offsets,
-        include_hop_column=include_hop_column
+        include_hop_column=include_hop_column,
     )
     if return_offsets:
         sampling_results, sampling_offsets = sampling_results
@@ -368,16 +365,28 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_col
     )
 
     if include_hop_column:
-        assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
+        assert sampling_results["hop_id"].values_host.tolist() == (
+            [0, 0, 1, 1, 1, 1] * 2
+        )
     else:
-        assert 'hop_id' not in sampling_results
+        assert "hop_id" not in sampling_results
 
     if return_offsets:
         assert sampling_offsets["batch_id"].dropna().values_host.tolist() == [0, 1]
         if include_hop_column:
-            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 6, 12]
+            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [
+                0,
+                6,
+                12,
+            ]
         else:
-            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [0, 2, 6, 8, 12]
+            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [
+                0,
+                2,
+                6,
+                8,
+                12,
+            ]
     else:
         assert sampling_results["batch_id"].values_host.tolist() == ([0] * 6 + [1] * 6)
 
@@ -802,7 +811,10 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
 
     seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
 
-    sampling_results_unrenumbered, offsets_unrenumbered = cugraph.uniform_neighbor_sample(
+    (
+        sampling_results_unrenumbered,
+        offsets_unrenumbered,
+    ) = cugraph.uniform_neighbor_sample(
         G,
         seeds,
         hops,
@@ -815,7 +827,11 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
         random_state=62,
     )
 
-    sampling_results_renumbered, offsets_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
+    (
+        sampling_results_renumbered,
+        offsets_renumbered,
+        renumber_map,
+    ) = cugraph.uniform_neighbor_sample(
         G,
         seeds,
         hops,
@@ -840,7 +856,7 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
             renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
         )
-    
+
     renumber_map_offsets = offsets_renumbered.renumber_map_offsets.dropna()
     assert len(renumber_map_offsets) == 2
     assert renumber_map_offsets.iloc[0] == 0
@@ -868,39 +884,43 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
         with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
-        prior_sources_behavior='exclude', # carryover not valid because C++ sorts on (hop,src)
+        # carryover not valid because C++ sorts on (hop,src)
+        prior_sources_behavior="exclude",
         renumber=True,
         return_offsets=True,
         random_state=seed,
         use_legacy_names=False,
         compress_per_hop=False,
-        compression='CSR',
+        compression="CSR",
         include_hop_column=False,
     )
 
-    major_offsets = sampling_results['major_offsets'].dropna().values
+    major_offsets = sampling_results["major_offsets"].dropna().values
     majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
     majors = majors.repeat(cupy.diff(major_offsets))
-    
-    minors = sampling_results['minors'].dropna()
+
+    minors = sampling_results["minors"].dropna()
     assert len(majors) == len(minors)
 
     majors = renumber_map.map.iloc[majors]
     minors = renumber_map.map.iloc[minors]
 
     for i in range(len(majors)):
-        assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
+        assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
+
 
 @pytest.mark.sg
 @pytest.mark.parametrize("seed", [62, 66, 68])
-@pytest.mark.parametrize("hops", [[5], [5,5], [5,5,5]])
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
     el = email_Eu_core.get_edgelist(download=True)
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = cudf.Series([49,71], dtype='int32') # hardcoded to ensure out-degree is high enough
+    seeds = cudf.Series(
+        [49, 71], dtype="int32"
+    )  # hardcoded to ensure out-degree is high enough
 
     sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
         G,
@@ -910,22 +930,24 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
         with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
-        prior_sources_behavior='carryover',
+        prior_sources_behavior="carryover",
         renumber=True,
         return_offsets=True,
         random_state=seed,
         use_legacy_names=False,
         compress_per_hop=True,
-        compression='CSR',
+        compression="CSR",
         include_hop_column=False,
     )
 
     for hop in range(len(hops)):
-        major_offsets = sampling_results['major_offsets'].iloc[
-            offsets.offsets.iloc[hop] : (offsets.offsets.iloc[hop+1] + 1)
+        major_offsets = sampling_results["major_offsets"].iloc[
+            offsets.offsets.iloc[hop] : (offsets.offsets.iloc[hop + 1] + 1)
         ]
 
-        minors = sampling_results['minors'].iloc[major_offsets.iloc[0]:major_offsets.iloc[-1]]
+        minors = sampling_results["minors"].iloc[
+            major_offsets.iloc[0] : major_offsets.iloc[-1]
+        ]
 
         majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
         majors = majors.repeat(cupy.diff(major_offsets))
@@ -934,7 +956,7 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
         minors = renumber_map.map.iloc[minors]
 
         for i in range(len(majors)):
-            assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
+            assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
 
 
 @pytest.mark.sg
@@ -942,10 +964,12 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
 def test_uniform_neighbor_sample_dcsr_dcsc_global():
     raise NotImplementedError
 
+
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
 def test_uniform_neighbor_sample_dcsr_dcsc_local():
     raise NotImplementedError
+
 
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")

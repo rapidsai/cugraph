@@ -171,7 +171,7 @@ void check_input_edges(
                   "Invlaid input arguments: there should be 1 or more labels if "
                   "edgelist_label_offsets.has_value() is true.");
   */
- 
+
   CUGRAPH_EXPECTS(
     !edgelist_label_offsets.has_value() ||
       (std::get<0>(*edgelist_label_offsets).size() == std::get<1>(*edgelist_label_offsets) + 1),

@@ -144,7 +144,9 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
     assert len(results) == 20
 
     # some batches are missing
-    offsets = cudf.DataFrame({"offsets": [0, 8, 12, 16, 20], "batch_id": [0, 3, 4, 10, None]})
+    offsets = cudf.DataFrame(
+        {"offsets": [0, 8, 12, 16, 20], "batch_id": [0, 3, 4, 10, None]}
+    )
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_empty_batch")
     create_directory_with_overwrite(samples_path)
@@ -180,40 +182,43 @@ def test_bulk_sampler_io_mock_csr(scratch_dir):
     renumber_map_offsets = cudf.Series([0, 10])
 
     results_df = cudf.DataFrame()
-    results_df['minors'] = minors_array
-    results_df['major_offsets'] = major_offsets_array
-    results_df['edge_id'] = edge_ids
-    results_df['edge_type'] = None
-    results_df['weight'] = None
+    results_df["minors"] = minors_array
+    results_df["major_offsets"] = major_offsets_array
+    results_df["edge_id"] = edge_ids
+    results_df["edge_type"] = None
+    results_df["weight"] = None
 
     offsets_df = cudf.DataFrame()
-    offsets_df['offsets'] = label_hop_offsets
-    offsets_df['renumber_map_offsets'] = renumber_map_offsets
-    offsets_df['batch_id'] = cudf.Series([0])
+    offsets_df["offsets"] = label_hop_offsets
+    offsets_df["renumber_map_offsets"] = renumber_map_offsets
+    offsets_df["batch_id"] = cudf.Series([0])
 
     renumber_df = cudf.DataFrame()
-    renumber_df['map'] = renumber_map
+    renumber_df["map"] = renumber_map
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_mock_csr")
     create_directory_with_overwrite(samples_path)
 
-    write_samples(
-        results_df,
-        offsets_df,
-        renumber_df,
-        1,
-        samples_path
-    )
+    write_samples(results_df, offsets_df, renumber_df, 1, samples_path)
 
-    result = cudf.read_parquet(
-        os.path.join(samples_path, 'batch=0-0.parquet')
-    )
+    result = cudf.read_parquet(os.path.join(samples_path, "batch=0-0.parquet"))
 
-    assert result.minors.dropna().values_host.tolist() == minors_array.values_host.tolist()
-    assert result.major_offsets.dropna().values_host.tolist() == major_offsets_array.values_host.tolist()
+    assert (
+        result.minors.dropna().values_host.tolist() == minors_array.values_host.tolist()
+    )
+    assert (
+        result.major_offsets.dropna().values_host.tolist()
+        == major_offsets_array.values_host.tolist()
+    )
     assert result.edge_id.dropna().values_host.tolist() == edge_ids.values_host.tolist()
-    assert result.renumber_map_offsets.dropna().values_host.tolist() == renumber_map_offsets.values_host.tolist()
+    assert (
+        result.renumber_map_offsets.dropna().values_host.tolist()
+        == renumber_map_offsets.values_host.tolist()
+    )
     assert result.map.dropna().values_host.tolist() == renumber_map.values_host.tolist()
-    assert result.label_hop_offsets.dropna().values_host.tolist() == label_hop_offsets.values_host.tolist()
+    assert (
+        result.label_hop_offsets.dropna().values_host.tolist()
+        == label_hop_offsets.values_host.tolist()
+    )
 
     shutil.rmtree(samples_path)

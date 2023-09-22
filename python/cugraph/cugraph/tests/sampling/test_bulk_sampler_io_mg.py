@@ -153,7 +153,9 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
     )
 
     # some batches are missing
-    offsets = cudf.DataFrame({"offsets": [0, 8, 12, 0, 4, 8], "batch_id": [0, 3, None, 4, 10, None]})
+    offsets = cudf.DataFrame(
+        {"offsets": [0, 8, 12, 0, 4, 8], "batch_id": [0, 3, None, 4, 10, None]}
+    )
     offsets = dask_cudf.from_cudf(offsets, npartitions=1).repartition(
         divisions=[0, 3, 5]
     )

@@ -67,13 +67,13 @@ def uniform_neighbor_sample(
     random_state: int = None,
     return_offsets: bool = False,
     return_hops: bool = True,
-    include_hop_column: bool = True, # deprecated
+    include_hop_column: bool = True,  # deprecated
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
-    use_legacy_names=True, # deprecated
+    use_legacy_names=True,  # deprecated
     compress_per_hop=False,
-    compression='COO',
+    compression="COO",
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -117,7 +117,7 @@ def uniform_neighbor_sample(
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.
         Defaults to True.
-    
+
     include_hop_column: bool, optional (default=True)
         Deprecated.  Defaults to True.
         If True, will include the hop column even if
@@ -141,14 +141,14 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
-    
+
     use_legacy_names: bool, optional (default=True)
         Whether to use the legacy column names (sources, destinations).
         If True, will use "sources" and "destinations" as the column names.
         If False, will use "majors" and "minors" as the column names.
         Deprecated.  Will be removed in release 23.12 in favor of always
         using the new names "majors" and "minors".
-    
+
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
         compressed edgelist per hop.
@@ -236,24 +236,27 @@ def uniform_neighbor_sample(
         major_col_name = "majors"
         minor_col_name = "minors"
 
-    if (compression != 'COO') and (not compress_per_hop) and prior_sources_behavior != 'exclude':
+    if (
+        (compression != "COO")
+        and (not compress_per_hop)
+        and prior_sources_behavior != "exclude"
+    ):
         raise ValueError(
-            'hop-agnostic compression is only supported with'
-            ' the exclude prior sources behavior due to limitations '
-            'of the libcugraph C++ API'
+            "hop-agnostic compression is only supported with"
+            " the exclude prior sources behavior due to limitations "
+            "of the libcugraph C++ API"
         )
-    
-    if compress_per_hop and prior_sources_behavior != 'carryover':
+
+    if compress_per_hop and prior_sources_behavior != "carryover":
         raise ValueError(
-            'Compressing the edgelist per hop is only supported '
-            'with the carryover prior sources behavior due to limitations'
-            ' of the libcugraph C++ API'
+            "Compressing the edgelist per hop is only supported "
+            "with the carryover prior sources behavior due to limitations"
+            " of the libcugraph C++ API"
         )
-    
-    if include_hop_column and compression != 'COO':
+
+    if include_hop_column and compression != "COO":
         raise ValueError(
-            'Including the hop id column is only supported '
-            'with COO compression.'
+            "Including the hop id column is only supported " "with COO compression."
         )
 
     if with_edge_properties:
@@ -319,7 +322,6 @@ def uniform_neighbor_sample(
                 start_list = G.lookup_internal_vertex_id(start_list, columns)
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
-    
     sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
@@ -349,7 +351,7 @@ def uniform_neighbor_sample(
         return_offsets=return_offsets,
         renumber=renumber,
         use_legacy_names=use_legacy_names,
-        include_hop_column=include_hop_column
+        include_hop_column=include_hop_column,
     )
 
     if G.renumbered and not renumber:
@@ -358,5 +360,5 @@ def uniform_neighbor_sample(
 
     if len(dfs) > 1:
         return dfs
-    
+
     return dfs[0]

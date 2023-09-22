@@ -229,7 +229,9 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     start_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=with_replacement)
+    result_nbr = uniform_neighbor_sample(
+        G, start_list, fanout_vals, with_replacement=with_replacement
+    )
 
     result_nbr = result_nbr.drop_duplicates()
 
@@ -388,7 +390,10 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                     batches_found[1] += 1
 
                     assert offsets_p.batch_id.dropna().values_host.tolist() == [1]
-                    assert offsets_p.offsets.dropna().values_host.tolist() == [0, len(dfp)]
+                    assert offsets_p.offsets.dropna().values_host.tolist() == [
+                        0,
+                        len(dfp),
+                    ]
 
                     assert sorted(dfp.sources.values_host.tolist()) == (
                         [1, 1, 3, 3, 4, 4]
@@ -400,7 +405,10 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                     batches_found[0] += 1
 
                     assert offsets_p.batch_id.dropna().values_host.tolist() == [0]
-                    assert offsets_p.offsets.dropna().values_host.tolist() == [0, len(dfp)]
+                    assert offsets_p.offsets.dropna().values_host.tolist() == [
+                        0,
+                        len(dfp),
+                    ]
 
                     assert sorted(dfp.sources.values_host.tolist()) == (
                         [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
@@ -1004,6 +1012,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
         ).nunique()
     )
 
+
 @pytest.mark.mg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
@@ -1014,7 +1023,10 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
 
     seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
 
-    sampling_results_unrenumbered, offsets_unrenumbered = cugraph.dask.uniform_neighbor_sample(
+    (
+        sampling_results_unrenumbered,
+        offsets_unrenumbered,
+    ) = cugraph.dask.uniform_neighbor_sample(
         G,
         seeds,
         hops,
@@ -1029,7 +1041,11 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
     sampling_results_unrenumbered = sampling_results_unrenumbered.compute()
     offsets_unrenumbered = offsets_unrenumbered.compute()
 
-    sampling_results_renumbered, offsets_renumbered, renumber_map = cugraph.dask.uniform_neighbor_sample(
+    (
+        sampling_results_renumbered,
+        offsets_renumbered,
+        renumber_map,
+    ) = cugraph.dask.uniform_neighbor_sample(
         G,
         seeds,
         hops,
@@ -1051,7 +1067,7 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         partition = offsets_renumbered.get_partition(p).compute()
         if not pandas.isna(partition.batch_id.iloc[0]):
             break
-    
+
     sampling_results_renumbered = sampling_results_renumbered.get_partition(p).compute()
     offsets_renumbered = offsets_renumbered.get_partition(p).compute()
     renumber_map = renumber_map.get_partition(p).compute()
@@ -1068,14 +1084,13 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
             renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
         )
-    
+
     renumber_map_offsets = offsets_renumbered.renumber_map_offsets.dropna()
     assert len(renumber_map_offsets) == 2
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
 
     assert len(offsets_renumbered) == 2
-
 
 
 @pytest.mark.mg
@@ -1097,13 +1112,14 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
         with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
-        prior_sources_behavior='exclude', # carryover not valid because C++ sorts on (hop,src)
+        # carryover not valid because C++ sorts on (hop,src)
+        prior_sources_behavior="exclude",
         renumber=True,
         return_offsets=True,
         random_state=seed,
         use_legacy_names=False,
         compress_per_hop=False,
-        compression='CSR',
+        compression="CSR",
         include_hop_column=False,
         keep_batches_together=True,
         min_batch_id=0,
@@ -1116,27 +1132,28 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
         partition = offsets.get_partition(p).compute()
         if not pandas.isna(partition.batch_id.iloc[0]):
             break
-    
+
     sampling_results = sampling_results.get_partition(p).compute()
     offsets = offsets.get_partition(p).compute()
     renumber_map = renumber_map.get_partition(p).compute()
 
-    major_offsets = sampling_results['major_offsets'].dropna().values
+    major_offsets = sampling_results["major_offsets"].dropna().values
     majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
     majors = majors.repeat(cupy.diff(major_offsets))
-    
-    minors = sampling_results['minors'].dropna()
+
+    minors = sampling_results["minors"].dropna()
     assert len(majors) == len(minors)
 
     majors = renumber_map.map.iloc[majors]
     minors = renumber_map.map.iloc[minors]
 
     for i in range(len(majors)):
-        assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
+        assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
+
 
 @pytest.mark.mg
 @pytest.mark.parametrize("seed", [62, 66, 68])
-@pytest.mark.parametrize("hops", [[5], [5,5], [5,5,5]])
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 @pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
@@ -1144,7 +1161,9 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = dask_cudf.from_cudf(cudf.Series([49,71],dtype='int32'),npartitions=1) # hardcoded to ensure out-degree is high enough
+    seeds = dask_cudf.from_cudf(
+        cudf.Series([49, 71], dtype="int32"), npartitions=1
+    )  # hardcoded to ensure out-degree is high enough
 
     sampling_results, offsets, renumber_map = cugraph.dask.uniform_neighbor_sample(
         G,
@@ -1154,13 +1173,13 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
-        prior_sources_behavior='carryover',
+        prior_sources_behavior="carryover",
         renumber=True,
         return_offsets=True,
         random_state=seed,
         use_legacy_names=False,
         compress_per_hop=True,
-        compression='CSR',
+        compression="CSR",
         include_hop_column=False,
         keep_batches_together=True,
         min_batch_id=0,
@@ -1171,10 +1190,10 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     n_workers = len(dask_client.scheduler_info()["workers"])
     for p in range(n_workers):
         partition = offsets.get_partition(p).compute()
-        
+
         if not pandas.isna(partition.batch_id.iloc[0]):
             break
-    
+
     sampling_results = sampling_results.get_partition(p).compute()
     offsets = offsets.get_partition(p).compute()
     renumber_map = renumber_map.get_partition(p).compute()
@@ -1183,11 +1202,13 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     print(offsets)
 
     for hop in range(len(hops)):
-        major_offsets = sampling_results['major_offsets'].iloc[
-            offsets.offsets.iloc[hop] : (offsets.offsets.iloc[hop+1] + 1)
+        major_offsets = sampling_results["major_offsets"].iloc[
+            offsets.offsets.iloc[hop] : (offsets.offsets.iloc[hop + 1] + 1)
         ]
 
-        minors = sampling_results['minors'].iloc[major_offsets.iloc[0]:major_offsets.iloc[-1]]
+        minors = sampling_results["minors"].iloc[
+            major_offsets.iloc[0] : major_offsets.iloc[-1]
+        ]
 
         majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
         majors = majors.repeat(cupy.diff(major_offsets))
@@ -1196,7 +1217,7 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         minors = renumber_map.map.iloc[minors]
 
         for i in range(len(majors)):
-            assert 1 == len(el[(el.src==majors.iloc[i]) & (el.dst==minors.iloc[i])])
+            assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
 
 
 @pytest.mark.mg
@@ -1204,10 +1225,12 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
 def test_uniform_neighbor_sample_dcsr_dcsc_global():
     raise NotImplementedError
 
+
 @pytest.mark.mg
 @pytest.mark.skip(reason="needs to be written!")
 def test_uniform_neighbor_sample_dcsr_dcsc_local():
     raise NotImplementedError
+
 
 # =============================================================================
 # Benchmarks

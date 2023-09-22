@@ -244,12 +244,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
       bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) ||
-                            (options_.compression_type_ == cugraph::compression_type_t::DCSR);
+                          (options_.compression_type_ == cugraph::compression_type_t::DCSR);
 
       if (options_.renumber_results_) {
         if (options_.compression_type_ == cugraph::compression_type_t::COO) {
           // COO
-          
+
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
           std::tie(output_majors,
@@ -275,15 +275,15 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                       : std::nullopt,
               src_is_major,
               do_expensive_check_);
-          
+
           majors.emplace(std::move(output_majors));
           renumber_map.emplace(std::move(output_renumber_map));
         } else {
           // (D)CSC, (D)CSR
 
           bool doubly_compress =
-          (options_.compression_type_ == cugraph::compression_type_t::DCSR) ||
-          (options_.compression_type_ == cugraph::compression_type_t::DCSC);
+            (options_.compression_type_ == cugraph::compression_type_t::DCSR) ||
+            (options_.compression_type_ == cugraph::compression_type_t::DCSC);
 
           rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
@@ -335,18 +335,17 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             edge_id ? std::move(edge_id) : std::nullopt,
             edge_type ? std::move(edge_type) : std::nullopt,
             hop ? std::make_optional(std::make_tuple(std::move(*hop), fan_out_->size_))
-                    : std::nullopt,
+                : std::nullopt,
             offsets ? std::make_optional(std::make_tuple(
-                            raft::device_span<size_t const>{offsets->data(), offsets->size()},
-                            edge_label->size()))
-                        : std::nullopt,
+                        raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                        edge_label->size()))
+                    : std::nullopt,
             src_is_major,
-            do_expensive_check_
-          );
+            do_expensive_check_);
 
         majors.emplace(std::move(src));
         minors = std::move(dst);
-        
+
         hop.reset();
         offsets.reset();
       }
@@ -367,9 +366,11 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                     : nullptr,
         (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
               : nullptr,
-        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32) : nullptr, // FIXME get rid of this 
-        (label_hop_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
-                      : nullptr,
+        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32)
+              : nullptr,  // FIXME get rid of this
+        (label_hop_offsets)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
+          : nullptr,
         (edge_label)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
           : nullptr,
@@ -406,7 +407,9 @@ extern "C" void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t
   internal_pointer->renumber_results_ = value;
 }
 
-extern "C" void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options, bool_t value) {
+extern "C" void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options,
+                                                      bool_t value)
+{
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
   internal_pointer->compress_per_hop_ = value;
 }
@@ -424,26 +427,17 @@ extern "C" void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* opt
   internal_pointer->return_hops_ = value;
 }
 
-extern "C" void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options, cugraph_compression_type_t value) {
+extern "C" void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
+                                                      cugraph_compression_type_t value)
+{
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  switch(value) {
-    case COO:
-      internal_pointer->compression_type_ = cugraph::compression_type_t::COO;
-      break;
-    case CSR:
-      internal_pointer->compression_type_ = cugraph::compression_type_t::CSR;
-      break;
-    case CSC:
-      internal_pointer->compression_type_ = cugraph::compression_type_t::CSC;
-      break;
-    case DCSR:
-      internal_pointer->compression_type_ = cugraph::compression_type_t::DCSR;
-      break;
-    case DCSC:
-      internal_pointer->compression_type_ = cugraph::compression_type_t::DCSC;
-      break;
-    default:
-      CUGRAPH_FAIL("Invalid compression type");
+  switch (value) {
+    case COO: internal_pointer->compression_type_ = cugraph::compression_type_t::COO; break;
+    case CSR: internal_pointer->compression_type_ = cugraph::compression_type_t::CSR; break;
+    case CSC: internal_pointer->compression_type_ = cugraph::compression_type_t::CSC; break;
+    case DCSR: internal_pointer->compression_type_ = cugraph::compression_type_t::DCSR; break;
+    case DCSC: internal_pointer->compression_type_ = cugraph::compression_type_t::DCSC; break;
+    default: CUGRAPH_FAIL("Invalid compression type");
   }
 }
 

@@ -238,7 +238,7 @@ void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, 
 
 /**
  * @brief   Set whether to compress per-hop (True) or globally (False)
- * 
+ *
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
@@ -262,11 +262,12 @@ void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_
 
 /**
  * @brief   Set compression type
- * 
+ *
  * @param options - opaque pointer to the sampling options
  * @param value - Enum defining the compresion type
  */
-void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options, cugraph_compression_type_t value);
+void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
+                                           cugraph_compression_type_t value);
 
 /**
  * @brief   Set prior sources behavior
