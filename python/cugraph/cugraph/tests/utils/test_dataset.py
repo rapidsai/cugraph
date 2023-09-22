@@ -338,7 +338,7 @@ def test_benchmarking_datasets(dataset):
     G = dataset.get_graph(
         download=True, create_using=Graph(directed=dataset_is_directed)
     )
-    # df = dataset.get_edgelist()
+    df = dataset.get_edgelist()
 
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert G.number_of_edges() == dataset.metadata["number_of_edges"]
@@ -346,8 +346,8 @@ def test_benchmarking_datasets(dataset):
     assert G.is_directed() == dataset.metadata["is_directed"]
 
     # FIXME: The 'livejournal' and 'hollywood' datasets have a self loop,
-    # when they shouldn't
-    # assert has_loop(df) == dataset.metadata["has_loop"]
+    # when they shouldn't. As a result CI is failing for this PR
+    assert has_loop(df) == dataset.metadata["has_loop"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
     dataset.unload()
 

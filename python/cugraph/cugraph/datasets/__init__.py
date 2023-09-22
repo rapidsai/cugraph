@@ -50,4 +50,5 @@ europe_osm = Dataset(meta_path / "europe_osm.yaml")
 # 1.5 GB
 hollywood = Dataset(meta_path / "hollywood.yaml")
 # 8.8 GB (requires large memory)
-twitter = Dataset(meta_path / "soc-twitter-2010.yaml")
+# FIXME: Disable adding this dataset until dask_cudf can be used with Dataset?
+# twitter = Dataset(meta_path / "soc-twitter-2010.yaml")
