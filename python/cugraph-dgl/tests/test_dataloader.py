@@ -111,7 +111,6 @@ def test_same_homogeneousgraph_results():
 
     cugraph_output_nodes = cugraph_output[0]["output_nodes"].cpu().numpy()
     dgl_output_nodes = dgl_output[0]["output_nodes"].cpu().numpy()
-
     np.testing.assert_array_equal(cugraph_output_nodes, dgl_output_nodes)
     assert (
         dgl_output[0]["blocks"][0].num_dst_nodes()
