@@ -236,10 +236,8 @@ def uniform_neighbor_sample(
         major_col_name = "majors"
         minor_col_name = "minors"
 
-    if compression not in ['COO', 'CSR', 'CSC', 'DCSR', 'DCSC']:
-        raise ValueError(
-            "compression must be one of COO, CSR, CSC, DCSR, or DCSC"
-        )
+    if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
+        raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
 
     if (
         (compression != "COO")

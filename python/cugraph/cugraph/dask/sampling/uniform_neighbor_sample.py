@@ -295,7 +295,7 @@ def _mg_call_plc_uniform_neighbor_sample(
             renumber=renumber,
             use_legacy_names=use_legacy_names,
             compression=compression,
-            include_hop_column=include_hop_column
+            include_hop_column=include_hop_column,
         )
         if with_edge_properties
         else create_empty_df(indices_t, weight_t)
@@ -522,10 +522,8 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
-    if compression not in ['COO', 'CSR', 'CSC', 'DCSR', 'DCSC']:
-        raise ValueError(
-            "compression must be one of COO, CSR, CSC, DCSR, or DCSC"
-        )
+    if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
+        raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
 
     if with_edge_properties:
         warning_msg = (

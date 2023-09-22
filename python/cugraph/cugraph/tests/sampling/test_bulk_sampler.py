@@ -304,7 +304,7 @@ def test_bulk_sampler_csr(scratch_dir):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(el, source='src', destination='dst')
+    G.from_cudf_edgelist(el, source="src", destination="dst")
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_csr")
     create_directory_with_overwrite(samples_path)
@@ -318,21 +318,25 @@ def test_bulk_sampler_csr(scratch_dir):
         batches_per_partition=7,
         renumber=True,
         use_legacy_names=False,
-        compression='CSR',
+        compression="CSR",
         compress_per_hop=False,
-        prior_sources_behavior='exclude',
-        include_hop_column=False
+        prior_sources_behavior="exclude",
+        include_hop_column=False,
     )
 
     seeds = G.select_random_vertices(62, 1000)
-    batch_ids = cudf.Series(cupy.repeat(cupy.arange(int(1000/7)+1,dtype='int32'), 7)[:1000]).sort_values()
+    batch_ids = cudf.Series(
+        cupy.repeat(cupy.arange(int(1000 / 7) + 1, dtype="int32"), 7)[:1000]
+    ).sort_values()
 
-    batch_df = cudf.DataFrame({
-        'seed': seeds,
-        'batch': batch_ids,
-    })
+    batch_df = cudf.DataFrame(
+        {
+            "seed": seeds,
+            "batch": batch_ids,
+        }
+    )
 
-    bs.add_batches(batch_df, start_col_name='seed', batch_col_name='batch')
+    bs.add_batches(batch_df, start_col_name="seed", batch_col_name="batch")
     bs.flush()
 
     assert len(os.listdir(samples_path)) == 21
