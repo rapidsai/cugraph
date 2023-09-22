@@ -244,7 +244,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
       bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) ||
-                          (options_.compression_type_ == cugraph::compression_type_t::DCSR);
+                          (options_.compression_type_ == cugraph::compression_type_t::DCSR) ||
+                          (options_.compression_type_ == cugraph::compression_type_t::COO);
 
       if (options_.renumber_results_) {
         if (options_.compression_type_ == cugraph::compression_type_t::COO) {
