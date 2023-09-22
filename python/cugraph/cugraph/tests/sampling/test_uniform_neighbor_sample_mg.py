@@ -1154,7 +1154,6 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
 @pytest.mark.mg
 @pytest.mark.parametrize("seed", [62, 66, 68])
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-@pytest.mark.tags("runme")
 def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
 
