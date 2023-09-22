@@ -25,11 +25,10 @@ from cugraph.utilities import (
 )
 from cugraph.utilities.utils import import_optional
 
-# FIXME: the networkx.Graph type used in the type annotation for
-# induced_subgraph() is specified using a string literal to avoid depending on
-# and importing networkx. Instead, networkx is imported optionally, which may
-# cause a problem for a type checker if run in an environment where networkx is
-# not installed.
+# FIXME: the networkx.Graph type used in type annotations is specified
+# using a string literal to avoid depending on and importing networkx.
+# Instead, networkx is imported optionally, which may cause a problem
+# for a type checker if run in an environment where networkx is not installed.
 networkx = import_optional("networkx")
 
 

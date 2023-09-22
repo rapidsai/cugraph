@@ -40,16 +40,19 @@ class SparseGraphData1:
     nnz = 6
     src_ids = torch.IntTensor([0, 1, 2, 3, 2, 5]).cuda()
     dst_ids = torch.IntTensor([1, 2, 3, 4, 0, 3]).cuda()
+    values = torch.IntTensor([10, 20, 30, 40, 50, 60]).cuda()
 
     # CSR
     src_ids_sorted_by_src = torch.IntTensor([0, 1, 2, 2, 3, 5]).cuda()
     dst_ids_sorted_by_src = torch.IntTensor([1, 2, 0, 3, 4, 3]).cuda()
     csrc_ids = torch.IntTensor([0, 1, 2, 4, 5, 5, 6]).cuda()
+    values_csr = torch.IntTensor([10, 20, 50, 30, 40, 60]).cuda()
 
     # CSC
     src_ids_sorted_by_dst = torch.IntTensor([2, 0, 1, 5, 2, 3]).cuda()
     dst_ids_sorted_by_dst = torch.IntTensor([0, 1, 2, 3, 3, 4]).cuda()
     cdst_ids = torch.IntTensor([0, 1, 2, 3, 5, 6]).cuda()
+    values_csc = torch.IntTensor([50, 10, 20, 60, 30, 40]).cuda()
 
 
 @pytest.fixture
