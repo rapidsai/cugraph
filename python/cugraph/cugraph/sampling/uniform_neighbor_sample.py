@@ -254,10 +254,18 @@ def uniform_neighbor_sample(
             " of the libcugraph C++ API"
         )
 
-    if include_hop_column and compression != "COO":
-        raise ValueError(
-            "Including the hop id column is only supported " "with COO compression."
+    if include_hop_column:
+        warning_msg = (
+            "The include_hop_column flag is deprecated and will be"
+            " removed in the next release in favor of always "
+            "excluding the hop column when return_offsets is True"
         )
+        warnings.warn(warning_msg, FutureWarning)
+
+        if compression != "COO":
+            raise ValueError(
+                "Including the hop id column is only supported with COO compression."
+            )
 
     if with_edge_properties:
         warning_msg = (
