@@ -294,6 +294,8 @@ def _mg_call_plc_uniform_neighbor_sample(
             return_offsets=return_offsets,
             renumber=renumber,
             use_legacy_names=use_legacy_names,
+            compression=compression,
+            include_hop_column=include_hop_column
         )
         if with_edge_properties
         else create_empty_df(indices_t, weight_t)
@@ -520,6 +522,11 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
+    if compression not in ['COO', 'CSR', 'CSC', 'DCSR', 'DCSC']:
+        raise ValueError(
+            "compression must be one of COO, CSR, CSC, DCSR, or DCSC"
+        )
+
     if with_edge_properties:
         warning_msg = (
             "The with_edge_properties flag is deprecated"
@@ -698,9 +705,12 @@ def uniform_neighbor_sample(
             ddf, renumber_df = ddf
 
     if input_graph.renumbered and not renumber:
-        ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
-        ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
-
+        if use_legacy_names:
+            ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
+            ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
+        else:
+            ddf = input_graph.unrenumber(ddf, "majors", preserve_order=True)
+            ddf = input_graph.unrenumber(ddf, "minors", preserve_order=True)
     if return_offsets:
         if renumber:
             return ddf, offsets_df, renumber_df

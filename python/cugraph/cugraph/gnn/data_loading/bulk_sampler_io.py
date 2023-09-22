@@ -375,14 +375,14 @@ def write_samples(
         The output path (where parquet files should be written to).
     """
 
-    if ("majors" in results) and ("minors" in results):
+    if ("majors" in results.columns) and ("minors" in results.columns):
         write_fn = _write_samples_to_parquet_coo
 
     # TODO these names will be deprecated in release 23.12
-    elif ("sources" in results) and ("destinations" in results):
+    elif ("sources" in results.columns) and ("destinations" in results.columns):
         write_fn = _write_samples_to_parquet_coo
 
-    elif "major_offsets" in results and "minors" in results:
+    elif "major_offsets" in results.columns and "minors" in results.columns:
         write_fn = _write_samples_to_parquet_csr
 
     else:
