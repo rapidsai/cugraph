@@ -22,13 +22,6 @@ from pandas import isna
 from typing import Union, Optional, List
 
 
-def _add_or_join_to_df(df: cudf.DataFrame, column: cudf.Series):
-    if len(column) > len(df):
-        df = df.join(column, how='outer').sort_index()
-    else:
-        df[column.name] = column
-    return df
-
 def create_df_from_disjoint_series(series_list: List[cudf.Series]):
     series_list.sort(key=lambda s : len(s), reverse=True)
 
