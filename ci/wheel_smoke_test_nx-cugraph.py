@@ -14,7 +14,7 @@
 import math
 
 import networkx as nx
-import nx_cugraph
+import nx_cugraph as nxcg
 
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     #
     # but here it is being called directly since the NetworkX version that
     # supports the "backend" kwarg may not be available in the testing env.
-    nxcu_result = nx_cugraph.betweenness_centrality(G)
+    nxcu_result = nxcg.betweenness_centrality(G)
 
     nx_nodes, nxcu_nodes = nx_result.keys(), nxcu_result.keys()
     assert nxcu_nodes == nx_nodes
