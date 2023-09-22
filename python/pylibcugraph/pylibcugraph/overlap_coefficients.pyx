@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
+def overlap_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         first,
         second,
@@ -84,8 +84,10 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
     second :
         Destination of the vertex pair.
     
-    use_weight : bool, optional (default=False)
-        Currently not supported
+    use_weight : bool, optional
+        If set to True, the  compute weighted jaccard_coefficients(
+            the input graph must be weighted in that case).
+        Otherwise, computed un-weighted jaccard_coefficients
 
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure

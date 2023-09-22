@@ -73,7 +73,7 @@ struct e_op_t {
       if (*(prev_visited_flags + packed_bool_offset(dst)) &
           packed_bool_mask(dst)) {  // check if unvisited in previous iterations
         push = false;
-      } else {                      // check if unvisited in this iteration as well
+      } else {  // check if unvisited in this iteration as well
         auto old = visited_flags.atomic_or(dst, true);
         push     = !old;
       }

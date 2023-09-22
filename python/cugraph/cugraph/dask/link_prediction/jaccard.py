@@ -20,7 +20,7 @@ import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
-from pylibcugraph.experimental import (
+from pylibcugraph import (
     jaccard_coefficients as pylibcugraph_jaccard_coefficients,
 )
 from pylibcugraph import ResourceHandle
