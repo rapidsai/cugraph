@@ -271,8 +271,9 @@ def test_bulk_sampler_csr(dask_client, scratch_dir, mg_input):
         renumber=True,
         use_legacy_names=False,
         compression="CSR",
-        compress_per_hop=False,
-        prior_sources_behavior="exclude",
+        compress_per_hop=True,
+        prior_sources_behavior="carryover",
+        deduplicate_sources=True,
         include_hop_column=False,
     )
 
