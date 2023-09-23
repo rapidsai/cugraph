@@ -850,7 +850,7 @@ class EXPERIMENTAL__CuGraphStore:
             if len(self.node_types) == 1:
                 warnings.warn(
                     "Renumbering after sampling for homogeneous graphs is deprecated.",
-                    DeprecationWarning,
+                    FutureWarning,
                 )
 
                 # Create a dataframe mapping old ids to new ids.
