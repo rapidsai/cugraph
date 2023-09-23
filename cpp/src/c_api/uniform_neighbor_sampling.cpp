@@ -38,7 +38,7 @@ struct cugraph_sampling_options_t {
   prior_sources_behavior_t prior_sources_behavior_{prior_sources_behavior_t::DEFAULT};
   bool_t dedupe_sources_{FALSE};
   bool_t renumber_results_{FALSE};
-  compression_type_t compression_type_{compression_type_t::COO};
+  cugraph_compression_type_t compression_type_{cugraph_compression_type_t::COO};
   bool_t compress_per_hop_{FALSE};
 };
 
@@ -243,12 +243,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
-      bool src_is_major = (options_.compression_type_ == cugraph::compression_type_t::CSR) ||
-                          (options_.compression_type_ == cugraph::compression_type_t::DCSR) ||
-                          (options_.compression_type_ == cugraph::compression_type_t::COO);
+      bool src_is_major = (options_.compression_type_ == cugraph_compression_type_t::CSR) ||
+                          (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
+                          (options_.compression_type_ == cugraph_compression_type_t::COO);
 
       if (options_.renumber_results_) {
-        if (options_.compression_type_ == cugraph::compression_type_t::COO) {
+        if (options_.compression_type_ == cugraph_compression_type_t::COO) {
           // COO
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
@@ -282,9 +282,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         } else {
           // (D)CSC, (D)CSR
 
-          bool doubly_compress =
-            (options_.compression_type_ == cugraph::compression_type_t::DCSR) ||
-            (options_.compression_type_ == cugraph::compression_type_t::DCSC);
+          bool doubly_compress = (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
+                                 (options_.compression_type_ == cugraph_compression_type_t::DCSC);
 
           rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
@@ -323,7 +322,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         hop.reset();
         offsets.reset();
       } else {
-        if (options_.compression_type_ != cugraph::compression_type_t::COO) {
+        if (options_.compression_type_ != cugraph_compression_type_t::COO) {
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
@@ -433,11 +432,11 @@ extern "C" void cugraph_sampling_set_compression_type(cugraph_sampling_options_t
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
   switch (value) {
-    case COO: internal_pointer->compression_type_ = cugraph::compression_type_t::COO; break;
-    case CSR: internal_pointer->compression_type_ = cugraph::compression_type_t::CSR; break;
-    case CSC: internal_pointer->compression_type_ = cugraph::compression_type_t::CSC; break;
-    case DCSR: internal_pointer->compression_type_ = cugraph::compression_type_t::DCSR; break;
-    case DCSC: internal_pointer->compression_type_ = cugraph::compression_type_t::DCSC; break;
+    case COO: internal_pointer->compression_type_ = cugraph_compression_type_t::COO; break;
+    case CSR: internal_pointer->compression_type_ = cugraph_compression_type_t::CSR; break;
+    case CSC: internal_pointer->compression_type_ = cugraph_compression_type_t::CSC; break;
+    case DCSR: internal_pointer->compression_type_ = cugraph_compression_type_t::DCSR; break;
+    case DCSC: internal_pointer->compression_type_ = cugraph_compression_type_t::DCSC; break;
     default: CUGRAPH_FAIL("Invalid compression type");
   }
 }
@@ -705,6 +704,7 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
 
   // create new cugraph_sample_result_t
   *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
+    nullptr,
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
       new_device_srcs.release()),
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
@@ -860,68 +860,6 @@ extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
   delete internal_pointer->renumber_map_;
   delete internal_pointer->renumber_map_offsets_;
   delete internal_pointer;
-}
-
-extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-  const cugraph_type_erased_device_array_view_t* label_list,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_rng_state_t* rng_state,
-  bool_t with_replacement,
-  bool_t return_hops,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error)
-{
-  CAPI_EXPECTS((start_vertex_labels == nullptr) ||
-                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_labels)
-                    ->type_ == INT32),
-               CUGRAPH_INVALID_INPUT,
-               "start_vertex_labels should be of type int",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_labels != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless start_vertex_labels is also specified",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (label_list != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless label_list is also specified",
-               *error);
-
-  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
-                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                   start_vertices)
-                   ->type_,
-               CUGRAPH_INVALID_INPUT,
-               "vertex type of graph and start_vertices must match",
-               *error);
-
-  CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
-        ->type_ == INT32,
-    CUGRAPH_INVALID_INPUT,
-    "fan_out should be of type int",
-    *error);
-
-  uniform_neighbor_sampling_functor functor{
-    handle,
-    graph,
-    start_vertices,
-    start_vertex_labels,
-    label_list,
-    label_to_comm_rank,
-    fan_out,
-    rng_state,
-    cugraph::c_api::cugraph_sampling_options_t{with_replacement, return_hops},
-    do_expensive_check};
-  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
 cugraph_error_code_t cugraph_uniform_neighbor_sample(
