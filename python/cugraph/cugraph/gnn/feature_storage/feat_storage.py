@@ -20,6 +20,7 @@ import pandas as pd
 from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
+wgth = import_optional("pylibwholegraph.torch")
 
 
 class FeatureStore:
@@ -27,13 +28,13 @@ class FeatureStore:
 
     def __init__(self, backend="numpy"):
         self.fd = defaultdict(dict)
-        if backend not in ["numpy", "torch"]:
+        if backend not in ["numpy", "torch", "wholegraph"]:
             raise ValueError(
                 f"backend {backend} not supported. Supported backends are numpy, torch"
             )
         self.backend = backend
 
-    def add_data(self, feat_obj: Sequence, type_name: str, feat_name: str) -> None:
+    def add_data(self, feat_obj: Sequence, type_name: str, feat_name: str, **kwargs) -> None:
         """
         Add the feature data to the feature_storage class
         Parameters:
@@ -49,8 +50,25 @@ class FeatureStore:
             None
         """
         self.fd[feat_name][type_name] = self._cast_feat_obj_to_backend(
-            feat_obj, self.backend
+            feat_obj, self.backend, **kwargs
         )
+
+    def add_data_no_cast(self, feat_obj, type_name: str, feat_name: str) -> None:
+        """
+        Direct add the feature data to the feature_storage class with no cast
+        Parameters:
+        ----------
+          feat_obj : array_like object
+            The feature object to save in feature store
+          type_name : str
+            The node-type/edge-type of the feature
+          feat_name: str
+            The name of the feature being stored
+        Returns:
+        -------
+            None
+        """
+        self.fd[feat_name][type_name] = feat_obj
 
     def get_data(
         self,
@@ -87,13 +105,18 @@ class FeatureStore:
                 f" feature: {list(self.fd[feat_name].keys())}"
             )
 
-        return self.fd[feat_name][type_name][indices]
+        feat = self.fd[feat_name][type_name]
+        if isinstance(feat, wgth.WholeMemoryEmbedding):
+            indices_tensor = indices if isinstance(indices, torch.Tensor) else torch.as_tensor(indices, device='cuda')
+            return feat.gather(indices_tensor)
+        else:
+            return feat[indices]
 
     def get_feature_list(self) -> list[str]:
         return {feat_name: feats.keys() for feat_name, feats in self.fd.items()}
 
     @staticmethod
-    def _cast_feat_obj_to_backend(feat_obj, backend: str):
+    def _cast_feat_obj_to_backend(feat_obj, backend: str, **kwargs):
         if backend == "numpy":
             if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
                 return _cast_to_numpy_ar(feat_obj.values)
@@ -104,6 +127,26 @@ class FeatureStore:
                 return _cast_to_torch_tensor(feat_obj.values)
             else:
                 return _cast_to_torch_tensor(feat_obj)
+        elif backend == "wholegraph":
+            wg_comm_obj = kwargs.get("wg_comm", wgth.get_local_node_communicator())
+            wg_type_str = kwargs.get("wg_type", "chunked")
+            wg_location_str = kwargs.get("wg_location", "cuda")
+            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
+                th_tensor = _cast_to_torch_tensor(feat_obj.values)
+            else:
+                th_tensor = _cast_to_torch_tensor(feat_obj)
+            wg_embedding = wgth.create_embedding(
+                wg_comm_obj,
+                wg_type_str,
+                wg_location_str,
+                th_tensor.dtype,
+                th_tensor.shape,
+            )
+            local_wg_tensor, local_ld_offset = wg_embedding.get_embedding_tensor().get_local_tensor()
+            local_th_tensor = th_tensor[local_ld_offset: local_ld_offset + local_wg_tensor.shape[0]]
+            local_wg_tensor.copy_(local_th_tensor)
+            wg_comm_obj.barrier()
+            return wg_embedding
 
 
 def _cast_to_torch_tensor(ar):
