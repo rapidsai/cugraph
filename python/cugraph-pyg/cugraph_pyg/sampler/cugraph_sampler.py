@@ -16,19 +16,14 @@ from typing import Sequence, Dict, Tuple
 
 from cugraph_pyg.data import CuGraphStore
 
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import import_optional
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
 torch = import_optional("torch")
-
-HeteroSamplerOutput = (
-    None
-    if isinstance(torch_geometric, MissingModule)
-    else torch_geometric.sampler.base.HeteroSamplerOutput
-)
+HeteroSamplerOutput = torch_geometric.sampler.base.HeteroSamplerOutput
 
 
 def _get_unique_nodes(

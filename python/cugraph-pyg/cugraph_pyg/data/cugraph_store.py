@@ -270,6 +270,9 @@ class EXPERIMENTAL__CuGraphStore:
         if None in G:
             raise ValueError("Unspecified edge types not allowed in PyG")
 
+        if order != "CSR" and order != "CSC":
+            raise ValueError("invalid valid for order")
+
         self.__vertex_dtype = torch.int64
 
         self._tensor_attr_cls = CuGraphTensorAttr
