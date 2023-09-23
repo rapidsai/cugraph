@@ -462,7 +462,6 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   int32_t batch[]  = {0, 1};
   int fan_out[]    = {2, 2};
 
-  bool_t with_replacement = TRUE;
   bool_t store_transposed = FALSE;
 
   int test_ret_value            = 0;
@@ -682,6 +681,15 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
   size_t expected_size[] = { 3, 2, 1, 1, 1, 1, 1, 1 };
 
+
+  bool_t with_replacement = FALSE;
+  bool_t return_hops = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
+  bool_t dedupe_sources = TRUE;
+  bool_t renumber_results = FALSE;
+  cugraph_compression_type_t compression = COO;
+  bool_t compress_per_hop = FALSE;
+
   // Create graph
   int test_ret_value              = 0;
   cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
@@ -768,19 +776,30 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
-  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
-                                                                  graph,
-                                                                  d_start_view,
-                                                                  d_start_labels_view,
-                                                                  d_label_list_view,
-                                                                  d_label_to_output_comm_rank_view,
-                                                                  h_fan_out_view,
-                                                                  rng_state,
-                                                                  FALSE,
-                                                                  TRUE,
-                                                                  FALSE,
-                                                                  &result,
-                                                                  &ret_error);
+  cugraph_sampling_options_t* sampling_options;
+  ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+
+  cugraph_sampling_set_with_replacement(sampling_options, with_replacement);
+  cugraph_sampling_set_return_hops(sampling_options, return_hops);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
+  cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
+  cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
+  cugraph_sampling_set_compression_type(sampling_options, compression);
+  cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
+
+  ret_code = cugraph_uniform_neighbor_sample(handle,
+                                              graph,
+                                              d_start_view,
+                                              d_start_labels_view,
+                                              d_label_list_view,
+                                              d_label_to_output_comm_rank_view,
+                                              h_fan_out_view,
+                                              rng_state,
+                                              sampling_options,
+                                              FALSE,
+                                              &result,
+                                              &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
@@ -921,6 +940,14 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   size_t expected_size[] = { 3, 2, 1, 1, 1, 1, 1, 1 };
 
+    bool_t with_replacement = FALSE;
+  bool_t return_hops = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
+  bool_t dedupe_sources = TRUE;
+  bool_t renumber_results = FALSE;
+  cugraph_compression_type_t compression = COO;
+  bool_t compress_per_hop = FALSE;
+
   // Create graph
   int test_ret_value              = 0;
   cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
@@ -1007,19 +1034,30 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
-  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
-                                                                  graph,
-                                                                  d_start_view,
-                                                                  d_start_labels_view,
-                                                                  d_label_list_view,
-                                                                  d_label_to_output_comm_rank_view,
-                                                                  h_fan_out_view,
-                                                                  rng_state,
-                                                                  FALSE,
-                                                                  TRUE,
-                                                                  FALSE,
-                                                                  &result,
-                                                                  &ret_error);
+  cugraph_sampling_options_t* sampling_options;
+  ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+
+  cugraph_sampling_set_with_replacement(sampling_options, with_replacement);
+  cugraph_sampling_set_return_hops(sampling_options, return_hops);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
+  cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
+  cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
+  cugraph_sampling_set_compression_type(sampling_options, compression);
+  cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
+
+  ret_code = cugraph_uniform_neighbor_sample(handle,
+                                              graph,
+                                              d_start_view,
+                                              d_start_labels_view,
+                                              d_label_list_view,
+                                              d_label_to_output_comm_rank_view,
+                                              h_fan_out_view,
+                                              rng_state,
+                                              sampling_options,
+                                              FALSE,
+                                              &result,
+                                              &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
