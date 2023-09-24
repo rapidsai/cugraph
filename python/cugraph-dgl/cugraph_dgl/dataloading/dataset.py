@@ -36,8 +36,8 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
     ):
         if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
             raise ValueError(
-                "return_type must be either 'dgl.Block' or \
-                    'cugraph_dgl.nn.SparseGraph' "
+                "return_type must be either 'dgl.Block' or "
+                "'cugraph_dgl.nn.SparseGraph'."
             )
         # TODO: Deprecate `total_number_of_nodes`
         # as it is no longer needed

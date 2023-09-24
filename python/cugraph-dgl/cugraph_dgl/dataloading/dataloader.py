@@ -59,7 +59,7 @@ class DataLoader(torch.utils.data.DataLoader):
         """
         Constructor for CuGraphStorage:
         -------------------------------
-        graph :  CuGraphStorage
+        graph : CuGraphStorage
             The graph.
         indices : Tensor or dict[ntype, Tensor]
             The set of indices.  It can either be a tensor of
@@ -89,7 +89,8 @@ class DataLoader(torch.utils.data.DataLoader):
             The seed for shuffling the dataset in
             :class:`torch.utils.data.distributed.DistributedSampler`.
             Only effective when :attr:`use_ddp` is True.
-        batch_size: int,
+        batch_size: int
+            Batch size.
         kwargs : dict
             Key-word arguments to be passed to the parent PyTorch
             :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
