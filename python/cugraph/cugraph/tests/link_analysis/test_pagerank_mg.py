@@ -22,7 +22,9 @@ import cugraph.dask as dcg
 import dask_cudf
 from cugraph.testing import utils
 from cugraph.dask.common.mg_utils import is_single_gpu
+import cugraph.dask.comms.comms as Comms
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cudf.testing.testing import assert_frame_equal
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
@@ -272,3 +274,111 @@ def test_pagerank_non_convergence(dask_client):
     assert type(df) is dask_cudf.DataFrame
     assert type(converged) is bool
     assert converged is True
+
+
+IS_DIRECTED = [True]
+HAS_PRECOMPUTED = [False, True]
+HAS_GUESS = [True]
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC[1:])
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+@pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_dask_batch_pagerank(
+    dask_client,
+    personalization_perc,
+    directed,
+    has_precomputed_vertex_out_weight,
+    has_guess,
+):
+    
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    # FIXME. Check with dask_cudf dataframe too
+    """
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+    """
+
+    df = cudf.read_csv(
+        input_data_path,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    g = cugraph.Graph(directed=directed)
+    #df = ddf.compute().reset_index(drop=True)
+    g.from_cudf_edgelist(df, "src", "dst", "value")
+
+    parallel_g = cugraph.Graph(directed=directed, parallel=True)
+    parallel_g.from_cudf_edgelist(df, "src", "dst", "value")
+
+
+    personalization = None
+    pre_vtx_o_wgt = None
+    nstart = None
+    max_iter = 100
+    if personalization_perc != 0:
+        personalization, p = personalize(g.nodes(), personalization_perc)
+
+    if has_precomputed_vertex_out_weight == 1:
+        df = df[["src", "value"]]
+        pre_vtx_o_wgt = (
+            df.groupby(["src"], as_index=False)
+            .sum()
+            .rename(columns={"src": "vertex", "value": "sums"})
+        )
+
+    if has_guess == 1:
+        nstart = cugraph.pagerank(g, personalization=personalization, tol=1e-6).rename(
+            columns={"pagerank": "values"}
+        )
+        # FIXME: Why is 'batch' not converging in 20 iterations
+        # max_iter = 20
+    
+    personalization_ddf = dask_cudf.from_cudf(
+        personalization, npartitions=len(Comms.get_workers())
+    )
+
+
+    batch_pr = cugraph.pagerank(
+        parallel_g,
+        personalization=personalization_ddf,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
+        max_iter=max_iter,
+        tol=1e-6,
+        nstart=nstart,
+    )
+
+    for i in range(batch_pr.npartitions):
+
+        #print("batch_pr = \n", batch_pr.get_partition(i).compute())
+        
+        personalization = \
+            personalization_ddf.get_partition(i).compute().reset_index(
+                drop=True)
+        expected_pr = cugraph.pagerank(
+            g,
+            personalization=personalization,
+            precomputed_vertex_out_weight=pre_vtx_o_wgt,
+            max_iter=max_iter,
+            tol=1e-6,
+            nstart=nstart,
+        )
+
+        result_pr = \
+            batch_pr.get_partition(i).compute().reset_index(drop=True)
+
+        assert_frame_equal(
+            result_pr, expected_pr, check_dtype=False, check_like=True
+        )
+        
+        print("pr = \n", expected_pr)
