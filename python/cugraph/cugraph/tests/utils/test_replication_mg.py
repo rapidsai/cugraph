@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import gc
+import pytest
+
 
 import cudf
-from cudf.testing import assert_series_equal, assert_frame_equal
-
 import cugraph
+import cugraph.testing.utils as utils
 import cugraph.dask.structure.replication as replication
 from cugraph.dask.common.mg_utils import is_single_gpu
-import cugraph.testing.utils as utils
+from cudf.testing import assert_series_equal, assert_frame_equal
+
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]

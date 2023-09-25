@@ -10,23 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
-import pytest
-import cugraph.dask as dcg
+
 import gc
+
+import pytest
+import numpy as np
+
+import cudf
 import cugraph
+import cugraph.dask as dcg
 import dask_cudf
 from cugraph.testing import utils
-import cudf
-
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-
-
 def personalize(vertices, personalization_perc):
     personalization = None
     if personalization_perc != 0:

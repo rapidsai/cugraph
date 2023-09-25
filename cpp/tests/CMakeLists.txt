@@ -14,6 +14,10 @@
 # limitations under the License.
 #
 #=============================================================================
+enable_testing()
+
+include(rapids-test)
+rapids_test_init()
 
 ###################################################################################################
 # - common test utils -----------------------------------------------------------------------------
@@ -28,7 +32,7 @@ add_library(cugraphtestutil STATIC
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
             cores/k_core_validate.cu
-	    structure/induced_subgraph_validate.cu
+            structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
@@ -59,7 +63,22 @@ target_link_libraries(cugraphtestutil
 # - compiler function -----------------------------------------------------------------------------
 
 function(ConfigureTest CMAKE_TEST_NAME)
-    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+    set(options)
+    set(one_value GPUS PERCENT)
+    set(multi_value)
+    cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS AND NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_GPUS 1)
+        set(_CUGRAPH_TEST_PERCENT 25)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS)
+        set(_CUGRAPH_TEST_GPUS 1)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_PERCENT 100)
+    endif()
+
+    add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
@@ -69,18 +88,18 @@ function(ConfigureTest CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
     )
-
-    add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
-
     set_target_properties(
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    install(
-        TARGETS ${CMAKE_TEST_NAME}
-        COMPONENT testing
-        DESTINATION bin/gtests/libcugraph
-        EXCLUDE_FROM_ALL)
+    rapids_test_add(
+        NAME ${CMAKE_TEST_NAME}
+        COMMAND ${CMAKE_TEST_NAME}
+        GPUS ${_CUGRAPH_TEST_GPUS}
+        PERCENT ${_CUGRAPH_TEST_PERCENT}
+        INSTALL_COMPONENT_SET testing
+    )
+    set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH")
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
@@ -96,29 +115,44 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         NCCL::NCCL
         MPI::MPI_CXX
     )
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    add_test(NAME ${CMAKE_TEST_NAME}
-             COMMAND ${MPIEXEC_EXECUTABLE}
+    rapids_test_add(
+        NAME ${CMAKE_TEST_NAME}
+        COMMAND ${MPIEXEC_EXECUTABLE}
              "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
-             ${MPIEXEC_POSTFLAGS})
+             ${MPIEXEC_POSTFLAGS}
+        GPUS ${GPU_COUNT}
+        PERCENT 100
+        INSTALL_COMPONENT_SET testing_mg
+    )
+    set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_MG")
 
-    set_target_properties(
-        ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
-
-    install(
-        TARGETS ${CMAKE_TEST_NAME}
-        COMPONENT testing
-        DESTINATION bin/gtests/libcugraph_mg
-        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
-    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+    set(options)
+    set(one_value GPUS PERCENT)
+    set(multi_value)
+    cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS AND NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_GPUS 1)
+        set(_CUGRAPH_TEST_PERCENT 25)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS)
+        set(_CUGRAPH_TEST_GPUS 1)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_PERCENT 100)
+    endif()
+
+    add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
@@ -127,18 +161,19 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             GTest::gtest
             GTest::gtest_main
     )
-
-    add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
-
     set_target_properties(
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    install(
-        TARGETS ${CMAKE_TEST_NAME}
-        COMPONENT testing
-        DESTINATION bin/gtests/libcugraph_c
-        EXCLUDE_FROM_ALL)
+    rapids_test_add(
+        NAME ${CMAKE_TEST_NAME}
+        COMMAND ${CMAKE_TEST_NAME}
+        GPUS ${_CUGRAPH_TEST_GPUS}
+        PERCENT ${_CUGRAPH_TEST_PERCENT}
+        INSTALL_COMPONENT_SET testing_c
+    )
+    set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C")
+
 endfunction()
 
 function(ConfigureCTestMG CMAKE_TEST_NAME)
@@ -148,30 +183,32 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         PRIVATE
             cugraph::cugraph_c
             cugraph_c_testutil
+            cugraphmgtestutil
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
     )
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    add_test(NAME ${CMAKE_TEST_NAME}
-             COMMAND ${MPIEXEC_EXECUTABLE}
+    rapids_test_add(
+        NAME ${CMAKE_TEST_NAME}
+        COMMAND ${MPIEXEC_EXECUTABLE}
              "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
-             ${MPIEXEC_POSTFLAGS})
+             ${MPIEXEC_POSTFLAGS}
+        GPUS ${GPU_COUNT}
+        PERCENT 100
+        INSTALL_COMPONENT_SET testing_mg
+    )
+    set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C_MG")
 
-    set_target_properties(
-        ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    install(
-        TARGETS ${CMAKE_TEST_NAME}
-        COMPONENT testing
-        DESTINATION bin/gtests/libcugraph_c
-        EXCLUDE_FROM_ALL)
 endfunction()
 
 if(NOT USE_CUGRAPH_OPS)
@@ -229,7 +266,7 @@ ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - EGO tests -------------------------------------------------------------------------------------
-ConfigureTest(EGO_TEST community/egonet_test.cpp)
+ConfigureTest(EGO_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
@@ -257,7 +294,8 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
 # - Bipartite R-mat graph generation tests --------------------------------------------------------
-ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp)
+ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp
+    GPUS 1 PERCENT 100)
 
 ###################################################################################################
 # - Graph mask tests ------------------------------------------------------------------------------
@@ -314,6 +352,10 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
+# - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
+ConfigureTest(OD_SHORTEST_DISTANCES_TEST traversal/od_shortest_distances_test.cpp)
+
+###################################################################################################
 # - HITS tests ------------------------------------------------------------------------------------
 ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
 
@@ -343,6 +385,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
 
 ###################################################################################################
+# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
+
+###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
@@ -353,11 +399,13 @@ ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampli
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
 ###################################################################################################
-# - Renumber tests --------------------------------------------------------------------------------
-set(RENUMBERING_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
+# - RENUMBER SAMPLED EDGE LIST tests --------------------------------------------------------------
+ConfigureTest(RENUMBER_SAMPLED_EDGELIST_TEST sampling/renumber_sampled_edgelist_test.cu)
+target_link_libraries(RENUMBER_SAMPLED_EDGELIST_TEST PRIVATE cuco::cuco)
 
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
+###################################################################################################
+# - Renumber tests --------------------------------------------------------------------------------
+ConfigureTest(RENUMBERING_TEST structure/renumbering_test.cpp)
 
 ###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------
@@ -375,6 +423,11 @@ ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
+
+###################################################################################################
+# - install tests ---------------------------------------------------------------------------------
+rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/libcugraph)
+
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
@@ -388,6 +441,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/mg_utilities.cpp
                 utilities/test_utilities_mg.cu
                 sampling/random_walks_check_mg.cu
+                c_api/mg_test_utils.cpp
                 )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -578,6 +632,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
+    # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION tests -------------------------
+    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
+    prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
+    target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
@@ -585,6 +645,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+
+    ###############################################################################################
+    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
     # - MG SIMILARITY tests -----------------------------------------------------------------------
@@ -596,29 +660,31 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
-    ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_GENERATE_RMAT_TEST c_api/mg_generate_rmat_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_SSSP_TEST c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_KATZ_TEST c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_BETWEENNESS_CENTRALITY_TEST c_api/mg_betweenness_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_LEIDEN_TEST c_api/mg_leiden_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_CORE_NUMBER_TEST c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c)
+    ConfigureCTestMG(MG_CAPI_GENERATE_RMAT_TEST c_api/mg_generate_rmat_test.c)
+    ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c)
+    ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c)
+    ConfigureCTestMG(MG_CAPI_SSSP_TEST c_api/mg_sssp_test.c)
+    ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/mg_weakly_connected_components_test.c)
+    ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/mg_strongly_connected_components_test.c)
+    ConfigureCTestMG(MG_CAPI_KATZ_TEST c_api/mg_katz_test.c)
+    ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/mg_eigenvector_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_BETWEENNESS_CENTRALITY_TEST c_api/mg_betweenness_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
+    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
+    ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
+    ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)
+    ConfigureCTestMG(MG_CAPI_LEIDEN_TEST c_api/mg_leiden_test.c)
+    ConfigureCTestMG(MG_CAPI_CORE_NUMBER_TEST c_api/mg_core_number_test.c)
+    ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c)
+    ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
+    ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c)
+    ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
+    ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
+
+    rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_mg DESTINATION bin/gtests/libcugraph_mg)
 endif()
 
 ###################################################################################################
@@ -677,8 +743,4 @@ ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
 
-###################################################################################################
-### enable testing ################################################################################
-###################################################################################################
-
-enable_testing()
+rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_c DESTINATION bin/gtests/libcugraph_c)

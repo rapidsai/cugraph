@@ -136,6 +136,9 @@ void cugraph_coo_list_free(cugraph_coo_list_t* coo_list);
  * @param [in]     clip_and_flip      Flag controlling whether to generate edges only in the lower
  * triangular part (including the diagonal) of the graph adjacency matrix (if set to `true`) or not
  * (if set to `false`).
+ * @param [in]     scramble_vertex_ids Flag controlling whether to scramble vertex ID bits
+ * (if set to `true`) or not (if set to `false`); scrambling vertex ID bits breaks correlation
+ * between vertex ID values and vertex degrees.
  * @param [out]    result             Opaque pointer to generated coo
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
@@ -149,6 +152,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handl
                                                     double b,
                                                     double c,
                                                     bool_t clip_and_flip,
+                                                    bool_t scramble_vertex_ids,
                                                     cugraph_coo_t** result,
                                                     cugraph_error_t** error);
 
@@ -172,6 +176,9 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handl
  * @param [in]     clip_and_flip      Flag controlling whether to generate edges only in the lower
  * triangular part (including the diagonal) of the graph adjacency matrix (if set to `true`) or not
  * (if set to `false`).
+ * @param [in]     scramble_vertex_ids Flag controlling whether to scramble vertex ID bits
+ * (if set to `true`) or not (if set to `false`); scrambling vertex ID bits breaks correlation
+ * between vertex ID values and vertex degrees.
  * @param [out]    result             Opaque pointer to generated coo list
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
@@ -187,6 +194,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
   cugraph_generator_distribution_t size_distribution,
   cugraph_generator_distribution_t edge_distribution,
   bool_t clip_and_flip,
+  bool_t scramble_vertex_ids,
   cugraph_coo_list_t** result,
   cugraph_error_t** error);
 

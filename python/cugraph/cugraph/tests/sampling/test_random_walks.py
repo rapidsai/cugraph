@@ -15,21 +15,22 @@ import gc
 import random
 
 import pytest
-from cudf.testing import assert_series_equal
-
-import cugraph
-import cudf
 import networkx as nx
+
+import cudf
+import cugraph
+from cudf.testing import assert_series_equal
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
+from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
+
 
 # =============================================================================
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
-DATASETS = [pytest.param(d) for d in DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DEFAULT_DATASETS]
+SMALL_DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 
 
 # =============================================================================
@@ -75,7 +76,7 @@ def calc_random_walks(G, max_depth=None, use_padding=False, legacy_result_type=T
     """
     assert G is not None
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
 
     k = random.randint(1, 6)
 
@@ -135,8 +136,9 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
+
     if "weight" in df_G.columns:
         df_G = df_G.rename(columns={"weight": "wgt"})
 
@@ -175,17 +177,18 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
                 else:
                     # check valid edge wgt
-                    expected_wgt = edge["wgt"].iloc[0]
-                    result_wgt = e_wgt_paths.iloc[e_wgt_idx]
+                    if G.is_weighted():
+                        expected_wgt = edge["wgt"].iloc[0]
+                        result_wgt = e_wgt_paths.iloc[e_wgt_idx]
 
-                    if expected_wgt != result_wgt:
-                        print(
-                            "[ERR] Invalid edge wgt: "
-                            "The edge src {} dst {} has wgt {} but got {}".format(
-                                src, dst, expected_wgt, result_wgt
+                        if expected_wgt != result_wgt:
+                            print(
+                                "[ERR] Invalid edge wgt: "
+                                "The edge src {} dst {} has wgt {} but got {}".format(
+                                    src, dst, expected_wgt, result_wgt
+                                )
                             )
-                        )
-                        invalid_edge_wgt += 1
+                            invalid_edge_wgt += 1
             e_wgt_idx += 1
 
             if src != -1 and dst == -1:
@@ -194,9 +197,10 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
     assert invalid_seeds == 0
     assert invalid_edge == 0
-    assert invalid_edge_wgt == 0
     assert len(v_paths) == (max_depth) * len(seeds)
-    assert len(e_wgt_paths) == (max_depth - 1) * len(seeds)
+    if G.is_weighted():
+        assert invalid_edge_wgt == 0
+        assert len(e_wgt_paths) == (max_depth - 1) * len(seeds)
 
     if legacy_result_type:
         sizes = path_data[2]
@@ -207,7 +211,7 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
@@ -219,7 +223,7 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
     max_depth = random.randint(2, 10)
@@ -243,7 +247,7 @@ def test_random_walks_coalesced(graph_file, directed):
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded_0(graph_file, directed):
     max_depth = random.randint(2, 10)
@@ -291,17 +295,21 @@ def test_random_walks_padded_1():
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 def test_random_walks_nx(graph_file):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 
     M = G.to_pandas_edgelist()
 
+    source = G.source_columns
+    target = G.destination_columns
+    edge_attr = G.weight_column
+
     Gnx = nx.from_pandas_edgelist(
         M,
-        source="src",
-        target="dst",
-        edge_attr="weights",
+        source=source,
+        target=target,
+        edge_attr=edge_attr,
         create_using=nx.DiGraph(),
     )
     max_depth = random.randint(2, 10)

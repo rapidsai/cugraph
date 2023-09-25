@@ -13,27 +13,15 @@
 
 import gc
 
-import numpy as np
 import pytest
+import numpy as np
+import networkx as nx
 
 import cudf
+import cugraph
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
 
-import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
-
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 print("Networkx version : {} ".format(nx.__version__))
 
@@ -97,7 +85,7 @@ def networkx_call(M, benchmark_callable=None):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
@@ -176,3 +164,14 @@ def test_wjaccard_multi_column(read_csv):
     actual = df_res.sort_values("0_first").reset_index()
     expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
+
+
+@pytest.mark.sg
+def test_invalid_datasets_jaccard_w():
+    karate = UNDIRECTED_DATASETS[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.jaccard_w(G, None)

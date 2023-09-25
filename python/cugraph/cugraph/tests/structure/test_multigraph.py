@@ -14,12 +14,11 @@
 import gc
 
 import pytest
-import networkx as nx
 import numpy as np
+import networkx as nx
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.testing import utils, DEFAULT_DATASETS
 
 
 # =============================================================================
@@ -30,7 +29,7 @@ def setup_function():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_multigraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     G = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))
@@ -48,7 +47,7 @@ def test_multigraph(graph_file):
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     cuedges = cugraph.to_pandas_edgelist(G)
     cuedges.rename(
-        columns={"src": "source", "dst": "target", "weights": "weight"}, inplace=True
+        columns={"src": "source", "dst": "target", "wgt": "weight"}, inplace=True
     )
     cuedges["weight"] = cuedges["weight"].round(decimals=3)
     nxedges = nx.to_pandas_edgelist(Gnx).astype(
@@ -61,7 +60,7 @@ def test_multigraph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     GM = graph_file.get_graph(create_using=cugraph.MultiGraph())
@@ -92,7 +91,7 @@ def test_Graph_from_MultiGraph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_multigraph_sssp(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     G = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))

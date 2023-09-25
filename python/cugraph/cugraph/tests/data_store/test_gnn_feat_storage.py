@@ -11,10 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Import FeatureStore class
-from cugraph.gnn import FeatureStore
-import numpy as np
-import cudf
+
 import pytest
+import numpy as np
+
+import cudf
+from cugraph.gnn import FeatureStore
 
 
 @pytest.mark.sg

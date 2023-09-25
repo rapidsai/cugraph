@@ -114,8 +114,8 @@ def random_walks(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> M = karate.get_edgelist(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> M = karate.get_edgelist(download=True)
     >>> G = karate.get_graph()
     >>> start_vertices = G.nodes()[:4]
     >>> _, _, _ = cugraph.random_walks(G, "uniform", start_vertices, 3)
