@@ -17,6 +17,7 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.replicate_edgelist import replicate_edgelist
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+
 # FIXME: Dask should not be explitly called in SG
 from dask import delayed
 from dask.distributed import wait
@@ -228,7 +229,7 @@ class simpleGraphImpl:
             if not parallel:
                 if len(input_df[source]) > 2147483100:
                     raise ValueError(
-                        "dask_cudf dataFrame edge list is too big to fit in a single GPU"
+                        "dask_cudf dataFrame edge list is too big to fit in a single GPU" #*************
                     )
                 elist = input_df.compute().reset_index(drop=True)
             else:
@@ -310,12 +311,16 @@ class simpleGraphImpl:
 
         if parallel:
             # FIXME: Ensure a dask cluster was created
-            # FIXME: If the user call edgelist, compute the result of a single partition?
+            # FIXME: If the user call edgelist, compute the result of a single
+            # partition?
             # len(Comms.get_workers())
-            # FIXME: Making another copy here which is expensive. Better to update 'self.edgelist'
-            # and if the user querry the edges, return only one partition? 
+            # FIXME: Making another copy here which is expensive. Better to update
+            # 'self.edgelist'
+            # and if the user querry the edges, return only one partition?
             print("the edgelist type = ", type(self.edgelist))
-            input_df = dask_cudf.from_cudf(self.edgelist.edgelist_df, npartitions=len(Comms.get_workers()))
+            input_df = dask_cudf.from_cudf(
+                self.edgelist.edgelist_df, npartitions=len(Comms.get_workers())
+            )
             for i in range(input_df.npartitions):
                 print("before ", input_df.get_partition(i).compute())
             input_df = replicate_edgelist(input_df)
@@ -335,7 +340,7 @@ class simpleGraphImpl:
                     edata=edata,
                     value_col=None,
                     store_transposed=store_transposed,
-                    renumber=renumber
+                    renumber=renumber,
                 )
                 for w, edata in input_df.items()
             }
@@ -352,9 +357,10 @@ class simpleGraphImpl:
         else:
 
             self._make_plc_graph(
-                value_col=value_col, store_transposed=store_transposed, renumber=renumber
+                value_col=value_col,
+                store_transposed=store_transposed,
+                renumber=renumber,
             )
-        
 
         """
         if self.batch_enabled:
@@ -1170,7 +1176,11 @@ class simpleGraphImpl:
             print("the edgelist = \n", self.edgelist.edgelist_df)
         if value_col is None:
             if len(self.edgelist.edgelist_df) == 3:
-                weight_col, id_col, type_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol], None, None
+                weight_col, id_col, type_col = (
+                    self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol],
+                    None,
+                    None,
+                )
             else:
                 weight_col, id_col, type_col = None, None, None
         elif isinstance(value_col, (cudf.DataFrame, cudf.Series)):
@@ -1221,7 +1231,9 @@ class simpleGraphImpl:
                 )
 
         self._plc_graph = SGGraph(
-            resource_handle=ResourceHandle() if sID is None else ResourceHandle(Comms.get_handle(sID).getHandle()),
+            resource_handle=ResourceHandle()
+            if sID is None
+            else ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
             src_or_offset_array=src_or_offset_array,
             dst_or_index_array=dst_or_index_array,

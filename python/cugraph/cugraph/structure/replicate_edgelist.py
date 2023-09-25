@@ -3,7 +3,7 @@ import cudf
 from dask.distributed import wait, default_client
 from pylibcugraph import (
     ResourceHandle,
-    replicate_edgelist as pylibcugraph_replicate_edgelist
+    replicate_edgelist as pylibcugraph_replicate_edgelist,
 )
 
 from cugraph.dask.common.part_utils import (
@@ -15,10 +15,10 @@ import dask
 import cupy as cp
 import cugraph.dask.comms.comms as Comms
 
-def replicate_edgelist(
-        edgelist_ddf: dask_cudf.DataFrame = None,
 
-    ) -> dask_cudf.DataFrame:
+def replicate_edgelist(
+    edgelist_ddf: dask_cudf.DataFrame = None,
+) -> dask_cudf.DataFrame:
     """
     Select random vertices from the graph
 
@@ -28,7 +28,7 @@ def replicate_edgelist(
 
     Returns
     -------
-    return 
+    return
     """
 
     _client = default_client()
@@ -40,26 +40,26 @@ def replicate_edgelist(
         """
         Creates a cudf Dataframe from cupy arrays
         """
-        #vertices = cudf.Series(cp_arrays)
+        # vertices = cudf.Series(cp_arrays)
         src, dst, wgt, _ = cp_arrays
         gathered_edgelist_df = cudf.DataFrame()
         gathered_edgelist_df["src"] = src
         gathered_edgelist_df["dst"] = dst
         gathered_edgelist_df["wgt"] = wgt
-        #print("the gathered edgelist = \n", gathered_edgelist_df)
+        # print("the gathered edgelist = \n", gathered_edgelist_df)
 
         return gathered_edgelist_df
 
     def _call_plc_replicate_edgelist(
         sID: bytes, edgelist_df: cudf.DataFrame
     ) -> cudf.Series:
-        #print("edgelist_df = \n", edgelist_df)
+        # print("edgelist_df = \n", edgelist_df)
         cp_arrays = pylibcugraph_replicate_edgelist(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             # FIXME: these are harcoded for now
             src_array=edgelist_df[0]["src"],
             dst_array=edgelist_df[0]["dst"],
-            weight_array=edgelist_df[0][edgelist_df[0].columns[2]]
+            weight_array=edgelist_df[0][edgelist_df[0].columns[2]],
         )
         return convert_to_cudf(cp_arrays)
 
@@ -80,9 +80,9 @@ def replicate_edgelist(
             )
             for w, edata in edgelist_ddf.items()
         ]
-        #print("result before = \n", result)
-        #wait(result)
-        #print("result after = \n", result)
+        # print("result before = \n", result)
+        # wait(result)
+        # print("result after = \n", result)
         ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
         wait(ddf)
         wait([r.release() for r in result])
@@ -93,6 +93,5 @@ def replicate_edgelist(
         Comms.get_session_id(),
         edgelist_ddf,
     )
-
 
     return ddf
