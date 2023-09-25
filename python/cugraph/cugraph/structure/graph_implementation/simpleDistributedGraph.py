@@ -333,7 +333,7 @@ class simpleDistributedGraphImpl:
             )
             for w, edata in ddf.items()
         }
-        # FIXME: Not deleting the copy of the dataframe
+        # FIXME: For now, don't delete the copied dataframe to avoid crash
         self._plc_graph = {
             w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
             for w, delayed_task in delayed_tasks_d.items()
@@ -1192,5 +1192,5 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    # FIXME: Not deleting the copy of the dataframe
+    # FIXME: For now, don't delete the copied dataframe to avoid crash
     return output_col
