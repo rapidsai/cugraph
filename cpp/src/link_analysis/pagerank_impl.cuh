@@ -388,9 +388,11 @@ void pagerank(raft::handle_t const& handle,
     handle,
     graph_view,
     edge_weight_view,
-    std::make_optional(raft::device_span<weight_t const>{
-      *precomputed_vertex_out_weight_sums,
-      static_cast<size_t>(graph_view.local_vertex_partition_range_size())}),
+    precomputed_vertex_out_weight_sums
+      ? std::make_optional(raft::device_span<weight_t const>{
+          *precomputed_vertex_out_weight_sums,
+          static_cast<size_t>(graph_view.local_vertex_partition_range_size())})
+      : std::nullopt,
     personalization_vertices
       ? std::make_optional(std::make_tuple(
           raft::device_span<vertex_t const>{*personalization_vertices,
