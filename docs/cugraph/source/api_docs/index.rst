@@ -1,19 +1,39 @@
-Python API reference
-====================
+API reference
+=============
 
 This page provides a list of all publicly accessible Python modules with in the Graph collection
 
+Core Graph API Documentation
+----------------------------
+
 .. toctree::
     :maxdepth: 3
-    :caption: Python API Documentation
+    :caption: Core Graph API Documentation
 
     cugraph/index.rst
     plc/pylibcugraph.rst
     cugraph_c/index.rst
     cugraph_cpp/index.rst
 
+Graph Nerual Networks API Documentation
+---------------------------------------
+
+.. toctree::
+    :maxdepth: 3
+    :caption: Graph Nerual Networks API Documentation
+
     cugraph-dgl/cugraph_dgl.rst
     cugraph-pyg/cugraph_pyg.rst
+    cugraph-ops/index.rst
+    wholegraph/index.rst
+
+Graph Extensions API Documentation
+----------------------------------
+
+.. toctree::
+    :maxdepth: 3
+    :caption: Graph Extensions API Documentation
+
     service/index.rst
 
 
