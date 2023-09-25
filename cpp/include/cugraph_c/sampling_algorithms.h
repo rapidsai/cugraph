@@ -217,7 +217,7 @@ typedef enum cugraph_compression_type_t {
   DCSR,    /** Compresses in DCSR format.  This outputs an additional index
               that avoids empty entries in the row pointer. */
   DCSC     /** Compresses in DCSC format.  This outputs an additional index
-               that avoid empty entries in the row pointer. */
+               that avoid empty entries in the col pointer. */
 } cugraph_compression_type_t;
 
 /**
