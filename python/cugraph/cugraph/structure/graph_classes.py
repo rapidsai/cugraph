@@ -656,14 +656,13 @@ class Graph:
         Returns False if the graph is an undirected graph.
         """
         return self.graph_properties.directed
-    
+
     def is_parallel(self):
         """
         Returns True if the graph is a parallel graph.
         Returns False if the graph is not a parallel graph.
         """
         return self.graph_properties.parallel
-
 
     def is_renumbered(self):
         """
