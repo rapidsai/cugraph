@@ -304,10 +304,10 @@ def pagerank(
 
     try:
         if personalization is not None:
-            if not isinstance(personalization, cudf.DataFrame):
+            if not isinstance(personalization, (cudf.DataFrame, dask_cudf.DataFrame)):
                 raise NotImplementedError(
-                    "personalization other than a cudf dataframe currently not "
-                    "supported"
+                    "personalization other than a cudf or dask_cudf dataframe "
+                    "currently not supported."
                 )
             if G.renumbered is True:
                 personalization = renumber_vertices(G, personalization)
@@ -331,12 +331,20 @@ def pagerank(
                     fail_on_nonconvergence=fail_on_nonconvergence,
                 )
             else:
-                personalization_ddf = dask_cudf.from_cudf(
-                    personalization, npartitions=len(Comms.get_workers())
-                )
+                if not isinstance(personalization, dask_cudf.DataFrame):
+                    personalization_ddf = dask_cudf.from_cudf(
+                        personalization, npartitions=len(Comms.get_workers())
+                    )
+                else:
+                    personalization_ddf = personalization
+                
                 data_prsztn = get_distributed_data(personalization_ddf)
 
                 client = default_client()
+                #print("nstart_vertices = ", initial_guess_vertices)
+                #print("nstart_values = ", initial_guess_values)
+                # FIXME: Raise an error if batch personalization was
+                # called without personalization values
                 result = [
                     client.submit(
                         _call_plc_personalized_pagerank,
