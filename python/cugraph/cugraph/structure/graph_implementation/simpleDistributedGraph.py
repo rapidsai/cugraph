@@ -316,8 +316,8 @@ class simpleDistributedGraphImpl:
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-        ddf = ddf.repartition(npartitions=len(workers) * 2)
         ddf = ddf.map_partitions(lambda df: df.copy())
+        ddf = ddf.repartition(npartitions=len(workers) * 2)
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
