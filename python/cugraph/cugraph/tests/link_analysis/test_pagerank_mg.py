@@ -279,6 +279,8 @@ def test_pagerank_non_convergence(dask_client):
 IS_DIRECTED = [True]
 HAS_PRECOMPUTED = [False, True]
 HAS_GUESS = [True]
+
+
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC[1:])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
@@ -291,10 +293,10 @@ def test_dask_batch_pagerank(
     has_precomputed_vertex_out_weight,
     has_guess,
 ):
-    
+
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
-    chunksize = dcg.get_chunksize(input_data_path)
+    #chunksize = dcg.get_chunksize(input_data_path)
 
     # FIXME. Check with dask_cudf dataframe too
     """
@@ -315,12 +317,11 @@ def test_dask_batch_pagerank(
     )
 
     g = cugraph.Graph(directed=directed)
-    #df = ddf.compute().reset_index(drop=True)
+    # df = ddf.compute().reset_index(drop=True)
     g.from_cudf_edgelist(df, "src", "dst", "value")
 
     parallel_g = cugraph.Graph(directed=directed, parallel=True)
     parallel_g.from_cudf_edgelist(df, "src", "dst", "value")
-
 
     personalization = None
     pre_vtx_o_wgt = None
@@ -343,11 +344,10 @@ def test_dask_batch_pagerank(
         )
         # FIXME: Why is 'batch' not converging in 20 iterations
         # max_iter = 20
-    
+
     personalization_ddf = dask_cudf.from_cudf(
         personalization, npartitions=len(Comms.get_workers())
     )
-
 
     batch_pr = cugraph.pagerank(
         parallel_g,
@@ -360,11 +360,11 @@ def test_dask_batch_pagerank(
 
     for i in range(batch_pr.npartitions):
 
-        #print("batch_pr = \n", batch_pr.get_partition(i).compute())
-        
-        personalization = \
-            personalization_ddf.get_partition(i).compute().reset_index(
-                drop=True)
+        # print("batch_pr = \n", batch_pr.get_partition(i).compute())
+
+        personalization = (
+            personalization_ddf.get_partition(i).compute().reset_index(drop=True)
+        )
         expected_pr = cugraph.pagerank(
             g,
             personalization=personalization,
@@ -374,11 +374,8 @@ def test_dask_batch_pagerank(
             nstart=nstart,
         )
 
-        result_pr = \
-            batch_pr.get_partition(i).compute().reset_index(drop=True)
+        result_pr = batch_pr.get_partition(i).compute().reset_index(drop=True)
 
-        assert_frame_equal(
-            result_pr, expected_pr, check_dtype=False, check_like=True
-        )
-        
+        assert_frame_equal(result_pr, expected_pr, check_dtype=False, check_like=True)
+
         print("pr = \n", expected_pr)

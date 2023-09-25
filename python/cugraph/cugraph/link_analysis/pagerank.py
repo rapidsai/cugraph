@@ -338,12 +338,12 @@ def pagerank(
                 else:
                     # FIXME: Assumed to be a dask_cudf instead. But ensure that
                     personalization_ddf = personalization
-                
+
                 data_prsztn = get_distributed_data(personalization_ddf)
 
                 client = default_client()
-                #print("nstart_vertices = ", initial_guess_vertices)
-                #print("nstart_values = ", initial_guess_values)
+                # print("nstart_vertices = ", initial_guess_vertices)
+                # print("nstart_values = ", initial_guess_values)
                 # FIXME: Raise an error if batch personalization was
                 # called without personalization values
                 result = [
