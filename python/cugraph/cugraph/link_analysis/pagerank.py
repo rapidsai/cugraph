@@ -15,6 +15,11 @@ import warnings
 
 import cudf
 import numpy as np
+import dask_cudf
+import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait, default_client
+import dask
 
 from pylibcugraph import (
     pagerank as plc_pagerank,
@@ -38,6 +43,24 @@ def renumber_vertices(input_graph, input_df):
     input_df = input_graph.add_internal_vertex_id(input_df, "vertex", cols)
 
     return input_df
+
+
+def convert_to_return_tuple(plc_pr_retval):
+    """
+    Using the PLC pagerank return tuple, creates a cudf DataFrame from the cupy
+    arrays and extracts the (optional) bool.
+    """
+    if len(plc_pr_retval) == 3:
+        cupy_vertices, cupy_pagerank, converged = plc_pr_retval
+    else:
+        cupy_vertices, cupy_pagerank = plc_pr_retval
+        converged = True
+
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertices
+    df["pagerank"] = cupy_pagerank
+
+    return (df, converged)
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -78,6 +101,39 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         input_df = input_df.astype({"vertex": vertex_dtype})
 
     return input_df
+
+
+def _call_plc_personalized_pagerank(
+    sID,
+    sg_graph_x,
+    pre_vtx_o_wgt_vertices,
+    pre_vtx_o_wgt_sums,
+    data_personalization,
+    initial_guess_vertices,
+    initial_guess_values,
+    alpha,
+    epsilon,
+    max_iterations,
+    do_expensive_check,
+    fail_on_nonconvergence,
+):
+    personalization_vertices = data_personalization["vertex"]
+    personalization_values = data_personalization["values"]
+    return plc_p_pagerank(
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        graph=sg_graph_x,
+        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+        personalization_vertices=personalization_vertices,
+        personalization_values=personalization_values,
+        initial_guess_vertices=initial_guess_vertices,
+        initial_guess_values=initial_guess_values,
+        alpha=alpha,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
+        do_expensive_check=do_expensive_check,
+        fail_on_nonconvergence=fail_on_nonconvergence,
+    )
 
 
 def pagerank(
@@ -258,21 +314,85 @@ def pagerank(
 
             personalization = ensure_valid_dtype(G, personalization, "personalization")
 
-            result_tuple = plc_p_pagerank(
-                resource_handle=ResourceHandle(),
-                graph=G._plc_graph,
-                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-                personalization_vertices=personalization["vertex"],
-                personalization_values=personalization["values"],
-                initial_guess_vertices=initial_guess_vertices,
-                initial_guess_values=initial_guess_values,
-                alpha=alpha,
-                epsilon=tol,
-                max_iterations=max_iter,
-                do_expensive_check=do_expensive_check,
-                fail_on_nonconvergence=fail_on_nonconvergence,
-            )
+            if not G.is_parallel():
+                result_tuple = plc_p_pagerank(
+                    resource_handle=ResourceHandle(),
+                    graph=G._plc_graph,
+                    precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                    precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                    personalization_vertices=personalization["vertex"],
+                    personalization_values=personalization["values"],
+                    initial_guess_vertices=initial_guess_vertices,
+                    initial_guess_values=initial_guess_values,
+                    alpha=alpha,
+                    epsilon=tol,
+                    max_iterations=max_iter,
+                    do_expensive_check=do_expensive_check,
+                    fail_on_nonconvergence=fail_on_nonconvergence,
+                )
+            else:
+                personalization_ddf = dask_cudf.from_cudf(
+                    personalization, npartitions=len(Comms.get_workers())
+                )
+                data_prsztn = get_distributed_data(personalization_ddf)
+
+                client = default_client()
+                result = [
+                    client.submit(
+                        _call_plc_personalized_pagerank,
+                        Comms.get_session_id(),
+                        G._plc_graph[w],
+                        pre_vtx_o_wgt_vertices,
+                        pre_vtx_o_wgt_sums,
+                        data_personalization[0],
+                        initial_guess_vertices,
+                        initial_guess_values,
+                        alpha,
+                        tol,
+                        max_iter,
+                        do_expensive_check,
+                        fail_on_nonconvergence,
+                        workers=[w],
+                        allow_other_workers=False,
+                    )
+                    for w, data_personalization in data_prsztn.worker_to_parts.items()
+                ]
+
+                wait(result)
+
+                vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+
+                # Have each worker convert tuple of arrays and bool from PLC to cudf
+                # DataFrames and bools. This will be a list of futures.
+                result_tuples = [
+                    client.submit(convert_to_return_tuple, cp_arrays)
+                    for cp_arrays in result
+                ]
+
+                # Convert the futures to dask delayed objects so the tuples can be
+                # split. nout=2 is passed since each tuple/iterable is a fixed length of 2.
+                result_tuples = [dask.delayed(r, nout=2) for r in result_tuples]
+
+                # Create the ddf and get the converged bool from the delayed objs.  Use a
+                # meta DataFrame to pass the expected dtypes for the DataFrame to prevent
+                # another compute to determine them automatically.
+                meta = cudf.DataFrame(columns=["vertex", "pagerank"])
+                meta = meta.astype({"pagerank": "float64", "vertex": vertex_dtype})
+                df = dask_cudf.from_delayed(
+                    [t[0] for t in result_tuples], meta=meta
+                ).persist()
+                converged = all(dask.compute(*[t[1] for t in result_tuples]))
+
+                wait(df)
+
+                # Wait until the inactive futures are released
+                wait(
+                    [
+                        (r.release(), c_r.release())
+                        for r, c_r in zip(result, result_tuples)
+                    ]
+                )
+
         else:
             result_tuple = plc_pagerank(
                 resource_handle=ResourceHandle(),
@@ -287,22 +407,27 @@ def pagerank(
                 do_expensive_check=do_expensive_check,
                 fail_on_nonconvergence=fail_on_nonconvergence,
             )
+
     # Re-raise this as a cugraph exception so users trying to catch this do not
     # have to know to import another package.
     except plc_exceptions.FailedToConvergeError as exc:
         raise FailedToConvergeError from exc
 
-    df = cudf.DataFrame()
-    df["vertex"] = result_tuple[0]
-    df["pagerank"] = result_tuple[1]
+    if not G.is_parallel():
+        df = cudf.DataFrame()
+        df["vertex"] = result_tuple[0]
+        df["pagerank"] = result_tuple[1]
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx is True:
+    if isNx is True and not G.is_parallel():
         df = df_score_to_dictionary(df, "pagerank")
 
     if fail_on_nonconvergence:
         return df
     else:
-        return (df, result_tuple[2])
+        if not G.is_parallel():
+            return (df, result_tuple[2])
+        else:
+            return (df, converged)
