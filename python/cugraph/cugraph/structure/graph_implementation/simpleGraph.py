@@ -229,7 +229,8 @@ class simpleGraphImpl:
             if not parallel:
                 if len(input_df[source]) > 2147483100:
                     raise ValueError(
-                        "dask_cudf dataFrame edge list is too big to fit in a single GPU" #*************
+                        "dask_cudf dataFrame edge list is too big to fit "
+                        "in a single GPU"
                     )
                 elist = input_df.compute().reset_index(drop=True)
             else:
