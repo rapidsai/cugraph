@@ -181,6 +181,7 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
+        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -316,7 +317,6 @@ class simpleDistributedGraphImpl:
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-        ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = ddf.repartition(npartitions=len(workers) * 2)
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
