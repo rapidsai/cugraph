@@ -36,6 +36,10 @@ void sort_by_key(raft::handle_t const& handle,
                  raft::device_span<key_t> keys,
                  raft::device_span<value_t> values);
 
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::device_span<T const> d_input);
+
 }  // namespace detail
 }  // namespace c_api
 }  // namespace cugraph

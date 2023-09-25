@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -181,6 +181,15 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   const cugraph_type_erased_device_array_view_t* subgraph_offsets,
   const cugraph_type_erased_device_array_view_t* subgraph_vertices,
   bool_t do_expensive_check,
+  cugraph_induced_subgraph_result_t** result,
+  cugraph_error_t** error);
+
+
+cugraph_error_code_t cugraph_replicate_edgelist(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
