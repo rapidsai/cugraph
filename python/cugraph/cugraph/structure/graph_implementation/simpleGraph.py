@@ -14,8 +14,14 @@
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.replicate_edgelist import replicate_edgelist
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+# FIXME: Dask should not be explitly called in SG
+from dask import delayed
+from dask.distributed import wait
+import gc
+
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -24,6 +30,10 @@ import numpy as np
 import warnings
 from cugraph.dask.structure import replication
 from typing import Union, Dict
+from cugraph.dask.common.part_utils import (
+    get_persisted_df_worker_map,
+    persist_dask_df_equal_parts_per_worker,
+)
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
@@ -131,6 +141,7 @@ class simpleGraphImpl:
         renumber=True,
         legacy_renum_only=True,
         store_transposed=False,
+        parallel=False,
     ):
         if legacy_renum_only:
             warning_msg = (
@@ -214,11 +225,14 @@ class simpleGraphImpl:
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
-            if len(input_df[source]) > 2147483100:
-                raise ValueError(
-                    "dask_cudf dataFrame edge list is too big to fit in a single GPU"
-                )
-            elist = input_df.compute().reset_index(drop=True)
+            if not parallel:
+                if len(input_df[source]) > 2147483100:
+                    raise ValueError(
+                        "dask_cudf dataFrame edge list is too big to fit in a single GPU"
+                    )
+                elist = input_df.compute().reset_index(drop=True)
+            else:
+                elist = input_df
         else:
             raise TypeError("input should be a cudf.DataFrame or a dask_cudf dataFrame")
         # initial, unmodified input dataframe.
@@ -294,12 +308,59 @@ class simpleGraphImpl:
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
+        if parallel:
+            # FIXME: Ensure a dask cluster was created
+            # FIXME: If the user call edgelist, compute the result of a single partition?
+            # len(Comms.get_workers())
+            # FIXME: Making another copy here which is expensive. Better to update 'self.edgelist'
+            # and if the user querry the edges, return only one partition? 
+            print("the edgelist type = ", type(self.edgelist))
+            input_df = dask_cudf.from_cudf(self.edgelist.edgelist_df, npartitions=len(Comms.get_workers()))
+            for i in range(input_df.npartitions):
+                print("before ", input_df.get_partition(i).compute())
+            input_df = replicate_edgelist(input_df)
+
+            for i in range(input_df.npartitions):
+                print("after ", input_df.get_partition(i).compute())
+
+            print("input_df = \n", input_df)
+            # Create a dask_cudf dataframe
+            # Create the PLC graph
+            client = mg_utils.get_client()
+            input_df = persist_dask_df_equal_parts_per_worker(input_df, client)
+            input_df = get_persisted_df_worker_map(input_df, client)
+            delayed_tasks_d = {
+                w: delayed(self._make_plc_graph)(
+                    sID=Comms.get_session_id(),
+                    edata=edata,
+                    value_col=None,
+                    store_transposed=store_transposed,
+                    renumber=renumber
+                )
+                for w, edata in input_df.items()
+            }
+            self._plc_graph = {
+                w: client.compute(delayed_task, workers=w, allow_other_workers=False)
+                for w, delayed_task in delayed_tasks_d.items()
+            }
+            wait(list(self._plc_graph.values()))
+            del delayed_tasks_d
+            client.run(gc.collect)
+            print("Done computing the plc graph")
+            print("the plc graph is = \n", self._plc_graph)
+
+        else:
+
+            self._make_plc_graph(
+                value_col=value_col, store_transposed=store_transposed, renumber=renumber
+            )
+        
+
+        """
         if self.batch_enabled:
             self._replicate_edgelist()
-
-        self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed, renumber=renumber
-        )
+        print("making the plc graph")
+        """
 
     def to_pandas_edgelist(
         self,
@@ -1081,6 +1142,8 @@ class simpleGraphImpl:
 
     def _make_plc_graph(
         self,
+        sID,
+        edata: cudf.DataFrame = None,
         value_col: Dict[str, cudf.DataFrame] = None,
         store_transposed: bool = False,
         renumber: bool = True,
@@ -1101,9 +1164,15 @@ class simpleGraphImpl:
             Required if inputted vertex ids are not of
             int32 or int64 type.
         """
-
+        print("in the plc graph")
+        if edata is not None:
+            self.edgelist.edgelist_df = edata[0]
+            print("the edgelist = \n", self.edgelist.edgelist_df)
         if value_col is None:
-            weight_col, id_col, type_col = None, None, None
+            if len(self.edgelist.edgelist_df) == 3:
+                weight_col, id_col, type_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol], None, None
+            else:
+                weight_col, id_col, type_col = None, None, None
         elif isinstance(value_col, (cudf.DataFrame, cudf.Series)):
             weight_col, id_col, type_col = value_col, None, None
         elif isinstance(value_col, dict):
@@ -1152,7 +1221,7 @@ class simpleGraphImpl:
                 )
 
         self._plc_graph = SGGraph(
-            resource_handle=ResourceHandle(),
+            resource_handle=ResourceHandle() if sID is None else ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
             src_or_offset_array=src_or_offset_array,
             dst_or_index_array=dst_or_index_array,
@@ -1164,6 +1233,8 @@ class simpleGraphImpl:
             do_expensive_check=True,
             input_array_format=input_array_format,
         )
+        # If there are multiple resource handle, each call must have a result returned
+        return self._plc_graph if sID is not None else None
 
     def to_directed(self, DiG, store_transposed=False):
         """

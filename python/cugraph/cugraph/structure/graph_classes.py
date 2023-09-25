@@ -116,6 +116,7 @@ class Graph:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
+        parallel=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -201,6 +202,7 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only,
+            parallel=parallel,
         )
 
     def from_cudf_adjlist(

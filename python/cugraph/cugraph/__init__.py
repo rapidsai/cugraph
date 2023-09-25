@@ -53,6 +53,7 @@ from cugraph.structure import (
     is_multigraph,
     is_bipartite,
     is_multipartite,
+    replicate_edgelist,
 )
 
 from cugraph.centrality import (
