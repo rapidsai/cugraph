@@ -71,9 +71,9 @@ def uniform_neighbor_sample(
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
-    use_legacy_names=True,  # deprecated
-    compress_per_hop=False,
-    compression="COO",
+    use_legacy_names: bool = True,  # deprecated
+    compress_per_hop: bool = False,
+    compression: str = "COO",
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
