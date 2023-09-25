@@ -157,7 +157,7 @@ def _write_samples_to_parquet_csr(
             [0, -1]
         ].values  # legal since offsets has the 1 extra offset
         results_start, results_end = major_offsets_array[
-            [major_offsets_start, major_offsets_end]
+            [major_offsets_start, major_offsets_end - 1]
         ]  # avoid d2h copy
 
         # no need to use end batch id, just ensure the batch is labeled correctly
@@ -186,7 +186,8 @@ def _write_samples_to_parquet_csr(
                 ),
                 label_hop_offsets_current_partition,
                 cudf.Series(
-                    major_offsets_array[results_start:results_end], name="major_offsets"
+                    major_offsets_array[major_offsets_start:major_offsets_end],
+                    name="major_offsets",
                 ),
                 cudf.Series(weight_array[results_start:results_end], name="weight"),
                 cudf.Series(edge_id_array[results_start:results_end], name="edge_id"),

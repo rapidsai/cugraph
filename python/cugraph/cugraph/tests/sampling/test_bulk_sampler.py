@@ -341,4 +341,9 @@ def test_bulk_sampler_csr(scratch_dir):
 
     assert len(os.listdir(samples_path)) == 21
 
+    for file in os.listdir(samples_path):
+        df = cudf.read_parquet(os.path.join(samples_path, file))
+
+        assert df.major_offsets.dropna().iloc[-1] - df.major_offsets.iloc[0] == len(df)
+
     shutil.rmtree(samples_path)
