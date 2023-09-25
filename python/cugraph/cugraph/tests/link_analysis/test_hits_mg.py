@@ -111,7 +111,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.mg
-def test_dask_hits(dask_client, benchmark, input_expected_output):
+def test_dask_mg_hits(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
 
@@ -155,7 +155,7 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_hits_transposed_false(dask_client):
+def test_dask_mg_hits_transposed_false(dask_client):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 
     chunksize = dcg.get_chunksize(input_data_path)

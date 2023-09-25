@@ -15,30 +15,42 @@ rapids-logger "Begin py build"
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
-rapids-mamba-retry mambabuild \
+rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   conda/recipes/pylibcugraph
 
-rapids-mamba-retry mambabuild \
+rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph
 
+# NOTE: nothing in nx-cugraph is CUDA-specific, but it is built on each CUDA
+# platform to ensure it is included in each set of artifacts, since test
+# scripts only install from one set of artifacts based on the CUDA version used
+# for the test run.
+rapids-conda-retry mambabuild \
+  --no-test \
+  --channel "${CPP_CHANNEL}" \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/nx-cugraph
+
+# NOTE: nothing in the cugraph-service packages are CUDA-specific, but they are
+# built on each CUDA platform to ensure they are included in each set of
+# artifacts, since test scripts only install from one set of artifacts based on
+# the CUDA version used for the test run.
+rapids-conda-retry mambabuild \
+  --no-test \
+  --channel "${CPP_CHANNEL}" \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/cugraph-service
+
 RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
 if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
-  # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
-  # Nothing in the cugraph-service packages is CUDA-specific.
-  rapids-mamba-retry mambabuild \
-    --no-test \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    conda/recipes/cugraph-service
-
   # Only CUDA 11 is supported right now due to PyTorch requirement.
-  rapids-mamba-retry mambabuild \
+  rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
@@ -48,7 +60,7 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     conda/recipes/cugraph-pyg
 
   # Only CUDA 11 is supported right now due to PyTorch requirement.
-  rapids-mamba-retry mambabuild \
+  rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
