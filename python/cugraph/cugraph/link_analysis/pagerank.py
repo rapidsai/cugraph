@@ -370,12 +370,13 @@ def pagerank(
                 ]
 
                 # Convert the futures to dask delayed objects so the tuples can be
-                # split. nout=2 is passed since each tuple/iterable is a fixed length of 2.
+                # split. nout=2 is passed since each tuple/iterable is a fixed
+                # length of 2.
                 result_tuples = [dask.delayed(r, nout=2) for r in result_tuples]
 
-                # Create the ddf and get the converged bool from the delayed objs.  Use a
-                # meta DataFrame to pass the expected dtypes for the DataFrame to prevent
-                # another compute to determine them automatically.
+                # Create the ddf and get the converged bool from the delayed objs.
+                # Use a meta DataFrame to pass the expected dtypes for the DataFrame
+                # to prevent another compute to determine them automatically.
                 meta = cudf.DataFrame(columns=["vertex", "pagerank"])
                 meta = meta.astype({"pagerank": "float64", "vertex": vertex_dtype})
                 df = dask_cudf.from_delayed(
@@ -408,8 +409,8 @@ def pagerank(
                 fail_on_nonconvergence=fail_on_nonconvergence,
             )
 
-    # Re-raise this as a cugraph exception so users trying to catch this do not
-    # have to know to import another package.
+    # Re-raise this as a cugraph exception so users trying to catch this
+    # do not have to know to import another package.
     except plc_exceptions.FailedToConvergeError as exc:
         raise FailedToConvergeError from exc
 
