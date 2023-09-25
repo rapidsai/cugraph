@@ -57,13 +57,14 @@ class Graph:
     """
 
     class Properties:
-        def __init__(self, directed):
+        def __init__(self, directed, parallel):
             self.directed = directed
             self.weights = False
+            self.parallel = parallel
 
-    def __init__(self, m_graph=None, directed=False):
+    def __init__(self, m_graph=None, directed=False, parallel=False):
         self._Impl = None
-        self.graph_properties = Graph.Properties(directed)
+        self.graph_properties = Graph.Properties(directed, parallel)
         if m_graph is not None:
             if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
@@ -116,7 +117,6 @@ class Graph:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
-        parallel=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -202,7 +202,6 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only,
-            parallel=parallel,
         )
 
     def from_cudf_adjlist(
@@ -657,6 +656,14 @@ class Graph:
         Returns False if the graph is an undirected graph.
         """
         return self.graph_properties.directed
+    
+    def is_parallel(self):
+        """
+        Returns True if the graph is a parallel graph.
+        Returns False if the graph is not a parallel graph.
+        """
+        return self.graph_properties.parallel
+
 
     def is_renumbered(self):
         """

@@ -96,6 +96,7 @@ class simpleGraphImpl:
         def __init__(self, properties):
             self.multi_edge = getattr(properties, "multi_edge", False)
             self.directed = properties.directed
+            self.parallel = properties.parallel
             self.renumbered = False
             self.self_loop = None
             self.store_transposed = False
@@ -142,7 +143,6 @@ class simpleGraphImpl:
         renumber=True,
         legacy_renum_only=True,
         store_transposed=False,
-        parallel=False,
     ):
         if legacy_renum_only:
             warning_msg = (
@@ -226,7 +226,7 @@ class simpleGraphImpl:
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
-            if not parallel:
+            if not self.properties.parallel:
                 if len(input_df[source]) > 2147483100:
                     raise ValueError(
                         "dask_cudf dataFrame edge list is too big to fit "
@@ -310,7 +310,7 @@ class simpleGraphImpl:
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
-        if parallel:
+        if self.properties.parallel:
             # FIXME: Ensure a dask cluster was created
             # FIXME: If the user call edgelist, compute the result of a single
             # partition?
@@ -1149,7 +1149,7 @@ class simpleGraphImpl:
 
     def _make_plc_graph(
         self,
-        sID,
+        sID=None,
         edata: cudf.DataFrame = None,
         value_col: Dict[str, cudf.DataFrame] = None,
         store_transposed: bool = False,
