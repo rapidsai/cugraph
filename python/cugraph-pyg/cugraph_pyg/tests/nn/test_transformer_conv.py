@@ -27,6 +27,7 @@ def test_transformer_conv_equality(bipartite, concat, heads, graph, request):
     import torch
     from torch_geometric.nn import TransformerConv
 
+    torch.manual_seed(12345)
     edge_index, size = request.getfixturevalue(graph)
     edge_index = edge_index.cuda()
     csc = CuGraphTransformerConv.to_csc(edge_index, size)
