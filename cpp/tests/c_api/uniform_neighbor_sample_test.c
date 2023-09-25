@@ -715,6 +715,12 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   size_t start_labels[] = { 6, 12 };
   int fan_out[]        = {-1};
 
+  bool_t with_replacement = TRUE;
+  bool_t return_hops = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
+  bool_t dedupe_sources = FALSE;
+  bool_t renumber_results = FALSE;
+
   // Create graph
   int test_ret_value              = 0;
   cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
@@ -775,6 +781,17 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
+  cugraph_sampling_options_t *sampling_options;
+
+  ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+
+  cugraph_sampling_set_with_replacement(sampling_options, with_replacement);
+  cugraph_sampling_set_return_hops(sampling_options, return_hops);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
+  cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
+  cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
+
   ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
                                                                   graph,
                                                                   d_start_view,
@@ -783,8 +800,7 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
                                                                   NULL,
                                                                   h_fan_out_view,
                                                                   rng_state,
-                                                                  FALSE,
-                                                                  TRUE,
+                                                                  sampling_options,
                                                                   FALSE,
                                                                   &result,
                                                                   &ret_error);
