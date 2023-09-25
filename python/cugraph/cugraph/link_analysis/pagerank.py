@@ -331,11 +331,12 @@ def pagerank(
                     fail_on_nonconvergence=fail_on_nonconvergence,
                 )
             else:
-                if not isinstance(personalization, dask_cudf.DataFrame):
+                if isinstance(personalization, cudf.DataFrame):
                     personalization_ddf = dask_cudf.from_cudf(
                         personalization, npartitions=len(Comms.get_workers())
                     )
                 else:
+                    # FIXME: Assumed to be a dask_cudf instead. But ensure that
                     personalization_ddf = personalization
                 
                 data_prsztn = get_distributed_data(personalization_ddf)

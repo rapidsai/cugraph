@@ -319,9 +319,10 @@ class simpleGraphImpl:
             # 'self.edgelist'
             # and if the user querry the edges, return only one partition?
             print("the edgelist type = ", type(self.edgelist))
-            input_df = dask_cudf.from_cudf(
-                self.edgelist.edgelist_df, npartitions=len(Comms.get_workers())
-            )
+            if isinstance(self.edgelist.edgelist_df, cudf.DataFrame):
+                input_df = dask_cudf.from_cudf(
+                    self.edgelist.edgelist_df, npartitions=len(Comms.get_workers())
+                )
             for i in range(input_df.npartitions):
                 print("before ", input_df.get_partition(i).compute())
             input_df = replicate_edgelist(input_df)
