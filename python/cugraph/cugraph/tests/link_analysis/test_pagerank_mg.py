@@ -296,7 +296,7 @@ def test_dask_batch_pagerank(
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
-    #chunksize = dcg.get_chunksize(input_data_path)
+    # chunksize = dcg.get_chunksize(input_data_path)
 
     # FIXME. Check with dask_cudf dataframe too
     """
