@@ -117,8 +117,8 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
             G[et][1] = cudf.Series(G[et][1])
     elif edge_index_type == "dask-cudf":
         for et in list(G.keys()):
-            G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=2)
-            G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=2)
+            G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=1)
+            G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=1)
 
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -215,7 +215,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    graph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
