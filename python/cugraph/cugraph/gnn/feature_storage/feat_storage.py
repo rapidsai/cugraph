@@ -34,7 +34,9 @@ class FeatureStore:
             )
         self.backend = backend
 
-    def add_data(self, feat_obj: Sequence, type_name: str, feat_name: str, **kwargs) -> None:
+    def add_data(
+        self, feat_obj: Sequence, type_name: str, feat_name: str, **kwargs
+    ) -> None:
         """
         Add the feature data to the feature_storage class
         Parameters:
@@ -107,7 +109,11 @@ class FeatureStore:
 
         feat = self.fd[feat_name][type_name]
         if isinstance(feat, wgth.WholeMemoryEmbedding):
-            indices_tensor = indices if isinstance(indices, torch.Tensor) else torch.as_tensor(indices, device='cuda')
+            indices_tensor = (
+                indices
+                if isinstance(indices, torch.Tensor)
+                else torch.as_tensor(indices, device="cuda")
+            )
             return feat.gather(indices_tensor)
         else:
             return feat[indices]
@@ -142,8 +148,13 @@ class FeatureStore:
                 th_tensor.dtype,
                 th_tensor.shape,
             )
-            local_wg_tensor, local_ld_offset = wg_embedding.get_embedding_tensor().get_local_tensor()
-            local_th_tensor = th_tensor[local_ld_offset: local_ld_offset + local_wg_tensor.shape[0]]
+            (
+                local_wg_tensor,
+                local_ld_offset,
+            ) = wg_embedding.get_embedding_tensor().get_local_tensor()
+            local_th_tensor = th_tensor[
+                local_ld_offset : local_ld_offset + local_wg_tensor.shape[0]
+            ]
             local_wg_tensor.copy_(local_th_tensor)
             wg_comm_obj.barrier()
             return wg_embedding
