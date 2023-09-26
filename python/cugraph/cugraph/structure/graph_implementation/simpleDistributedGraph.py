@@ -14,6 +14,7 @@
 import gc
 from typing import Union
 import warnings
+import random
 
 import cudf
 import cupy as cp
@@ -182,7 +183,9 @@ class simpleDistributedGraphImpl:
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
         # FIXME: Make a copy of the input ddf before implicitly altering it.
-        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
+        input_ddf = input_ddf.map_partitions(
+            lambda df: df.copy(), token="custom-" + str(random.random())
+        )
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
