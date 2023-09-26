@@ -102,7 +102,7 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
         num_of_vertices = len(G.nodes)
         isolated_vertices = [v for v in range(num_of_vertices) if G.degree[v] == 0]
     else:
-        # FIXME: Gather list of isolated vertices for other graph types
+        # FIXME: Gather list of isolated vertices of G (of cugraph.Graph type)
         pass
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
