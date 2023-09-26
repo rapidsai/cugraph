@@ -20,7 +20,7 @@ import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
-from pylibcugraph.experimental import (
+from pylibcugraph import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
 )
 from pylibcugraph import ResourceHandle
@@ -96,7 +96,9 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
         adjacent vertices in the graph.
 
     use_weight : bool, optional (default=False)
-        Currently not supported
+        Flag to indicate whether to compute weighted overlap (if use_weight==True)
+        or un-weighted overlap (if use_weight==False).
+        'input_graph' must be weighted if 'use_weight=True'.
 
     Returns
     -------
@@ -121,12 +123,6 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
         vertex_pair = input_graph.get_two_hop_neighbors()
 
     vertex_pair_col_name = vertex_pair.columns
-
-    if use_weight:
-        raise ValueError("'use_weight' is currently not supported.")
-
-    if input_graph.is_weighted():
-        raise ValueError("Weighted graphs are currently not supported.")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)

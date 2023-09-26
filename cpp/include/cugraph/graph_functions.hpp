@@ -919,6 +919,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 /**
  * @brief renumber sampling output
  *
+ * @deprecated This API will be deprecated and will be replaced by the
+ * renumber_and_compress_sampled_edgelist and renumber_and_sort_sampled_edgelist functions in
+ * sampling_functions.hpp.
+ *
  * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs satisfying the
  * following requirements.
  *
