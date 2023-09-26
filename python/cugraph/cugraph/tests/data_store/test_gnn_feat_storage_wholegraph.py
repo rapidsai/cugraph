@@ -32,15 +32,18 @@ def runtest(world_rank: int, world_size: int):
     )
     wm_comm = wm_comm.wmb_comm
 
-    ar3 = np.random.randint(low=0, high=100, size=100_000).reshape(10_000, -1)
-    fs = FeatureStore(backend="wholegraph")
-    fs.add_data(ar3, "type2", "feat1")
+    generator = np.random.default_rng(62)
+    arr = generator.integers(low=0, high=100, size=100_000).reshape(10_000, -1).astype('float64')
 
-    indices_to_fetch = np.random.randint(low=0, high=len(ar3), size=1024)
+    fs = FeatureStore(backend="wholegraph")
+    fs.add_data(arr, "type2", "feat1")
+    wm_comm.barrier()
+
+    indices_to_fetch = np.random.randint(low=0, high=len(arr), size=1024)
     output_fs = fs.get_data(indices_to_fetch, type_name="type2", feat_name="feat1")
     assert isinstance(output_fs, torch.Tensor)
     assert output_fs.is_cuda
-    expected = ar3[indices_to_fetch]
+    expected = arr[indices_to_fetch]
     np.testing.assert_array_equal(output_fs.cpu().numpy(), expected)
 
     wmb.finalize()
@@ -52,5 +55,12 @@ def test_feature_storage_wholegraph_backend():
     print("gpu count:", gpu_count)
     assert gpu_count > 0
 
-    # FIXME make this work in an MG environment
     multiprocess_run(1, runtest)
+
+@pytest.mark.mg
+def test_feature_storage_wholegraph_backend_mg():
+    gpu_count = wmb.fork_get_gpu_count()
+    print("gpu count:", gpu_count)
+    assert gpu_count > 0
+
+    multiprocess_run(gpu_count, runtest)

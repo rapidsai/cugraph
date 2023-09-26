@@ -135,7 +135,7 @@ class FeatureStore:
                 return _cast_to_torch_tensor(feat_obj)
         elif backend == "wholegraph":
             wg_comm_obj = kwargs.get("wg_comm", wgth.get_local_node_communicator())
-            wg_type_str = kwargs.get("wg_type", "chunked")
+            wg_type_str = kwargs.get("wg_type", "distributed")
             wg_location_str = kwargs.get("wg_location", "cuda")
             if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
                 th_tensor = _cast_to_torch_tensor(feat_obj.values)
