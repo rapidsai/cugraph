@@ -23,5 +23,5 @@ if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
 else
     # FIXME: TEMPORARILY disable single-GPU "MG" testing until
     # https://github.com/rapidsai/cugraph/issues/3790 is closed
-    RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets python -m pytest -k "not _mg" ./python/${package_name}/${python_package_name}/tests
+    RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets python -m pytest ./python/${package_name}/${python_package_name}/tests
 fi
