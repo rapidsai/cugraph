@@ -76,9 +76,9 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
 
-        result_df['vertex'] : cudf.Series
+        result_df[VERTEX_COL_NAME] : cudf.Series
             Contains the vertex identifiers
-        result_df['partition'] : cudf.Series
+        result_df[CLUSTER_ID_COL_NAME] : cudf.Series
             Contains the partition assigned to the vertices
 
     modularity_score : float
@@ -92,6 +92,10 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     >>> parts = cugraph.louvain(G)
 
     """
+
+    # FIXME: Onece the graph construction calls support isolated vertices through
+    #  the C API (the C++ interface already supports this) then there will be
+    # no need to compute isolated vertices here.
 
     isolated_vertices = list()
     if is_nx_graph_type(type(G)):
