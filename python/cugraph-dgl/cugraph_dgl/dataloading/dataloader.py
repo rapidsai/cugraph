@@ -54,6 +54,7 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_size: int = 1024,
         drop_last: bool = False,
         shuffle: bool = False,
+        sparse_format: str = "csc",
         **kwargs,
     ):
         """
@@ -91,6 +92,8 @@ class DataLoader(torch.utils.data.DataLoader):
             Only effective when :attr:`use_ddp` is True.
         batch_size: int
             Batch size.
+        sparse_format: str, default = "csc"
+            Sparse format of the sample graph. Choose from "csc", "csr" and "coo".
         kwargs : dict
             Key-word arguments to be passed to the parent PyTorch
             :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
@@ -124,6 +127,12 @@ class DataLoader(torch.utils.data.DataLoader):
         ...     for input_nodes, output_nodes, blocks in dataloader:
         ...
         """
+        if sparse_format not in ["coo", "csc", "csr"]:
+            raise ValueError(
+                f"sparse_format must be one of 'coo', 'csc', 'csr', "
+                f"but got {sparse_format}."
+            )
+        self.sparse_format = sparse_format
 
         self.ddp_seed = ddp_seed
         self.use_ddp = use_ddp
