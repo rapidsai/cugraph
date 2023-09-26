@@ -23,7 +23,7 @@ from pylibwholegraph.utils.multiprocess import multiprocess_run
 import torch
 
 
-def func(world_rank: int, world_size: int):
+def runtest(world_rank: int, world_size: int):
     wm_comm, _ = init_torch_env_and_create_wm_comm(
         world_rank,
         world_size,
@@ -53,4 +53,4 @@ def test_feature_storage_wholegraph_backend():
     assert gpu_count > 0
 
     # FIXME make this work in an MG environment
-    multiprocess_run(1, func)
+    multiprocess_run(1, runtest)
