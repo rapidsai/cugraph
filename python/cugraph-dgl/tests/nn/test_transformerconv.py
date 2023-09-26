@@ -41,6 +41,7 @@ def test_transformerconv(
     use_edge_feats,
     sparse_format,
 ):
+    torch.manual_seed(12345)
     device = "cuda"
     g = create_graph1().to(device)
 
