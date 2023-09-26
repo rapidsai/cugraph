@@ -81,6 +81,9 @@ NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; prin
 DEPENDENCIES=(
   cudf
   cugraph
+  cugraph-dgl
+  cugraph-pyg
+  cugraph-service-server
   cugraph-service-client
   cuxfilter
   dask-cuda
