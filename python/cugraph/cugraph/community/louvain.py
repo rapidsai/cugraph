@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.utilities import (
+    is_nx_graph_type,
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
@@ -20,6 +21,9 @@ import cudf
 import warnings
 from pylibcugraph import louvain as pylibcugraph_louvain
 from pylibcugraph import ResourceHandle
+
+VERTEX_COL_NAME = "vertex"
+CLUSTER_ID_COL_NAME = "partition"
 
 
 # FIXME: max_level should default to 100 once max_iter is removed
@@ -72,9 +76,9 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
 
-        df['vertex'] : cudf.Series
+        result_df['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['partition'] : cudf.Series
+        result_df['partition'] : cudf.Series
             Contains the partition assigned to the vertices
 
     modularity_score : float
@@ -88,6 +92,14 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     >>> parts = cugraph.louvain(G)
 
     """
+
+    isolated_vertices = list()
+    if is_nx_graph_type(type(G)):
+        num_of_vertices = len(G.nodes)
+        isolated_vertices = [v for v in range(num_of_vertices) if G.degree[v] == 0]
+    else:
+        # FIXME: Gather list of isolated vertices for other graph types
+        pass
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
@@ -112,6 +124,9 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     if max_level is None:
         max_level = 100
 
+    if max_level > 1000:
+        max_level = 1000
+
     vertex, partition, mod_score = pylibcugraph_louvain(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
@@ -121,14 +136,27 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
         do_expensive_check=False,
     )
 
-    df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["partition"] = partition
+    result_df = cudf.DataFrame()
+    result_df[VERTEX_COL_NAME] = vertex
+    result_df[CLUSTER_ID_COL_NAME] = partition
+
+    unique_cids = result_df[CLUSTER_ID_COL_NAME].unique()
+    max_cluster_id = -1 if len(result_df) == 0 else unique_cids.max()
+
+    if len(isolated_vertices) > 0:
+        isolated_vtx_and_cids = cudf.DataFrame()
+        isolated_vtx_and_cids[VERTEX_COL_NAME] = isolated_vertices
+        isolated_vtx_and_cids[CLUSTER_ID_COL_NAME] = [
+            (max_cluster_id + i + 1) for i in range(len(isolated_vertices))
+        ]
+        result_df = cudf.concat(
+            [result_df, isolated_vtx_and_cids], ignore_index=True, sort=False
+        )
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertex")
+        result_df = G.unrenumber(result_df, VERTEX_COL_NAME)
 
     if isNx is True:
-        df = df_score_to_dictionary(df, "partition")
+        result_df = df_score_to_dictionary(result_df, CLUSTER_ID_COL_NAME)
 
-    return df, mod_score
+    return result_df, mod_score
