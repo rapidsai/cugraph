@@ -92,6 +92,7 @@ DEPENDENCIES=(
   librmm
   pylibcugraph
   pylibcugraphops
+  pylibwholegraph
   pylibraft
   pyraft
   raft-dask
