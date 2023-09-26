@@ -16,14 +16,16 @@ import numpy as np
 
 from cugraph.gnn import FeatureStore
 
-import pylibwholegraph.binding.wholememory_binding as wmb
-from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm
-from pylibwholegraph.utils.multiprocess import multiprocess_run
+from cugraph.utilities.utils import import_optional, MissingModule
 
-import torch
+pylibwholegraph = import_optional('pylibwholegraph')
+wmb = import_optional('pylibwholegraph.binding.wholememory_binding')
+torch = import_optional('torch')
 
 
 def runtest(world_rank: int, world_size: int):
+    from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm
+
     wm_comm, _ = init_torch_env_and_create_wm_comm(
         world_rank,
         world_size,
@@ -54,7 +56,11 @@ def runtest(world_rank: int, world_size: int):
 
 
 @pytest.mark.sg
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason='torch not available')
+@pytest.mark.skipif(isinstance(pylibwholegraph, MissingModule), reason='wholegraph not available')
 def test_feature_storage_wholegraph_backend():
+    from pylibwholegraph.utils.multiprocess import multiprocess_run
+
     gpu_count = wmb.fork_get_gpu_count()
     print("gpu count:", gpu_count)
     assert gpu_count > 0
@@ -63,7 +69,11 @@ def test_feature_storage_wholegraph_backend():
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason='torch not available')
+@pytest.mark.skipif(isinstance(pylibwholegraph, MissingModule), reason='wholegraph not available')
 def test_feature_storage_wholegraph_backend_mg():
+    from pylibwholegraph.utils.multiprocess import multiprocess_run
+    
     gpu_count = wmb.fork_get_gpu_count()
     print("gpu count:", gpu_count)
     assert gpu_count > 0
