@@ -59,7 +59,9 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "directed", "has_vertex_pair", "is_weighted"), request.param))
+    parameters = dict(
+        zip(("graph_file", "directed", "has_vertex_pair", "is_weighted"), request.param)
+    )
 
     return parameters
 
@@ -76,7 +78,8 @@ def input_expected_output(input_combo):
     has_vertex_pair = input_combo["has_vertex_pair"]
     is_weighted = input_combo["is_weighted"]
     G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=directed, edgevals=is_weighted)
+        input_data_path, directed=directed, edgevals=is_weighted
+    )
     if has_vertex_pair:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -89,7 +92,8 @@ def input_expected_output(input_combo):
 
     input_combo["vertex_pair"] = vertex_pair
     sg_cugraph_overlap = cugraph.overlap(
-        G, input_combo["vertex_pair"], use_weight=is_weighted)
+        G, input_combo["vertex_pair"], use_weight=is_weighted
+    )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
@@ -134,7 +138,8 @@ def test_dask_mg_overlap(dask_client, benchmark, input_expected_output):
     use_weight = input_expected_output["is_weighted"]
 
     result_overlap = benchmark(
-        dcg.overlap, dg, input_expected_output["vertex_pair"], use_weight=use_weight)
+        dcg.overlap, dg, input_expected_output["vertex_pair"], use_weight=use_weight
+    )
 
     result_overlap = (
         result_overlap.compute()
