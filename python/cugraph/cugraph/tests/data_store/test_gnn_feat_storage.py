@@ -10,7 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Import FeatureStore class
 
 import pytest
 import numpy as np
@@ -107,4 +106,3 @@ def test_feature_storage_pytorch_backend():
     expected = ar3[indices_to_fetch]
     assert isinstance(output_fs, torch.Tensor)
     np.testing.assert_array_equal(output_fs.numpy(), expected)
-
