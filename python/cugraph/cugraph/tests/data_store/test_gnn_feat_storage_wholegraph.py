@@ -33,7 +33,11 @@ def runtest(world_rank: int, world_size: int):
     wm_comm = wm_comm.wmb_comm
 
     generator = np.random.default_rng(62)
-    arr = generator.integers(low=0, high=100, size=100_000).reshape(10_000, -1).astype('float64')
+    arr = (
+        generator.integers(low=0, high=100, size=100_000)
+        .reshape(10_000, -1)
+        .astype("float64")
+    )
 
     fs = FeatureStore(backend="wholegraph")
     fs.add_data(arr, "type2", "feat1")
@@ -56,6 +60,7 @@ def test_feature_storage_wholegraph_backend():
     assert gpu_count > 0
 
     multiprocess_run(1, runtest)
+
 
 @pytest.mark.mg
 def test_feature_storage_wholegraph_backend_mg():
