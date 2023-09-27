@@ -880,9 +880,7 @@ class EXPERIMENTAL__CuGraphStore:
                 # Step 1: get the index of the new id
                 ix_c = torch.searchsorted(
                     torch.as_tensor(id_map.index.values, device="cuda"),
-                    torch.as_tensor(
-                        sampling_results.minors.values, device="cuda"
-                    ),
+                    torch.as_tensor(sampling_results.minors.values, device="cuda"),
                 )
                 # Step 2: Go from id indices to actual ids
                 col_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[

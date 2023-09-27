@@ -130,12 +130,10 @@ def test_cugraph_loader_from_disk():
         assert list(edge_index.shape) == [2, 8]
 
         assert (
-            edge_index[0].tolist()
-            == bogus_samples.majors.dropna().values_host.tolist()
+            edge_index[0].tolist() == bogus_samples.majors.dropna().values_host.tolist()
         )
         assert (
-            edge_index[1].tolist()
-            == bogus_samples.minors.dropna().values_host.tolist()
+            edge_index[1].tolist() == bogus_samples.minors.dropna().values_host.tolist()
         )
 
     assert num_samples == 256
@@ -190,12 +188,10 @@ def test_cugraph_loader_from_disk_subset():
         assert list(edge_index.shape) == [2, 8]
 
         assert (
-            edge_index[0].tolist()
-            == bogus_samples.majors.dropna().values_host.tolist()
+            edge_index[0].tolist() == bogus_samples.majors.dropna().values_host.tolist()
         )
         assert (
-            edge_index[1].tolist()
-            == bogus_samples.minors.dropna().values_host.tolist()
+            edge_index[1].tolist() == bogus_samples.minors.dropna().values_host.tolist()
         )
 
     assert num_samples == 100
@@ -221,12 +217,14 @@ def test_cugraph_loader_from_disk_subset_csr():
             "minors": [1, 2, 3, 0, 3, 4, 5, 1],
             "edge_type": cudf.Series([0, 0, 0, 0, 0, 0, 0, 0], dtype="int32"),
             "edge_id": [5, 10, 15, 20, 25, 30, 35, 40],
-            "label_hop_offsets": cudf.Series([0, 1, 4, None, None, None, None, None], dtype='int32'),
-            'renumber_map_offsets': cudf.Series([0, 6], dtype='int32'),
+            "label_hop_offsets": cudf.Series(
+                [0, 1, 4, None, None, None, None, None], dtype="int32"
+            ),
+            "renumber_map_offsets": cudf.Series([0, 6], dtype="int32"),
         }
     )
     map = cudf.Series(m, name="map")
-    bogus_samples['map'] = map
+    bogus_samples["map"] = map
 
     tempdir = tempfile.TemporaryDirectory()
     for s in range(256):
@@ -248,22 +246,19 @@ def test_cugraph_loader_from_disk_subset_csr():
         # correct vertex order is [0, 1, 2, 6, 4, 3, 5]; x = [1, 2, 3, 7, 5, 4, 6]
         assert sample["t0"]["x"].tolist() == [1, 2, 3, 4, 5, 6]
 
-        print(list(sample[("t0", "knows", "t0")].keys()))
         edge_index = sample[("t0", "knows", "t0")]["adj_t"]
-        print(edge_index)
         assert edge_index.size(0) == 4
         assert edge_index.size(1) == 6
 
         colptr, row, _ = edge_index.csr()
 
         assert (
-            colptr.tolist()
-            == bogus_samples.major_offsets.dropna().values_host.tolist()
+            colptr.tolist() == bogus_samples.major_offsets.dropna().values_host.tolist()
         )
-        assert (
-            row.tolist()
-            == bogus_samples.minors.dropna().values_host.tolist()
-        )
+        assert row.tolist() == bogus_samples.minors.dropna().values_host.tolist()
+
+        #assert sample['t0']['num_sampled_nodes'].tolist() == [1, 3, 2]
+        assert sample['t0','knows','t0']['num_sampled_edges'].tolist() == [3, 5]
 
     assert num_samples == 100
 
@@ -320,8 +315,6 @@ def test_cugraph_loader_e2e_coo():
         num_sampled_nodes = hetero_data["t0"]["num_sampled_nodes"]
         num_sampled_edges = hetero_data["t0", "knows", "t0"]["num_sampled_edges"]
 
-        print(num_sampled_nodes, num_sampled_edges)
-
         for i in range(len(convs)):
             x, ei, _ = trim(i, num_sampled_nodes, num_sampled_edges, x, ei, None)
 
@@ -330,9 +323,7 @@ def test_cugraph_loader_e2e_coo():
             x = convs[i](x, ei, size=(s, s))
             x = relu(x)
             x = dropout(x, p=0.5)
-            print(x.shape)
 
-        print(x.shape)
         x = x.narrow(dim=0, start=0, length=x.shape[0] - num_sampled_nodes[1])
 
         assert list(x.shape) == [3, 1]

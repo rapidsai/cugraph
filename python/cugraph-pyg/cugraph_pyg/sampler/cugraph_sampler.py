@@ -222,9 +222,11 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 
     major_offsets = major_offsets.clone() - major_offsets[0]
 
-    num_nodes_per_hop_dict = {node_type: label_hop_offsets.diff()}
-    num_edges_per_hop_dict = {edge_type: major_offsets[1:]}
-    
+    num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
+
+    label_hop_offsets = label_hop_offsets.cpu()
+    num_nodes_per_hop_dict = {node_type: torch.concat([label_hop_offsets.diff(), (renumber_map.shape[0] - label_hop_offsets[-1]).reshape((1,))])}
+
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 
     col_dict = {
@@ -407,7 +409,12 @@ def filter_cugraph_store_csc(
     for attr in graph_store.get_all_edge_attrs():
         key = attr.edge_type
         if key in row_dict and key in col_dict:
-            data.put_edge_index((row_dict[key], col_dict[key]), edge_type=key, layout='csc', is_sorted=True)
+            data.put_edge_index(
+                (row_dict[key], col_dict[key]),
+                edge_type=key,
+                layout="csc",
+                is_sorted=True,
+            )
 
     required_attrs = []
     for attr in feature_store.get_all_tensor_attrs():

@@ -60,7 +60,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Sampler args
         num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] = None,
         replace: bool = True,
-        compression: str = 'COO',
+        compression: str = "COO",
         # Other kwargs for the BulkSampler
         **kwargs,
     ):
@@ -179,8 +179,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             renumber=renumber,
             use_legacy_names=False,
             deduplicate_sources=True,
-            prior_sources_behavior='exclude',
-            include_hop_column = (compression == 'COO'),
+            prior_sources_behavior="exclude",
+            include_hop_column=(compression == "COO"),
             **kwargs,
         )
 
@@ -253,7 +253,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
             raw_sample_data = cudf.read_parquet(parquet_path)
-            
+
             if "map" in raw_sample_data.columns:
                 if "renumber_map_offsets" not in raw_sample_data.columns:
                     num_batches = end_inclusive - self.__start_inclusive + 1
@@ -268,21 +268,29 @@ class EXPERIMENTAL__BulkSampleLoader:
                     self.__renumber_map_offsets = map[0 : num_batches + 1] - map[0]
                     self.__renumber_map = map[num_batches + 1 :]
                 else:
-                    self.__renumber_map = raw_sample_data['map']
-                    self.__renumber_map_offsets = raw_sample_data['renumber_map_offsets']
-                    raw_sample_data.drop(columns=['map', 'renumber_map_offsets'], inplace=True)
-                    
+                    self.__renumber_map = raw_sample_data["map"]
+                    self.__renumber_map_offsets = raw_sample_data[
+                        "renumber_map_offsets"
+                    ]
+                    raw_sample_data.drop(
+                        columns=["map", "renumber_map_offsets"], inplace=True
+                    )
+
                     self.__renumber_map.dropna(inplace=True)
-                    self.__renumber_map = torch.as_tensor(self.__renumber_map, device='cuda')
+                    self.__renumber_map = torch.as_tensor(
+                        self.__renumber_map, device="cuda"
+                    )
 
                     self.__renumber_map_offsets.dropna(inplace=True)
-                    self.__renumber_map_offsets = torch.as_tensor(self.__renumber_map_offsets, device='cuda')
+                    self.__renumber_map_offsets = torch.as_tensor(
+                        self.__renumber_map_offsets, device="cuda"
+                    )
 
             else:
                 self.__renumber_map = None
 
             self.__data = raw_sample_data
-            self.__coo = ('majors' in self.__data.columns)
+            self.__coo = "majors" in self.__data.columns
             if self.__coo:
                 self.__data.dropna(inplace=True)
 
@@ -292,9 +300,9 @@ class EXPERIMENTAL__BulkSampleLoader:
             ):
                 if self.__coo:
                     group_cols = ["batch_id", "hop_id"]
-                    self.__data_index = self.__data.groupby(group_cols, as_index=True).agg(
-                        {"majors": "max", "minors": "max"}
-                    )
+                    self.__data_index = self.__data.groupby(
+                        group_cols, as_index=True
+                    ).agg({"majors": "max", "minors": "max"})
                     self.__data_index.rename(
                         columns={"majors": "src_max", "minors": "dst_max"},
                         inplace=True,
@@ -302,23 +310,27 @@ class EXPERIMENTAL__BulkSampleLoader:
                     self.__data_index = self.__data_index.to_dict(orient="index")
                 else:
                     self.__data_index = None
-                    
-                    self.__label_hop_offsets = self.__data['label_hop_offsets']
-                    self.__data.drop(columns=['label_hop_offsets'], inplace=True)
+
+                    self.__label_hop_offsets = self.__data["label_hop_offsets"]
+                    self.__data.drop(columns=["label_hop_offsets"], inplace=True)
                     self.__label_hop_offsets.dropna(inplace=True)
-                    self.__label_hop_offsets = torch.as_tensor(self.__label_hop_offsets, device='cuda')
+                    self.__label_hop_offsets = torch.as_tensor(
+                        self.__label_hop_offsets, device="cuda"
+                    )
                     self.__label_hop_offsets -= self.__label_hop_offsets[0].clone()
 
-                    self.__major_offsets = self.__data['major_offsets']
-                    self.__data.drop(columns='major_offsets', inplace=True)
+                    self.__major_offsets = self.__data["major_offsets"]
+                    self.__data.drop(columns="major_offsets", inplace=True)
                     self.__major_offsets.dropna(inplace=True)
-                    self.__major_offsets = torch.as_tensor(self.__major_offsets, device='cuda')
+                    self.__major_offsets = torch.as_tensor(
+                        self.__major_offsets, device="cuda"
+                    )
                     self.__major_offsets -= self.__major_offsets[0].clone()
 
-                    self.__minors = self.__data['minors']
-                    self.__data.drop(columns='minors', inplace=True)
+                    self.__minors = self.__data["minors"]
+                    self.__data.drop(columns="minors", inplace=True)
                     self.__minors.dropna(inplace=True)
-                    self.__minors = torch.tensor(self.__minors, device='cuda')
+                    self.__minors = torch.tensor(self.__minors, device="cuda")
 
                     num_batches = self.__end_exclusive - self.__start_inclusive
                     offsets_len = len(self.__label_hop_offsets) - 1
@@ -355,9 +367,15 @@ class EXPERIMENTAL__BulkSampleLoader:
                 )
             else:
                 i = (self.__next_batch - self.__start_inclusive) * self.__fanout_length
-                current_label_hop_offsets = self.__label_hop_offsets[i : i + self.__fanout_length + 1]
-                current_major_offsets = self.__major_offsets[current_label_hop_offsets[0] : current_label_hop_offsets[-1]+1]
-                current_minors = self.__minors[current_major_offsets[0] : current_major_offsets[-1] + 1]
+                current_label_hop_offsets = self.__label_hop_offsets[
+                    i : i + self.__fanout_length + 1
+                ]
+                current_major_offsets = self.__major_offsets[
+                    current_label_hop_offsets[0] : current_label_hop_offsets[-1] + 1
+                ]
+                current_minors = self.__minors[
+                    current_major_offsets[0] : current_major_offsets[-1] + 1
+                ]
 
                 sampler_output = _sampler_output_from_sampling_results_homogeneous_csr(
                     current_major_offsets,
