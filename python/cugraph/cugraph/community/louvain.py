@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import networkx as nx
 from cugraph.utilities import (
     is_nx_graph_type,
     ensure_cugraph_obj_for_nx,
@@ -99,10 +100,7 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
 
     isolated_vertices = list()
     if is_nx_graph_type(type(G)):
-        isolated_vertices = [v for v in range(G.number_of_nodes()) if G.degree[v] == 0]
-    else:
-        # FIXME: Gather list of isolated vertices of G (of cugraph.Graph type)
-        pass
+        isolated_vertices = list(nx.isolates(G))
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
@@ -143,10 +141,10 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     result_df[VERTEX_COL_NAME] = vertex
     result_df[CLUSTER_ID_COL_NAME] = partition
 
-    unique_cids = result_df[CLUSTER_ID_COL_NAME].unique()
-    max_cluster_id = -1 if len(result_df) == 0 else unique_cids.max()
+    if isNx and len(isolated_vertices) > 0:
+        unique_cids = result_df[CLUSTER_ID_COL_NAME].unique()
+        max_cluster_id = -1 if len(result_df) == 0 else unique_cids.max()
 
-    if len(isolated_vertices) > 0:
         isolated_vtx_and_cids = cudf.DataFrame()
         isolated_vtx_and_cids[VERTEX_COL_NAME] = isolated_vertices
         isolated_vtx_and_cids[CLUSTER_ID_COL_NAME] = [
