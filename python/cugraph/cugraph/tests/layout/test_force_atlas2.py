@@ -114,6 +114,12 @@ DATASETS = [
     (dining_prefs, 0.50),
 ]
 
+DATASETS2 = [
+    (polbooks, 0.75),
+    (dolphins, 0.66),
+    (netscience, 0.66),
+]
+
 
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
@@ -171,9 +177,6 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         iterations on a given graph.
     """
 
-    #    matrix_file = dataset_path.with_suffix(".mtx")
-    #    M = scipy.io.mmread(matrix_file)
-    #    M = M.toarray()
     if "string" in graph_file.metadata["col_types"]:
         df = renumbered_edgelist(graph_file.get_edgelist())
         M = get_coo_array(df)
@@ -189,74 +192,3 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     # verify `on_train_end` was only called once
     assert test_callback.on_train_end_called_count == 1
 
-
-# FIXME: this test occasionally fails - skipping to prevent CI failures but
-# need to revisit ASAP
-@pytest.mark.sg
-@pytest.mark.skip(reason="non-deterministric - needs fixing!")
-@pytest.mark.parametrize("graph_file, score", DATASETS[:-1])
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
-def test_force_atlas2_multi_column_pos_list(
-    graph_file, score, max_iter, barnes_hut_optimize
-):
-    cu_M = graph_file.get_edgelist()
-    dataset_path = graph_file.get_path()
-    test_callback = TestCallback()
-    pos = cugraph_call(
-        cu_M,
-        max_iter=max_iter,
-        pos_list=None,
-        outbound_attraction_distribution=True,
-        lin_log_mode=False,
-        prevent_overlapping=False,
-        edge_weight_influence=1.0,
-        jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
-        barnes_hut_theta=0.5,
-        scaling_ratio=2.0,
-        strong_gravity_mode=False,
-        gravity=1.0,
-        callback=test_callback,
-    )
-
-    cu_M.rename(columns={"0": "src_0", "1": "dst_0"}, inplace=True)
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
-
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"], edge_attr="2"
-    )
-
-    pos_list = cudf.DataFrame()
-    pos_list["vertex_0"] = pos["vertex"]
-    pos_list["vertex_1"] = pos_list["vertex_0"] + 1000
-    pos_list["x"] = pos["x"]
-    pos_list["y"] = pos["y"]
-
-    cu_pos = cugraph.force_atlas2(
-        G,
-        max_iter=max_iter,
-        pos_list=pos_list,
-        outbound_attraction_distribution=True,
-        lin_log_mode=False,
-        prevent_overlapping=False,
-        edge_weight_influence=1.0,
-        jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
-        barnes_hut_theta=0.5,
-        scaling_ratio=2.0,
-        strong_gravity_mode=False,
-        gravity=1.0,
-        callback=test_callback,
-    )
-
-    cu_pos = cu_pos.sort_values("0_vertex")
-    matrix_file = dataset_path.with_suffix(".mtx")
-    M = scipy.io.mmread(matrix_file)
-    M = cugraph.structure.graph_to_csr(G)
-    M = M.todense()
-    cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
-    print(cu_trust, score)
-    assert cu_trust > score
