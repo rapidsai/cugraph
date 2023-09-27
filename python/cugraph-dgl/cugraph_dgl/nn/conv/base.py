@@ -250,8 +250,9 @@ class SparseGraph(object):
 
     def __repr__(self) -> str:
         return (
-            f"{self.__class__.__name__}({self._num_src_nodes}, "
-            f"{self._num_dst_nodes}, formats={self._formats})"
+            f"{self.__class__.__name__}(num_src_nodes={self._num_src_nodes}, "
+            f"num_dst_nodes={self._num_dst_nodes}, "
+            f"num_edges={self._src_ids.size(0)}, formats={self._formats})"
         )
 
 

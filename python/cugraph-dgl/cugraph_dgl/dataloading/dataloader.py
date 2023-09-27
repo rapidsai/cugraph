@@ -54,7 +54,7 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_size: int = 1024,
         drop_last: bool = False,
         shuffle: bool = False,
-        sparse_format: str = "csc",
+        sparse_format: str = "coo",
         **kwargs,
     ):
         """
@@ -92,8 +92,8 @@ class DataLoader(torch.utils.data.DataLoader):
             Only effective when :attr:`use_ddp` is True.
         batch_size: int
             Batch size.
-        sparse_format: str, default = "csc"
-            Sparse format of the sample graph. Choose from "csc", "csr" and "coo".
+        sparse_format: str, default = "coo"
+            Sparse format of the sample graph. Choose between "csc" and "coo".
         kwargs : dict
             Key-word arguments to be passed to the parent PyTorch
             :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
@@ -127,9 +127,9 @@ class DataLoader(torch.utils.data.DataLoader):
         ...     for input_nodes, output_nodes, blocks in dataloader:
         ...
         """
-        if sparse_format not in ["coo", "csc", "csr"]:
+        if sparse_format not in ["coo", "csc"]:
             raise ValueError(
-                f"sparse_format must be one of 'coo', 'csc', 'csr', "
+                f"sparse_format must be one of 'coo', 'csc', "
                 f"but got {sparse_format}."
             )
         self.sparse_format = sparse_format
@@ -166,6 +166,7 @@ class DataLoader(torch.utils.data.DataLoader):
             self.cugraph_dgl_dataset = HomogenousBulkSamplerDataset(
                 total_number_of_nodes=graph.total_number_of_nodes,
                 edge_dir=self.graph_sampler.edge_dir,
+                sparse_format=sparse_format,
             )
         else:
             etype_id_to_etype_str_dict = {v: k for k, v in graph._etype_id_dict.items()}
@@ -220,14 +221,21 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
+        kwargs = {}
         if isinstance(self.cugraph_dgl_dataset, HomogenousBulkSamplerDataset):
-            deduplicate_sources = True
-            prior_sources_behavior = "carryover"
-            renumber = True
+            kwargs["deduplicate_sources"] = True
+            kwargs["prior_sources_behavior"] = "carryover"
+            kwargs["renumber"] = True
+
+            if self.sparse_format == "csc":
+                kwargs["compression"] = "CSR"
+                kwargs["compress_per_hop"] = True
+                kwargs["use_legacy_names"] = False
+
         else:
-            deduplicate_sources = False
-            prior_sources_behavior = None
-            renumber = False
+            kwargs["deduplicate_sources"] = False
+            kwargs["prior_sources_behavior"] = None
+            kwargs["renumber"] = False
 
         bs = BulkSampler(
             output_path=output_dir,
@@ -237,10 +245,9 @@ class DataLoader(torch.utils.data.DataLoader):
             seeds_per_call=self._seeds_per_call,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
-            deduplicate_sources=deduplicate_sources,
-            prior_sources_behavior=prior_sources_behavior,
-            renumber=renumber,
+            **kwargs,
         )
+
         if self.shuffle:
             self.tensorized_indices_ds.shuffle()
 

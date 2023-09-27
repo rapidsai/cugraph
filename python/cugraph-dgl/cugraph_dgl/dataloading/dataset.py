@@ -33,6 +33,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         total_number_of_nodes: int,
         edge_dir: str,
         return_type: str = "dgl.Block",
+        sparse_format: str = "coo",
     ):
         if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
             raise ValueError(
@@ -44,6 +45,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         # in the next release
         self.total_number_of_nodes = total_number_of_nodes
         self.edge_dir = edge_dir
+        self.sparse_format = sparse_format
         self._current_batch_fn = None
         self._input_files = None
         self._return_type = return_type
