@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union, Tuple
+from cugraph.structure import Graph
 from cugraph.utilities import (
     is_nx_graph_type,
     ensure_cugraph_obj_for_nx,
@@ -22,12 +24,26 @@ import warnings
 from pylibcugraph import louvain as pylibcugraph_louvain
 from pylibcugraph import ResourceHandle
 
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in type annotations is specified
+# using a string literal to avoid depending on and importing networkx.
+# Instead, networkx is imported optionally, which may cause a problem
+# for a type checker if run in an environment where networkx is not installed.
+networkx = import_optional("networkx")
+
 VERTEX_COL_NAME = "vertex"
 CLUSTER_ID_COL_NAME = "partition"
 
 
 # FIXME: max_level should default to 100 once max_iter is removed
-def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
+def louvain(
+    G: Union[Graph, "networkx.Graph"],
+    max_level: Union[int, None] = None,
+    max_iter: Union[int, None] = None,
+    resolution: float = 1.0,
+    threshold: float = 1e-7,
+) -> Tuple[Union[cudf.DataFrame, dict], float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -72,18 +88,21 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
 
     Returns
     -------
-    parts : cudf.DataFrame
-        GPU data frame of size V containing two columns the vertex id and the
-        partition id it is assigned to.
+    result: cudf.DataFrame or dict
+        If input graph G is of type cugraph.Graph, a GPU dataframe
+        with two columns.
 
-        result_df[VERTEX_COL_NAME] : cudf.Series
-            Contains the vertex identifiers
-        result_df[CLUSTER_ID_COL_NAME] : cudf.Series
-            Contains the partition assigned to the vertices
+            result[VERTEX_COL_NAME] : cudf.Series
+                Contains the vertex identifiers
+            result[CLUSTER_ID_COL_NAME] : cudf.Series
+                Contains the partition assigned to the vertices
+
+        If input graph G is of type networkx.Graph, a dict
+        Dictionary of vertices and their partition ids.
 
     modularity_score : float
-        a floating point number containing the global modularity score of the
-        partitioning.
+        A floating point number containing the global modularity score
+        of the partitioning.
 
     Examples
     --------
@@ -130,7 +149,7 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     if max_level > 1000:
         max_level = 1000
 
-    vertex, partition, mod_score = pylibcugraph_louvain(
+    vertex, partition, modularity_score = pylibcugraph_louvain(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         max_level=max_level,
@@ -139,27 +158,27 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
         do_expensive_check=False,
     )
 
-    result_df = cudf.DataFrame()
-    result_df[VERTEX_COL_NAME] = vertex
-    result_df[CLUSTER_ID_COL_NAME] = partition
+    result = cudf.DataFrame()
+    result[VERTEX_COL_NAME] = vertex
+    result[CLUSTER_ID_COL_NAME] = partition
 
-    if isNx and len(isolated_vertices) > 0:
-        unique_cids = result_df[CLUSTER_ID_COL_NAME].unique()
-        max_cluster_id = -1 if len(result_df) == 0 else unique_cids.max()
+    if len(isolated_vertices) > 0:
+        unique_cids = result[CLUSTER_ID_COL_NAME].unique()
+        max_cluster_id = -1 if len(result) == 0 else unique_cids.max()
 
         isolated_vtx_and_cids = cudf.DataFrame()
         isolated_vtx_and_cids[VERTEX_COL_NAME] = isolated_vertices
         isolated_vtx_and_cids[CLUSTER_ID_COL_NAME] = [
             (max_cluster_id + i + 1) for i in range(len(isolated_vertices))
         ]
-        result_df = cudf.concat(
-            [result_df, isolated_vtx_and_cids], ignore_index=True, sort=False
+        result = cudf.concat(
+            [result, isolated_vtx_and_cids], ignore_index=True, sort=False
         )
 
-    if G.renumbered:
-        result_df = G.unrenumber(result_df, VERTEX_COL_NAME)
+    if G.renumbered and G.number_of_nodes() > len(isolated_vertices):
+        result = G.unrenumber(result, VERTEX_COL_NAME)
 
     if isNx is True:
-        result_df = df_score_to_dictionary(result_df, CLUSTER_ID_COL_NAME)
+        result = df_score_to_dictionary(result, CLUSTER_ID_COL_NAME)
 
-    return result_df, mod_score
+    return result, modularity_score
