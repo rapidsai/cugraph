@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import networkx as nx
 from cugraph.utilities import (
     is_nx_graph_type,
     ensure_cugraph_obj_for_nx,
@@ -100,7 +99,7 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
 
     isolated_vertices = list()
     if is_nx_graph_type(type(G)):
-        isolated_vertices = list(nx.isolates(G))
+        isolated_vertices = [v for v in range(G.number_of_nodes()) if G.degree[v] == 0]
     else:
         # FIXME: Gather isolated vertices of G
         pass
