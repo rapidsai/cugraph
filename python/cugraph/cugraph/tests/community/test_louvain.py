@@ -156,6 +156,5 @@ def test_louvain_nx_graph_with_isolated_nodes():
     # A graph with 5 nodes, where 3 of the nodes are isolated
     G.add_edge(1, 2)
     result, _ = cugraph.louvain(G)
-    print("result:", result)
     assert set(result.keys()) == set(G.nodes)
     assert len(set(result.values())) == G.number_of_nodes() - 1

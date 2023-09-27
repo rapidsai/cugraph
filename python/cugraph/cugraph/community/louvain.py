@@ -68,6 +68,9 @@ def louvain(
         than the specified number of levels. No error occurs when the
         algorithm terminates early in this manner.
 
+        If max_level > 500, it's set 500. It would prevent integer overflow at
+        C++ layer for extremely large values of max_level (e.g. sys.maxsize)
+
     max_iter : integer, optional (default=None)
         This parameter is deprecated in favor of max_level.  Previously
         it was used to control the maximum number of levels of the Louvain
@@ -146,8 +149,9 @@ def louvain(
     if max_level is None:
         max_level = 100
 
-    if max_level > 1000:
-        max_level = 1000
+    if max_level > 500:
+        warnings.warn("clamping down max_level to 500.")
+        max_level = 500
 
     vertex, partition, modularity_score = pylibcugraph_louvain(
         resource_handle=ResourceHandle(),
