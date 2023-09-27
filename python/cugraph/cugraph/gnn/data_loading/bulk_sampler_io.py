@@ -186,7 +186,8 @@ def _write_samples_to_parquet_csr(
                 ),
                 label_hop_offsets_current_partition,
                 cudf.Series(
-                    major_offsets_array[results_start:results_end], name="major_offsets"
+                    major_offsets_array[major_offsets_start : major_offsets_end + 1],
+                    name="major_offsets",
                 ),
                 cudf.Series(weight_array[results_start:results_end], name="weight"),
                 cudf.Series(edge_id_array[results_start:results_end], name="edge_id"),

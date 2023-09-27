@@ -167,13 +167,6 @@ void check_input_edges(
                   "Invalid input arguments: current implementation assumes that the number of "
                   "unique labels is no larger than std::numeric_limits<uint32_t>::max().");
 
-  // FIXME figure out a version of this condition that still allows empty batches
-  /*
-  CUGRAPH_EXPECTS(!edgelist_label_offsets || std::get<1>(*edgelist_label_offsets) > 0,
-                  "Invlaid input arguments: there should be 1 or more labels if "
-                  "edgelist_label_offsets.has_value() is true.");
-  */
-
   CUGRAPH_EXPECTS(
     !edgelist_label_offsets.has_value() ||
       (std::get<0>(*edgelist_label_offsets).size() == std::get<1>(*edgelist_label_offsets) + 1),
