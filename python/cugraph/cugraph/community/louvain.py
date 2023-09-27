@@ -101,6 +101,9 @@ def louvain(G, max_level=None, max_iter=None, resolution=1.0, threshold=1e-7):
     isolated_vertices = list()
     if is_nx_graph_type(type(G)):
         isolated_vertices = list(nx.isolates(G))
+    else:
+        # FIXME: Gather isolated vertices of G
+        pass
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
