@@ -343,6 +343,7 @@ class simpleDistributedGraphImpl:
         }
         wait(list(self._plc_graph.values()))
         del delayed_tasks_d
+        del ddf
         _client.run(gc.collect)
 
     @property
@@ -1195,5 +1196,7 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    # FIXME: For now, don't delete the copied dataframe to avoid crash
+    for df in lst_df:
+        df.drop(columns=[col_name], inplace=True)
+    gc.collect()
     return output_col
