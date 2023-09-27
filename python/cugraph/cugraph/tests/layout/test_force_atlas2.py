@@ -13,13 +13,49 @@
 
 import time
 import pytest
-import scipy.io
-from sklearn.manifold import trustworthiness
 
 import cudf
 import cugraph
+from cugraph.structure import number_map
 from cugraph.internals import GraphBasedDimRedCallback
-from cugraph.datasets import karate, polbooks, dolphins, netscience
+from sklearn.manifold import trustworthiness
+import scipy.io
+from cugraph.datasets import (
+    karate,
+    polbooks,
+    dolphins,
+    netscience,
+    dining_prefs,
+)
+
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, these import fa2 and import networkx need to be
+# relocated in the third-party group once this gets fixed.
+
+
+# This method renumbers a dataframe so it can be tested using Trustworthiness.
+# it converts a dataframe with string vertex ids to a renumbered int one.
+def renumbered_edgelist(df):
+    renumbered_df, num_map = number_map.NumberMap.renumber(df, "src", "dst")
+    new_df = renumbered_df[["renumbered_src", "renumbered_dst", "wgt"]]
+    column_names = {"renumbered_src": "src", "renumbered_dst": "dst"}
+    new_df = new_df.rename(columns=column_names)
+    return new_df
+
+
+# This method converts a dataframe to a sparce matrix that is required by
+# scipy Trustworthiness to verify the layout
+def get_coo_array(edgelist):
+    coo = edgelist
+    x = max(coo["src"].max(), coo["dst"].max()) + 1
+    row = coo["src"].to_numpy()
+    col = coo["dst"].to_numpy()
+    data = coo["wgt"].to_numpy()
+    M = scipy.sparse.coo_array((data, (row, col)), shape=(x, x))
+
+    return M
 
 
 def cugraph_call(
@@ -37,11 +73,15 @@ def cugraph_call(
     strong_gravity_mode,
     gravity,
     callback=None,
+    renumber=False,
 ):
-
     G = cugraph.Graph()
+    if cu_M["src"] is not int or cu_M["dst"] is not int:
+        renumber = True
+    else:
+        renumber = False
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="wgt", renumber=False
+        cu_M, source="src", destination="dst", edge_attr="wgt", renumber=renumber
     )
 
     t1 = time.time()
@@ -66,7 +106,13 @@ def cugraph_call(
     return pos
 
 
-DATASETS = [(karate, 0.70), (polbooks, 0.75), (dolphins, 0.66), (netscience, 0.66)]
+DATASETS = [
+    (karate, 0.70),
+    (polbooks, 0.75),
+    (dolphins, 0.66),
+    (netscience, 0.66),
+    (dining_prefs, 0.50),
+]
 
 
 MAX_ITERATIONS = [500]
@@ -96,7 +142,6 @@ class TestCallback(GraphBasedDimRedCallback):
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = graph_file.get_edgelist()
-    dataset_path = graph_file.get_path()
     test_callback = TestCallback()
     cu_pos = cugraph_call(
         cu_M,
@@ -126,9 +171,14 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         iterations on a given graph.
     """
 
-    matrix_file = dataset_path.with_suffix(".mtx")
-    M = scipy.io.mmread(matrix_file)
-    M = M.toarray()
+    #    matrix_file = dataset_path.with_suffix(".mtx")
+    #    M = scipy.io.mmread(matrix_file)
+    #    M = M.toarray()
+    if "string" in graph_file.metadata["col_types"]:
+        df = renumbered_edgelist(graph_file.get_edgelist())
+        M = get_coo_array(df)
+    else:
+        M = get_coo_array(graph_file.get_edgelist())
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
@@ -205,6 +255,7 @@ def test_force_atlas2_multi_column_pos_list(
     cu_pos = cu_pos.sort_values("0_vertex")
     matrix_file = dataset_path.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
+    M = cugraph.structure.graph_to_csr(G)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
