@@ -67,7 +67,8 @@ class networkx_algorithm:
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = func.__doc__
         # Copy __doc__ from NetworkX
-        instance.__doc__ = _registered_algorithms[instance.name].__doc__
+        if instance.name in _registered_algorithms:
+            instance.__doc__ = _registered_algorithms[instance.name].__doc__
         instance.can_run = _default_can_run
         setattr(BackendInterface, instance.name, instance)
         # Set methods so they are in __dict__

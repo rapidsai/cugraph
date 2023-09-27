@@ -47,8 +47,8 @@ def louvain_communities(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
         max_level=max_level,  # TODO: add this parameter to NetworkX
+        threshold=threshold,
         resolution=resolution,
-        # threshold=threshold,  # TODO: add this parameter to PLC
         do_expensive_check=False,
     )
     groups = _groupby(clusters, vertices)

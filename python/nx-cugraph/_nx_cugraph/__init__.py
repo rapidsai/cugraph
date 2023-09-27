@@ -56,14 +56,21 @@ def get_info():
 
     This tells NetworkX about the cugraph backend without importing nx_cugraph.
     """
-    # Convert to e.g. `{"functions" {"myfunc": {"extra_docstrings": ...}}}`
+    # Convert to e.g. `{"functions": {"myfunc": {"extra_docstring": ...}}}`
     d = _info.copy()
-    func_keys = ("extra_docstrings", "extra_parameters")
+    info_keys = {
+        "extra_docstrings": "extra_docstring",
+        "extra_parameters": "extra_parameters",
+    }
     d["functions"] = {
-        func: {key: vals[func] for key in func_keys if func in (vals := d[key])}
+        func: {
+            new_key: vals[func]
+            for old_key, new_key in info_keys.items()
+            if func in (vals := d[old_key])
+        }
         for func in d["functions"]
     }
-    for key in func_keys:
+    for key in info_keys:
         del d[key]
     return d
 
