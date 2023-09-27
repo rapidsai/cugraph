@@ -221,3 +221,15 @@ def bench_louvain_communities_small(benchmark,
         G = small_graph_obj
     result = benchmark(backend_selector(nx.community.louvain_communities), G)
     assert type(result) is list
+
+
+def bench_louvain_communities_medium(benchmark,
+                                     medium_graph_obj,
+                                     backend_selector):
+    # The cugraph backend for louvain_communities only supports undirected graphs
+    if isinstance(medium_graph_obj, nx.DiGraph):
+        G = medium_graph_obj.to_undirected()
+    else:
+        G = medium_graph_obj
+    result = benchmark(backend_selector(nx.community.louvain_communities), G)
+    assert type(result) is list
