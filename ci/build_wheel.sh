@@ -49,7 +49,11 @@ cd "${package_dir}"
 
 python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
-mkdir -p final_dist
-python -m auditwheel repair -w final_dist dist/*
-
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 final_dist
+# pure-python packages should not have auditwheel run on them.
+if [[ ${package_name} == "nx-cugraph" ]]; then
+    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 dist
+else
+    mkdir -p final_dist
+    python -m auditwheel repair -w final_dist dist/*
+    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 final_dist
+fi
