@@ -98,8 +98,8 @@ def test_cugraph_loader_from_disk():
 
     bogus_samples = cudf.DataFrame(
         {
-            "sources": [0, 1, 2, 3, 4, 5, 6, 6],
-            "destinations": [5, 4, 3, 2, 2, 6, 5, 2],
+            "majors": [0, 1, 2, 3, 4, 5, 6, 6],
+            "minors": [5, 4, 3, 2, 2, 6, 5, 2],
             "edge_type": cudf.Series([0, 0, 0, 0, 0, 0, 0, 0], dtype="int32"),
             "edge_id": [5, 10, 15, 20, 25, 30, 35, 40],
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 2], dtype="int32"),
@@ -131,11 +131,11 @@ def test_cugraph_loader_from_disk():
 
         assert (
             edge_index[0].tolist()
-            == bogus_samples.sources.dropna().values_host.tolist()
+            == bogus_samples.majors.dropna().values_host.tolist()
         )
         assert (
             edge_index[1].tolist()
-            == bogus_samples.destinations.dropna().values_host.tolist()
+            == bogus_samples.minors.dropna().values_host.tolist()
         )
 
     assert num_samples == 256
@@ -157,8 +157,8 @@ def test_cugraph_loader_from_disk_subset():
 
     bogus_samples = cudf.DataFrame(
         {
-            "sources": [0, 1, 2, 3, 4, 5, 6, 6],
-            "destinations": [5, 4, 3, 2, 2, 6, 5, 2],
+            "majors": [0, 1, 2, 3, 4, 5, 6, 6],
+            "minors": [5, 4, 3, 2, 2, 6, 5, 2],
             "edge_type": cudf.Series([0, 0, 0, 0, 0, 0, 0, 0], dtype="int32"),
             "edge_id": [5, 10, 15, 20, 25, 30, 35, 40],
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 2], dtype="int32"),
@@ -191,11 +191,11 @@ def test_cugraph_loader_from_disk_subset():
 
         assert (
             edge_index[0].tolist()
-            == bogus_samples.sources.dropna().values_host.tolist()
+            == bogus_samples.majors.dropna().values_host.tolist()
         )
         assert (
             edge_index[1].tolist()
-            == bogus_samples.destinations.dropna().values_host.tolist()
+            == bogus_samples.minors.dropna().values_host.tolist()
         )
 
     assert num_samples == 100
@@ -215,8 +215,8 @@ def test_cugraph_loader_e2e_coo():
 
     bogus_samples = cudf.DataFrame(
         {
-            "sources": [0, 1, 2, 3, 4, 5, 6, 6],
-            "destinations": [5, 4, 3, 2, 2, 6, 5, 2],
+            "majors": [0, 1, 2, 3, 4, 5, 6, 6],
+            "minors": [5, 4, 3, 2, 2, 6, 5, 2],
             "edge_type": cudf.Series([0, 0, 0, 0, 0, 0, 0, 0], dtype="int32"),
             "edge_id": [5, 10, 15, 20, 25, 30, 35, 40],
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 2], dtype="int32"),
