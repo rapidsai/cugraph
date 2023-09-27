@@ -134,6 +134,9 @@ exclude_lines = [
 # https://github.com/charliermarsh/ruff/
 line-length = 88
 target-version = "py39"
+unfixable = [
+    "F841",  # unused-variable (Note: can leave useless expression)
+]
 select = [
     "ALL",
 ]
