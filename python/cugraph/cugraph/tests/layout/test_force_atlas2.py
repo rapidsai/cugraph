@@ -14,7 +14,6 @@
 import time
 import pytest
 
-import cudf
 import cugraph
 from cugraph.structure import number_map
 from cugraph.internals import GraphBasedDimRedCallback
@@ -191,4 +190,3 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     assert test_callback.on_epoch_end_called_count == max_iter
     # verify `on_train_end` was only called once
     assert test_callback.on_train_end_called_count == 1
-
