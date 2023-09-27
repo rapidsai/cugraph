@@ -69,6 +69,10 @@ class FeatureStore:
             )
         self.backend = backend
 
+        self.__wg_comm = None
+        self.__wg_type = None
+        self.__wg_location = None
+
         if backend == "wholegraph":
             self.__wg_comm = (
                 wg_comm if wg_comm is not None else wgth.get_local_node_communicator()
@@ -189,7 +193,7 @@ class FeatureStore:
             return _get_wg_embedding(feat_obj, **kwargs)
 
 
-def _get_wg_embedding(feat_obj, wg_comm=None, wg_type=None, wg_location=None):
+def _get_wg_embedding(feat_obj, wg_comm=None, wg_type=None, wg_location=None, **kwargs):
     wg_comm_obj = wg_comm or wgth.get_local_node_communicator()
     wg_type_str = wg_type or "distributed"
     wg_location_str = wg_location or "cuda"
@@ -217,7 +221,7 @@ def _get_wg_embedding(feat_obj, wg_comm=None, wg_type=None, wg_location=None):
     return wg_embedding
 
 
-def _cast_to_torch_tensor(ar):
+def _cast_to_torch_tensor(ar, **kwargs):
     if isinstance(ar, cp.ndarray):
         ar = torch.as_tensor(ar, device="cuda")
     elif isinstance(ar, np.ndarray):
@@ -227,7 +231,7 @@ def _cast_to_torch_tensor(ar):
     return ar
 
 
-def _cast_to_numpy_ar(ar):
+def _cast_to_numpy_ar(ar, **kwargs):
     if isinstance(ar, cp.ndarray):
         ar = ar.get()
     elif type(ar).__name__ == "Tensor":
