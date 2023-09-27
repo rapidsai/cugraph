@@ -23,6 +23,8 @@ jobs:
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
+      - wheel-build-nx-cugraph
+      - wheel-tests-nx-cugraph
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/pr-builder.yaml@branch-23.10
   checks:
@@ -63,7 +65,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-v100-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci:cuda11.8.0-ubuntu22.04-py3.10"
+      container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/test_notebooks.sh"
   docs-build:
     needs: conda-python-build
@@ -73,7 +75,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-v100-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci:cuda11.8.0-ubuntu22.04-py3.10"
+      container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/build_docs.sh"
   wheel-build-pylibcugraph:
     needs: checks
@@ -109,3 +111,17 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
+  wheel-build-nx-cugraph:
+    needs: wheel-tests-pylibcugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-build.yaml@branch-23.10
+    with:
+      build_type: pull-request
+      script: ci/build_wheel_nx-cugraph.sh
+  wheel-tests-nx-cugraph:
+    needs: wheel-build-nx-cugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-test.yaml@branch-23.10
+    with:
+      build_type: pull-request
+      script: ci/test_wheel_nx-cugraph.sh
