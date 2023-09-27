@@ -19,6 +19,7 @@ from cugraph.utilities.utils import import_optional
 from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_homogeneous_sampled_graphs_from_dataframe,
     create_heterogeneous_sampled_graphs_from_dataframe,
+    create_homogeneous_sampled_graphs_from_dataframe_csc,
 )
 
 
@@ -62,10 +63,20 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
-            df = _load_sampled_file(dataset_obj=self, fn=fn)
-            self._current_batches = create_homogeneous_sampled_graphs_from_dataframe(
-                sampled_df=df, edge_dir=self.edge_dir, return_type=self._return_type
-            )
+            if self.sparse_format == "csc":
+                df = _load_sampled_file(dataset_obj=self, fn=fn, skip_rename=True)
+                self._current_batches = (
+                    create_homogeneous_sampled_graphs_from_dataframe_csc(df)
+                )
+            else:
+                df = _load_sampled_file(dataset_obj=self, fn=fn)
+                self._current_batches = (
+                    create_homogeneous_sampled_graphs_from_dataframe(
+                        sampled_df=df,
+                        edge_dir=self.edge_dir,
+                        return_type=self._return_type,
+                    )
+                )
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
 
@@ -152,9 +163,9 @@ class HeterogenousBulkSamplerDataset(torch.utils.data.Dataset):
         )
 
 
-def _load_sampled_file(dataset_obj, fn):
+def _load_sampled_file(dataset_obj, fn, skip_rename=False):
     df = cudf.read_parquet(os.path.join(fn))
-    if dataset_obj.edge_dir == "in":
+    if dataset_obj.edge_dir == "in" and not skip_rename:
         df.rename(
             columns={"sources": "destinations", "destinations": "sources"},
             inplace=True,

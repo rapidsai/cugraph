@@ -522,5 +522,7 @@ def _create_homogeneous_sparse_graphs_from_csc(
     return output
 
 
-def create_homogeneous_sampled_graphs_from_dataframe_csc(df):
-    return _create_homogeneous_sparse_graphs_from_csc(*(_process_sampled_df_csc(df)))
+def create_homogeneous_sampled_graphs_from_dataframe_csc(sampled_df: cudf.DataFrame):
+    return _create_homogeneous_sparse_graphs_from_csc(
+        *(_process_sampled_df_csc(sampled_df))
+    )

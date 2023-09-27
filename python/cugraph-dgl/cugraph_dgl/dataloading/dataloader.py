@@ -230,7 +230,9 @@ class DataLoader(torch.utils.data.DataLoader):
             if self.sparse_format == "csc":
                 kwargs["compression"] = "CSR"
                 kwargs["compress_per_hop"] = True
+                # The following kwargs will be deprecated in uniform sampler.
                 kwargs["use_legacy_names"] = False
+                kwargs["include_hop_column"] = False
 
         else:
             kwargs["deduplicate_sources"] = False
