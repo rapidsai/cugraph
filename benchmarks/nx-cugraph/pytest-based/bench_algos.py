@@ -30,7 +30,6 @@ from cugraph_benchmarking.params import (
 ################################################################################
 # Fixtures and helpers
 backend_params = ["cugraph", None]
-#backend_params = ["cugraph"]
 
 small_dataset_params = [datasets.karate,
                         datasets.netscience,
@@ -91,22 +90,26 @@ def large_graph_obj(request):
 
 
 # FIXME: this is needed for networkx <3.2, networkx >=3.2 simply allows the
-# backend to be specified using a parameter
-from networkx.classes import backends
-backends.plugin_name = "cugraph"
-orig_dispatch = backends._dispatch
-testing_dispatch = backends.test_override_dispatch
-current_dispatch_decorator = orig_dispatch
+# backend to be specified using a parameter. For now, use the same technique
+# for all NX versions
+try:
+    from networkx.classes import backends  # NX <3.2
+    _using_legacy_dispatcher = True
+except ImportError:
+    backends = None
+    _using_legacy_dispatcher = False
 
-@pytest.fixture(scope="module", params=backend_params,
-                ids=lambda backend: f"backend={backend}")
-def backend(request):
+
+def get_legacy_backend_selector(backend_name):
     """
-    Sets current_dispatch_decorator to a callable that benchmarks can apply to
-    the benchmarked function to ensure it uses a particular backend.
+    Returns a callable that wraps an algo function with either the default
+    dispatch decorator, or the "testing" decorator which unconditionally
+    dispatches.
+    This is only supported for NetworkX <3.2
     """
-    global current_dispatch_decorator
-    backend = request.param
+    backends.plugin_name = "cugraph"
+    orig_dispatch = backends._dispatch
+    testing_dispatch = backends.test_override_dispatch
 
     # Testing with the networkx <3.2 dispatch mechanism is based on decorating
     # networkx APIs. The decorator is either one that only uses a backend if
@@ -121,7 +124,7 @@ def backend(request):
     # multiple times, the callable also clears bookkeeping so the decorators
     # can be reapplied multiple times. This is obviously a hack and networkx
     # >=3.2 makes this use case properly supported.
-    if backend == "cugraph":
+    if backend_name == "cugraph":
         def wrapper(*args, **kwargs):
             backends._registered_algorithms = {}
             return testing_dispatch(*args, **kwargs)
@@ -130,49 +133,91 @@ def backend(request):
             backends._registered_algorithms = {}
             return orig_dispatch(*args, **kwargs)
 
-    current_dispatch_decorator = wrapper
-    yield backend
-    current_dispatch_decorator = orig_dispatch
+    return wrapper
+
+
+def get_backend_selector(backend_name):
+    """
+    Returns a callable that wraps an algo function in order to set the
+    "backend" kwarg on it.
+    This is only supported for NetworkX >= 3.2
+    """
+    def get_callable_for_func(func):
+        def wrapper(*args, **kwargs):
+            kwargs["backend"] = backend_name
+            return func(*args, **kwargs)
+        return wrapper
+
+    return get_callable_for_func
+
+
+@pytest.fixture(scope="module", params=backend_params,
+                ids=lambda backend: f"backend={backend}")
+def backend_selector(request):
+    """
+    Returns a callable that takes a function algo and wraps it in another
+    function that calls the algo using the appropriate backend.
+    """
+    backend_name = request.param
+    if _using_legacy_dispatcher:
+        return get_legacy_backend_selector(backend_name)
+    else:
+        return get_backend_selector(backend_name)
 
 
 ################################################################################
 # Benchmarks
-#normalized_params = [True, False]
-normalized_params = [True]
+normalized_params = [True, False]
 k_params = [10, 100, 1000]
 
 
 @pytest.mark.parametrize("normalized", normalized_params, ids=lambda norm: f"{norm=}")
-def bench_betweenness_centrality_small(benchmark, small_graph_obj, backend, normalized):
-    # FIXME: manually calling a dispatch decorator is needed for networkx <3.2,
-    # networkx >=3.2 allows the backend to be specified using a param
-    result = benchmark(current_dispatch_decorator(nx.betweenness_centrality),
+def bench_betweenness_centrality_small(benchmark,
+                                       small_graph_obj,
+                                       backend_selector,
+                                       normalized):
+    result = benchmark(backend_selector(nx.betweenness_centrality),
                        small_graph_obj, weight=None, normalized=normalized)
     assert type(result) is dict
 
 
 @pytest.mark.parametrize("normalized", normalized_params, ids=lambda norm: f"{norm=}")
-def bench_edge_betweenness_centrality_small(benchmark, small_graph_obj, backend, normalized):
-    # FIXME: manually calling a dispatch decorator is needed for networkx <3.2,
-    # networkx >=3.2 allows the backend to be specified using a param
-    result = benchmark(current_dispatch_decorator(nx.edge_betweenness_centrality),
+def bench_edge_betweenness_centrality_small(benchmark,
+                                            small_graph_obj,
+                                            backend_selector,
+                                            normalized):
+    result = benchmark(backend_selector(nx.edge_betweenness_centrality),
                        small_graph_obj, weight=None, normalized=normalized)
     assert type(result) is dict
 
 
 @pytest.mark.parametrize("k", k_params, ids=lambda k: f"{k=}")
-def bench_betweenness_centrality_medium(benchmark, medium_graph_obj, backend, k):
-    # FIXME: manually calling a dispatch decorator is needed for networkx <3.2,
-    # networkx >=3.2 allows the backend to be specified using a param
-    result = benchmark(current_dispatch_decorator(nx.betweenness_centrality),
+def bench_betweenness_centrality_medium(benchmark,
+                                        medium_graph_obj,
+                                        backend_selector,
+                                        k):
+    result = benchmark(backend_selector(nx.betweenness_centrality),
                        medium_graph_obj, weight=None, k=k)
     assert type(result) is dict
 
 
 @pytest.mark.parametrize("k", k_params, ids=lambda k: f"{k=}")
-def bench_edge_betweenness_centrality_medium(benchmark, medium_graph_obj, backend, k):
-    # FIXME: manually calling a dispatch decorator is needed for networkx <3.2,
-    # networkx >=3.2 allows the backend to be specified using a param
-    result = benchmark(current_dispatch_decorator(nx.edge_betweenness_centrality),
+def bench_edge_betweenness_centrality_medium(benchmark,
+                                             medium_graph_obj,
+                                             backend_selector,
+                                             k):
+    result = benchmark(backend_selector(nx.edge_betweenness_centrality),
                        medium_graph_obj, weight=None, k=k)
     assert type(result) is dict
+
+
+def bench_louvain_communities_small(benchmark,
+                                    small_graph_obj,
+                                    backend_selector):
+    # The cugraph backend for louvain_communities only supports undirected graphs
+    if isinstance(small_graph_obj, nx.DiGraph):
+        G = small_graph_obj.to_undirected()
+    else:
+        G = small_graph_obj
+    result = benchmark(backend_selector(nx.community.louvain_communities), G)
+    assert type(result) is list
