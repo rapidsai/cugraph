@@ -19,42 +19,53 @@ or
 $ python _nx_cugraph/__init__.py
 """
 
+# Entries between BEGIN and END are automatically generated
+_info = {
+    "backend_name": "cugraph",
+    "project": "nx-cugraph",
+    "package": "nx_cugraph",
+    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.10/python/nx-cugraph",
+    "short_summary": "GPU-accelerated backend.",
+    # "description": "TODO",
+    "functions": {
+        # BEGIN: functions
+        "betweenness_centrality",
+        "edge_betweenness_centrality",
+        "louvain_communities",
+        # END: functions
+    },
+    "extra_docstrings": {
+        # BEGIN: extra_docstrings
+        "betweenness_centrality": "`weight` parameter is not yet supported.",
+        "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "louvain_communities": "`threshold` and `seed` parameters are currently ignored.",
+        # END: extra_docstrings
+    },
+    "extra_parameters": {
+        # BEGIN: extra_parameters
+        "louvain_communities": {
+            "max_level : int, optional": "Upper limit of the number of macro-iterations.",
+        },
+        # END: extra_parameters
+    },
+}
+
 
 def get_info():
     """Target of ``networkx.plugin_info`` entry point.
 
     This tells NetworkX about the cugraph backend without importing nx_cugraph.
     """
-    # Entries between BEGIN and END are automatically generated
-    return {
-        "backend_name": "cugraph",
-        "project": "nx-cugraph",
-        "package": "nx_cugraph",
-        "url": "https://github.com/rapidsai/cugraph/tree/branch-23.10/python/nx-cugraph",
-        "short_summary": "GPU-accelerated backend.",
-        # "description": "TODO",
-        "functions": {
-            # BEGIN: functions
-            "betweenness_centrality",
-            "edge_betweenness_centrality",
-            "louvain_communities",
-            # END: functions
-        },
-        "extra_docstrings": {
-            # BEGIN: extra_docstrings
-            "betweenness_centrality": "`weight` parameter is not yet supported.",
-            "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
-            "louvain_communities": "`threshold` and `seed` parameters are currently ignored.",
-            # END: extra_docstrings
-        },
-        "extra_parameters": {
-            # BEGIN: extra_parameters
-            "louvain_communities": {
-                "max_level : int, optional": "Upper limit of the number of macro-iterations.",
-            },
-            # END: extra_parameters
-        },
+    # Convert to e.g. `{"functions" {"myfunc": {"extra_docstrings": ...}}}`
+    d = _info.copy()
+    func_keys = ("extra_docstrings", "extra_parameters")
+    d["functions"] = {
+        func: {key: vals[func] for key in func_keys if func in (vals := d[key])}
+        for func in d["functions"]
     }
+    for key in func_keys:
+        del d[key]
+    return d
 
 
 __version__ = "23.10.00"

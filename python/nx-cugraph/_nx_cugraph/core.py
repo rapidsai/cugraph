@@ -36,7 +36,7 @@ def get_extra_parameters(functions=None):
     return {key: val.extra_params for key, val in functions.items() if val.extra_params}
 
 
-def update_text(text, lines_to_add, target, indent=" " * 12):
+def update_text(text, lines_to_add, target, indent=" " * 8):
     begin = f"# BEGIN: {target}\n"
     end = f"# END: {target}\n"
     start = text.index(begin)
