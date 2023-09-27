@@ -17,7 +17,7 @@ import cudf
 import cupy as cp
 import numpy as np
 import pandas as pd
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
 wgth = import_optional("pylibwholegraph.torch")
@@ -164,7 +164,7 @@ class FeatureStore:
             )
 
         feat = self.fd[feat_name][type_name]
-        if isinstance(feat, wgth.WholeMemoryEmbedding):
+        if not isinstance(wgth, MissingModule) and isinstance(feat, wgth.WholeMemoryEmbedding):
             indices_tensor = (
                 indices
                 if isinstance(indices, torch.Tensor)
