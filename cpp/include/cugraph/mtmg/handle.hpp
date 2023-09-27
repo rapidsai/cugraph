@@ -60,7 +60,7 @@ class handle_t {
   rmm::cuda_stream_view get_stream() const
   {
     return raft_handle_.is_stream_pool_initialized()
-             ? raft_handle_.get_stream_from_stream_pool(device_id_)
+             ? raft_handle_.get_stream_from_stream_pool(thread_rank_)
              : raft_handle_.get_stream();
   }
 

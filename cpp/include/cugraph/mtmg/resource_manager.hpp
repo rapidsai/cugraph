@@ -25,6 +25,7 @@
 #include <rmm/cuda_device.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
 #include <execution>
@@ -153,11 +154,12 @@ class resource_manager_t {
       auto pos = local_rank_map_.find(rank);
       RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
 
-      raft::handle_t tmp_handle;
-
+      size_t n_streams{16};
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
-        std::make_unique<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
+        std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+                                         std::make_shared<rmm::cuda_stream_pool>(n_streams),
+                                         per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
     }
 

@@ -97,7 +97,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
     });
 
-  thrust::gather(handle.raft_handle().get_thrust_policy(),
+  thrust::gather(rmm::exec_policy(handle.get_stream()),
                  iter,
                  iter + local_vertices.size(),
                  wrapped.begin(),
@@ -118,7 +118,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   //
   // Finally, reorder result
   //
-  thrust::scatter(handle.raft_handle().get_thrust_policy(),
+  thrust::scatter(rmm::exec_policy(handle.get_stream()),
                   tmp_result.begin(),
                   tmp_result.end(),
                   vertex_pos.begin(),
