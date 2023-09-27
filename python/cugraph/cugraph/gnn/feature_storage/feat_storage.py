@@ -164,7 +164,9 @@ class FeatureStore:
             )
 
         feat = self.fd[feat_name][type_name]
-        if not isinstance(wgth, MissingModule) and isinstance(feat, wgth.WholeMemoryEmbedding):
+        if not isinstance(wgth, MissingModule) and isinstance(
+            feat, wgth.WholeMemoryEmbedding
+        ):
             indices_tensor = (
                 indices
                 if isinstance(indices, torch.Tensor)
