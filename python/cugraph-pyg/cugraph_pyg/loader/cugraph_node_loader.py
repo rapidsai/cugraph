@@ -320,6 +320,12 @@ class EXPERIMENTAL__BulkSampleLoader:
                     self.__minors.dropna(inplace=True)
                     self.__minors = torch.tensor(self.__minors, device='cuda')
 
+                    num_batches = self.__end_exclusive - self.__start_inclusive
+                    offsets_len = len(self.__label_hop_offsets) - 1
+                    if offsets_len % num_batches != 0:
+                        raise ValueError("invalid label-hop offsets")
+                    self.__fanout_length = int(offsets_len / num_batches)
+
         # Pull the next set of sampling results out of the dataframe in memory
         if self.__coo:
             f = self.__data["batch_id"] == self.__next_batch
@@ -350,8 +356,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             else:
                 i = (self.__next_batch - self.__start_inclusive) * self.__fanout_length
                 current_label_hop_offsets = self.__label_hop_offsets[i : i + self.__fanout_length + 1]
-                current_major_offsets = self.__major_offsets[current_label_hop_offsets[0] : current_label_hop_offsets[-1]]
-                current_minors = self.__minors[current_major_offsets[0] : current_major_offsets[-1]]
+                current_major_offsets = self.__major_offsets[current_label_hop_offsets[0] : current_label_hop_offsets[-1]+1]
+                current_minors = self.__minors[current_major_offsets[0] : current_major_offsets[-1] + 1]
 
                 sampler_output = _sampler_output_from_sampling_results_homogeneous_csr(
                     current_major_offsets,

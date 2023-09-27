@@ -407,7 +407,7 @@ def filter_cugraph_store_csc(
     for attr in graph_store.get_all_edge_attrs():
         key = attr.edge_type
         if key in row_dict and key in col_dict:
-            data.put_edge_index((col_dict[key], row_dict[key]), edge_type=key, layout='CSC', is_sorted=True)
+            data.put_edge_index((row_dict[key], col_dict[key]), edge_type=key, layout='csc', is_sorted=True)
 
     required_attrs = []
     for attr in feature_store.get_all_tensor_attrs():
