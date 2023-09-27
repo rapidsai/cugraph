@@ -11,12 +11,4 @@ python -m pip install --no-deps ./local-pylibcugraph-dep/pylibcugraph*.whl
 # Always install latest dask for testing
 python -m pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main
 
-# Only download test data for x86
-arch=$(uname -m)
-if [[ "${arch}" == "x86_64" ]]; then
-    pushd ./datasets
-    bash ./get_test_data.sh
-    popd
-fi
-
 ./ci/test_wheel.sh cugraph python/cugraph
