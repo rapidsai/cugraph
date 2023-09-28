@@ -103,7 +103,7 @@ namespace cugraph {
  * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
  * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
  * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
- * edgelist_hops.has_value() is rue), renumber_map to query original vertices (size = # unique
+ * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
  * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
  * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
  * edgelist_label_offsets.has_value() is true).

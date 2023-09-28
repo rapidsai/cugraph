@@ -42,6 +42,7 @@ from cugraph.dask.common.part_utils import (
 if TYPE_CHECKING:
     from cugraph import Graph
 
+
 src_n = "sources"
 dst_n = "destinations"
 indices_n = "indices"
@@ -71,8 +72,21 @@ def create_empty_df(indices_t, weight_t):
 
 
 def create_empty_df_with_edge_props(
-    indices_t, weight_t, return_offsets=False, renumber=False
+    indices_t,
+    weight_t,
+    return_offsets=False,
+    renumber=False,
+    use_legacy_names=True,
+    include_hop_column=True,
+    compression="COO",
 ):
+    if compression != "COO":
+        majors_name = "major_offsets"
+    else:
+        majors_name = src_n if use_legacy_names else "majors"
+
+    minors_name = dst_n if use_legacy_names else "minors"
+
     if renumber:
         empty_df_renumber = cudf.DataFrame(
             {
@@ -84,14 +98,17 @@ def create_empty_df_with_edge_props(
     if return_offsets:
         df = cudf.DataFrame(
             {
-                src_n: numpy.empty(shape=0, dtype=indices_t),
-                dst_n: numpy.empty(shape=0, dtype=indices_t),
+                majors_name: numpy.empty(shape=0, dtype=indices_t),
+                minors_name: numpy.empty(shape=0, dtype=indices_t),
                 weight_n: numpy.empty(shape=0, dtype=weight_t),
                 edge_id_n: numpy.empty(shape=0, dtype=indices_t),
                 edge_type_n: numpy.empty(shape=0, dtype="int32"),
-                hop_id_n: numpy.empty(shape=0, dtype="int32"),
             }
         )
+
+        if include_hop_column:
+            df[hop_id_n] = numpy.empty(shape=0, dtype="int32")
+
         empty_df_offsets = cudf.DataFrame(
             {
                 offsets_n: numpy.empty(shape=0, dtype="int32"),
@@ -106,115 +123,19 @@ def create_empty_df_with_edge_props(
     else:
         df = cudf.DataFrame(
             {
-                src_n: numpy.empty(shape=0, dtype=indices_t),
-                dst_n: numpy.empty(shape=0, dtype=indices_t),
+                majors_name: numpy.empty(shape=0, dtype=indices_t),
+                minors_name: numpy.empty(shape=0, dtype=indices_t),
                 weight_n: numpy.empty(shape=0, dtype=weight_t),
                 edge_id_n: numpy.empty(shape=0, dtype=indices_t),
                 edge_type_n: numpy.empty(shape=0, dtype="int32"),
-                hop_id_n: numpy.empty(shape=0, dtype="int32"),
                 batch_id_n: numpy.empty(shape=0, dtype="int32"),
+                hop_id_n: numpy.empty(shape=0, dtype="int32"),
             }
         )
         if renumber:
             return df, empty_df_renumber
         else:
             return df
-
-
-def convert_to_cudf(
-    cp_arrays, weight_t, with_edge_properties, return_offsets=False, renumber=False
-):
-    """
-    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
-    """
-    df = cudf.DataFrame()
-
-    if with_edge_properties:
-        if renumber:
-            (
-                sources,
-                destinations,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                offsets,
-                hop_ids,
-                renumber_map,
-                renumber_map_offsets,
-            ) = cp_arrays
-        else:
-            (
-                sources,
-                destinations,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                offsets,
-                hop_ids,
-            ) = cp_arrays
-
-        df[src_n] = sources
-        df[dst_n] = destinations
-        df[weight_n] = weights
-        df[edge_id_n] = edge_ids
-        df[edge_type_n] = edge_types
-        df[hop_id_n] = hop_ids
-
-        return_dfs = [df]
-
-        if return_offsets:
-            offsets_df = cudf.DataFrame(
-                {
-                    batch_id_n: batch_ids,
-                    offsets_n: offsets[:-1],
-                }
-            )
-
-            if renumber:
-                offsets_df[map_offsets_n] = renumber_map_offsets[:-1]
-
-            return_dfs.append(offsets_df)
-        else:
-            batch_ids_b = batch_ids
-            if len(batch_ids_b) > 0:
-                batch_ids_b = cudf.Series(batch_ids_b).repeat(cp.diff(offsets))
-                batch_ids_b.reset_index(drop=True, inplace=True)
-
-            df[batch_id_n] = batch_ids_b
-
-        if renumber:
-            renumber_df = cudf.DataFrame(
-                {
-                    "map": renumber_map,
-                }
-            )
-
-            if not return_offsets:
-                batch_ids_r = cudf.Series(batch_ids).repeat(
-                    cp.diff(renumber_map_offsets)
-                )
-                batch_ids_r.reset_index(drop=True, inplace=True)
-                renumber_df["batch_id"] = batch_ids_r
-
-            return_dfs.append(renumber_df)
-
-        return tuple(return_dfs)
-    else:
-        cupy_sources, cupy_destinations, cupy_indices = cp_arrays
-
-        df[src_n] = cupy_sources
-        df[dst_n] = cupy_destinations
-        df[indices_n] = cupy_indices
-
-        if cupy_indices is not None:
-            if weight_t == "int32":
-                df.indices = df.indices.astype("int32")
-            elif weight_t == "int64":
-                df.indices = df.indices.astype("int64")
-
-        return (df,)
 
 
 def __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers):
@@ -246,6 +167,10 @@ def _call_plc_uniform_neighbor_sample(
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
+    use_legacy_names=True,
+    include_hop_column=True,
+    compress_per_hop=False,
+    compression="COO",
 ):
     st_x = st_x[0]
     start_list_x = st_x[start_col_name]
@@ -259,7 +184,7 @@ def _call_plc_uniform_neighbor_sample(
             min_batch_id, max_batch_id, n_workers
         )
 
-    cp_arrays = pylibcugraph_uniform_neighbor_sample(
+    cupy_array_dict = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
         start_list=start_list_x,
@@ -275,13 +200,25 @@ def _call_plc_uniform_neighbor_sample(
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
+        compression=compression,
+        compress_per_hop=compress_per_hop,
+        return_dict=True,
     )
-    return convert_to_cudf(
-        cp_arrays,
+
+    # have to import here due to circular import issue
+    from cugraph.sampling.sampling_utilities import (
+        sampling_results_from_cupy_array_dict,
+    )
+
+    return sampling_results_from_cupy_array_dict(
+        cupy_array_dict,
         weight_t,
-        with_edge_properties,
+        len(fanout_vals),
+        with_edge_properties=with_edge_properties,
         return_offsets=return_offsets,
         renumber=renumber,
+        use_legacy_names=use_legacy_names,
+        include_hop_column=include_hop_column,
     )
 
 
@@ -304,6 +241,10 @@ def _mg_call_plc_uniform_neighbor_sample(
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
+    use_legacy_names=True,
+    include_hop_column=True,
+    compress_per_hop=False,
+    compression="COO",
 ):
     n_workers = None
     if keep_batches_together:
@@ -335,6 +276,10 @@ def _mg_call_plc_uniform_neighbor_sample(
             prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
             renumber=renumber,
+            use_legacy_names=use_legacy_names,  # remove in 23.12
+            include_hop_column=include_hop_column,  # remove in 23.12
+            compress_per_hop=compress_per_hop,
+            compression=compression,
             allow_other_workers=False,
             pure=False,
         )
@@ -348,6 +293,9 @@ def _mg_call_plc_uniform_neighbor_sample(
             weight_t,
             return_offsets=return_offsets,
             renumber=renumber,
+            use_legacy_names=use_legacy_names,
+            compression=compression,
+            include_hop_column=include_hop_column,
         )
         if with_edge_properties
         else create_empty_df(indices_t, weight_t)
@@ -397,6 +345,7 @@ def uniform_neighbor_sample(
     input_graph: Graph,
     start_list: Sequence,
     fanout_vals: List[int],
+    *,
     with_replacement: bool = True,
     with_edge_properties: bool = False,  # deprecated
     with_batch_ids: bool = False,
@@ -406,9 +355,13 @@ def uniform_neighbor_sample(
     random_state: int = None,
     return_offsets: bool = False,
     return_hops: bool = True,
+    include_hop_column: bool = True,  # deprecated
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
+    use_legacy_names=True,  # deprecated
+    compress_per_hop=False,
+    compression="COO",
     _multiple_clients: bool = False,
 ) -> Union[dask_cudf.DataFrame, Tuple[dask_cudf.DataFrame, dask_cudf.DataFrame]]:
     """
@@ -463,6 +416,12 @@ def uniform_neighbor_sample(
         corresponding to the hop where the edge appeared.
         Defaults to True.
 
+    include_hop_column: bool, optional (default=True)
+        Deprecated.  Defaults to True.
+        If True, will include the hop column even if
+        return_offsets is True.  This option will
+        be removed in release 23.12.
+
     prior_sources_behavior: str (Optional)
         Options are "carryover", and "exclude".
         Default will leave the source list as-is.
@@ -480,6 +439,21 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
+
+    use_legacy_names: bool, optional (default=True)
+        Whether to use the legacy column names (sources, destinations).
+        If True, will use "sources" and "destinations" as the column names.
+        If False, will use "majors" and "minors" as the column names.
+        Deprecated.  Will be removed in release 23.12 in favor of always
+        using the new names "majors" and "minors".
+
+    compress_per_hop: bool, optional (default=False)
+        Whether to compress globally (default), or to produce a separate
+        compressed edgelist per hop.
+
+    compression: str, optional (default=COO)
+        Sets the compression type for the output minibatches.
+        Valid options are COO (default), CSR, CSC, DCSR, and DCSC.
 
     _multiple_clients: bool, optional (default=False)
         internal flag to ensure sampling works with multiple dask clients
@@ -548,12 +522,46 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
+    if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
+        raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
+
     if with_edge_properties:
         warning_msg = (
             "The with_edge_properties flag is deprecated"
             " and will be removed in the next release."
         )
-        warnings.warn(warning_msg, DeprecationWarning)
+        warnings.warn(warning_msg, FutureWarning)
+
+    if (
+        (compression != "COO")
+        and (not compress_per_hop)
+        and prior_sources_behavior != "exclude"
+    ):
+        raise ValueError(
+            "hop-agnostic compression is only supported with"
+            " the exclude prior sources behavior due to limitations "
+            "of the libcugraph C++ API"
+        )
+
+    if compress_per_hop and prior_sources_behavior != "carryover":
+        raise ValueError(
+            "Compressing the edgelist per hop is only supported "
+            "with the carryover prior sources behavior due to limitations"
+            " of the libcugraph C++ API"
+        )
+
+    if include_hop_column:
+        warning_msg = (
+            "The include_hop_column flag is deprecated and will be"
+            " removed in the next release in favor of always "
+            "excluding the hop column when return_offsets is True"
+        )
+        warnings.warn(warning_msg, FutureWarning)
+
+        if compression != "COO":
+            raise ValueError(
+                "Including the hop id column is only supported with COO compression."
+            )
 
     if isinstance(start_list, int):
         start_list = [start_list]
@@ -643,6 +651,31 @@ def uniform_neighbor_sample(
     ddf = persist_dask_df_equal_parts_per_worker(ddf, client)
     ddf = get_persisted_df_worker_map(ddf, client)
 
+    sample_call_kwargs = {
+        "client": client,
+        "session_id": session_id,
+        "input_graph": input_graph,
+        "ddf": ddf,
+        "keep_batches_together": keep_batches_together,
+        "min_batch_id": min_batch_id,
+        "max_batch_id": max_batch_id,
+        "fanout_vals": fanout_vals,
+        "with_replacement": with_replacement,
+        "weight_t": weight_t,
+        "indices_t": indices_t,
+        "with_edge_properties": with_edge_properties,
+        "random_state": random_state,
+        "return_offsets": return_offsets,
+        "return_hops": return_hops,
+        "prior_sources_behavior": prior_sources_behavior,
+        "deduplicate_sources": deduplicate_sources,
+        "renumber": renumber,
+        "use_legacy_names": use_legacy_names,
+        "include_hop_column": include_hop_column,
+        "compress_per_hop": compress_per_hop,
+        "compression": compression,
+    }
+
     if _multiple_clients:
         # Distributed centralized lock to allow
         # two disconnected processes (clients) to coordinate a lock
@@ -650,26 +683,7 @@ def uniform_neighbor_sample(
         lock = Lock("plc_graph_access")
         if lock.acquire(timeout=100):
             try:
-                ddf = _mg_call_plc_uniform_neighbor_sample(
-                    client=client,
-                    session_id=session_id,
-                    input_graph=input_graph,
-                    ddf=ddf,
-                    keep_batches_together=keep_batches_together,
-                    min_batch_id=min_batch_id,
-                    max_batch_id=max_batch_id,
-                    fanout_vals=fanout_vals,
-                    with_replacement=with_replacement,
-                    weight_t=weight_t,
-                    indices_t=indices_t,
-                    with_edge_properties=with_edge_properties,
-                    random_state=random_state,
-                    return_offsets=return_offsets,
-                    return_hops=return_hops,
-                    prior_sources_behavior=prior_sources_behavior,
-                    deduplicate_sources=deduplicate_sources,
-                    renumber=renumber,
-                )
+                ddf = _mg_call_plc_uniform_neighbor_sample(**sample_call_kwargs)
             finally:
                 lock.release()
         else:
@@ -677,26 +691,7 @@ def uniform_neighbor_sample(
                 "Failed to acquire lock(plc_graph_access) while trying to sampling"
             )
     else:
-        ddf = _mg_call_plc_uniform_neighbor_sample(
-            client=client,
-            session_id=session_id,
-            input_graph=input_graph,
-            ddf=ddf,
-            keep_batches_together=keep_batches_together,
-            min_batch_id=min_batch_id,
-            max_batch_id=max_batch_id,
-            fanout_vals=fanout_vals,
-            with_replacement=with_replacement,
-            weight_t=weight_t,
-            indices_t=indices_t,
-            with_edge_properties=with_edge_properties,
-            random_state=random_state,
-            return_offsets=return_offsets,
-            return_hops=return_hops,
-            prior_sources_behavior=prior_sources_behavior,
-            deduplicate_sources=deduplicate_sources,
-            renumber=renumber,
-        )
+        ddf = _mg_call_plc_uniform_neighbor_sample(**sample_call_kwargs)
 
     if return_offsets:
         if renumber:
@@ -708,9 +703,12 @@ def uniform_neighbor_sample(
             ddf, renumber_df = ddf
 
     if input_graph.renumbered and not renumber:
-        ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
-        ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
-
+        if use_legacy_names:
+            ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
+            ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
+        else:
+            ddf = input_graph.unrenumber(ddf, "majors", preserve_order=True)
+            ddf = input_graph.unrenumber(ddf, "minors", preserve_order=True)
     if return_offsets:
         if renumber:
             return ddf, offsets_df, renumber_df
