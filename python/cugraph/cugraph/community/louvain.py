@@ -68,8 +68,8 @@ def louvain(
         than the specified number of levels. No error occurs when the
         algorithm terminates early in this manner.
 
-        If max_level > 500, it's set 500. It would prevent integer overflow at
-        C++ layer for extremely large values of max_level (e.g. sys.maxsize)
+        If max_level > 500, it will be set to 500 and a warning is emitted
+        in order to prevent excessive runtime.
 
     max_iter : integer, optional (default=None)
         This parameter is deprecated in favor of max_level.  Previously
