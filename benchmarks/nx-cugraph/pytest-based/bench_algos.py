@@ -35,6 +35,15 @@ from cugraph_benchmarking.params import (
     soc_livejournal,
 )
 
+# Attempt to import the NetworkX dispatching module, which is only needed when
+# testing with NX <3.2 in order to dynamically switch backends. NX >=3.2 allows
+# the backend to be specified directly in the API call.
+try:
+    from networkx.classes import backends  # NX <3.2
+except ImportError:
+    backends = None
+
+
 ################################################################################
 # Fixtures and helpers
 backend_params = ["cugraph", None]
@@ -88,18 +97,6 @@ def graph_obj(request):
     """
     dataset = request.param
     return nx_graph_from_dataset(dataset)
-
-
-# FIXME: this is needed for networkx <3.2, networkx >=3.2 simply allows the
-# backend to be specified using a parameter. For now, use the same technique
-# for all NX versions
-try:
-    from networkx.classes import backends  # NX <3.2
-
-    _using_legacy_dispatcher = True
-except ImportError:
-    backends = None
-    _using_legacy_dispatcher = False
 
 
 def get_legacy_backend_selector(backend_name):
@@ -167,7 +164,7 @@ def backend_selector(request):
     function that calls the algo using the appropriate backend.
     """
     backend_name = request.param
-    if _using_legacy_dispatcher:
+    if backends is not None:
         return get_legacy_backend_selector(backend_name)
     else:
         return get_backend_selector(backend_name)
