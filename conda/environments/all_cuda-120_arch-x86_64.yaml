@@ -65,10 +65,12 @@ dependencies:
 - scikit-build>=0.13.1
 - scikit-learn>=0.23.1
 - scipy
+- setuptools>=61.0.0
 - sphinx-copybutton
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
 - ucx-proc=*=gpu
 - ucx-py==0.34.*
+- wheel
 name: all_cuda-120_arch-x86_64
