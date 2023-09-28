@@ -31,6 +31,7 @@ _info = {
         # BEGIN: functions
         "betweenness_centrality",
         "edge_betweenness_centrality",
+        "isolates",
         "louvain_communities",
         # END: functions
     },
@@ -38,7 +39,7 @@ _info = {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
-        "louvain_communities": "`threshold` and `seed` parameters are currently ignored.",
+        "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },
     "extra_parameters": {
