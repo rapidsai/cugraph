@@ -635,6 +635,12 @@ class Tests_SamplingPostProcessing
                                         (*renumbered_and_sorted_edgelist_label_hop_offsets).end()))
             << "Renumbered and sorted edge list (label,hop) offset array values should be "
                "non-decreasing.";
+
+          ASSERT_TRUE(
+            (*renumbered_and_sorted_edgelist_label_hop_offsets).back_element(handle.get_stream()) ==
+            renumbered_and_sorted_edgelist_srcs.size())
+            << "Renumbered and sorted edge list (label,hop) offset array's last element should "
+               "coincide with the number of edges.";
         }
 
         if (renumbered_and_sorted_renumber_map_label_offsets) {
@@ -1189,6 +1195,11 @@ class Tests_SamplingPostProcessing
                                         (*sorted_edgelist_label_hop_offsets).end()))
             << "Sorted edge list (label,hop) offset array values should be "
                "non-decreasing.";
+
+          ASSERT_TRUE((*sorted_edgelist_label_hop_offsets).back_element(handle.get_stream()) ==
+                      sorted_edgelist_srcs.size())
+            << "Sorted edge list (label,hop) offset array's last element should coincide with the "
+               "number of edges.";
         }
 
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {

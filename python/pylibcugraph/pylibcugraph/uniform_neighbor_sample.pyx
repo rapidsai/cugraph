@@ -38,6 +38,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
     cugraph_prior_sources_behavior_t,
+    cugraph_compression_type_t,
     cugraph_sampling_options_t,
     cugraph_sampling_options_create,
     cugraph_sampling_options_free,
@@ -46,7 +47,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_prior_sources_behavior,
     cugraph_sampling_set_dedupe_sources,
     cugraph_sampling_set_renumber_results,
-
+    cugraph_sampling_set_compress_per_hop,
+    cugraph_sampling_set_compression_type,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_uniform_neighbor_sample,
@@ -73,6 +75,7 @@ from pylibcugraph._cugraph_c.random cimport (
 from pylibcugraph.random cimport (
     CuGraphRandomState
 )
+import warnings
 
 # TODO accept cupy/numpy random state in addition to raw seed.
 def uniform_neighbor_sample(ResourceHandle resource_handle,
@@ -90,7 +93,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             deduplicate_sources=False,
                             return_hops=False,
                             renumber=False,
-                            random_state=None):
+                            compression='COO',
+                            compress_per_hop=False,
+                            random_state=None,
+                            return_dict=False,):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -153,11 +159,27 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         If True, will renumber the sources and destinations on a
         per-batch basis and return the renumber map and batch offsets
         in additional to the standard returns.
+    
+    compression: str (Optional)
+        Options: COO (default), CSR, CSC, DCSR, DCSR
+        Sets the compression format for the returned samples.
+    
+    compress_per_hop: bool (Optional)
+        If False (default), will create a compressed edgelist for the
+        entire batch.
+        If True, will create a separate compressed edgelist per hop within
+        a batch.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
+    
+    return_dict: bool (Optional)
+        Whether to return a dictionary instead of a tuple.
+        Optional argument, defaults to False, returning a tuple.
+        This argument will eventually be deprecated in favor
+        of always returning a dictionary.
 
     Returns
     -------
@@ -173,13 +195,16 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     the renumber map for each batch starts). 
 
     """
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr
+    )
+
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
     cdef bool_t c_deduplicate_sources = deduplicate_sources
     cdef bool_t c_return_hops = return_hops
     cdef bool_t c_renumber = renumber
+    cdef bool_t c_compress_per_hop = compress_per_hop
 
     assert_CAI_type(start_list, "start_list")
     assert_CAI_type(batch_id_list, "batch_id_list", True)
@@ -269,6 +294,23 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             f'Invalid option {prior_sources_behavior}'
             ' for prior sources behavior'
         )
+    
+    cdef cugraph_compression_type_t compression_behavior_e
+    if compression is None or compression == 'COO':
+        compression_behavior_e = cugraph_compression_type_t.COO
+    elif compression == 'CSR':
+        compression_behavior_e = cugraph_compression_type_t.CSR
+    elif compression == 'CSC':
+        compression_behavior_e = cugraph_compression_type_t.CSC
+    elif compression == 'DCSR':
+        compression_behavior_e = cugraph_compression_type_t.DCSR
+    elif compression == 'DCSC':
+        compression_behavior_e = cugraph_compression_type_t.DCSC
+    else:
+        raise ValueError(
+            f'Invalid option {compression}'
+            ' for compression type'
+        )
 
     cdef cugraph_sampling_options_t* sampling_options
     error_code = cugraph_sampling_options_create(&sampling_options, &error_ptr)
@@ -279,6 +321,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_dedupe_sources(sampling_options, c_deduplicate_sources)
     cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior_e)
     cugraph_sampling_set_renumber_results(sampling_options, c_renumber)
+    cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
+    cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
 
     error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,
@@ -311,26 +355,74 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     # Get cupy "views" of the individual arrays to return. These each increment
     # the refcount on the SamplingResult instance which will keep the data alive
     # until all references are removed and the GC runs.
+    # TODO Return everything that isn't null in release 23.12
     if with_edge_properties:
-        cupy_sources = result.get_sources()
-        cupy_destinations = result.get_destinations()
+        cupy_majors = result.get_majors()
+        cupy_major_offsets = result.get_major_offsets()
+        cupy_minors = result.get_minors()
         cupy_edge_weights = result.get_edge_weights()
         cupy_edge_ids = result.get_edge_ids()
         cupy_edge_types = result.get_edge_types()
         cupy_batch_ids = result.get_batch_ids()
-        cupy_offsets = result.get_offsets()
-        cupy_hop_ids = result.get_hop_ids()
+        cupy_label_hop_offsets = result.get_label_hop_offsets()
 
         if renumber:
             cupy_renumber_map = result.get_renumber_map()
             cupy_renumber_map_offsets = result.get_renumber_map_offsets()
-            return (cupy_sources, cupy_destinations, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_offsets, cupy_hop_ids, cupy_renumber_map, cupy_renumber_map_offsets)
+            # TODO drop the placeholder for hop ids in release 23.12
+            if return_dict:
+                return {
+                    'major_offsets': cupy_major_offsets,
+                    'majors': cupy_majors,
+                    'minors': cupy_minors,
+                    'weight': cupy_edge_weights,
+                    'edge_id': cupy_edge_ids,
+                    'edge_type': cupy_edge_types,
+                    'batch_id': cupy_batch_ids,
+                    'label_hop_offsets': cupy_label_hop_offsets,
+                    'hop_id': None,
+                    'renumber_map': cupy_renumber_map,
+                    'renumber_map_offsets': cupy_renumber_map_offsets
+                }
+            else:
+                cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
+                return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets)
         else:
-            return (cupy_sources, cupy_destinations, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_offsets, cupy_hop_ids)
+            cupy_hop_ids = result.get_hop_ids() # FIXME remove this
+            if return_dict:
+                return {
+                    'major_offsets': cupy_major_offsets,
+                    'majors': cupy_majors,
+                    'minors': cupy_minors,
+                    'weight': cupy_edge_weights,
+                    'edge_id': cupy_edge_ids,
+                    'edge_type': cupy_edge_types,
+                    'batch_id': cupy_batch_ids,
+                    'label_hop_offsets': cupy_label_hop_offsets,
+                    'hop_id': cupy_hop_ids,
+                }
+            else:
+                cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
+                return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, cupy_hop_ids)
 
     else:
+        # TODO this is deprecated, remove it in release 23.12
+        warnings.warn(
+            "Calling uniform_neighbor_sample with the 'with_edge_properties' argument is deprecated."
+            " Starting in release 23.12, this argument will be removed in favor of behaving like the "
+            "with_edge_properties=True option, returning whatever properties are in the graph.",
+            FutureWarning,
+        )
+
         cupy_sources = result.get_sources()
         cupy_destinations = result.get_destinations()
         cupy_indices = result.get_indices()
 
-        return (cupy_sources, cupy_destinations, cupy_indices)
+        if return_dict:
+            return {
+                'sources': cupy_sources,
+                'destinations': cupy_destinations,
+                'indices': cupy_indices
+            }
+        else:
+            return (cupy_sources, cupy_destinations, cupy_indices)

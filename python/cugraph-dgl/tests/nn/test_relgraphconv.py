@@ -41,6 +41,7 @@ def test_relgraphconv_equality(
 ):
     from dgl.nn.pytorch import RelGraphConv
 
+    torch.manual_seed(12345)
     in_feat, out_feat, num_rels = 10, 2, 3
     args = (in_feat, out_feat, num_rels)
     kwargs = {
@@ -75,12 +76,18 @@ def test_relgraphconv_equality(
             size=size, src_ids=indices, cdst_ids=offsets, values=etypes, formats="csc"
         )
 
-    torch.manual_seed(0)
     conv1 = RelGraphConv(*args, **kwargs).cuda()
+    conv2 = CuGraphRelGraphConv(*args, **kwargs, apply_norm=False).cuda()
 
-    torch.manual_seed(0)
-    kwargs["apply_norm"] = False
-    conv2 = CuGraphRelGraphConv(*args, **kwargs).cuda()
+    with torch.no_grad():
+        if self_loop:
+            conv2.W.data[:-1] = conv1.linear_r.W.data
+            conv2.W.data[-1] = conv1.loop_weight.data
+        else:
+            conv2.W.data = conv1.linear_r.W.data.detach().clone()
+
+        if regularizer is not None:
+            conv2.coeff.data = conv1.linear_r.coeff.data.detach().clone()
 
     out1 = conv1(g, feat, g.edata[dgl.ETYPE])
 

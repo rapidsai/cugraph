@@ -32,6 +32,7 @@ def test_sage_conv_equality(
     import torch
     from torch_geometric.nn import SAGEConv
 
+    torch.manual_seed(12345)
     edge_index, size = request.getfixturevalue(graph)
     edge_index = edge_index.cuda()
     csc = CuGraphSAGEConv.to_csc(edge_index, size)

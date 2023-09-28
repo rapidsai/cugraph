@@ -28,6 +28,7 @@ def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr, graph, req
     import torch
     from torch_geometric.nn import GATv2Conv
 
+    torch.manual_seed(12345)
     edge_index, size = request.getfixturevalue(graph)
     edge_index = edge_index.cuda()
 
