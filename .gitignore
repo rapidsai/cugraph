@@ -97,3 +97,7 @@ python/cugraph/cugraph/tests/dask-worker-space
 docs/cugraph/source/api_docs/api/*
 _html
 _text
+
+# clang tooling
+compile_commands.json
+.clangd/
