@@ -14,7 +14,6 @@
 import gc
 from typing import Union
 import warnings
-import random
 
 import cudf
 import cupy as cp
@@ -182,9 +181,7 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
-        input_ddf = input_ddf.map_partitions(
-            lambda df: df.copy(), token="custom-" + str(random.random())
-        )
+        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -343,7 +340,6 @@ class simpleDistributedGraphImpl:
         }
         wait(list(self._plc_graph.values()))
         del delayed_tasks_d
-        del ddf
         _client.run(gc.collect)
 
     @property
@@ -1196,7 +1192,5 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
-    gc.collect()
+    # FIXME: For now, don't delete the copied dataframe to avoid cras
     return output_col
