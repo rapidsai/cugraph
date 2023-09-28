@@ -6,7 +6,7 @@ with minimal dependencies (`networkx`, `cupy`, and `pylibcugraph`) to run graph 
 
 ### Contribute
 
-Follow instructions for [contributing to cugraph](https://github.com/rapidsai/cugraph/blob/branch-23.10/readme_pages/CONTRIBUTING.md)
+Follow instructions for [contributing to cugraph](https://github.com/rapidsai/cugraph/blob/branch-23.12
 and [building from source](https://docs.rapids.ai/api/cugraph/stable/installation/source_build/), then build nx-cugraph in develop (i.e., editable) mode:
 ```
 $ ./build.sh nx-cugraph --pydevelop
