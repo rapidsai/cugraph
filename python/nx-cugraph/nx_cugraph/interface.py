@@ -62,9 +62,7 @@ class BackendInterface:
         # Reasons for xfailing
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
-        louvain_different = (
-            "Louvain may be different due to RNG or unsupported threshold parameter"
-        )
+        louvain_different = "Louvain may be different due to RNG"
 
         xfail = {}
 
@@ -176,7 +174,6 @@ class BackendInterface:
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
                     key("test_louvain.py:test_multigraph"): louvain_different,
-                    key("test_louvain.py:test_threshold"): louvain_different,
                 }
             )
 
