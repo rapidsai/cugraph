@@ -146,7 +146,7 @@ class TestCallback(GraphBasedDimRedCallback):
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
-    cu_M = graph_file.get_edgelist()
+    cu_M = graph_file.get_edgelist(download=True)
     test_callback = TestCallback()
     cu_pos = cugraph_call(
         cu_M,
@@ -177,10 +177,10 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     """
 
     if "string" in graph_file.metadata["col_types"]:
-        df = renumbered_edgelist(graph_file.get_edgelist())
+        df = renumbered_edgelist(graph_file.get_edgelist(download=True))
         M = get_coo_array(df)
     else:
-        M = get_coo_array(graph_file.get_edgelist())
+        M = get_coo_array(graph_file.get_edgelist(download=True))
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
