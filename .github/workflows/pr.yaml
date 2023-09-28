@@ -23,6 +23,9 @@ jobs:
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
+      - wheel-build-nx-cugraph
+      - wheel-tests-nx-cugraph
+      - devcontainer
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/pr-builder.yaml@branch-23.10
   checks:
@@ -109,3 +112,26 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
+  wheel-build-nx-cugraph:
+    needs: wheel-tests-pylibcugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-build.yaml@branch-23.10
+    with:
+      build_type: pull-request
+      script: ci/build_wheel_nx-cugraph.sh
+  wheel-tests-nx-cugraph:
+    needs: wheel-build-nx-cugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-test.yaml@branch-23.10
+    with:
+      build_type: pull-request
+      script: ci/test_wheel_nx-cugraph.sh
+  devcontainer:
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/build-in-devcontainer.yaml@branch-23.10
+    with:
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      build_command: |
+        sccache -z;
+        build-all --verbose;
+        sccache -s;
