@@ -150,7 +150,8 @@ def louvain(
         max_level = 100
 
     if max_level > 500:
-        warnings.warn("clamping down max_level to 500.")
+        w_msg = "max_level is set too high, clamping it down to 500."
+        warnings.warn(w_msg)
         max_level = 500
 
     vertex, partition, modularity_score = pylibcugraph_louvain(
@@ -179,7 +180,7 @@ def louvain(
             [result, isolated_vtx_and_cids], ignore_index=True, sort=False
         )
 
-    if G.renumbered and G.number_of_nodes() > len(isolated_vertices):
+    if G.renumbered and len(G.input_df) > 0:
         result = G.unrenumber(result, VERTEX_COL_NAME)
 
     if isNx is True:
