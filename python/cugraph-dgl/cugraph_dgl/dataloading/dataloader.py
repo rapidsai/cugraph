@@ -93,7 +93,9 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_size: int
             Batch size.
         sparse_format: str, default = "coo"
-            Sparse format of the sample graph. Choose between "csc" and "coo".
+            The sparse format of the emitted sampled graphs. Choose between "csc"
+            and "coo". When using "csc", the graphs are of type
+            cugraph_dgl.nn.SparseGraph.
         kwargs : dict
             Key-word arguments to be passed to the parent PyTorch
             :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
