@@ -10,13 +10,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from functools import partial, update_wrapper
 
-from networkx.utils.decorators import not_implemented_for
+from networkx.utils.decorators import nodes_or_number, not_implemented_for
 
 from nx_cugraph.interface import BackendInterface
 
-__all__ = ["not_implemented_for", "networkx_algorithm"]
+try:
+    from networkx.utils.backends import _registered_algorithms
+except ModuleNotFoundError:
+    from networkx.classes.backends import _registered_algorithms
+
+
+__all__ = ["not_implemented_for", "nodes_or_number", "networkx_algorithm"]
 
 
 def networkx_class(api):
@@ -28,7 +36,17 @@ def networkx_class(api):
 
 
 class networkx_algorithm:
-    def __new__(cls, func=None, *, name=None, extra_params=None):
+    name: str
+    extra_doc: str | None
+    extra_params: dict[str, str] | None
+
+    def __new__(
+        cls,
+        func=None,
+        *,
+        name: str | None = None,
+        extra_params: dict[str, str] | str | None = None,
+    ):
         if func is None:
             return partial(networkx_algorithm, name=name, extra_params=extra_params)
         instance = object.__new__(cls)
@@ -37,13 +55,20 @@ class networkx_algorithm:
         instance.__defaults__ = func.__defaults__
         instance.__kwdefaults__ = func.__kwdefaults__
         instance.name = func.__name__ if name is None else name
-        # TODO: should extra_params be a dict[str, str] that describes the parameters?
         if extra_params is None:
-            instance.extra_params = None
+            pass
         elif isinstance(extra_params, str):
-            instance.extra_params = {extra_params}
-        else:
-            instance.extra_params = set(extra_params)
+            extra_params = {extra_params: ""}
+        elif not isinstance(extra_params, dict):
+            raise TypeError(
+                f"extra_params must be dict, str, or None; got {type(extra_params)}"
+            )
+        instance.extra_params = extra_params
+        # The docstring on our function is added to the NetworkX docstring.
+        instance.extra_doc = func.__doc__
+        # Copy __doc__ from NetworkX
+        if instance.name in _registered_algorithms:
+            instance.__doc__ = _registered_algorithms[instance.name].__doc__
         instance.can_run = _default_can_run
         setattr(BackendInterface, instance.name, instance)
         # Set methods so they are in __dict__
