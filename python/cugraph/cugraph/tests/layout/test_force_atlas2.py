@@ -26,6 +26,7 @@ from cugraph.datasets import (
     netscience,
     dining_prefs,
 )
+
 # FIXME Removed the multi column positional due to it being non-deterministic
 # need to replace this coverage. Issue 3890 in cuGraph repo was created.
 
