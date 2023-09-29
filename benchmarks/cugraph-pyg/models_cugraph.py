@@ -32,24 +32,18 @@ class CuGraphSAGE(nn.Module):
         self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr='mean'))
 
         self._trim = TrimToLayer()
-        self._csc_time = 0.0
-        self._num_iter = 0
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
         s = x.shape[0]
-        from time import perf_counter
-
-        start_csc = perf_counter()
-        edge = list(CuGraphSAGEConv.to_csc(edge.cuda(), (s, s)))
-        end_csc = perf_counter()
-        csc_time = end_csc - start_csc
-        self._csc_time += csc_time
-        self._num_iter += 1
-        #print('mean csc time:', self._csc_time / self._num_iter)
-
         x = x.cuda().to(torch.float32)
 
+        edge = edge.csr()
+        edge = [edge[1], edge[0], s]
+
+        print('# sampled nodes:', num_sampled_nodes)
+        print('# sampled edges:', num_sampled_edges)
         for i, conv in enumerate(self.convs):
+            print(x.shape, edge[0].shape, edge[1].shape)
             if i > 0:
                 x = x.narrow(
                     dim=0,
@@ -69,6 +63,8 @@ class CuGraphSAGE(nn.Module):
                 )
                 edge[2] = x.size(0)
 
+            #s = x.shape[0]
+            
             x = conv(x, edge)
             x = F.relu(x)
             x = F.dropout(x, p=0.5)

@@ -222,6 +222,9 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 
     major_offsets = major_offsets.clone() - major_offsets[0]
 
+    if major_offsets[-1] != renumber_map.size(0):
+        raise ValueError('invalid renumber map')
+
     num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
 
     label_hop_offsets = label_hop_offsets.cpu()
@@ -233,6 +236,9 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
             ]
         )
     }
+
+    print(label_hop_offsets[-1])
+    print('renumber map shape:', renumber_map.shape)
 
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 

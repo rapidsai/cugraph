@@ -150,9 +150,10 @@ def train_epoch(model, loader, optimizer):
             time_feature_additional += additional_feature_time_end - additional_feature_time_start
 
             start_time_forward = time.perf_counter()
+            edge_index = data['paper','cites','paper'].edge_index if 'edge_index' in data['paper','cites','paper'] else data['paper','cites','paper'].adj_t
             y_pred = model(
                 x,
-                data['paper','cites','paper'].edge_index,
+                edge_index,
                 num_sampled_nodes,
                 num_sampled_edges,
             )
