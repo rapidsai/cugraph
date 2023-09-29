@@ -364,8 +364,8 @@ def is_matrix_type(m):
     return is_cp_matrix_type(m) or is_sp_matrix_type(m)
 
 
-def is_nx_graph_type(g):
-    return g in __nx_graph_types
+def is_nx_graph_type(graph_type):
+    return graph_type in __nx_graph_types
 
 
 def is_cugraph_graph_type(g):
