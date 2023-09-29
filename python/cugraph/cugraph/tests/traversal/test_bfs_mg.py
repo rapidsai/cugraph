@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import gc
+import random
 
 import pytest
 
@@ -61,7 +62,9 @@ def test_dask_mg_bfs(dask_client, directed):
         return cudf.concat([df, temp_df])
 
     meta = ddf._meta
-    ddf = ddf.map_partitions(modify_dataset, meta=meta)
+    ddf = ddf.map_partitions(
+        modify_dataset, meta=meta, token="custom-" + str(random.random())
+    )
 
     df = cudf.read_csv(
         input_data_path,

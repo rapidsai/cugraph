@@ -62,7 +62,7 @@ jobs:
       arch: "amd64"
       branch: ${{ inputs.branch }}
       build_type: ${{ inputs.build_type || 'branch' }}
-      container_image: "rapidsai/ci:cuda11.8.0-ubuntu22.04-py3.10"
+      container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       date: ${{ inputs.date }}
       node_type: "gpu-v100-latest-1"
       run_script: "ci/build_docs.sh"
@@ -112,3 +112,23 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       package-name: cugraph
+  wheel-build-nx-cugraph:
+    needs: wheel-publish-pylibcugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-build.yaml@branch-23.10
+    with:
+      build_type: ${{ inputs.build_type || 'branch' }}
+      branch: ${{ inputs.branch }}
+      sha: ${{ inputs.sha }}
+      date: ${{ inputs.date }}
+      script: ci/build_wheel_nx-cugraph.sh
+  wheel-publish-nx-cugraph:
+    needs: wheel-build-nx-cugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-publish.yaml@branch-23.10
+    with:
+      build_type: ${{ inputs.build_type || 'branch' }}
+      branch: ${{ inputs.branch }}
+      sha: ${{ inputs.sha }}
+      date: ${{ inputs.date }}
+      package-name: nx-cugraph

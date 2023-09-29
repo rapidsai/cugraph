@@ -21,7 +21,7 @@ import cudf
 import cupy
 import cugraph
 import dask_cudf
-from cugraph.datasets import karate
+from cugraph.datasets import karate, email_Eu_core
 from cugraph.experimental import BulkSampler
 from cugraph.utilities.utils import create_directory_with_overwrite
 
@@ -245,5 +245,61 @@ def test_bulk_sampler_empty_batches(dask_client, scratch_dir):
     assert len(df[(df.batch_id == 1) & (df.hop_id == 1)]) == 0
 
     assert df.batch_id.max() == 1
+
+    shutil.rmtree(samples_path)
+
+
+@pytest.mark.mg
+@pytest.mark.parametrize("mg_input", [True, False])
+def test_bulk_sampler_csr(dask_client, scratch_dir, mg_input):
+    nworkers = len(dask_client.scheduler_info()["workers"])
+    el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=nworkers * 2)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
+
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_csr")
+    create_directory_with_overwrite(samples_path)
+
+    bs = BulkSampler(
+        batch_size=7,
+        output_path=samples_path,
+        graph=G,
+        fanout_vals=[5, 4, 3],
+        with_replacement=False,
+        batches_per_partition=7,
+        renumber=True,
+        use_legacy_names=False,
+        compression="CSR",
+        compress_per_hop=True,
+        prior_sources_behavior="carryover",
+        deduplicate_sources=True,
+        include_hop_column=False,
+    )
+
+    seeds = G.select_random_vertices(62, 1000)
+    batch_ids = cudf.Series(
+        cupy.repeat(cupy.arange(int(1000 / 7) + 1, dtype="int32"), 7)[:1000]
+    ).sort_values()
+
+    batch_df = cudf.DataFrame(
+        {
+            "seed": seeds.compute().values,
+            "batch": batch_ids,
+        }
+    )
+
+    if mg_input:
+        batch_df = dask_cudf.from_cudf(batch_df, npartitions=2)
+
+    bs.add_batches(batch_df, start_col_name="seed", batch_col_name="batch")
+    bs.flush()
+
+    assert len(os.listdir(samples_path)) == 21
+
+    for file in os.listdir(samples_path):
+        df = cudf.read_parquet(os.path.join(samples_path, file))
+
+        assert df.major_offsets.dropna().iloc[-1] - df.major_offsets.iloc[0] == len(df)
 
     shutil.rmtree(samples_path)

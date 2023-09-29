@@ -17,7 +17,9 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
+from cugraph_pyg.sampler.cugraph_sampler import (
+    _sampler_output_from_sampling_results_heterogeneous,
+)
 
 from cugraph.gnn import FeatureStore
 
@@ -32,11 +34,6 @@ torch = import_optional("torch")
 def test_neighbor_sample(dask_client, basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
-
-    batches = cudf.DataFrame({
-        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
-        'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
-    })
 
     batches = cudf.DataFrame(
         {
@@ -56,12 +53,13 @@ def test_neighbor_sample(dask_client, basic_graph_1):
             random_state=62,
             return_offsets=False,
             return_hops=True,
+            use_legacy_names=False,
         )
         .compute()
-        .sort_values(by=["sources", "destinations"])
+        .sort_values(by=["majors", "minors"])
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -102,11 +100,6 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
-    batches = cudf.DataFrame({
-        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
-        'batches': cudf.Series(cupy.zeros(5, dtype="int32")),
-    })
-
     batches = cudf.DataFrame(
         {
             "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
@@ -124,12 +117,13 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
             random_state=62,
             return_offsets=False,
             with_batch_ids=True,
+            use_legacy_names=False,
         )
-        .sort_values(by=["sources", "destinations"])
+        .sort_values(by=["majors", "minors"])
         .compute()
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -201,14 +195,14 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
         {
-            "sources": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
-            "destinations": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
+            "majors": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
+            "minors": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 3, 3, 3], dtype="int32"),
             "edge_type": cudf.Series([0, 0, 0, 2, 1, 2, 0, 1, 2, 2], dtype="int32"),
         }
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         mock_sampling_results, None, graph_store, None
     )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,18 +34,24 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(
-  legacy::GraphCOOView<VT, ET, WT> const& graph, int k, rmm::mr::device_memory_resource* mr)
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> ktruss_subgraph_impl(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t> src,
+  raft::device_span<vertex_t> dst,
+  size_t number_of_vertices,
+  int k)
 {
-  using HornetGraph = hornet::gpu::Hornet<VT>;
-  using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
-  using Update      = hornet::gpu::BatchUpdate<VT>;
-  cudaStream_t stream{nullptr};
-  UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices);
+  using HornetGraph = hornet::gpu::Hornet<vertex_t>;
+  using UpdatePtr   = hornet::BatchUpdatePtr<vertex_t, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+  using Update      = hornet::gpu::BatchUpdate<vertex_t>;
+
+  HornetGraph hnt(number_of_vertices + 1);
+
+  // NOTE: Should a constant pointer be passed for @src and @dst
+  UpdatePtr ptr(static_cast<int>(src.size()), src.data(), dst.data());
   Update batch(ptr);
 
-  HornetGraph hnt(graph.number_of_vertices + 1);
   hnt.insert(batch);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
 
@@ -67,32 +73,42 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
-    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
+  rmm::device_uvector<vertex_t> result_src(kt.getGraphEdgeCount(), handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
 
-  kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices());
+  kt.copyGraph(result_src.data(), result_dst.data());
 
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 
-  return out_graph;
+  return std::make_tuple(std::move(result_src), std::move(result_dst));
 }
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
-  legacy::GraphCOOView<VT, ET, WT> const& graph, int k, rmm::mr::device_memory_resource* mr)
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+weighted_ktruss_subgraph_impl(raft::handle_t const& handle,
+                              raft::device_span<vertex_t> src,
+                              raft::device_span<vertex_t> dst,
+                              std::optional<raft::device_span<weight_t>> wgt,
+                              size_t number_of_vertices,
+                              int k)
 {
-  using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
-  using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
-  using Update      = hornet::gpu::BatchUpdate<VT, hornet::TypeList<WT>>;
-  cudaStream_t stream{nullptr};
-  UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices, graph.edge_data);
+  using HornetGraph = hornet::gpu::Hornet<vertex_t, hornet::EMPTY, hornet::TypeList<weight_t>>;
+  using UpdatePtr =
+    hornet::BatchUpdatePtr<vertex_t, hornet::TypeList<weight_t>, hornet::DeviceType::DEVICE>;
+  using Update = hornet::gpu::BatchUpdate<vertex_t, hornet::TypeList<weight_t>>;
+
+  HornetGraph hnt(number_of_vertices + 1);
+
+  UpdatePtr ptr(static_cast<int>(src.size()), src.data(), dst.data(), wgt->data());
   Update batch(ptr);
 
-  HornetGraph hnt(graph.number_of_vertices + 1);
   hnt.insert(batch);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
 
-  KTrussWeighted<WT> kt(hnt);
+  KTrussWeighted<weight_t> kt(hnt);
 
   kt.init();
   kt.reset();
@@ -110,41 +126,60 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
-    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
+  rmm::device_uvector<vertex_t> result_src(kt.getGraphEdgeCount(), handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dst(kt.getGraphEdgeCount(), handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
 
-  kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices(), out_graph->edge_data());
+  result_wgt = rmm::device_uvector<weight_t>(kt.getGraphEdgeCount(), handle.get_stream());
+  kt.copyGraph(result_src.data(), result_dst.data(), result_wgt->data());
 
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 
-  return out_graph;
+  return std::make_tuple(std::move(result_src), std::move(result_dst), std::move(result_wgt));
 }
 
 }  // namespace detail
 
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  legacy::GraphCOOView<VT, ET, WT> const& graph, int k, rmm::mr::device_memory_resource* mr)
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<vertex_t> src,
+                 raft::device_span<vertex_t> dst,
+                 std::optional<raft::device_span<weight_t>> wgt,
+                 size_t number_of_vertices,
+                 int k)
 {
-  CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
-  CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
-
-  if (graph.edge_data == nullptr) {
-    return detail::ktruss_subgraph_impl(graph, k, mr);
+  if (wgt.has_value()) {
+    return detail::weighted_ktruss_subgraph_impl(handle, src, dst, wgt, number_of_vertices, k);
   } else {
-    return detail::weighted_ktruss_subgraph_impl(graph, k, mr);
+    auto [result_src, result_dst] =
+      detail::ktruss_subgraph_impl(handle, src, dst, number_of_vertices, k);
+    std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
+    return std::make_tuple(std::move(result_src), std::move(result_dst), std::move(result_wgt));
   }
 }
 
-template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>>
-k_truss_subgraph<int, int, float>(legacy::GraphCOOView<int, int, float> const&,
-                                  int,
-                                  rmm::mr::device_memory_resource*);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<int32_t> src,
+                 raft::device_span<int32_t> dst,
+                 std::optional<raft::device_span<float>> wgt,
+                 size_t number_of_vertices,
+                 int k);
 
-template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
-k_truss_subgraph<int, int, double>(legacy::GraphCOOView<int, int, double> const&,
-                                   int,
-                                   rmm::mr::device_memory_resource*);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<int32_t> src,
+                 raft::device_span<int32_t> dst,
+                 std::optional<raft::device_span<double>> wgt,
+                 size_t number_of_vertices,
+                 int k);
 
 }  // namespace cugraph

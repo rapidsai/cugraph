@@ -160,7 +160,20 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:D
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], prior_sources_behavior=None, deduplicate_sources=True, renumber=False, persist=False):
+def sample_graph(
+                G,
+                label_df,
+                output_path,seed=42,
+                batch_size=500,
+                seeds_per_call=200000,
+                batches_per_partition=100,
+                fanout=[5, 5, 5],
+                prior_sources_behavior=None,
+                deduplicate_sources=True,
+                renumber=False,
+                persist=False,
+                compression='COO',
+                compress_per_hop=False,):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -175,6 +188,9 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
         renumber=renumber,
+        compression=compression,
+        compress_per_hop=compress_per_hop,
+        include_hop_column=False,
         log_level=logging.INFO,
     )
 
@@ -404,7 +420,9 @@ def benchmark_cugraph_bulk_sampling(
                                     add_edge_types=False,
                                     prior_sources_behavior=None,
                                     deduplicate_sources=False,
-                                    renumber=False,):
+                                    renumber=False,
+                                    compression='COO',
+                                    compress_per_hop=False):
     """
     Entry point for the benchmark.
 
@@ -445,6 +463,10 @@ def benchmark_cugraph_bulk_sampling(
         If True, the source list is deduplicated before performing sampling.
     renumber: bool
         If True, will renumber and add the renumber map to results.
+    compression: str
+        The compression type to use
+    compress_per_hop: bool
+        Whether to output a separate CSR/CSC per hop
     """
     print(dataset)
     if dataset[0:4] == 'rmat':
@@ -505,6 +527,8 @@ def benchmark_cugraph_bulk_sampling(
             prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
             renumber=renumber,
+            compression=compression,
+            compress_per_hop=compress_per_hop,
             persist=persist,
         )
         mean_execution_time += execution_time
@@ -695,6 +719,22 @@ def get_args():
         default=False,
     )
 
+    parser.add_argument(
+        "--compression",
+        type=str,
+        help='The compression type (COO or CSR) to use for saving samples.',
+        required=False,
+        default='COO'
+    )
+
+    parser.add_argument(
+        "--compress_per_hop",
+        action='store_true',
+        help='If true, will output a separate CSR per hop.  Required for DGL CSR output',
+        required=False,
+        default=False,
+    )
+
     return parser.parse_args()
 
 
@@ -757,6 +797,8 @@ if __name__ == "__main__":
                             prior_sources_behavior=prior_sources_behavior,
                             deduplicate_sources=args.deduplicate_sources,
                             renumber=args.renumber,
+                            compression=args.compression,
+                            compress_per_hop=args.compress_per_hop,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges

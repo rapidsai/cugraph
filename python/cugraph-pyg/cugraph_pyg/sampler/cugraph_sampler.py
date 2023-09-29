@@ -16,19 +16,14 @@ from typing import Sequence, Dict, Tuple
 
 from cugraph_pyg.data import CuGraphStore
 
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import import_optional
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
 torch = import_optional("torch")
-
-HeteroSamplerOutput = (
-    None
-    if isinstance(torch_geometric, MissingModule)
-    else torch_geometric.sampler.base.HeteroSamplerOutput
-)
+HeteroSamplerOutput = torch_geometric.sampler.base.HeteroSamplerOutput
 
 
 def _get_unique_nodes(
@@ -58,10 +53,10 @@ def _get_unique_nodes(
         The unique nodes of the given node type.
     """
     if node_position == "src":
-        edge_index = "sources"
+        edge_index = "majors"
         edge_sel = 0
     elif node_position == "dst":
-        edge_index = "destinations"
+        edge_index = "minors"
         edge_sel = -1
     else:
         raise ValueError(f"Illegal value {node_position} for node_position")
@@ -83,11 +78,11 @@ def _get_unique_nodes(
     return sampling_results_node[edge_index]
 
 
-def _sampler_output_from_sampling_results_homogeneous(
+def _sampler_output_from_sampling_results_homogeneous_coo(
     sampling_results: cudf.DataFrame,
     renumber_map: torch.Tensor,
     graph_store: CuGraphStore,
-    data_index: Dict[Tuple[int, int], int],
+    data_index: Dict[Tuple[int, int], Dict[str, int]],
     batch_id: int,
     metadata: Sequence = None,
 ) -> HeteroSamplerOutput:
@@ -96,11 +91,18 @@ def _sampler_output_from_sampling_results_homogeneous(
     ----------
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results.
-    renumber_map: cudf.Series
-        The series containing the renumber map, or None if there
+    renumber_map: torch.Tensor
+        The tensor containing the renumber map, or None if there
         is no renumber map.
     graph_store: CuGraphStore
         The graph store containing the structure of the sampled graph.
+    data_index: Dict[Tuple[int, int], Dict[str, int]]
+        Dictionary where keys are the batch id and hop id,
+        and values are dictionaries containing the max src
+        and max dst node ids for the batch and hop.
+    batch_id: int
+        The current batch id, whose samples are being retrieved
+        from the sampling results and data index.
     metadata: Tensor
         The metadata for the sampled batch.
 
@@ -131,11 +133,11 @@ def _sampler_output_from_sampling_results_homogeneous(
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 
     row_dict = {
-        edge_type: torch.as_tensor(sampling_results.sources, device="cuda"),
+        edge_type: torch.as_tensor(sampling_results.majors, device="cuda"),
     }
 
     col_dict = {
-        edge_type: torch.as_tensor(sampling_results.destinations, device="cuda"),
+        edge_type: torch.as_tensor(sampling_results.minors, device="cuda"),
     }
 
     num_nodes_per_hop_dict[node_type][0] = data_index[batch_id, 0]["src_max"] + 1
@@ -175,7 +177,94 @@ def _sampler_output_from_sampling_results_homogeneous(
     )
 
 
-def _sampler_output_from_sampling_results(
+def _sampler_output_from_sampling_results_homogeneous_csr(
+    major_offsets: torch.Tensor,
+    minors: torch.Tensor,
+    renumber_map: torch.Tensor,
+    graph_store: CuGraphStore,
+    label_hop_offsets: torch.Tensor,
+    batch_id: int,
+    metadata: Sequence = None,
+) -> HeteroSamplerOutput:
+    """
+    Parameters
+    ----------
+    major_offsets: torch.Tensor
+        The major offsets for the CSC/CSR matrix ("row pointer")
+    minors: torch.Tensor
+        The minors for the CSC/CSR matrix ("col index")
+    renumber_map: torch.Tensor
+        The tensor containing the renumber map.
+        Required.
+    graph_store: CuGraphStore
+        The graph store containing the structure of the sampled graph.
+    label_hop_offsets: torch.Tensor
+        The tensor containing the label-hop offsets.
+    batch_id: int
+        The current batch id, whose samples are being retrieved
+        from the sampling results and data index.
+    metadata: Tensor
+        The metadata for the sampled batch.
+
+    Returns
+    -------
+    HeteroSamplerOutput
+    """
+
+    if len(graph_store.edge_types) > 1 or len(graph_store.node_types) > 1:
+        raise ValueError("Graph is heterogeneous")
+
+    if renumber_map is None:
+        raise ValueError("Renumbered input is expected for homogeneous graphs")
+
+    node_type = graph_store.node_types[0]
+    edge_type = graph_store.edge_types[0]
+
+    major_offsets = major_offsets.clone() - major_offsets[0]
+
+    if major_offsets[-1] != renumber_map.size(0):
+        raise ValueError('invalid renumber map')
+
+    num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
+
+    label_hop_offsets = label_hop_offsets.cpu()
+    num_nodes_per_hop_dict = {
+        node_type: torch.concat(
+            [
+                label_hop_offsets.diff(),
+                (renumber_map.shape[0] - label_hop_offsets[-1]).reshape((1,)),
+            ]
+        )
+    }
+
+    print(label_hop_offsets[-1])
+    print('renumber map shape:', renumber_map.shape)
+
+    noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
+
+    col_dict = {
+        edge_type: major_offsets,
+    }
+
+    row_dict = {
+        edge_type: minors,
+    }
+
+    if HeteroSamplerOutput is None:
+        raise ImportError("Error importing from pyg")
+
+    return HeteroSamplerOutput(
+        node=noi_index,
+        row=row_dict,
+        col=col_dict,
+        edge=None,
+        num_sampled_nodes=num_nodes_per_hop_dict,
+        num_sampled_edges=num_edges_per_hop_dict,
+        metadata=metadata,
+    )
+
+
+def _sampler_output_from_sampling_results_heterogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: cudf.Series,
     graph_store: CuGraphStore,
@@ -199,17 +288,14 @@ def _sampler_output_from_sampling_results(
     HeteroSamplerOutput
     """
 
-    time_hop_start = perf_counter()
     hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
     hops = torch.searchsorted(
         torch.as_tensor(sampling_results.hop_id, device="cuda"), hops
     )
-    # print(f'calc hop pos: {perf_counter() - time_hop_start} s')
 
     num_nodes_per_hop_dict = {}
     num_edges_per_hop_dict = {}
 
-    time_calc_hop_0_start = perf_counter()
     # Fill out hop 0 in num_nodes_per_hop_dict, which is based on src instead of dst
     sampling_results_hop_0 = sampling_results.iloc[
         0 : (hops[1] if len(hops) > 1 else len(sampling_results))
@@ -225,7 +311,6 @@ def _sampler_output_from_sampling_results(
                 len(hops) + 1, dtype=torch.int64
             )
             num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
-    # print(f'calc hop 0: {perf_counter() - time_calc_hop_0_start} s')
 
     if renumber_map is not None:
         raise ValueError(
@@ -246,8 +331,8 @@ def _sampler_output_from_sampling_results(
         cudf.Series(
             torch.concat(
                 [
-                    torch.as_tensor(sampling_results_hop_0.sources, device="cuda"),
-                    torch.as_tensor(sampling_results.destinations, device="cuda"),
+                    torch.as_tensor(sampling_results_hop_0.majors, device="cuda"),
+                    torch.as_tensor(sampling_results.minors, device="cuda"),
                 ]
             ),
             name="nodes_of_interest",
@@ -268,7 +353,6 @@ def _sampler_output_from_sampling_results(
         sampling_results, noi_index
     )
 
-    time_nodes_per_hop_start = perf_counter()
     for hop in range(len(hops)):
         hop_ix_start = hops[hop]
         hop_ix_end = hops[hop + 1] if hop < len(hops) - 1 else len(sampling_results)
@@ -323,3 +407,37 @@ def _sampler_output_from_sampling_results(
         num_sampled_edges=num_edges_per_hop_dict,
         metadata=metadata,
     )
+
+
+def filter_cugraph_store_csc(
+    feature_store: torch_geometric.data.FeatureStore,
+    graph_store: torch_geometric.data.GraphStore,
+    node_dict: Dict[str, torch.Tensor],
+    row_dict: Dict[str, torch.Tensor],
+    col_dict: Dict[str, torch.Tensor],
+    edge_dict: Dict[str, Tuple[torch.Tensor]],
+) -> torch_geometric.data.HeteroData:
+    data = torch_geometric.data.HeteroData()
+
+    for attr in graph_store.get_all_edge_attrs():
+        key = attr.edge_type
+        if key in row_dict and key in col_dict:
+            data.put_edge_index(
+                (row_dict[key], col_dict[key]),
+                edge_type=key,
+                layout="csc",
+                is_sorted=True,
+            )
+
+    required_attrs = []
+    for attr in feature_store.get_all_tensor_attrs():
+        if attr.group_name in node_dict:
+            attr.index = node_dict[attr.group_name]
+            required_attrs.append(attr)
+            data[attr.group_name].num_nodes = attr.index.size(0)
+
+    tensors = feature_store.multi_get_tensor(required_attrs)
+    for i, attr in enumerate(required_attrs):
+        data[attr.group_name][attr.attr_name] = tensors[i]
+
+    return data
