@@ -48,30 +48,22 @@ find_bicliques = deprecated_warning_wrapper(
     experimental_warning_wrapper(EXPERIMENTAL__find_bicliques)
 )
 
-from cugraph.experimental.link_prediction.jaccard import (
-    EXPERIMENTAL__jaccard,
-    EXPERIMENTAL__jaccard_coefficient,
-)
-
-jaccard = experimental_warning_wrapper(EXPERIMENTAL__jaccard)
-jaccard_coefficient = experimental_warning_wrapper(EXPERIMENTAL__jaccard_coefficient)
-
-from cugraph.experimental.link_prediction.sorensen import (
-    EXPERIMENTAL__sorensen,
-    EXPERIMENTAL__sorensen_coefficient,
-)
-
-sorensen = experimental_warning_wrapper(EXPERIMENTAL__sorensen)
-sorensen_coefficient = experimental_warning_wrapper(EXPERIMENTAL__sorensen_coefficient)
-
-from cugraph.experimental.link_prediction.overlap import (
-    EXPERIMENTAL__overlap,
-    EXPERIMENTAL__overlap_coefficient,
-)
-
-overlap = experimental_warning_wrapper(EXPERIMENTAL__overlap)
-overlap_coefficient = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficient)
-
 from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
 
 BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)
+
+
+from cugraph.link_prediction.jaccard import jaccard, jaccard_coefficient
+
+jaccard = promoted_experimental_warning_wrapper(jaccard)
+jaccard_coefficient = promoted_experimental_warning_wrapper(jaccard_coefficient)
+
+from cugraph.link_prediction.sorensen import sorensen, sorensen_coefficient
+
+sorensen = promoted_experimental_warning_wrapper(sorensen)
+sorensen_coefficient = promoted_experimental_warning_wrapper(sorensen_coefficient)
+
+from cugraph.link_prediction.overlap import overlap, overlap_coefficient
+
+overlap = promoted_experimental_warning_wrapper(overlap)
+overlap_coefficient = promoted_experimental_warning_wrapper(overlap_coefficient)

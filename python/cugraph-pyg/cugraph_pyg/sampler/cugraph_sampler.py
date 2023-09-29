@@ -16,19 +16,14 @@ from typing import Sequence, Dict, Tuple
 
 from cugraph_pyg.data import CuGraphStore
 
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import import_optional
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
 torch = import_optional("torch")
-
-HeteroSamplerOutput = (
-    None
-    if isinstance(torch_geometric, MissingModule)
-    else torch_geometric.sampler.base.HeteroSamplerOutput
-)
+HeteroSamplerOutput = torch_geometric.sampler.base.HeteroSamplerOutput
 
 
 def _get_unique_nodes(
@@ -87,7 +82,7 @@ def _sampler_output_from_sampling_results_homogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: torch.Tensor,
     graph_store: CuGraphStore,
-    data_index: Dict[Tuple[int, int], int],
+    data_index: Dict[Tuple[int, int], Dict[str, int]],
     batch_id: int,
     metadata: Sequence = None,
 ) -> HeteroSamplerOutput:
@@ -96,11 +91,18 @@ def _sampler_output_from_sampling_results_homogeneous(
     ----------
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results.
-    renumber_map: cudf.Series
-        The series containing the renumber map, or None if there
+    renumber_map: torch.Tensor
+        The tensor containing the renumber map, or None if there
         is no renumber map.
     graph_store: CuGraphStore
         The graph store containing the structure of the sampled graph.
+    data_index: Dict[Tuple[int, int], Dict[str, int]]
+        Dictionary where keys are the batch id and hop id,
+        and values are dictionaries containing the max src
+        and max dst node ids for the batch and hop.
+    batch_id: int
+        The current batch id, whose samples are being retrieved
+        from the sampling results and data index.
     metadata: Tensor
         The metadata for the sampled batch.
 
@@ -175,7 +177,7 @@ def _sampler_output_from_sampling_results_homogeneous(
     )
 
 
-def _sampler_output_from_sampling_results(
+def _sampler_output_from_sampling_results_heterogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: cudf.Series,
     graph_store: CuGraphStore,

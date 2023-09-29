@@ -24,7 +24,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import (
-    _sampler_output_from_sampling_results,
+    _sampler_output_from_sampling_results_heterogeneous,
     _sampler_output_from_sampling_results_homogeneous,
 )
 
@@ -295,8 +295,6 @@ class EXPERIMENTAL__BulkSampleLoader:
                     inplace=True,
                 )
                 self.__data_index = self.__data_index.to_dict(orient="index")
-        end_time_read_data = perf_counter()
-        self._total_read_time += end_time_read_data - start_time_read_data
 
         # Pull the next set of sampling results out of the dataframe in memory
         start_time_convert = perf_counter()
@@ -325,18 +323,14 @@ class EXPERIMENTAL__BulkSampleLoader:
                 self.__next_batch,
             )
         else:
-            sampler_output = _sampler_output_from_sampling_results(
+            sampler_output = _sampler_output_from_sampling_results_heterogeneous(
                 self.__data[f], current_renumber_map, self.__graph_store
             )
-
-        end_time_convert = perf_counter()
-        self._total_convert_time += end_time_convert - start_time_convert
 
         # Get ready for next iteration
         self.__next_batch += 1
 
         # Create a PyG HeteroData object, loading the required features
-        start_time_load_data = perf_counter()
         out = torch_geometric.loader.utils.filter_custom_store(
             self.__feature_store,
             self.__graph_store,
@@ -345,8 +339,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             sampler_output.col,
             sampler_output.edge,
         )
-        end_time_load_data = perf_counter()
-        self._total_feature_time = end_time_load_data - start_time_load_data
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
         if self.__graph_store.order == "CSC":

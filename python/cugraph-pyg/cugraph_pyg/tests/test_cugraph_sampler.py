@@ -17,7 +17,9 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
+from cugraph_pyg.sampler.cugraph_sampler import (
+    _sampler_output_from_sampling_results_heterogeneous,
+)
 
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph import uniform_neighbor_sample
@@ -30,11 +32,6 @@ torch = import_optional("torch")
 def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
-
-    batches = cudf.DataFrame({
-        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
-        'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
-    })
 
     batches = cudf.DataFrame(
         {
@@ -54,7 +51,7 @@ def test_neighbor_sample(basic_graph_1):
         return_offsets=False,
     ).sort_values(by=["sources", "destinations"])
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -94,11 +91,6 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
 
-    batches = cudf.DataFrame({
-        'start': cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
-        'batch': cudf.Series(cupy.zeros(5, dtype="int32")),
-    })
-
     batches = cudf.DataFrame(
         {
             "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
@@ -117,7 +109,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         with_batch_ids=True,
     ).sort_values(by=["sources", "destinations"])
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -169,7 +161,7 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
         }
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         mock_sampling_results, None, graph_store, None
     )
 
