@@ -488,7 +488,7 @@ dependencies:
           - *numpy
           - python-louvain
           - scikit-learn>=0.23.1
-      - output_types: [pyproject]
+      - output_types: [conda]
         packages:
           - pylibwholegraph==23.10.*
   test_python_pylibcugraph:
