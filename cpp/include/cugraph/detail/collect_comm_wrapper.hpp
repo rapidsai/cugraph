@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,19 @@
  */
 #pragma once
 
-#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <tuple>
+#include <optional>
 
 namespace cugraph {
-namespace c_api {
 namespace detail {
-
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>>
-shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
-                               rmm::device_uvector<vertex_t>&& vertices,
-                               raft::device_span<size_t const> offsets);
-
-template <typename key_t, typename value_t>
-void sort_by_key(raft::handle_t const& handle,
-                 raft::device_span<key_t> keys,
-                 raft::device_span<value_t> values);
+/*
+Add some description here
+*/
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::device_span<T const> d_input);
 
 }  // namespace detail
-}  // namespace c_api
 }  // namespace cugraph
