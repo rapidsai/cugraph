@@ -6,10 +6,10 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 
 ## Prerequisites
 
-__Compiler__:
-* `gcc`         version 9.3+
-* `nvcc`        version 11.0+
-* `cmake`       version 3.20.1+
+__Compiler:__
+* `gcc`           version 9.3+
+* `nvcc`          version 11.0+
+* `cmake`         version 3.20.1+
 
 __CUDA:__
 * CUDA 11.0+
@@ -18,6 +18,11 @@ __CUDA:__
 
 You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
 
+__Packages:__
+* `cmake`         version 3.20.1+
+* `libcugraphops` (version matching source branch version, eg. `23.10`)
+
+You can obtain `libcugraphops` using `conda`/`mamba` from the `nvidia` channel, or using `pip` with the `--extra-index-url=https://pypi.nvidia.com` option.  See the [RAPIDS docs](https://docs.rapids.ai/install#environment) for more details.
 
 ## Building cuGraph
 To install cuGraph from source, ensure the dependencies are met.

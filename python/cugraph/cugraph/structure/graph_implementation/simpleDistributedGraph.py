@@ -14,7 +14,6 @@
 import gc
 from typing import Union
 import warnings
-import random
 
 import cudf
 import cupy as cp
@@ -183,10 +182,7 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
-        # FIXME: Make a copy of the input ddf before implicitly altering it.
-        input_ddf = input_ddf.map_partitions(
-            lambda df: df.copy(), token="custom-" + str(random.random())
-        )
+        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -326,6 +322,7 @@ class simpleDistributedGraphImpl:
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
         )
+        del ddf
         length_of_parts = get_length_of_parts(persisted_keys_d, _client)
         num_edges = sum(
             [item for sublist in length_of_parts.values() for item in sublist]
@@ -349,7 +346,7 @@ class simpleDistributedGraphImpl:
             for w, delayed_task in delayed_tasks_d.items()
         }
         wait(list(self._plc_graph.values()))
-        del ddf
+        del persisted_keys_d
         del delayed_tasks_d
         _client.run(gc.collect)
 
