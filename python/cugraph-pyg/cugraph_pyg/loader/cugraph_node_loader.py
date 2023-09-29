@@ -338,7 +338,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                     self.__minors = self.__data["minors"]
                     self.__data.drop(columns="minors", inplace=True)
                     self.__minors.dropna(inplace=True)
-                    self.__minors = torch.tensor(self.__minors, device="cuda")
+                    self.__minors = torch.as_tensor(self.__minors, device="cuda")
 
                     num_batches = self.__end_exclusive - self.__start_inclusive
                     offsets_len = len(self.__label_hop_offsets) - 1
@@ -382,11 +382,13 @@ class EXPERIMENTAL__BulkSampleLoader:
                 current_label_hop_offsets = self.__label_hop_offsets[
                     i : i + self.__fanout_length + 1
                 ]
+                
                 current_major_offsets = self.__major_offsets[
-                    current_label_hop_offsets[0] : current_label_hop_offsets[-1] + 1
+                    current_label_hop_offsets[0] : (current_label_hop_offsets[-1] + 1)
                 ]
+
                 current_minors = self.__minors[
-                    current_major_offsets[0] : current_major_offsets[-1] + 1
+                    current_major_offsets[0] : current_major_offsets[-1]
                 ]
 
                 sampler_output = _sampler_output_from_sampling_results_homogeneous_csr(

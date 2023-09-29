@@ -34,23 +34,21 @@ class CuGraphSAGE(nn.Module):
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
-        s = x.shape[0]
-        x = x.cuda().to(torch.float32)
-
         edge = edge.csr()
+        s = edge[0].size(0) - 1
         edge = [edge[1], edge[0], s]
+
+        x = x.cuda().to(torch.float32)
+        x = x.narrow(
+            dim=0,
+            start=0,
+            length=s
+        )
 
         print('# sampled nodes:', num_sampled_nodes)
         print('# sampled edges:', num_sampled_edges)
         for i, conv in enumerate(self.convs):
-            print(x.shape, edge[0].shape, edge[1].shape)
-            if i > 0:
-                x = x.narrow(
-                    dim=0,
-                    start=0,
-                    length=x.size(0) - num_sampled_nodes[-i],
-                )
-                
+            if i > 0:                
                 edge[0] = edge[0].narrow(
                     dim=0,
                     start=0,
@@ -59,21 +57,33 @@ class CuGraphSAGE(nn.Module):
                 edge[1] = edge[1].narrow(
                     dim=0,
                     start=0,
-                    length=edge[1].size(0) - num_sampled_nodes[-i]
+                    length=edge[1].size(0) - num_sampled_nodes[-(i+1)]
                 )
-                edge[2] = x.size(0)
 
-            #s = x.shape[0]
+                s = edge[1].size(0) - 1
+                x = x.narrow(
+                    dim=0,
+                    start=0,
+                    length=s,
+                )
+                edge[2] = s
+
+            print(x.shape, edge[0].shape, edge[1].shape)
+            print('i:', i)
+            print(edge[0].max())
             
+            print('before:', x.shape)
             x = conv(x, edge)
+            print('after:', x.shape)
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
         x = x.narrow(
             dim=0,
             start=0,
-            length=x.shape[0] - num_sampled_nodes[1]
+            length=num_sampled_nodes[0]
         )
+        print(x.shape)
 
         # assert x.shape[0] == num_sampled_nodes[0]
         return x

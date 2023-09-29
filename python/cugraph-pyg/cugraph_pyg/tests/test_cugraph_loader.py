@@ -334,7 +334,7 @@ def test_cugraph_loader_e2e_coo():
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("framework", ["pyg", "cugraph-ops"])
 def test_cugraph_loader_e2e_csc(framework):
-    m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
+    m = [2, 9, 99, 82, 29, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
     F = FeatureStore()
     F.add_data(x, "t0", "x")

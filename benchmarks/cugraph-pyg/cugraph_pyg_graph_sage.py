@@ -151,12 +151,17 @@ def train_epoch(model, loader, optimizer):
 
             start_time_forward = time.perf_counter()
             edge_index = data['paper','cites','paper'].edge_index if 'edge_index' in data['paper','cites','paper'] else data['paper','cites','paper'].adj_t
+            
             y_pred = model(
                 x,
                 edge_index,
                 num_sampled_nodes,
                 num_sampled_edges,
             )
+            
+            print(y_pred.shape)
+            print(y_true.shape)
+            
             end_time_forward = time.perf_counter()
             time_forward += end_time_forward - start_time_forward
             
@@ -167,7 +172,7 @@ def train_epoch(model, loader, optimizer):
 
             y_true = F.one_hot(
                 y_true.to(torch.int64), num_classes=y_pred.shape[1]
-            ).to(torch.float32)
+            ).to(torch.float32)            
 
             if y_true.shape != y_pred.shape:
                 raise ValueError(
@@ -176,6 +181,7 @@ def train_epoch(model, loader, optimizer):
                     f'in iteration {iter_i} '
                     f'on rank {y_pred.device.index}'
                 )
+            
 
             start_time_backward = time.perf_counter()
             loss = F.cross_entropy(y_pred, y_true)
@@ -186,6 +192,7 @@ def train_epoch(model, loader, optimizer):
             total_loss += loss.item()
             end_time_backward = time.perf_counter()
             time_backward += end_time_backward - start_time_backward
+            
     
     end_time = time.perf_counter()
     return total_loss, num_batches, ((end_time - start_time) / num_batches), (time_forward / num_batches), (time_backward / num_batches), (time_loader / num_batches), (time_feature_additional / num_batches)
