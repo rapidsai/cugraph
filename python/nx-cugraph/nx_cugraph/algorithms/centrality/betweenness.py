@@ -13,7 +13,7 @@
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _handle_seed, networkx_algorithm
+from nx_cugraph.utils import _seed_to_int, networkx_algorithm
 
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 
@@ -22,11 +22,12 @@ __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
 ):
+    """`weight` parameter is not yet supported."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
         )
-    seed = _handle_seed(seed)
+    seed = _seed_to_int(seed)
     G = _to_graph(G, weight)
     node_ids, values = plc.betweenness_centrality(
         resource_handle=plc.ResourceHandle(),
@@ -47,6 +48,7 @@ def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
 
 @networkx_algorithm
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
+    """`weight` parameter is not yet supported."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
