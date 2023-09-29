@@ -27,15 +27,13 @@ from cugraph.datasets import (
     dining_prefs,
 )
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, these import fa2 and import networkx need to be
-# relocated in the third-party group once this gets fixed.
-
+# FIXME Removed the multi column positional due to it being non-deterministic
+# need to replace this coverage. Issue 3890 in cuGraph repo was created.
 
 # This method renumbers a dataframe so it can be tested using Trustworthiness.
 # it converts a dataframe with string vertex ids to a renumbered int one.
+
+
 def renumbered_edgelist(df):
     renumbered_df, num_map = number_map.NumberMap.renumber(df, "src", "dst")
     new_df = renumbered_df[["renumbered_src", "renumbered_dst", "wgt"]]
