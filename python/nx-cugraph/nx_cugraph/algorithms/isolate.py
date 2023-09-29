@@ -20,7 +20,7 @@ from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import networkx_algorithm
 
 if TYPE_CHECKING:  # pragma: no cover
-    import numpy as np
+    from nx_cugraph.typing import IndexValue
 
 __all__ = ["is_isolate", "isolates", "number_of_isolates"]
 
@@ -37,6 +37,7 @@ def is_isolate(G, n):
 
 
 def _mark_isolates(G) -> cp.ndarray[bool]:
+    """Return a boolean mask array indicating indices of isolated nodes."""
     mark_isolates = cp.ones(len(G), bool)
     mark_isolates[G.row_indices] = False
     if G.is_directed():
@@ -44,7 +45,8 @@ def _mark_isolates(G) -> cp.ndarray[bool]:
     return mark_isolates
 
 
-def _isolates(G) -> cp.ndarray[np.int64]:
+def _isolates(G) -> cp.ndarray[IndexValue]:
+    """Like isolates, but return an array of indices instead of an iterator of nodes."""
     G = _to_graph(G)
     return cp.nonzero(_mark_isolates(G))[0]
 

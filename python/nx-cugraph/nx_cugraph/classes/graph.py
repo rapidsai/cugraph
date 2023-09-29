@@ -23,7 +23,7 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
 
     from nx_cugraph.typing import (
