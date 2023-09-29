@@ -22,6 +22,7 @@ from model import run_1_epoch
 from argparse import ArgumentParser
 from load_graph_feats import load_edges_from_disk, load_node_labels, load_node_features
 
+
 class DataLoaderArgs:
     def __init__(self, args):
         self.dataset_path = args.dataset_path
@@ -29,7 +30,6 @@ class DataLoaderArgs:
         self.fanouts = [[int(y) for y in x.split("_")] for x in args.fanouts.split(",")]
         self.batch_sizes = [int(x) for x in args.batch_sizes.split(",")]
         self.use_uva = not args.do_not_use_uva
-
 
 
 def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
@@ -53,7 +53,6 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
     return dataloader
 
 
-
 def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
     """
     Create a DGL graph from a dataset on disk.
@@ -67,14 +66,14 @@ def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
         input_meta = json.load(f)
 
     parquet_path = os.path.join(dataset_path, "parquet")
-    graph_data = load_edges_from_disk(
-        parquet_path, replication_factor, input_meta
-    )
+    graph_data = load_edges_from_disk(parquet_path, replication_factor, input_meta)
     label_data = load_node_labels(dataset_path, replication_factor, input_meta)
-    if replication_factor <8 :
-        feat_data = load_node_features(dataset_path, replication_factor, node_type='paper')
+    if replication_factor < 8:
+        feat_data = load_node_features(
+            dataset_path, replication_factor, node_type="paper"
+        )
     else:
-        feat_data = None   
+        feat_data = None
     print("labels and features loaded ", flush=True)
 
     g = dgl.heterograph(graph_data)
@@ -83,31 +82,49 @@ def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
 
 
 def main(args):
-    print(f"Running dgl dataloading benchmark with the following parameters:\n"
-          f"Dataset path = {args.dataset_path}\n"
-          f"Replication factors = {args.replication_factors}\n"
-          f"Fanouts = {args.fanouts}\n"
-          f"Batch sizes = {args.batch_sizes}\n"
-          f"Use UVA = {args.use_uva}\n"
-          f"{'=' * 30}")
+    print(
+        f"Running dgl dataloading benchmark with the following parameters:\n"
+        f"Dataset path = {args.dataset_path}\n"
+        f"Replication factors = {args.replication_factors}\n"
+        f"Fanouts = {args.fanouts}\n"
+        f"Batch sizes = {args.batch_sizes}\n"
+        f"Use UVA = {args.use_uva}\n"
+        f"{'=' * 30}"
+    )
 
     time_ls = []
     for replication_factor in args.replication_factors:
         start_time = time.time()
-        g, label_data, feat_data = create_dgl_graph_from_disk(args.dataset_path, replication_factor)
+        g, label_data, feat_data = create_dgl_graph_from_disk(
+            args.dataset_path, replication_factor
+        )
         elapsed_time = time.time() - start_time
 
-        print(f"Replication factor = {replication_factor}\n"
-              f"G has {g.num_edges():,} edges and took {elapsed_time:.2f} seconds to load", flush=True)
+        print(
+            f"Replication factor = {replication_factor}\n"
+            f"G has {g.num_edges():,} edges and took {elapsed_time:.2f} seconds to load",
+            flush=True,
+        )
 
         train_idx = {"paper": label_data["paper"]["train_idx"]}
         y = label_data["paper"]["y"]
-        r_time_ls = e2e_benchmark(g, feat_data, y, train_idx, args.fanouts, args.batch_sizes, use_uva=args.use_uva)
+        r_time_ls = e2e_benchmark(
+            g,
+            feat_data,
+            y,
+            train_idx,
+            args.fanouts,
+            args.batch_sizes,
+            use_uva=args.use_uva,
+        )
         [x.update({"replication_factor": replication_factor}) for x in r_time_ls]
-        [x.update({"num_edges":  g.num_edges()}) for x in r_time_ls]
+        [x.update({"num_edges": g.num_edges()}) for x in r_time_ls]
         time_ls.extend(r_time_ls)
 
-        print(f"Benchmark completed for replication factor = {replication_factor}\n{'=' * 30}", flush=True)
+        print(
+            f"Benchmark completed for replication factor = {replication_factor}\n{'=' * 30}",
+            flush=True,
+        )
 
     df = pd.DataFrame(time_ls)
     df.to_csv("dgl_e2e_benchmark.csv", index=False)
@@ -131,21 +148,25 @@ def e2e_benchmark(g, feat, y, train_idx, fanouts, batch_sizes, use_uva):
     for fanout in fanouts:
         for batch_size in batch_sizes:
             dataloader = create_dataloader(g, train_idx, batch_size, fanout, use_uva)
-            time_d = run_1_epoch(dataloader, feat, y, fanout, batch_size, model_backend='dgl')
+            time_d = run_1_epoch(
+                dataloader, feat, y, fanout, batch_size, model_backend="dgl"
+            )
             time_ls.append(time_d)
-            print("="*30)
+            print("=" * 30)
     return time_ls
-
 
 
 def parse_arguments():
     parser = ArgumentParser()
-    parser.add_argument("--dataset_path", type=str, default="/raid/vjawa/ogbn_papers100M")
+    parser.add_argument(
+        "--dataset_path", type=str, default="/raid/vjawa/ogbn_papers100M"
+    )
     parser.add_argument("--replication_factors", type=str, default="2")
     parser.add_argument("--fanouts", type=str, default="10_10_10")
     parser.add_argument("--batch_sizes", type=str, default="512,1024,8192,16384")
     parser.add_argument("--do_not_use_uva", action="store_true")
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     arguments = parse_arguments()

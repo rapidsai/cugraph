@@ -21,6 +21,7 @@ import os
 import pytest
 import numpy as np
 import cupy as cp
+
 # Facing issues with rapids-pytest-benchmark plugin
 # pytest-benchmark.
 import pytest_benchmark
@@ -33,6 +34,7 @@ from cugraph.dask.comms import comms as Comms
 import dgl
 import torch
 import rmm
+
 _seed = 42
 
 
@@ -71,19 +73,19 @@ def create_graph(graph_data):
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
-    num_nodes = max(edgelist_df['src'].max(),
-                edgelist_df['dst'].max())+1
+    num_nodes = max(edgelist_df["src"].max(), edgelist_df["dst"].max()) + 1
 
-    num_nodes_dict = {'_N':num_nodes}
+    num_nodes_dict = {"_N": num_nodes}
 
     gs = CuGraphStorage(num_nodes_dict=num_nodes_dict, single_gpu=True)
-    gs.add_edge_data(edgelist_df,
-                    # reverse to make same graph as cugraph
-                    node_col_names=['dst', 'src'],
-                    canonical_etype=['_N', 'connects', '_N'])
+    gs.add_edge_data(
+        edgelist_df,
+        # reverse to make same graph as cugraph
+        node_col_names=["dst", "src"],
+        canonical_etype=["_N", "connects", "_N"],
+    )
 
     return gs
-
 
 
 def create_mg_graph(graph_data):
@@ -93,7 +95,9 @@ def create_mg_graph(graph_data):
     # range starts at 1 to let let 0 be used by benchmark/client process
     visible_devices = os.getenv("DASK_WORKER_DEVICES", "1,2,3,4")
 
-    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    cluster = LocalCUDACluster(
+        protocol="ucx", rmm_pool_size="25GB", CUDA_VISIBLE_DEVICES=visible_devices
+    )
     client = Client(cluster)
     Comms.initialize(p2p=True)
     rmm.reinitialize(pool_allocator=True)
@@ -126,25 +130,23 @@ def create_mg_graph(graph_data):
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
-    num_nodes = max(edgelist_df['src'].max().compute(),
-                    edgelist_df['dst'].max().compute())
+    num_nodes = max(
+        edgelist_df["src"].max().compute(), edgelist_df["dst"].max().compute()
+    )
 
     # running into issues with smaller partitions
-    edgelist_df = edgelist_df.repartition(npartitions=edgelist_df.npartitions*2)
+    edgelist_df = edgelist_df.repartition(npartitions=edgelist_df.npartitions * 2)
 
-    num_nodes_dict = {'_N':num_nodes}
+    num_nodes_dict = {"_N": num_nodes}
 
-    gs = CuGraphStorage(num_nodes_dict=num_nodes_dict,  single_gpu=False)
-    gs.add_edge_data(edgelist_df,
-                    node_col_names=['dst', 'src'],
-                    canonical_etype=['_N', 'C', '_N'])
+    gs = CuGraphStorage(num_nodes_dict=num_nodes_dict, single_gpu=False)
+    gs.add_edge_data(
+        edgelist_df, node_col_names=["dst", "src"], canonical_etype=["_N", "C", "_N"]
+    )
     return (gs, client, cluster)
 
 
-
-def get_uniform_neighbor_sample_args(
-    G, seed, batch_size, fanout, with_replacement
-):
+def get_uniform_neighbor_sample_args(G, seed, batch_size, fanout, with_replacement):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
     on the graph and desired args passed in. For example, if a large start list
@@ -165,7 +167,7 @@ def get_uniform_neighbor_sample_args(
     else:
         num_start_verts = batch_size
 
-    srcs = G.graphstore.gdata.get_edge_data()['_SRC_']
+    srcs = G.graphstore.gdata.get_edge_data()["_SRC_"]
     start_list = srcs.head(num_start_verts)
     assert len(start_list) == num_start_verts
 
@@ -205,7 +207,6 @@ def graph_objs(request):
         dask_cluster.close()
 
 
-
 ################################################################################
 # Benchmarks
 @pytest.mark.parametrize("batch_size", params.batch_sizes.values())
@@ -223,7 +224,7 @@ def bench_cugraph_dgl_uniform_neighbor_sample(
 
     # Reverse to match cugraph
     # DGL does from dst to src
-    fanout_val = uns_args['fanout']
+    fanout_val = uns_args["fanout"]
     fanout_val.reverse()
     sampler = dgl.dataloading.NeighborSampler(uns_args["fanout"])
     sampler_f = sampler.sample_blocks
@@ -231,7 +232,7 @@ def bench_cugraph_dgl_uniform_neighbor_sample(
     # Warmup
     _ = sampler_f(g=G, seed_nodes=uns_args["seed_nodes"])
     # print(f"\n{uns_args}")
-    result_seed_nodes, output_nodes, blocks  = benchmark(
+    result_seed_nodes, output_nodes, blocks = benchmark(
         sampler_f,
         g=G,
         seed_nodes=uns_args["seed_nodes"],
