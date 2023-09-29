@@ -184,7 +184,7 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
-cugraph_error_code_t cugraph_replicate_edgelist(
+cugraph_error_code_t cugraph_allgather_edgelist(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* src,
   const cugraph_type_erased_device_array_view_t* dst,

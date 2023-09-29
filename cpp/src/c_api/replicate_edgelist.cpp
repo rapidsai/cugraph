@@ -18,7 +18,7 @@
 #include <cugraph_c/graph_generators.h>
 
 #include <c_api/abstract_functor.hpp>
-#include <c_api/capi_helper.hpp>
+//#include <c_api/capi_helper.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/induced_subgraph_result.hpp>
 #include <c_api/resource_handle.hpp>
@@ -27,6 +27,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/graph_functions.hpp>
 
 namespace {
@@ -44,7 +45,7 @@ cugraph_error_code_t dummy_function(
 }
 
 template <typename vertex_t, typename weight_t>
-cugraph_error_code_t cugraph_replicate_edgelist(
+cugraph_error_code_t cugraph_allgather_edgelist(
   raft::handle_t const& handle,
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* src,
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst,
@@ -70,10 +71,10 @@ cugraph_error_code_t cugraph_replicate_edgelist(
   }
 
   try {
-    auto gathered_edgelist_srcs = cugraph::c_api::detail::device_allgatherv(
+    auto gathered_edgelist_srcs = cugraph::detail::device_allgatherv(
       handle, raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()));
 
-    auto gathered_edgelist_dsts = cugraph::c_api::detail::device_allgatherv(
+    auto gathered_edgelist_dsts = cugraph::detail::device_allgatherv(
       handle, raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
 
     rmm::device_uvector<size_t> edge_offsets(2, handle.get_stream());
@@ -83,7 +84,7 @@ cugraph_error_code_t cugraph_replicate_edgelist(
 
     // FIXME: Hnadle this case better
     if (edgelist_weights) {
-      auto gathered_edgelist_weights = cugraph::c_api::detail::device_allgatherv(
+      auto gathered_edgelist_weights = cugraph::detail::device_allgatherv(
         handle,
         raft::device_span<weight_t const>(edgelist_weights->data(), edgelist_weights->size()));
 
@@ -115,7 +116,7 @@ cugraph_error_code_t cugraph_replicate_edgelist(
 
 // template <typename vertex_t, typename weight_t>
 //  why taking out the 'extern "C"' worked.
-extern "C" cugraph_error_code_t cugraph_replicate_edgelist(
+extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* src,
   const cugraph_type_erased_device_array_view_t* dst,
@@ -137,7 +138,7 @@ extern "C" cugraph_error_code_t cugraph_replicate_edgelist(
   */
 
   // FIXME: Support int64_t and float as well
-  return cugraph_replicate_edgelist<int32_t, float>(
+  return cugraph_allgather_edgelist<int32_t, float>(
     *p_handle->handle_,
     p_src,
     p_dst,
