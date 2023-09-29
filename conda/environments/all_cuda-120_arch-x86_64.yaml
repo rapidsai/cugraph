@@ -52,6 +52,7 @@ dependencies:
 - pydata-sphinx-theme
 - pylibcugraphops==23.10.*
 - pylibraft==23.10.*
+- pylibwholegraph==23.10.*
 - pytest
 - pytest-benchmark
 - pytest-cov
