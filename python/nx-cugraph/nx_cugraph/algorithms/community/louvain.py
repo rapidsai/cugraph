@@ -30,7 +30,9 @@ __all__ = ["louvain_communities"]
 @not_implemented_for("directed")
 @networkx_algorithm(
     extra_params={
-        "max_level : int, optional": "Upper limit of the number of macro-iterations."
+        "max_level : int, optional": (
+            "Upper limit of the number of macro-iterations (max: 500)."
+        )
     }
 )
 def louvain_communities(
