@@ -27,6 +27,7 @@ Add some description here
 */
 template <typename T>
 rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::comms::comms_t const& comm,
                                          raft::device_span<T const> d_input);
 
 }  // namespace detail

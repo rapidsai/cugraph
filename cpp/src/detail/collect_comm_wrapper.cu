@@ -29,24 +29,28 @@ namespace detail {
 
 template <typename T>
 rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::comms::comms_t const& comm,
                                          raft::device_span<T const> d_input)
 {
-  auto& comm      = handle.get_comms();
   auto gathered_v = cugraph::device_allgatherv(handle, comm, d_input);
 
   return gathered_v;
 }
 
 template rmm::device_uvector<int32_t> device_allgatherv(raft::handle_t const& handle,
+                                                        raft::comms::comms_t const& comm,
                                                         raft::device_span<int32_t const> d_input);
 
 template rmm::device_uvector<int64_t> device_allgatherv(raft::handle_t const& handle,
+                                                        raft::comms::comms_t const& comm,
                                                         raft::device_span<int64_t const> d_input);
 
 template rmm::device_uvector<float> device_allgatherv(raft::handle_t const& handle,
+                                                      raft::comms::comms_t const& comm,
                                                       raft::device_span<float const> d_input);
 
 template rmm::device_uvector<double> device_allgatherv(raft::handle_t const& handle,
+                                                       raft::comms::comms_t const& comm,
                                                        raft::device_span<double const> d_input);
 
 }  // namespace detail

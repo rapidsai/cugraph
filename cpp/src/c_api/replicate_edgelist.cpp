@@ -71,11 +71,12 @@ cugraph_error_code_t cugraph_allgather_edgelist(
   }
 
   try {
+    auto& comm      = handle.get_comms();
     auto gathered_edgelist_srcs = cugraph::detail::device_allgatherv(
-      handle, raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()));
+      handle, comm, raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()));
 
     auto gathered_edgelist_dsts = cugraph::detail::device_allgatherv(
-      handle, raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      handle, comm, raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
 
     rmm::device_uvector<size_t> edge_offsets(2, handle.get_stream());
     std::vector<size_t> h_edge_offsets{{0, gathered_edgelist_srcs.size()}};
@@ -86,6 +87,7 @@ cugraph_error_code_t cugraph_allgather_edgelist(
     if (edgelist_weights) {
       auto gathered_edgelist_weights = cugraph::detail::device_allgatherv(
         handle,
+        comm, 
         raft::device_span<weight_t const>(edgelist_weights->data(), edgelist_weights->size()));
 
       *result = new cugraph::c_api::cugraph_induced_subgraph_result_t{
