@@ -18,7 +18,6 @@
 #include <cugraph_c/graph_generators.h>
 
 #include <c_api/abstract_functor.hpp>
-//#include <c_api/capi_helper.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/induced_subgraph_result.hpp>
 #include <c_api/resource_handle.hpp>
@@ -32,17 +31,6 @@
 
 namespace {
 
-template <typename vertex_t, typename weight_t>
-cugraph_error_code_t dummy_function(
-  raft::handle_t const& handle,
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* src,
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst,
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* weights,
-  cugraph::c_api::cugraph_induced_subgraph_result_t** result,
-  cugraph::c_api::cugraph_error_t** error)
-{
-  return CUGRAPH_SUCCESS;
-}
 
 template <typename vertex_t, typename weight_t>
 cugraph_error_code_t cugraph_allgather_edgelist(
@@ -116,8 +104,6 @@ cugraph_error_code_t cugraph_allgather_edgelist(
 
 }  // namespace
 
-// template <typename vertex_t, typename weight_t>
-//  why taking out the 'extern "C"' worked.
 extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* src,
@@ -134,11 +120,6 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   auto p_weights =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(weights);
 
-  /*
-  reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t**>(result),
-  reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error)
-  */
-
   // FIXME: Support int64_t and float as well
   return cugraph_allgather_edgelist<int32_t, float>(
     *p_handle->handle_,
@@ -148,13 +129,4 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
     reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t**>(result),
     reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
 
-  /*
-  return dummy_function<int32_t, float>(
-   *p_handle->handle_,
-   p_src,
-   p_dst,
-   p_weights,
-   reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t**>(result),
-   reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
-   */
 }
