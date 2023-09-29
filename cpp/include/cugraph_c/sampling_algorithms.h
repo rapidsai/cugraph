@@ -206,16 +206,6 @@ typedef enum cugraph_prior_sources_behavior_t {
 } cugraph_prior_sources_behavior_t;
 
 /**
-<<<<<<< HEAD
- * @brief     Enumeration for compression type
- */
-typedef enum cugraph_compression_type_t {
-  COO = 0,
-  CSR,
-  CSC,
-  DCSR,
-  DCSC
-=======
  * @brief Selects the type of compression to use for the output samples.
  */
 typedef enum cugraph_compression_type_t {
@@ -228,7 +218,6 @@ typedef enum cugraph_compression_type_t {
               that avoids empty entries in the row pointer. */
   DCSC     /** Compresses in DCSC format.  This outputs an additional index
                that avoid empty entries in the col pointer. */
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
 } cugraph_compression_type_t;
 
 /**
@@ -253,11 +242,7 @@ void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, 
 
 /**
  * @brief   Set whether to compress per-hop (True) or globally (False)
-<<<<<<< HEAD
- * 
-=======
  *
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
@@ -281,20 +266,12 @@ void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_
 
 /**
  * @brief   Set compression type
-<<<<<<< HEAD
- * 
- * @param options - opaque pointer to the sampling options
- * @param value - Enum defining the compresion type
- */
-void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options, cugraph_compression_type_t value);
-=======
  *
  * @param options - opaque pointer to the sampling options
  * @param value - Enum defining the compresion type
  */
 void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
                                            cugraph_compression_type_t value);
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
 
 /**
  * @brief   Set prior sources behavior
@@ -465,21 +442,12 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
-<<<<<<< HEAD
- * @brief     Get the hop offsets from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the hop offsets
- */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop_offsets(
-=======
  * @brief     Get the label-hop offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the label-hop offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
   const cugraph_sample_result_t* result);
 
 /**
@@ -492,26 +460,13 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
-<<<<<<< HEAD
- * @deprecated This call should be replaced with cugraph_sample_get_get_label_offsets
-=======
  * @deprecated This call should be replaced with cugraph_sample_get_get_label_hop_offsets
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
  * @brief     Get the result offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the result offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
-  const cugraph_sample_result_t* result);
-
-/**
- * @brief     Get the result label offsets from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the result label offsets
- */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_offsets(
   const cugraph_sample_result_t* result);
 
 /**

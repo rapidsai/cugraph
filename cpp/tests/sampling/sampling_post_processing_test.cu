@@ -50,15 +50,6 @@ struct SamplingPostProcessing_Usecase {
   bool check_correctness{true};
 };
 
-<<<<<<< HEAD
-template <typename vertex_t>
-bool compare_edgelist(raft::handle_t const& handle,
-                      raft::device_span<vertex_t const> org_edgelist_srcs,
-                      raft::device_span<vertex_t const> org_edgelist_dsts,
-                      raft::device_span<vertex_t const> renumbered_edgelist_srcs,
-                      raft::device_span<vertex_t const> renumbered_edgelist_dsts,
-                      raft::device_span<vertex_t const> renumber_map)
-=======
 template <typename vertex_t, typename weight_t>
 bool compare_edgelist(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> org_edgelist_srcs,
@@ -68,7 +59,6 @@ bool compare_edgelist(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> renumbered_edgelist_dsts,
                       std::optional<raft::device_span<weight_t const>> renumbered_edgelist_weights,
                       std::optional<raft::device_span<vertex_t const>> renumber_map)
->>>>>>> eed12230fb41da701ab9ea302642765d81024bc8
 {
   if (org_edgelist_srcs.size() != renumbered_edgelist_srcs.size()) { return false; }
 

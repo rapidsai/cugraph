@@ -166,6 +166,7 @@ void check_input_edges(
                                               std::numeric_limits<label_index_t>::max()),
                   "Invalid input arguments: current implementation assumes that the number of "
                   "unique labels is no larger than std::numeric_limits<uint32_t>::max().");
+
   CUGRAPH_EXPECTS(
     !edgelist_label_offsets.has_value() ||
       (std::get<0>(*edgelist_label_offsets).size() == std::get<1>(*edgelist_label_offsets) + 1),

@@ -350,21 +350,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         offsets.reset();
       }
 
-      /*
-  cugraph_type_erased_device_array_t* major_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* majors_{nullptr};
-  cugraph_type_erased_device_array_t* minors_{nullptr};
-  cugraph_type_erased_device_array_t* edge_id_{nullptr};
-  cugraph_type_erased_device_array_t* edge_type_{nullptr};
-  cugraph_type_erased_device_array_t* wgt_{nullptr};
-  cugraph_type_erased_device_array_t* hop_{nullptr};
-  cugraph_type_erased_device_array_t* hop_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* label_{nullptr};
-  cugraph_type_erased_device_array_t* label_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* renumber_map_{nullptr};
-  cugraph_type_erased_device_array_t* renumber_map_offsets_{nullptr};
-      */
-
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         (major_offsets)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*major_offsets, SIZE_T)
