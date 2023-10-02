@@ -54,6 +54,9 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 [project.entry-points."networkx.plugins"]
 cugraph = "nx_cugraph.interface:BackendInterface"
 
+[project.entry-points."networkx.plugin_info"]
+cugraph = "_nx_cugraph:get_info"
+
 [tool.setuptools]
 license-files = ["LICENSE"]
 
@@ -61,6 +64,8 @@ license-files = ["LICENSE"]
 include = [
     "nx_cugraph*",
     "nx_cugraph.*",
+    "_nx_cugraph*",
+    "_nx_cugraph.*",
 ]
 
 [tool.black]
@@ -75,6 +80,7 @@ float_to_top = true
 default_section = "THIRDPARTY"
 known_first_party = "nx_cugraph"
 line_length = 88
+extend_skip_glob = ["nx_cugraph/__init__.py"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -128,6 +134,9 @@ exclude_lines = [
 # https://github.com/charliermarsh/ruff/
 line-length = 88
 target-version = "py39"
+unfixable = [
+    "F841",  # unused-variable (Note: can leave useless expression)
+]
 select = [
     "ALL",
 ]
@@ -203,6 +212,7 @@ ignore = [
 "__init__.py" = ["F401"]  # Allow unused imports (w/o defining `__all__`)
 # Allow assert, print, RNG, and no docstring
 "nx_cugraph/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
+"_nx_cugraph/__init__.py" = ["E501"]
 
 [tool.ruff.flake8-annotations]
 mypy-init-return = true

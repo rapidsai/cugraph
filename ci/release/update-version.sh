@@ -62,6 +62,7 @@ sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugr
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/__init__.py
 
 # Python pyproject.toml updates
 sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
@@ -81,6 +82,9 @@ NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; prin
 DEPENDENCIES=(
   cudf
   cugraph
+  cugraph-dgl
+  cugraph-pyg
+  cugraph-service-server
   cugraph-service-client
   cuxfilter
   dask-cuda
@@ -92,6 +96,7 @@ DEPENDENCIES=(
   librmm
   pylibcugraph
   pylibcugraphops
+  pylibwholegraph
   pylibraft
   pyraft
   raft-dask
