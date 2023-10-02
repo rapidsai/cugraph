@@ -275,7 +275,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
-    auto edge_partition_edge_mask =
+    auto edge_partition_e_mask =
       edge_mask_view
         ? std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
@@ -295,9 +295,9 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     }
 
     rmm::device_uvector<vertex_t> majors(
-      edge_partition_edge_mask
+      edge_partition_e_mask
         ? detail::count_set_bits(
-            handle, (*edge_partition_edge_mask).value_first(), edge_partition.number_of_edges())
+            handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
         : static_cast<size_t>(edge_partition.number_of_edges()),
       handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
@@ -311,7 +311,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       edge_partition,
       std::nullopt,
       std::nullopt,
-      edge_partition_edge_mask,
+      edge_partition_e_mask,
       raft::device_span<vertex_t>(majors.data(), majors.size()),
       raft::device_span<vertex_t>(minors.data(), minors.size()),
       std::nullopt,
