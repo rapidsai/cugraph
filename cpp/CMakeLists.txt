@@ -184,6 +184,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
+    src/detail/collect_comm_wrapper.cu
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
