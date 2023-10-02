@@ -28,7 +28,7 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
-    cugraph_replicate_edgelist,
+    cugraph_allgather_edgelist,
     cugraph_induced_subgraph_result_t,
     cugraph_induced_subgraph_get_sources,
     cugraph_induced_subgraph_get_destinations,
@@ -118,12 +118,12 @@ def replicate_edgelist(ResourceHandle resource_handle,
 
 
 
-    error_code = cugraph_replicate_edgelist(c_resource_handle_ptr,
+    error_code = cugraph_allgather_edgelist(c_resource_handle_ptr,
                                             srcs_view_ptr,
                                             dsts_view_ptr,
                                             weights_view_ptr,
                                             &result_ptr,
-                                           &error_ptr)
+                                            &error_ptr)
     assert_success(error_code, error_ptr, "replicate_edgelist")
 
     

@@ -162,7 +162,7 @@ cdef extern from "cugraph_c/graph_functions.h":
     ###########################################################################
     # replicate_edgelist
     cdef cugraph_error_code_t \
-        cugraph_replicate_edgelist(
+        cugraph_allgather_edgelist(
             const cugraph_resource_handle_t* handle,
             const cugraph_type_erased_device_array_view_t* src,
             const cugraph_type_erased_device_array_view_t* dst,
