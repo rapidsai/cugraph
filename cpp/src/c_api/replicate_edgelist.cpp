@@ -29,7 +29,6 @@
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/graph_functions.hpp>
 
-// rename this file to 'all_gather"
 namespace {
 
 struct create_allgather_functor : public cugraph::c_api::abstract_functor {
@@ -92,7 +91,7 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
 
     cugraph::c_api::cugraph_induced_subgraph_result_t* result = NULL;
 
-    // FIXME: Handle this case better
+    // FIXME: Handle this case better. Perhaps with 'optional'?
     if (edgelist_weights) {
       auto gathered_edgelist_weights = cugraph::detail::device_allgatherv(
         handle_,
@@ -140,8 +139,6 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   auto p_weights =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(weights);
 
-  // FIXME: Support int64_t and float as well
-
   cugraph_data_type_id_t edge_type = cugraph_data_type_id_t::INT32;
   cugraph_data_type_id_t weight_type;
 
@@ -187,15 +184,5 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   }
 
   return CUGRAPH_SUCCESS;
-
-  /*
-  return cugraph_allgather_edgelist<int32_t, float>(
-    *p_handle->handle_,
-    p_src,
-    p_dst,
-    p_weights,
-    reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t**>(result),
-    reinterpret_cast<cugraph::c_api::cugraph_error_t**>(error));
-  */
 
 }
