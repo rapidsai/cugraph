@@ -24,7 +24,7 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.10/python/nx-cugraph",
+    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.12/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -75,7 +75,7 @@ def get_info():
     return d
 
 
-__version__ = "23.10.00"
+__version__ = "23.12.00"
 
 if __name__ == "__main__":
     from pathlib import Path
