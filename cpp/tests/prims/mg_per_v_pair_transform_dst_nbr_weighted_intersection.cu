@@ -56,8 +56,8 @@ struct intersection_op_t {
     weight_t weight_a /* weighted out degree */,
     weight_t weight_b /* weighted out degree */,
     raft::device_span<vertex_t const> intersection,
-    raft::device_span<weight_t const> intersected_properties_a,
-    raft::device_span<weight_t const> intersected_properties_b) const
+    raft::device_span<weight_t const> intersected_property_values_a,
+    raft::device_span<weight_t const> intersected_property_values_b) const
   {
     weight_t min_weight_a_intersect_b = weight_t{0};
     weight_t max_weight_a_intersect_b = weight_t{0};
@@ -65,10 +65,12 @@ struct intersection_op_t {
     weight_t sum_of_intersected_b     = weight_t{0};
 
     for (size_t k = 0; k < intersection.size(); k++) {
-      min_weight_a_intersect_b += min(intersected_properties_a[k], intersected_properties_b[k]);
-      max_weight_a_intersect_b += max(intersected_properties_a[k], intersected_properties_b[k]);
-      sum_of_intersected_a += intersected_properties_a[k];
-      sum_of_intersected_b += intersected_properties_b[k];
+      min_weight_a_intersect_b +=
+        min(intersected_property_values_a[k], intersected_property_values_b[k]);
+      max_weight_a_intersect_b +=
+        max(intersected_property_values_a[k], intersected_property_values_b[k]);
+      sum_of_intersected_a += intersected_property_values_a[k];
+      sum_of_intersected_b += intersected_property_values_b[k];
     }
 
     weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
@@ -189,16 +191,13 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
-    auto mg_out_degrees = mg_graph_view.compute_out_degrees(*handle_);
+    auto mg_out_weight_sums = compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG per_v_pair_transform_dst_nbr_intersection");
     }
-
-    rmm::device_uvector<weight_t> mg_out_weight_sums =
-      compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
 
     cugraph::per_v_pair_transform_dst_nbr_intersection(
       *handle_,
