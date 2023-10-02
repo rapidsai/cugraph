@@ -221,6 +221,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     edge_type = graph_store.edge_types[0]
 
     major_offsets = major_offsets.clone() - major_offsets[0]
+    label_hop_offsets = label_hop_offsets.clone() - label_hop_offsets[0]
 
     num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
 
@@ -231,7 +232,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
                 label_hop_offsets.diff(),
                 (renumber_map.shape[0] - label_hop_offsets[-1]).reshape((1,)),
             ]
-        )
+        ).cpu()
     }
 
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}

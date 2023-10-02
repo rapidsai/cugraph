@@ -131,6 +131,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
+        self._total_read_time = 0.0
+        self._total_convert_time = 0.0
+        self._total_feature_time = 0.0
+
         if input_nodes is None:
             # Will be loading from disk
             self.__num_batches = input_nodes
@@ -218,6 +222,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__input_files = iter(os.listdir(self.__directory.name))
 
     def __next__(self):
+        from time import perf_counter
+
+        start_time_read_data = perf_counter()
+
         # Load the next set of sampling results if necessary
         if self.__next_batch >= self.__end_exclusive:
             if self.__directory is None:
@@ -330,13 +338,16 @@ class EXPERIMENTAL__BulkSampleLoader:
                     self.__minors = self.__data["minors"]
                     self.__data.drop(columns="minors", inplace=True)
                     self.__minors.dropna(inplace=True)
-                    self.__minors = torch.tensor(self.__minors, device="cuda")
+                    self.__minors = torch.as_tensor(self.__minors, device="cuda")
 
                     num_batches = self.__end_exclusive - self.__start_inclusive
                     offsets_len = len(self.__label_hop_offsets) - 1
                     if offsets_len % num_batches != 0:
                         raise ValueError("invalid label-hop offsets")
                     self.__fanout_length = int(offsets_len / num_batches)
+
+        end_time_read_data = perf_counter()
+        self._total_read_time += end_time_read_data - start_time_read_data
 
         # Pull the next set of sampling results out of the dataframe in memory
         if self.__coo:
@@ -352,6 +363,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         else:
             current_renumber_map = None
 
+        start_time_convert = perf_counter()
         # Get and return the sampled subgraph
         if (
             len(self.__graph_store.edge_types) == 1
@@ -370,11 +382,13 @@ class EXPERIMENTAL__BulkSampleLoader:
                 current_label_hop_offsets = self.__label_hop_offsets[
                     i : i + self.__fanout_length + 1
                 ]
+
                 current_major_offsets = self.__major_offsets[
-                    current_label_hop_offsets[0] : current_label_hop_offsets[-1] + 1
+                    current_label_hop_offsets[0] : (current_label_hop_offsets[-1] + 1)
                 ]
+
                 current_minors = self.__minors[
-                    current_major_offsets[0] : current_major_offsets[-1] + 1
+                    current_major_offsets[0] : current_major_offsets[-1]
                 ]
 
                 sampler_output = _sampler_output_from_sampling_results_homogeneous_csr(
@@ -394,6 +408,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Get ready for next iteration
         self.__next_batch += 1
 
+        end_time_convert = perf_counter()
+        self._total_convert_time += end_time_convert - start_time_convert
+
+        start_time_feature = perf_counter()
         # Create a PyG HeteroData object, loading the required features
         if self.__coo:
             out = torch_geometric.loader.utils.filter_custom_store(
@@ -407,6 +425,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         else:
             if self.__graph_store.order == "CSR":
                 raise ValueError("CSR format incompatible with CSC output")
+
             out = filter_cugraph_store_csc(
                 self.__feature_store,
                 self.__graph_store,
@@ -426,6 +445,9 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
+
+        end_time_feature = perf_counter()
+        self._total_feature_time = end_time_feature - start_time_feature
 
         return out
 
