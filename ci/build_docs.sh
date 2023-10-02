@@ -40,6 +40,14 @@ rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 export RAPIDS_VERSION_NUMBER="23.12"
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
+untar_dest="/tmp/xml_tar"
+for PROJECT in libcugraphops libwholegraph; do
+  rapids-logger "Download ${PROJECT} xml_tar"
+  dest="${untar_dest}/${PROJECT}"
+  mkdir -p "$dest"
+  aws s3 cp --only-show-errors "s3://rapidsai-docs/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" - | tar xzf - -C "$dest"
+done
+
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile

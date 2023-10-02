@@ -37,6 +37,7 @@ from github_link import make_linkcode_resolve # noqa
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "breathe",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -206,3 +207,9 @@ source_suffix = ['.rst', '.md']
 linkcode_resolve = make_linkcode_resolve(
     "https://github.com/rapidsai/cugraph/blob/{revision}/python/{path}#L{lineno}"
 )
+
+breathe_projects = {
+    'libcugraphops': '/tmp/xml_tar/libcugraphops',
+    'libwholegraph': '/tmp/xml_tar/libwholegraph'
+}
+breathe_default_project = "libcugraph"
