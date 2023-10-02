@@ -216,19 +216,12 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 
     if renumber_map is None:
         raise ValueError("Renumbered input is expected for homogeneous graphs")
-
+    
     node_type = graph_store.node_types[0]
     edge_type = graph_store.edge_types[0]
 
     major_offsets = major_offsets.clone() - major_offsets[0]
     label_hop_offsets = label_hop_offsets.clone() - label_hop_offsets[0]
-
-    # FIXME debugging code, please remove
-    if major_offsets[-1] != minors.size(0):
-        raise ValueError('major offsets mismatched with minors')
-    
-    assert len(torch.unique(renumber_map)) == len(renumber_map)
-    assert minors.max() < len(renumber_map)
 
     num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
 
@@ -241,9 +234,6 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
             ]
         ).cpu()
     }
-
-    print(label_hop_offsets[-1])
-    print('renumber map shape:', renumber_map.shape)
 
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
 

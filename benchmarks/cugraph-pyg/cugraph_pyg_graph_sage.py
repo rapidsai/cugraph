@@ -159,9 +159,6 @@ def train_epoch(model, loader, optimizer):
                 num_sampled_edges,
             )
             
-            print(y_pred.shape)
-            print(y_true.shape)
-            
             end_time_forward = time.perf_counter()
             time_forward += end_time_forward - start_time_forward
             
@@ -170,8 +167,10 @@ def train_epoch(model, loader, optimizer):
 
             y_true = y_true[:y_pred.shape[0]]
 
+            # temporary fix
+            y_true += 1
             y_true = F.one_hot(
-                y_true.to(torch.int64), num_classes=y_pred.shape[1]
+                y_true.to(torch.int64), num_classes=172
             ).to(torch.float32)            
 
             if y_true.shape != y_pred.shape:

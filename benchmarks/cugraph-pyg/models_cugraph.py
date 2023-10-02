@@ -19,6 +19,16 @@ from torch_geometric.utils.trim_to_layer import TrimToLayer
 import torch.nn as nn
 import torch.nn.functional as F
 
+def extend_tensor(t: torch.Tensor, l:int):
+    return torch.concat([
+        t,
+        torch.zeros(
+            l - len(t),
+            dtype=t.dtype,
+            device=t.device
+        )
+    ])
+
 class CuGraphSAGE(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
         super().__init__()
@@ -35,15 +45,10 @@ class CuGraphSAGE(nn.Module):
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
         edge = edge.csr()
-        s = edge[0].size(0) - 1
-        edge = [edge[1], edge[0], s]
+        edge = [edge[1], edge[0], x.shape[0]]
+        print('edge:', edge[1].shape, edge[0].shape, edge[2])
 
         x = x.cuda().to(torch.float32)
-        x = x.narrow(
-            dim=0,
-            start=0,
-            length=s
-        )
 
         print('# sampled nodes:', num_sampled_nodes)
         print('# sampled edges:', num_sampled_edges)
@@ -59,18 +64,23 @@ class CuGraphSAGE(nn.Module):
                     start=0,
                     length=edge[1].size(0) - num_sampled_nodes[-(i+1)]
                 )
+                edge[2] = x.shape[0]
 
-                s = edge[1].size(0) - 1
+                """
                 x = x.narrow(
                     dim=0,
                     start=0,
-                    length=s,
+                    length=x.size(0) - num_sampled_nodes[-i],
                 )
-                edge[2] = s
+                """
 
-            print(x.shape, edge[0].shape, edge[1].shape)
             print('i:', i)
+            print(x.shape, edge[0].shape, edge[1].shape, edge[2])
             print(edge[0].max())
+            print(edge[1].max())
+            #assert edge[0].max() + 1 <= x.shape[0]
+
+            x = extend_tensor(x, edge[0].max()+1)
             
             print('before:', x.shape)
             x = conv(x, edge)
