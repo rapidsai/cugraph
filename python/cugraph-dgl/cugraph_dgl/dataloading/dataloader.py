@@ -47,7 +47,7 @@ class DataLoader(torch.utils.data.DataLoader):
         graph_sampler: cugraph_dgl.dataloading.NeighborSampler,
         sampling_output_dir: str,
         batches_per_partition: int = 50,
-        seeds_per_call: int = 400_000,
+        seeds_per_call: int = 200_000,
         device: torch.device = None,
         use_ddp: bool = False,
         ddp_seed: int = 0,
