@@ -41,6 +41,9 @@ class edge_partition_edge_property_device_view_t {
   using edge_type  = edge_t;
   using value_type = value_t;
 
+  static constexpr bool has_packed_bool_element =
+    cugraph::has_packed_bool_element<ValueIterator, value_t>();
+
   edge_partition_edge_property_device_view_t() = default;
 
   edge_partition_edge_property_device_view_t(
@@ -50,7 +53,7 @@ class edge_partition_edge_property_device_view_t {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
-  __host__ __device__ ValueIterator value_first() { return value_first_; }
+  __host__ __device__ ValueIterator value_first() const { return value_first_; }
 
   __device__ value_t get(edge_t offset) const
   {
@@ -170,8 +173,9 @@ class edge_partition_edge_property_device_view_t {
 template <typename edge_t>
 class edge_partition_edge_dummy_property_device_view_t {
  public:
-  using edge_type  = edge_t;
-  using value_type = thrust::nullopt_t;
+  using edge_type                               = edge_t;
+  using value_type                              = thrust::nullopt_t;
+  static constexpr bool has_packed_bool_element = false;
 
   edge_partition_edge_dummy_property_device_view_t() = default;
 
