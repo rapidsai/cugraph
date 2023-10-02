@@ -448,6 +448,7 @@ def _process_sampled_df_csc(
     label_hop_offsets = df.label_hop_offsets.dropna().values
     renumber_map_offsets = df.renumber_map_offsets.dropna().values
     renumber_map = df.map.dropna().values
+    minors = df.minors.dropna().values
 
     n_batches = renumber_map_offsets.size - 1
     n_hops = int((label_hop_offsets.size - 1) / n_batches)
@@ -476,11 +477,14 @@ def _process_sampled_df_csc(
             idx = batch_id * n_hops + hop_id  # idx in label_hop_offsets
             major_offsets_start = label_hop_offsets[idx].item()
             major_offsets_end = label_hop_offsets[idx + 1].item()
-            minor_start = major_offsets[major_offsets_start].item()
-            minor_end = major_offsets[major_offsets_end].item()
-            # Note: major_offsets from BulkSampler are int64.
+            minors_start = major_offsets[major_offsets_start].item()
+            minors_end = major_offsets[major_offsets_end].item()
+            # Note: minors and major_offsets from BulkSampler are of type int32
+            # and int64 respectively. Since pylibcugraphops binding code doesn't
+            # support distinct node and edge index type, we simply casting both
+            # to int32 for now.
             hop_dict["minors"] = torch.as_tensor(
-                df.minors.iloc[minor_start:minor_end].values, device="cuda"
+                minors[minors_start:minors_end], device="cuda"
             ).int()
             hop_dict["major_offsets"] = torch.as_tensor(
                 major_offsets[major_offsets_start : major_offsets_end + 1]
