@@ -21,5 +21,9 @@ arch=$(uname -m)
 if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
     python ./ci/wheel_smoke_test_${package_name}.py
 else
-    RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets python -m pytest ./python/${package_name}/${python_package_name}/tests
+    RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets \
+    DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="10s" \
+    DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="10s" \
+    DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT=20 \
+    python -m pytest ./python/${package_name}/${python_package_name}/tests
 fi
