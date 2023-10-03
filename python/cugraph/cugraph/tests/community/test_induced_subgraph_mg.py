@@ -93,7 +93,7 @@ def input_expected_output(input_combo):
     srcs = G.view_edge_list()["0"]
     dsts = G.view_edge_list()["1"]
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
-    vertices = vertices.sample(num_seeds).astype("int32")
+    vertices = vertices.sample(num_seeds, replace=True).astype("int32")
 
     # print randomly sample n seeds from the graph
     print("\nvertices: \n", vertices)
