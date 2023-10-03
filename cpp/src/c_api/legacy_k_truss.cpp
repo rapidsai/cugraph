@@ -123,12 +123,15 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       raft::update_device(
         edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
 
+      // FIXME: Add support for edge_id and edge_type_id.
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
         wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
                                                                      graph_->weight_type_)
             : NULL,
+        NULL,
+        NULL,
         new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
                                                                cugraph_data_type_id_t::SIZE_T)};
     }
