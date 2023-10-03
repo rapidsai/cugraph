@@ -176,13 +176,30 @@ cdef extern from "cugraph_c/algorithms.h":
             const cugraph_sample_result_t* result
         )
 
+    # Deprecated, use cugraph_sample_result_get_majors
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_sources(
             const cugraph_sample_result_t* result
         )
 
+    # Deprecated, use cugraph_sample_result_get_minors
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_destinations(
+            const cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_majors(
+            const cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_minors(
+            const cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_major_offsets(
             const cugraph_sample_result_t* result
         )
 
@@ -212,10 +229,16 @@ cdef extern from "cugraph_c/algorithms.h":
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_label_hop_offsets(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_start_labels(
             const cugraph_sample_result_t* result
         )
     
+    # Deprecated
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_offsets(
             const cugraph_sample_result_t* result
@@ -246,10 +269,17 @@ cdef extern from "cugraph_c/algorithms.h":
         pass
     
     ctypedef enum cugraph_prior_sources_behavior_t:
-        DEFAULT
+        DEFAULT=0
         CARRY_OVER
         EXCLUDE
     
+    ctypedef enum cugraph_compression_type_t:
+        COO=0
+        CSR
+        CSC
+        DCSR
+        DCSC
+
     cdef cugraph_error_code_t \
         cugraph_sampling_options_create(
             cugraph_sampling_options_t** options,
@@ -277,7 +307,7 @@ cdef extern from "cugraph_c/algorithms.h":
     cdef void \
         cugraph_sampling_set_prior_sources_behavior(
             cugraph_sampling_options_t* options,
-            cugraph_prior_sources_behavior_t value
+            cugraph_prior_sources_behavior_t value,
         )
 
     cdef void \
@@ -287,9 +317,21 @@ cdef extern from "cugraph_c/algorithms.h":
         )
     
     cdef void \
+        cugraph_sampling_set_compress_per_hop(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_compression_type(
+            cugraph_sampling_options_t* options,
+            cugraph_compression_type_t value,
+        )
+    
+    cdef void \
         cugraph_sampling_options_free(
             cugraph_sampling_options_t* options,
-    )
+        )
 
     # uniform random walks
     cdef cugraph_error_code_t \

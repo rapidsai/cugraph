@@ -142,3 +142,19 @@ def test_louvain_csr_graph(is_weighted):
 
     assert len(parition_diffs) == 0
     assert mod_csr == mod_coo
+
+
+@pytest.mark.sg
+def test_louvain_nx_graph_with_isolated_nodes():
+    # Cluster IDs are expected to unique if all nodes are isolated
+    G = nx.Graph()
+    G.add_nodes_from(range(5))
+    result, _ = cugraph.louvain(G)
+    assert set(result.keys()) == set(G.nodes)
+    assert len(set(result.values())) == G.number_of_nodes()
+
+    # A graph with 5 nodes, where 3 of the nodes are isolated
+    G.add_edge(1, 2)
+    result, _ = cugraph.louvain(G)
+    assert set(result.keys()) == set(G.nodes)
+    assert len(set(result.values())) == G.number_of_nodes() - 1
