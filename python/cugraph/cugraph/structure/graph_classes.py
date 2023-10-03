@@ -57,14 +57,13 @@ class Graph:
     """
 
     class Properties:
-        def __init__(self, directed, parallel):
+        def __init__(self, directed):
             self.directed = directed
             self.weights = False
-            self.parallel = parallel
 
-    def __init__(self, m_graph=None, directed=False, parallel=False):
+    def __init__(self, m_graph=None, directed=False):
         self._Impl = None
-        self.graph_properties = Graph.Properties(directed, parallel)
+        self.graph_properties = Graph.Properties(directed)
         if m_graph is not None:
             if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
@@ -656,13 +655,6 @@ class Graph:
         Returns False if the graph is an undirected graph.
         """
         return self.graph_properties.directed
-
-    def is_parallel(self):
-        """
-        Returns True if the graph is a parallel graph.
-        Returns False if the graph is not a parallel graph.
-        """
-        return self.graph_properties.parallel
 
     def is_renumbered(self):
         """
