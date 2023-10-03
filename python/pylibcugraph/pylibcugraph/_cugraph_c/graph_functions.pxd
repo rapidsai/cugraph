@@ -139,6 +139,16 @@ cdef extern from "cugraph_c/graph_functions.h":
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_induced_subgraph_get_edge_ids(
+            cugraph_induced_subgraph_result_t* induced_subgraph
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_induced_subgraph_get_edge_type_ids(
+            cugraph_induced_subgraph_result_t* induced_subgraph
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_induced_subgraph_get_subgraph_offsets(
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
@@ -167,6 +177,8 @@ cdef extern from "cugraph_c/graph_functions.h":
             const cugraph_type_erased_device_array_view_t* src,
             const cugraph_type_erased_device_array_view_t* dst,
             const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* edge_ids,
+            const cugraph_type_erased_device_array_view_t* edge_type_ids,
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )

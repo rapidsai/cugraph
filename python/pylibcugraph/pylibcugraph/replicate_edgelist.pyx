@@ -17,7 +17,6 @@
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
-    bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
@@ -33,17 +32,13 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_induced_subgraph_get_sources,
     cugraph_induced_subgraph_get_destinations,
     cugraph_induced_subgraph_get_edge_weights,
+    cugraph_induced_subgraph_get_edge_ids,
+    cugraph_induced_subgraph_get_edge_type_ids,
     cugraph_induced_subgraph_get_subgraph_offsets,
     cugraph_induced_subgraph_result_free,
 )
-from pylibcugraph._cugraph_c.graph cimport (
-    cugraph_graph_t,
-)
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
-)
-from pylibcugraph.graphs cimport (
-    _GPUGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -56,7 +51,9 @@ from pylibcugraph.utils cimport (
 def replicate_edgelist(ResourceHandle resource_handle,
                        src_array,
                        dst_array,
-                       weight_array):
+                       weight_array,
+                       edge_id_array,
+                       edge_type_id_array):
     """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
@@ -84,27 +81,36 @@ def replicate_edgelist(ResourceHandle resource_handle,
             order of the array corresponds to the ordering of the src_array and
             dst_array arrays, where the ith item in weight_array is the weight value
             of the ith edge of the graph.
+        
+        edge_id_array : device array type
+            Device array containing the edge id values of each directed edge. The
+            order of the array corresponds to the ordering of the src_array and
+            dst_array arrays, where the ith item in edge_id_array is the id value
+            of the ith edge of the graph.
+        
+        edge_type_id_array : device array type
+            Device array containing the edge type id values of each directed edge. The
+            order of the array corresponds to the ordering of the src_array and
+            dst_array arrays, where the ith item in edge_type_id_array is the type id
+            value of the ith edge of the graph.
 
         Returns
         -------
-        return a cupy arrays of 'first' and 'second' or a 'cugraph_vertex_pairs_t'
-        which can be directly passed to the similarity algorithm?
+        return a cupy arrays of 'src', 'dst', and 'weight', 'edge_id' and 'edge_type_id'
+        (if the were passed)
     """
-    #print("src array before all gather= ", src_array.to_cupy())
-    #print("dst array before all gather= ", dst_array.to_cupy())
-    #print("wgt array before all gather= ", weight_array.to_cupy())
+
     assert_CAI_type(src_array, "src_array")
     assert_CAI_type(dst_array, "dst_array")
     assert_CAI_type(weight_array, "weight_array", True)
+    assert_CAI_type(edge_id_array, "edge_id_array", True)
+    assert_CAI_type(edge_type_id_array, "edge_type_id_array", True)
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
 
     cdef cugraph_induced_subgraph_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-
-    cdef cugraph_type_erased_device_array_view_t* start_vertices_ptr
-
     
     cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(src_array)
@@ -116,12 +122,19 @@ def replicate_edgelist(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(weight_array)
 
+    cdef cugraph_type_erased_device_array_view_t* edge_ids_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array)
+    
+    cdef cugraph_type_erased_device_array_view_t* edge_type_ids_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_id_array)
 
 
     error_code = cugraph_allgather_edgelist(c_resource_handle_ptr,
                                             srcs_view_ptr,
                                             dsts_view_ptr,
                                             weights_view_ptr,
+                                            edge_ids_view_ptr,
+                                            edge_type_ids_view_ptr,
                                             &result_ptr,
                                             &error_ptr)
     assert_success(error_code, error_ptr, "replicate_edgelist")
@@ -135,6 +148,10 @@ def replicate_edgelist(ResourceHandle resource_handle,
         cugraph_induced_subgraph_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_weights_ptr = \
         cugraph_induced_subgraph_get_edge_weights(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* edge_ids_ptr = \
+        cugraph_induced_subgraph_get_edge_ids(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* edge_type_ids_ptr = \
+        cugraph_induced_subgraph_get_edge_type_ids(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr = \
         cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
 
@@ -144,20 +161,37 @@ def replicate_edgelist(ResourceHandle resource_handle,
         c_resource_handle_ptr, sources_ptr)
     cupy_destinations = copy_to_cupy_array(
         c_resource_handle_ptr, destinations_ptr)
-    cupy_edge_weights = copy_to_cupy_array(
-        c_resource_handle_ptr, edge_weights_ptr)
+
+    cupy_edge_weights = None
+    cupy_edge_ids = None
+    cupy_edge_type_ids = None
+    if weight_array is not None:
+        cupy_edge_weights = copy_to_cupy_array(
+            c_resource_handle_ptr, edge_weights_ptr)
     
+    if edge_id_array is not None:
+        cupy_edge_ids = copy_to_cupy_array(
+            c_resource_handle_ptr, edge_ids_ptr)
+    
+    if edge_type_id_array is not None:
+        cupy_edge_type_ids = copy_to_cupy_array(
+            c_resource_handle_ptr, edge_type_ids_ptr)
+
     # FIXME: Check if there are weights before copying.
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 
     # Free pointer
     cugraph_induced_subgraph_result_free(result_ptr)
-
-    #print("Done doing the replication")
-    #print("src in plc = ", cupy_sources)
-    #print("dst in plc = ", cupy_destinations)
-    #print("weights in plc = ", cupy_edge_weights)
+    cugraph_type_erased_device_array_view_free(srcs_view_ptr)
+    cugraph_type_erased_device_array_view_free(dsts_view_ptr)
+    if weight_array is not None:
+        cugraph_type_erased_device_array_view_free(weights_view_ptr)
+    if edge_id_array is not None:
+        cugraph_type_erased_device_array_view_free(edge_ids_view_ptr)
+    if edge_type_id_array is not None:
+        cugraph_type_erased_device_array_view_free(edge_type_ids_view_ptr)
 
     return (cupy_sources, cupy_destinations,
-                cupy_edge_weights, cupy_subgraph_offsets)
+            cupy_edge_weights, cupy_edge_ids,
+            cupy_edge_type_ids, cupy_subgraph_offsets)
