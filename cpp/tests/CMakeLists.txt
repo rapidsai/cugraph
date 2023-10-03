@@ -427,6 +427,12 @@ target_link_libraries(MTMG_TEST
                       UCP::UCP
                     )
 
+ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu)
+target_link_libraries(MTMG_MULTINODE_TEST
+                      PRIVATE
+                      UCP::UCP
+                    )
+
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
