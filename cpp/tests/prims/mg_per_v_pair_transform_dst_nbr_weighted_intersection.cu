@@ -101,7 +101,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
   virtual void TearDown() {}
 
   // Verify the results of per_v_pair_transform_dst_nbr_intersection primitive
-  template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     HighResTimer hr_timer{};
@@ -321,47 +321,16 @@ using Tests_MGPerVPairTransformDstNbrIntersection_File =
 using Tests_MGPerVPairTransformDstNbrIntersection_Rmat =
   Tests_MGPerVPairTransformDstNbrIntersection<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                       std::get<1>(param));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -369,7 +338,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int>(
+  run_current_test<int32_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -377,7 +346,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
