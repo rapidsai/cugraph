@@ -600,9 +600,9 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
 
-    auto mask_first = edge_partition_e_mask ? (*edge_partition_e_mask).value_first()
-                                            : static_cast<uint32_t const*>(nullptr);
-    return set_intersection_by_key_with_mask(
+    auto mask_first        = edge_partition_e_mask ? (*edge_partition_e_mask).value_first()
+                                                   : static_cast<uint32_t const*>(nullptr);
+    auto intersection_size = set_intersection_by_key_with_mask(
       indices0,
       indices1,
       edge_property_values0,
@@ -618,6 +618,14 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       local_degree1,
       (std::is_same_v<SecondElementToIdxMap, void*> && edge_partition_e_mask),
       nbr_intersection_offsets[i]);
+
+    thrust::fill(
+      thrust::seq,
+      nbr_intersection_indices.begin() + (nbr_intersection_offsets[i] + intersection_size),
+      nbr_intersection_indices.begin() + nbr_intersection_offsets[i + 1],
+      invalid_id);
+
+    return intersection_size;
   }
 };
 

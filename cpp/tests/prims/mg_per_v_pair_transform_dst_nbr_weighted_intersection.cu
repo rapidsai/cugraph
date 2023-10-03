@@ -50,7 +50,7 @@
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t> operator()(
+  __device__ thrust::tuple<weight_t, weight_t> operator()(
     vertex_t a,
     vertex_t b,
     weight_t weight_a /* weighted out degree */,
@@ -271,7 +271,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
-
         auto sg_result_buffer =
           cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
             cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
@@ -289,11 +288,21 @@ class Tests_MGPerVPairTransformDstNbrIntersection
           */), sg_out_weight_sums.begin(),  intersection_op_t<vertex_t, edge_t, weight_t>{},
           cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 
+        auto threshold_ratio     = weight_t{1e-4};
+        auto threshold_magnitude = std::numeric_limits<weight_t>::min();
+        auto nearly_equal = [threshold_ratio, threshold_magnitude] __device__(auto lhs, auto rhs) {
+          return (fabs(thrust::get<0>(lhs) - thrust::get<0>(rhs)) <
+                  max(max(thrust::get<0>(lhs), thrust::get<0>(rhs)) * threshold_ratio,
+                      threshold_magnitude)) &&
+                 (fabs(thrust::get<1>(lhs) - thrust::get<1>(rhs)) <
+                  max(max(thrust::get<1>(lhs), thrust::get<1>(rhs)) * threshold_ratio,
+                      threshold_magnitude));
+        };
         bool valid = thrust::equal(handle_->get_thrust_policy(),
                                    cugraph::get_dataframe_buffer_begin(mg_aggregate_result_buffer),
                                    cugraph::get_dataframe_buffer_end(mg_aggregate_result_buffer),
-                                   cugraph::get_dataframe_buffer_begin(sg_result_buffer));
-
+                                   cugraph::get_dataframe_buffer_begin(sg_result_buffer),
+                                   nearly_equal);
         ASSERT_TRUE(valid);
       }
     }
