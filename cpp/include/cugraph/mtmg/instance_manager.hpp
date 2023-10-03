@@ -37,13 +37,11 @@ class instance_manager_t {
    */
   instance_manager_t(std::vector<std::unique_ptr<raft::handle_t>>&& handles,
                      std::vector<std::unique_ptr<ncclComm_t>>&& nccl_comms,
-                     std::vector<rmm::cuda_device_id>&& device_ids,
-                     int local_gpu_count)
+                     std::vector<rmm::cuda_device_id>&& device_ids)
     : thread_counter_{0},
       raft_handle_{std::move(handles)},
       nccl_comms_{std::move(nccl_comms)},
-      device_ids_{std::move(device_ids)},
-      local_gpu_count_{local_gpu_count}
+      device_ids_{std::move(device_ids)}
   {
   }
 
@@ -79,7 +77,7 @@ class instance_manager_t {
   /**
    * @brief Number of local GPUs in the instance
    */
-  int get_local_gpu_count() { return local_gpu_count_; }
+  int get_local_gpu_count() { return static_cast<int>(raft_handle_.size()); }
 
  private:
   // FIXME: Should this be an std::map<> where the key is the rank?
@@ -89,7 +87,6 @@ class instance_manager_t {
   std::vector<std::unique_ptr<raft::handle_t>> raft_handle_{};
   std::vector<std::unique_ptr<ncclComm_t>> nccl_comms_{};
   std::vector<rmm::cuda_device_id> device_ids_{};
-  int local_gpu_count_{};
 
   std::atomic<int> thread_counter_{0};
 };

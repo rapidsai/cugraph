@@ -170,28 +170,28 @@ class Tests_Multithreaded
       int num_gpus_on_this_node = static_cast<int>(gpu_list.size());
       num_gpus_file.write(reinterpret_cast<char const*>(&num_gpus_on_this_node), sizeof(int));
       num_gpus_file.close();
-      std::cout << "wrote to filename: " << filename_creator.str() << std::endl;
     }
 
     cugraph::mtmg::resource_manager_t resource_manager;
-
-    std::for_each(gpu_list.begin(), gpu_list.end(), [&resource_manager](int gpu_id) {
-      resource_manager.register_local_gpu(gpu_id, rmm::cuda_device_id{gpu_id});
-    });
+    int node_rank{0};
 
     for (int i = 0; i < g_num_nodes; ++i) {
       if (i != g_node_rank) {
-        filename_creator.str(comms_dir_name.str());
-        filename_creator << "/gpu_count_" << i;
+        filename_creator.str("");
+        filename_creator << comms_dir_name.str() << "/gpu_count_" << i;
         auto num_gpus_file = wait_for_file(filename_creator.str());
         int num_gpus_this_node{0};
         num_gpus_file.read(reinterpret_cast<char*>(&num_gpus_this_node), sizeof(int));
         num_gpus_file.close();
 
         for (int j = 0; j < num_gpus_this_node; ++j) {
-          std::cout << "register remote resource" << std::endl;
-          // resource_manager.register_remote_gpu(j, XXX);
+          resource_manager.register_remote_gpu(node_rank++, i);
         }
+      } else {
+        std::for_each(
+          gpu_list.begin(), gpu_list.end(), [&resource_manager, &node_rank](int gpu_id) {
+            resource_manager.register_local_gpu(node_rank++, rmm::cuda_device_id{gpu_id});
+          });
       }
     }
 
