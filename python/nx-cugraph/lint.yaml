@@ -31,7 +31,7 @@ repos:
       - id: validate-pyproject
         name: Validate pyproject.toml
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.0
+    rev: v2.2.1
     hooks:
       - id: autoflake
         args: [--in-place]
@@ -40,17 +40,17 @@ repos:
     hooks:
       - id: isort
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.10.1
+    rev: v3.13.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 23.9.1
     hooks:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.286
+    rev: v0.0.291
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]
@@ -58,11 +58,12 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
+        args: ['--per-file-ignores=_nx_cugraph/__init__.py:E501']  # Why is this necessary?
         additional_dependencies: &flake8_dependencies
-        # These versions need updated manually
-        - flake8==6.1.0
-        - flake8-bugbear==23.7.10
-        - flake8-simplify==0.20.0
+          # These versions need updated manually
+          - flake8==6.1.0
+          - flake8-bugbear==23.9.16
+          - flake8-simplify==0.20.0
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
     hooks:
@@ -76,7 +77,7 @@ repos:
         additional_dependencies: [tomli]
         files: ^(nx_cugraph|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.286
+    rev: v0.0.291
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-set(cugraph_version 23.10.00)
+set(cugraph_version 23.12.00)
 
 include(../../fetch_rapids.cmake)
 
@@ -82,7 +82,6 @@ endif()
 
 rapids_cython_init()
 
-add_subdirectory(cugraph/community)
 add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/structure)
