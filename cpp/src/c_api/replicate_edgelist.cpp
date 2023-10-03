@@ -24,9 +24,9 @@
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/graph_functions.hpp>
 
 namespace {
@@ -40,12 +40,13 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   cugraph::c_api::cugraph_induced_subgraph_result_t* result_{};
 
-  create_allgather_functor(raft::handle_t const& handle,
-                           cugraph::c_api::cugraph_type_erased_device_array_view_t const* src,
-                           cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst,
-                           cugraph::c_api::cugraph_type_erased_device_array_view_t const* weights,
-                           cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
-                           cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids)
+  create_allgather_functor(
+    raft::handle_t const& handle,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* src,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* weights,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids)
     : abstract_functor(),
       handle_(handle),
       src_(src),
@@ -64,7 +65,6 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-
     rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
 
@@ -74,17 +74,21 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
       edgelist_dsts.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
 
     std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
-      weights_ ? std::make_optional(rmm::device_uvector<weight_t>(weights_->size_, handle_.get_stream()))
-              : std::nullopt;
+      weights_
+        ? std::make_optional(rmm::device_uvector<weight_t>(weights_->size_, handle_.get_stream()))
+        : std::nullopt;
 
     if (edgelist_weights) {
-      raft::copy<weight_t>(
-        edgelist_weights->data(), weights_->as_type<weight_t>(), weights_->size_, handle_.get_stream());
+      raft::copy<weight_t>(edgelist_weights->data(),
+                           weights_->as_type<weight_t>(),
+                           weights_->size_,
+                           handle_.get_stream());
     }
 
     std::optional<rmm::device_uvector<edge_t>> edgelist_ids =
-      edge_ids_ ? std::make_optional(rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream()))
-              : std::nullopt;
+      edge_ids_
+        ? std::make_optional(rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream()))
+        : std::nullopt;
 
     if (edgelist_ids) {
       raft::copy<edge_t>(
@@ -92,15 +96,18 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
     }
 
     std::optional<rmm::device_uvector<edge_type_id_t>> edgelist_type_ids =
-      edge_type_ids_ ? std::make_optional(rmm::device_uvector<edge_type_id_t>(edge_type_ids_->size_, handle_.get_stream()))
-              : std::nullopt;
+      edge_type_ids_ ? std::make_optional(rmm::device_uvector<edge_type_id_t>(edge_type_ids_->size_,
+                                                                              handle_.get_stream()))
+                     : std::nullopt;
 
     if (edgelist_type_ids) {
-      raft::copy<edge_type_id_t>(
-        edgelist_type_ids->data(), edge_type_ids_->as_type<edge_type_id_t>(), edge_type_ids_->size_, handle_.get_stream());
+      raft::copy<edge_type_id_t>(edgelist_type_ids->data(),
+                                 edge_type_ids_->as_type<edge_type_id_t>(),
+                                 edge_type_ids_->size_,
+                                 handle_.get_stream());
     }
 
-    auto& comm      = handle_.get_comms();
+    auto& comm                  = handle_.get_comms();
     auto gathered_edgelist_srcs = cugraph::detail::device_allgatherv(
       handle_, comm, raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()));
 
@@ -114,30 +121,43 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
 
     cugraph::c_api::cugraph_induced_subgraph_result_t* result = NULL;
 
-  
-    std::optional<rmm::device_uvector<weight_t>> gathered_weights = 
-      edgelist_weights ? std::make_optional(cugraph::detail::device_allgatherv(
-        handle_, comm, raft::device_span<weight_t const>(edgelist_weights->data(), edgelist_weights->size())))
-              : std::nullopt;
+    std::optional<rmm::device_uvector<weight_t>> gathered_weights =
+      edgelist_weights
+        ? std::make_optional(cugraph::detail::device_allgatherv(
+            handle_,
+            comm,
+            raft::device_span<weight_t const>(edgelist_weights->data(), edgelist_weights->size())))
+        : std::nullopt;
 
-    std::optional<rmm::device_uvector<edge_t>> gathered_edge_ids = 
+    std::optional<rmm::device_uvector<edge_t>> gathered_edge_ids =
       edgelist_ids ? std::make_optional(cugraph::detail::device_allgatherv(
-        handle_, comm, raft::device_span<edge_t const>(edgelist_ids->data(), edgelist_ids->size())))
-              : std::nullopt;
-    
-    std::optional<rmm::device_uvector<edge_type_id_t>> gathered_edge_type_ids = 
+                       handle_,
+                       comm,
+                       raft::device_span<edge_t const>(edgelist_ids->data(), edgelist_ids->size())))
+                   : std::nullopt;
+
+    std::optional<rmm::device_uvector<edge_type_id_t>> gathered_edge_type_ids =
       edgelist_type_ids ? std::make_optional(cugraph::detail::device_allgatherv(
-        handle_, comm, raft::device_span<edge_type_id_t const>(edgelist_type_ids->data(), edgelist_type_ids->size())))
-              : std::nullopt;
-    
+                            handle_,
+                            comm,
+                            raft::device_span<edge_type_id_t const>(edgelist_type_ids->data(),
+                                                                    edgelist_type_ids->size())))
+                        : std::nullopt;
+
     result = new cugraph::c_api::cugraph_induced_subgraph_result_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(gathered_edgelist_srcs, src_->type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(gathered_edgelist_dsts, dst_->type_),
-        edgelist_weights ? new cugraph::c_api::cugraph_type_erased_device_array_t(*gathered_weights, weights_->type_) : NULL,
-        edgelist_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(*gathered_edge_ids, edge_ids_->type_) : NULL,
-        edgelist_type_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(*gathered_edge_type_ids, edge_type_ids_->type_) : NULL,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
-                                                              cugraph_data_type_id_t::SIZE_T)};
+      new cugraph::c_api::cugraph_type_erased_device_array_t(gathered_edgelist_srcs, src_->type_),
+      new cugraph::c_api::cugraph_type_erased_device_array_t(gathered_edgelist_dsts, dst_->type_),
+      edgelist_weights
+        ? new cugraph::c_api::cugraph_type_erased_device_array_t(*gathered_weights, weights_->type_)
+        : NULL,
+      edgelist_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(*gathered_edge_ids,
+                                                                            edge_ids_->type_)
+                   : NULL,
+      edgelist_type_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                            *gathered_edge_type_ids, edge_type_ids_->type_)
+                        : NULL,
+      new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
+                                                             cugraph_data_type_id_t::SIZE_T)};
 
     result_ = reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(result);
   }
@@ -155,9 +175,8 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   cugraph_induced_subgraph_result_t** edgelist,
   cugraph_error_t** error)
 {
-
   *edgelist = nullptr;
-  *error = nullptr;
+  *error    = nullptr;
   constexpr size_t int32_threshold{std::numeric_limits<int32_t>::max()};
 
   auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
@@ -167,14 +186,12 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dst);
   auto p_weights =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(weights);
-  
+
   auto p_edge_ids =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-      edge_ids);
-  
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(edge_ids);
+
   auto p_edge_type_ids =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-      edge_type_ids);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(edge_type_ids);
 
   CAPI_EXPECTS(p_src->size_ == p_dst->size_,
                CUGRAPH_INVALID_INPUT,
@@ -223,15 +240,11 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
                "Invalid input arguments: src size != edge type prop size",
                *error);
 
-  constexpr bool multi_gpu = false;
+  constexpr bool multi_gpu        = false;
   constexpr bool store_transposed = false;
 
-  ::create_allgather_functor functor(*p_handle->handle_,
-                                     p_src,
-                                     p_dst,
-                                     p_weights,
-                                     p_edge_ids,
-                                     p_edge_type_ids);
+  ::create_allgather_functor functor(
+    *p_handle->handle_, p_src, p_dst, p_weights, p_edge_ids, p_edge_type_ids);
 
   try {
     cugraph::c_api::vertex_dispatcher(p_src->type_,
@@ -254,5 +267,4 @@ extern "C" cugraph_error_code_t cugraph_allgather_edgelist(
   }
 
   return CUGRAPH_SUCCESS;
-
 }
