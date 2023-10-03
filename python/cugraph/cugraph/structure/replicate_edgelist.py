@@ -27,60 +27,55 @@ from cugraph.dask.common.part_utils import (
 import dask
 import cupy as cp
 import cugraph.dask.comms.comms as Comms
+from typing import Union, Tuple
+
+edgeWeightCol = "weights"
+edgeIdCol = "edge_id"
+edgeTypeCol = "edge_type"
+srcCol = "src"
+dstCol = "dst"
 
 
-def replicate_edgelist(
-    edgelist_ddf: dask_cudf.DataFrame = None,
-) -> dask_cudf.DataFrame:
-    """
-    Select random vertices from the graph
-
-    Parameters
-    ----------
-
-
-    Returns
-    -------
-    return
-    """
-
-    _client = default_client()
-
-    edgelist_ddf = persist_dask_df_equal_parts_per_worker(edgelist_ddf, _client)
-    edgelist_ddf = get_persisted_df_worker_map(edgelist_ddf, _client)
-
-    def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
+def convert_to_cudf(cp_arrays: Tuple[cp.ndarray]) -> cudf.DataFrame:
         """
         Creates a cudf Dataframe from cupy arrays
         """
-        # vertices = cudf.Series(cp_arrays)
-        src, dst, wgt, _ = cp_arrays
+        src, dst, wgt, edge_id, edge_type_id, _ = cp_arrays
         gathered_edgelist_df = cudf.DataFrame()
-        gathered_edgelist_df["src"] = src
-        gathered_edgelist_df["dst"] = dst
-        gathered_edgelist_df["wgt"] = wgt
-        # print("the gathered edgelist = \n", gathered_edgelist_df)
+        gathered_edgelist_df[srcCol] = src
+        gathered_edgelist_df[dstCol] = dst
+        if wgt is not None:
+            gathered_edgelist_df[edgeWeightCol] = wgt
+        if edge_id is not None:
+            gathered_edgelist_df[edgeIdCol] = edge_id
+        if edge_type_id is not None:
+            gathered_edgelist_df[edgeTypeCol] = edge_type_id
 
         return gathered_edgelist_df
 
-    def _call_plc_replicate_edgelist(
+def _call_plc_replicate_edgelist(
         sID: bytes, edgelist_df: cudf.DataFrame
-    ) -> cudf.Series:
-        # print("edgelist_df = \n", edgelist_df)
+    ) -> cudf.DataFrame:
+        edgelist_df = edgelist_df[0]
         cp_arrays = pylibcugraph_replicate_edgelist(
-            resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-            # FIXME: these are harcoded for now
-            src_array=edgelist_df[0]["src"],
-            dst_array=edgelist_df[0]["dst"],
-            weight_array=edgelist_df[0][edgelist_df[0].columns[2]],
+            resource_handle=ResourceHandle(
+                Comms.get_handle(sID).getHandle()),
+            src_array=edgelist_df[srcCol],
+            dst_array=edgelist_df[dstCol],
+            weight_array=edgelist_df[edgeWeightCol] \
+                if edgeWeightCol in edgelist_df.columns else None,
+            edge_id_array=edgelist_df[edgeIdCol] \
+                if edgeIdCol in edgelist_df.columns else None,
+            edge_type_id_array=edgelist_df[edgeTypeCol] \
+                if edgeTypeCol in edgelist_df.columns else None,
         )
         return convert_to_cudf(cp_arrays)
 
-    def _mg_call_plc_replicate_edgelist(
+def _mg_call_plc_replicate_edgelist(
         client: dask.distributed.client.Client,
         sID: bytes,
         edgelist_ddf: dict,
-    ) -> dask_cudf.Series:
+    ) -> dask_cudf.DataFrame:
 
         result = [
             client.submit(
@@ -93,13 +88,55 @@ def replicate_edgelist(
             )
             for w, edata in edgelist_ddf.items()
         ]
-        # print("result before = \n", result)
-        # wait(result)
-        # print("result after = \n", result)
         ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
         wait(ddf)
         wait([r.release() for r in result])
         return ddf
+
+
+def replicate_edgelist(
+    edgelist_ddf: Union[dask_cudf.DataFrame, cudf.DataFrame] = None,
+) -> dask_cudf.DataFrame:
+    """
+    Replicate edges across all GPUs
+
+    Parameters
+    ----------
+
+    edgelist_ddf: cudf.DataFrame or dask_cudf.DataFrame
+        A DataFrame that contains edge information.
+
+    Returns
+    -------
+    df : cudf.DataFrame or dask_cudf.DataFrame
+        A distributed dataframe where each partition contains the
+        combined edgelist from all GPUs. If a cudf.DataFrame was passed
+        as input, the edgelist will be replicated across all the other
+        GPUs in the cluster. If as dask_cudf.DataFrame was passed as input,
+        each partition will be filled with the edges of all partitions
+        in the dask_cudf.DataFrame.
+
+    """
+
+    _client = default_client()
+
+    if isinstance(edgelist_ddf, cudf.DataFrame):
+        edgelist_ddf = dask_cudf.from_cudf(
+            edgelist_ddf, npartitions=len(Comms.get_workers())
+        )
+
+    valid_columns = [edgeWeightCol, edgeIdCol, edgeTypeCol, srcCol, dstCol]
+
+    if not (set(edgelist_ddf.columns).issubset(set(valid_columns))):
+        raise ValueError(
+            "Invalid column names were provided: valid columns names are "
+            f"{srcCol}, {dstCol}, {edgeWeightCol}, {edgeIdCol} "
+            f"and {edgeTypeCol}"
+        )
+
+    edgelist_ddf = persist_dask_df_equal_parts_per_worker(
+        edgelist_ddf, _client)
+    edgelist_ddf = get_persisted_df_worker_map(edgelist_ddf, _client)
 
     ddf = _mg_call_plc_replicate_edgelist(
         _client,
