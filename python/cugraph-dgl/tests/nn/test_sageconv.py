@@ -35,6 +35,7 @@ def test_sageconv_equality(
 ):
     from dgl.nn.pytorch import SAGEConv
 
+    torch.manual_seed(12345)
     kwargs = {"aggregator_type": aggr, "bias": bias}
     g = create_graph1().to("cuda")
 

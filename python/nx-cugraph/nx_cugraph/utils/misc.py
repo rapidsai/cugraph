@@ -18,7 +18,7 @@ from random import Random
 
 import cupy as cp
 
-__all__ = ["_groupby", "_handle_seed"]
+__all__ = ["_groupby", "_seed_to_int"]
 
 
 def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:
@@ -51,8 +51,8 @@ def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:
     return rv
 
 
-def _handle_seed(seed: int | Random | None) -> int:
-    """Handle seed argument and ensure it is what pylibcugraph needs: an int."""
+def _seed_to_int(seed: int | Random | None) -> int:
+    """Handle any valid seed argument and convert it to an int if necessary."""
     if seed is None:
         return
     if isinstance(seed, Random):

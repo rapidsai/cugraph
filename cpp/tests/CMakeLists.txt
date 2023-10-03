@@ -737,5 +737,6 @@ ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
+ConfigureCTest(CAPI_LEGACY_K_TRUSS_TEST c_api/legacy_k_truss_test.c)
 
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_c DESTINATION bin/gtests/libcugraph_c)

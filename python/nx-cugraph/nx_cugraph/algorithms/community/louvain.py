@@ -17,7 +17,7 @@ import pylibcugraph as plc
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
     _groupby,
-    _handle_seed,
+    _seed_to_int,
     networkx_algorithm,
     not_implemented_for,
 )
@@ -26,16 +26,17 @@ __all__ = ["louvain_communities"]
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(extra_params="max_level")
+@networkx_algorithm(
+    extra_params={
+        "max_level : int, optional": "Upper limit of the number of macro-iterations."
+    }
+)
 def louvain_communities(
     G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
 ):
-    """`threshold` and `seed` parameters are currently ignored.
-
-    Extra parameter: `max_level` controls the maximum number of levels of the algorithm.
-    """
+    """`threshold` and `seed` parameters are currently ignored."""
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
-    seed = _handle_seed(seed)  # Unused, but ensure it's valid for future compatibility
+    seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
     if G.row_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs gracefully!
@@ -46,8 +47,8 @@ def louvain_communities(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
         max_level=max_level,  # TODO: add this parameter to NetworkX
+        threshold=threshold,
         resolution=resolution,
-        # threshold=threshold,  # TODO: add this parameter to PLC
         do_expensive_check=False,
     )
     groups = _groupby(clusters, vertices)

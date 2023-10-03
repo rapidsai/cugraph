@@ -31,6 +31,7 @@ def test_rgcn_conv_equality(
     import torch
     from torch_geometric.nn import FastRGCNConv as RGCNConv
 
+    torch.manual_seed(12345)
     in_channels, out_channels, num_relations = (4, 2, 3)
     kwargs = dict(aggr=aggr, bias=bias, num_bases=num_bases, root_weight=root_weight)
 
