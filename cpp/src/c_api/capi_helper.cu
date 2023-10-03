@@ -19,7 +19,6 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <utilities/collect_comm.cuh>
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
