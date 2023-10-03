@@ -263,6 +263,17 @@ class Tests_MGPerVPairTransformDstNbrIntersection
           std::tie(srcs, dsts, std::ignore, std::ignore) =
             cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, false, false>(
               *handle_, sg_graph_view, std::nullopt, std::nullopt, std::nullopt);
+          auto edge_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
+          srcs.resize(thrust::distance(edge_first,
+                                       thrust::remove_if(handle_->get_thrust_policy(),
+                                                         edge_first,
+                                                         edge_first + srcs.size(),
+                                                         [] __device__(auto pair) {
+                                                           return (thrust::get<0>(pair) % 2 == 0) &&
+                                                                  (thrust::get<1>(pair) % 2 == 0);
+                                                         })),
+                      handle_->get_stream());
+          dsts.resize(srcs.size(), handle_->get_stream());
           rmm::device_uvector<vertex_t> vertices(sg_graph_view.number_of_vertices(),
                                                  handle_->get_stream());
           thrust::sequence(
@@ -354,7 +365,8 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024}, false, true}),
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
@@ -362,7 +374,8 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024}, false, true}),
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -373,7 +386,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false, false}),
+    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false, false},
+                      Prims_Usecase{size_t{1024 * 1024}, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
