@@ -177,7 +177,6 @@ def replicate_edgelist(ResourceHandle resource_handle,
         cupy_edge_type_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_type_ids_ptr)
 
-    # FIXME: Check if there are weights before copying.
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 
