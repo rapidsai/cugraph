@@ -195,8 +195,16 @@ class Tests_Multithreaded
       }
     }
 
+    std::cout << "creating instance manager" << std::endl;
+    raft::print_host_vector("  registered ranks",
+                            resource_manager.registered_ranks().data(),
+                            resource_manager.registered_ranks().size(),
+                            std::cout);
+
     auto instance_manager = resource_manager.create_instance_manager(
       resource_manager.registered_ranks(), instance_manager_id);
+
+    std::cout << "done creating instance manager" << std::endl;
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
     cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
@@ -465,25 +473,32 @@ class Tests_Multithreaded
         weight_t{1e-3},
         weight_t{(weight_t{1} / static_cast<weight_t>(h_sg_pageranks.size())) * weight_t{1e-3}}};
 
-      std::for_each(
-        computed_pageranks_v.begin(),
-        computed_pageranks_v.end(),
-        [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t1) {
-          std::for_each(
-            thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
-            thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
-            [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
-              vertex_t v  = thrust::get<0>(t2);
-              weight_t pr = thrust::get<1>(t2);
+      std::for_each(computed_pageranks_v.begin(),
+                    computed_pageranks_v.end(),
+                    [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t1) {
+                      std::for_each(
+                        thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
+                        thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
+                        [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
+                          vertex_t v  = thrust::get<0>(t2);
+                          weight_t pr = thrust::get<1>(t2);
 
-              auto pos    = std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
-              auto offset = std::distance(h_sg_renumber_map->begin(), pos);
+                          auto pos =
+                            std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
+                          auto offset = std::distance(h_sg_renumber_map->begin(), pos);
 
-              ASSERT_TRUE(compare_functor(pr, h_sg_pageranks[offset]))
-                << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
-                << ", mtmg result = " << pr << ", renumber map = " << (*h_sg_renumber_map)[offset];
-            });
-        });
+                          if (pos == h_sg_renumber_map->end()) {
+                            ASSERT_TRUE(compare_functor(pr, weight_t{0}))
+                              << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
+                              << ", mtmg result = " << pr << ", not in renumber map";
+                          } else {
+                            ASSERT_TRUE(compare_functor(pr, h_sg_pageranks[offset]))
+                              << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
+                              << ", mtmg result = " << pr
+                              << ", renumber map = " << (*h_sg_renumber_map)[offset];
+                          }
+                        });
+                    });
     }
   }
 };

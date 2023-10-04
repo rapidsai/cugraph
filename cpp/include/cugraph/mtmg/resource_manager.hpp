@@ -184,6 +184,22 @@ class resource_manager_t {
       device_ids.push_back(pos->second);
     }
 
+    std::cout << "calling ncclCommInitRank, comm_size = " << ranks_to_include.size() << std::endl;
+
+    int current_device{};
+    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
+    ncclGroupStart();
+    for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
+      int rank = local_ranks_to_include[i];
+      RAFT_CUDA_TRY(cudaSetDevice(device_ids[i].value()));
+      NCCL_TRY(
+        ncclCommInitRank(nccl_comms[i].get(), ranks_to_include.size(), instance_manager_id, rank));
+      raft::comms::build_comms_nccl_only(
+        handles[i].get(), *nccl_comms[i], ranks_to_include.size(), rank);
+    }
+    ncclGroupEnd();
+    RAFT_CUDA_TRY(cudaSetDevice(current_device));
+
     std::vector<std::thread> running_threads;
 
     for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
@@ -198,17 +214,16 @@ class resource_manager_t {
         int rank = local_ranks_to_include[idx];
         RAFT_CUDA_TRY(cudaSetDevice(device_ids[idx].value()));
 
-        NCCL_TRY(ncclCommInitRank(nccl_comms[idx].get(), comm_size, instance_manager_id, rank));
-
-        raft::comms::build_comms_nccl_only(handles[idx].get(), *nccl_comms[idx], comm_size, rank);
-
+        std::cout << "calling init_subcomm, rank = " << rank << ", comm_size = " << comm_size
+                  << ", gpu_row_comm_size = " << gpu_row_comm_size << std::endl;
+        //  This one requires paralellism, I believe
         cugraph::partition_manager::init_subcomm(*handles[idx], gpu_row_comm_size);
+        std::cout << "finished initialization thread, rank = " << rank << std::endl;
       });
     }
 
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
 
-    // FIXME: Update for multi-node
     return std::make_unique<instance_manager_t>(
       std::move(handles), std::move(nccl_comms), std::move(device_ids));
   }
@@ -238,6 +253,7 @@ class resource_manager_t {
                    registered_ranks.begin() + local_rank_map_.size(),
                    [](auto pair) { return pair.first; });
 
+    std::sort(registered_ranks.begin(), registered_ranks.end());
     return registered_ranks;
   }
 
