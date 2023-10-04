@@ -171,6 +171,10 @@ class resource_manager_t {
       --gpu_row_comm_size;
     }
 
+    int current_device{};
+    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
+    NCCL_TRY(ncclGroupStart());
+
     for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
       int rank = local_ranks_to_include[i];
       auto pos = local_rank_map_.find(rank);
@@ -182,22 +186,13 @@ class resource_manager_t {
       handles.push_back(
         std::make_unique<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
-    }
 
-    std::cout << "calling ncclCommInitRank, comm_size = " << ranks_to_include.size() << std::endl;
-
-    int current_device{};
-    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
-    ncclGroupStart();
-    for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
-      int rank = local_ranks_to_include[i];
-      RAFT_CUDA_TRY(cudaSetDevice(device_ids[i].value()));
       NCCL_TRY(
         ncclCommInitRank(nccl_comms[i].get(), ranks_to_include.size(), instance_manager_id, rank));
       raft::comms::build_comms_nccl_only(
         handles[i].get(), *nccl_comms[i], ranks_to_include.size(), rank);
     }
-    ncclGroupEnd();
+    NCCL_TRY(ncclGroupEnd());
     RAFT_CUDA_TRY(cudaSetDevice(current_device));
 
     std::vector<std::thread> running_threads;

@@ -219,6 +219,8 @@ class Tests_Multithreaded
                               weight_t>>()
                           : std::nullopt;
 
+    std::cout << "create edge list" << std::endl;
+
     //
     // Simulate graph creation by spawning threads to walk through the
     // local COO and add edges
@@ -243,6 +245,8 @@ class Tests_Multithreaded
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
     running_threads.resize(0);
     instance_manager->reset_threads();
+
+    std::cout << "load edges" << std::endl;
 
     // Load SG edge list
     auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
@@ -296,6 +300,8 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
+    std::cout << "create graph" << std::endl;
+
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
@@ -319,8 +325,16 @@ class Tests_Multithreaded
           int32_t>>
           edge_types{std::nullopt};
 
+        std::cout << "calling finalize_buffer, rank = " << thread_handle.get_rank() << std::endl;
+
         edgelist.finalize_buffer(thread_handle);
+
+        std::cout << "calling consolidate_and_shuffle, rank = " << thread_handle.get_rank()
+                  << std::endl;
         edgelist.consolidate_and_shuffle(thread_handle, true);
+
+        std::cout << "calling create_graph_from_edgelist, rank = " << thread_handle.get_rank()
+                  << std::endl;
 
         cugraph::mtmg::
           create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, multi_gpu>(
@@ -341,6 +355,8 @@ class Tests_Multithreaded
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
     running_threads.resize(0);
     instance_manager->reset_threads();
+
+    std::cout << "call pagerank" << std::endl;
 
     graph_view = graph.view();
 

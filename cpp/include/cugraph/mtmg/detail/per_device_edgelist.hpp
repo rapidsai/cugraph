@@ -205,6 +205,8 @@ class per_device_edgelist_t {
     auto tmp_edge_type =
       edge_type_ ? std::make_optional(std::move((*edge_type_)[0])) : std::nullopt;
 
+    std::cout << "calling detail::shuffle... rank = " << handle.get_rank()
+              << ", size = " << src_[0].size() << std::endl;
     std::tie(store_transposed ? dst_[0] : src_[0],
              store_transposed ? src_[0] : dst_[0],
              tmp_wgt,
