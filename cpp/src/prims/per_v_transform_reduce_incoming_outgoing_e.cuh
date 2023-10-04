@@ -516,7 +516,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
                                                    edge_src_property_t<GraphViewType, T>,
                                                    edge_dst_property_t<GraphViewType, T>>;
-  std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
+  [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
     minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
   }
