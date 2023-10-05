@@ -29,4 +29,4 @@ from .convert import *
 from . import algorithms
 from .algorithms import *
 
-__version__ = "23.10.00"
+__version__ = "23.12.00"
