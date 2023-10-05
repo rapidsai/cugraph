@@ -267,7 +267,7 @@ class Tests_Multithreaded
                                     &h_dst_v,
                                     &h_weights_v,
                                     starting_edge_offset = g_node_rank * num_threads + i,
-                                    stride               = num_threads]() {
+                                    stride               = g_num_nodes * num_threads]() {
         auto thread_handle = instance_manager->get_handle();
         cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
