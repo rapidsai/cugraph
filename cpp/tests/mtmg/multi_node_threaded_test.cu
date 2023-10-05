@@ -127,8 +127,8 @@ class Tests_Multithreaded
     size_t device_buffer_size{64 * 1024 * 1024};
     size_t thread_buffer_size{4 * 1024 * 1024};
 
-    int num_gpus    = gpu_list.size();
-    int num_threads = num_gpus * 4;
+    int num_local_gpus = gpu_list.size();
+    int num_threads    = num_local_gpus * 4;
 
     //
     //  This is intended to mimic a multi-node host application (non-MPI) integrating
@@ -228,7 +228,7 @@ class Tests_Multithreaded
     std::vector<std::thread> running_threads;
 
     //  Initialize shared edgelist object, one per GPU
-    for (int i = 0; i < num_gpus; ++i) {
+    for (int i = 0; i < num_local_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &edgelist,
                                     device_buffer_size,
@@ -266,13 +266,13 @@ class Tests_Multithreaded
                                     &h_src_v,
                                     &h_dst_v,
                                     &h_weights_v,
-                                    i,
-                                    num_threads]() {
+                                    starting_edge_offset = g_node_rank * num_threads + i,
+                                    stride               = num_threads]() {
         auto thread_handle = instance_manager->get_handle();
         cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
-        for (size_t j = i; j < h_src_v.size(); j += num_threads) {
+        for (size_t j = starting_edge_offset; j < h_src_v.size(); j += stride) {
 #if 0
           if (h_weights_v) {
             thread_edgelist.append(
@@ -302,7 +302,7 @@ class Tests_Multithreaded
 
     std::cout << "create graph" << std::endl;
 
-    for (int i = 0; i < num_gpus; ++i) {
+    for (int i = 0; i < num_local_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
                                     &edge_weights,
@@ -398,7 +398,7 @@ class Tests_Multithreaded
     auto renumber_map_view = renumber_map ? std::make_optional(renumber_map->view()) : std::nullopt;
 
     // Load computed_pageranks from different threads.
-    for (int i = 0; i < num_gpus; ++i) {
+    for (int i = 0; i < num_local_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph_view,
                                     &renumber_map_view,
