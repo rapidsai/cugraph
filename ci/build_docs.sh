@@ -42,9 +42,9 @@ export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
 for PROJECT in libcugraphops libwholegraph; do
   rapids-logger "Download ${PROJECT} xml_tar"
-  project_dir="XML_DIR_${PROJECT^^}"
-  declare "$project_dir=$(mktemp -d)" && export "${project_dir}"
-  aws s3 cp --only-show-errors "s3://rapidsai-docs/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" - | tar xzf - -C "${!project_dir}"
+  TMP_DIR=$(mktemp -d)
+  export XML_DIR_${PROJECT^^}="$TMP_DIR"
+  aws s3 cp --only-show-errors "s3://rapidsai-docs/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" - | tar xzf - -C "${TMP_DIR}"
 done
 
 rapids-logger "Build CPP docs"
