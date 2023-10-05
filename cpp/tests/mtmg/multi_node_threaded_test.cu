@@ -309,6 +309,7 @@ class Tests_Multithreaded
                                     &edgelist,
                                     &renumber_map,
                                     &pageranks,
+                                    &h_src_v,  // debugging
                                     is_symmetric = is_symmetric,
                                     renumber,
                                     do_expensive_check]() {
@@ -330,7 +331,7 @@ class Tests_Multithreaded
         edgelist.finalize_buffer(thread_handle);
 
         std::cout << "calling consolidate_and_shuffle, rank = " << thread_handle.get_rank()
-                  << std::endl;
+                  << ", total edges = " << h_src_v.size() << std::endl;
         edgelist.consolidate_and_shuffle(thread_handle, true);
 
         std::cout << "calling create_graph_from_edgelist, rank = " << thread_handle.get_rank()
