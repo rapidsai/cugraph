@@ -47,6 +47,13 @@ has_packed_bool_element(std::index_sequence<Is...>)
 
 }  // namespace detail
 
+template <typename ValueIterator, typename value_t>
+constexpr bool is_packed_bool()
+{
+  return std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, uint32_t> &&
+         std::is_same_v<value_t, bool>;
+}
+
 // sizeof(uint32_t) * 8 packed Boolean values are stored using one uint32_t
 template <typename ValueIterator, typename value_t>
 constexpr bool has_packed_bool_element()
