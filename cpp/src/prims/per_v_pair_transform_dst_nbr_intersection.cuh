@@ -240,8 +240,6 @@ void per_v_pair_transform_dst_nbr_intersection(
   using edge_property_value_t = typename EdgeValueInputIterator::value_type;
   using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     auto num_invalids =
       detail::count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);

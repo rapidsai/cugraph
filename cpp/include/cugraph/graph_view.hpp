@@ -589,8 +589,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   edge_partition_view_t<vertex_t, edge_t, true> local_edge_partition_view(
     size_t partition_idx) const
   {
-    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
     vertex_t major_range_first{};
     vertex_t major_range_last{};
     vertex_t minor_range_first{};
