@@ -64,7 +64,7 @@ __global__ void transform_e_packed_bool(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(transform_e_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
-  auto idx           = static_cast<edge_t>(packed_bool_size(tid));
+  auto idx           = static_cast<edge_t>(packed_bool_offset(tid));
 
   auto num_edges = edge_partition.number_of_edges();
   while (idx < static_cast<edge_t>(packed_bool_size(num_edges))) {
@@ -91,7 +91,7 @@ __global__ void transform_e_packed_bool(
                           ? int{1}
                           : int{0};
     }
-    __ballot_sync(mask, predicate);
+    mask = __ballot_sync(uint32_t{0xffffffff}, predicate);
     if (lane_id == 0) { *(edge_partition_e_value_output.value_first() + idx) = mask; }
 
     idx += static_cast<edge_t>(gridDim.x * (blockDim.x / raft::warp_size()));
@@ -205,9 +205,9 @@ void transform_e(raft::handle_t const& handle,
       static_assert(edge_partition_e_output_device_view_t::is_packed_bool,
                     "unimplemented for thrust::tuple types.");
       if (edge_partition.number_of_edges() > edge_t{0}) {
-        raft::grid_1d_block_t update_grid(num_edges,
-                                          detail::transform_e_kernel_block_size,
-                                          handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_thread_t update_grid(num_edges,
+                                           detail::transform_e_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
         detail::transform_e_packed_bool<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
