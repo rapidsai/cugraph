@@ -73,7 +73,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'pylibcugraph' and then 'cugraph' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
