@@ -173,16 +173,18 @@ def backend_selector(request):
 ################################################################################
 # Benchmarks
 normalized_params = [True, False]
-k_params = [10, 100, 1000]
+k_params = [10, 100]
 
 
 @pytest.mark.parametrize("normalized", normalized_params, ids=lambda norm: f"{norm=}")
-def bench_betweenness_centrality(benchmark, graph_obj, backend_selector, normalized):
+@pytest.mark.parametrize("k", k_params, ids=lambda k: f"{k=}")
+def bench_betweenness_centrality(benchmark, graph_obj, backend_selector, normalized, k):
     result = benchmark(
         backend_selector(nx.betweenness_centrality),
         graph_obj,
         weight=None,
         normalized=normalized,
+        k=k,
     )
     assert type(result) is dict
 
