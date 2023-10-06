@@ -63,7 +63,7 @@ repos:
           # These versions need updated manually
           - flake8==6.1.0
           - flake8-bugbear==23.9.16
-          - flake8-simplify==0.20.0
+          - flake8-simplify==0.21.0
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
     hooks:
