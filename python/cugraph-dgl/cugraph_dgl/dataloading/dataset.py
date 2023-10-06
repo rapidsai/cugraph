@@ -19,6 +19,7 @@ from cugraph.utilities.utils import import_optional
 from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_homogeneous_sampled_graphs_from_dataframe,
     create_heterogeneous_sampled_graphs_from_dataframe,
+    create_homogeneous_sampled_graphs_from_dataframe_csc,
 )
 
 
@@ -33,17 +34,19 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         total_number_of_nodes: int,
         edge_dir: str,
         return_type: str = "dgl.Block",
+        sparse_format: str = "coo",
     ):
         if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
             raise ValueError(
-                "return_type must be either 'dgl.Block' or \
-                    'cugraph_dgl.nn.SparseGraph' "
+                "return_type must be either 'dgl.Block' or "
+                "'cugraph_dgl.nn.SparseGraph'."
             )
         # TODO: Deprecate `total_number_of_nodes`
         # as it is no longer needed
         # in the next release
         self.total_number_of_nodes = total_number_of_nodes
         self.edge_dir = edge_dir
+        self.sparse_format = sparse_format
         self._current_batch_fn = None
         self._input_files = None
         self._return_type = return_type
@@ -60,10 +63,20 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
-            df = _load_sampled_file(dataset_obj=self, fn=fn)
-            self._current_batches = create_homogeneous_sampled_graphs_from_dataframe(
-                sampled_df=df, edge_dir=self.edge_dir, return_type=self._return_type
-            )
+            if self.sparse_format == "csc":
+                df = _load_sampled_file(dataset_obj=self, fn=fn, skip_rename=True)
+                self._current_batches = (
+                    create_homogeneous_sampled_graphs_from_dataframe_csc(df)
+                )
+            else:
+                df = _load_sampled_file(dataset_obj=self, fn=fn)
+                self._current_batches = (
+                    create_homogeneous_sampled_graphs_from_dataframe(
+                        sampled_df=df,
+                        edge_dir=self.edge_dir,
+                        return_type=self._return_type,
+                    )
+                )
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
 
@@ -87,7 +100,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         )
 
 
-class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
+class HeterogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         num_nodes_dict: Dict[str, int],
@@ -141,18 +154,18 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
         ----------
         input_directory: str
             input_directory which contains all the files that will be
-            loaded by HetrogenousBulkSamplerDataset
+            loaded by HeterogenousBulkSamplerDataset
         input_file_paths: List[str]
-            File names that will be loaded by the HetrogenousBulkSamplerDataset
+            File names that will be loaded by the HeterogenousBulkSamplerDataset
         """
         _set_input_files(
             self, input_directory=input_directory, input_file_paths=input_file_paths
         )
 
 
-def _load_sampled_file(dataset_obj, fn):
+def _load_sampled_file(dataset_obj, fn, skip_rename=False):
     df = cudf.read_parquet(os.path.join(fn))
-    if dataset_obj.edge_dir == "in":
+    if dataset_obj.edge_dir == "in" and not skip_rename:
         df.rename(
             columns={"sources": "destinations", "destinations": "sources"},
             inplace=True,
@@ -181,7 +194,7 @@ def get_batch_to_fn_d(files):
 
 
 def _set_input_files(
-    dataset_obj: Union[HomogenousBulkSamplerDataset, HetrogenousBulkSamplerDataset],
+    dataset_obj: Union[HomogenousBulkSamplerDataset, HeterogenousBulkSamplerDataset],
     input_directory: Optional[str] = None,
     input_file_paths: Optional[List[str]] = None,
 ) -> None:
