@@ -1,6 +1,33 @@
-Welcome to RAPIDS Graph documentation
-=====================================
+RAPIDS Graph documentation
+==========================
+*Making graph analytics fast and easy regardless of scale*
+
 RAPIDS Graph covers a range of graph libraries and packages, that includes:
+
+
+.. list-table:: RAPIDS Graph
+   :widths: 25 25 50
+   :header-rows: 1
+
+   * - Core
+     - GNN
+     - Extension
+   * - cugraph
+     - cugraph-ops
+     - cugraph-service
+   * - pylibcugraph
+     - cugraph-dgl
+     - 
+   * - libcugraph
+     - cugraph-pyg
+     -
+   * - libcugraph_etl
+     - wholegraph
+     -
+
+
+
+A description of the package are:
 
 * cugraph: GPU-accelerated graph algorithms
 * cugraph-ops: GPU-accelerated GNN aggregators and operators
