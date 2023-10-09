@@ -1427,7 +1427,6 @@ nbr_intersection(raft::handle_t const& handle,
                     rx_v_pair_optional_nbr_intersection_e_property_values1,
 
                     invalid_vertex_id<vertex_t>::value});
-
         } else {
           CUGRAPH_FAIL("unimplemented.");
         }
@@ -1776,7 +1775,6 @@ nbr_intersection(raft::handle_t const& handle,
                            size_first,
                            size_first + nbr_intersection_sizes.size(),
                            nbr_intersection_offsets.begin() + 1);
-
   } else {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
