@@ -47,6 +47,7 @@ __device__ size_t count_set_bits(MaskIterator mask_first, size_t start_offset, s
     }
     ret += __popc(*mask_first & mask);
     num_bits -= __popc(mask);
+    ++mask_first;
   }
 
   return thrust::transform_reduce(
