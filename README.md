@@ -44,7 +44,7 @@
 - General
   - [Latest News](./readme_pages/news.md)
   - [Current list of algorithms](./docs/cugraph/source/graph_support/algorithms.md)
-  - [Blogs and Presentation](https://docs.rapids.ai/api/cugraph/stable/tutorials/cugraph_blogs/)
+  - [Blogs and Presentation](./docs/cugraph/source/tutorials/cugraph_blogs.rst)
   - [Performance](./readme_pages/performance/performance.md)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
