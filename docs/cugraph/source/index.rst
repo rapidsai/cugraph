@@ -1,42 +1,40 @@
 RAPIDS Graph documentation
 ==========================
+.. image:: images/cugraph_logo_2.png
+   :width: 600
+
 *Making graph analytics fast and easy regardless of scale*
 
-RAPIDS Graph covers a range of graph libraries and packages, that includes:
 
-
-.. list-table:: RAPIDS Graph
-   :widths: 25 25 50
+.. list-table:: RAPIDS Graph covers a range of graph libraries and packages, that includes:
+   :widths: 25 25 25
    :header-rows: 1
 
    * - Core
      - GNN
      - Extension
-   * - cugraph
-     - cugraph-ops
-     - cugraph-service
-   * - pylibcugraph
-     - cugraph-dgl
+   * - :abbr:`cugraph (Heavy-weight Python wrapper with lot of guard rails)`
+     - :abbr:`cugraph-ops (GPU-accelerated GNN aggregators and operators)`
+     - :abbr:`cugraph-service (Graph-as-a-service provides both Client and Server packages)`
+   * - :abbr:`pylibcugraph (light-weight Python wrapper no guard rails)`
+     - :abbr:`cugraph-dgl (GPU-accelerated extensions for use with the DGL framework)`
      - 
-   * - libcugraph
-     - cugraph-pyg
+   * - :abbr:`libcugraph (C++ API)`
+     - :abbr:`cugraph-pyg (GPU-accelerated extensions for use with the PyG framework)`
      -
-   * - libcugraph_etl
-     - wholegraph
+   * - :abbr:`libcugraph_etl (C++ renumbering function for strings)`
+     - :abbr:`wholegraph (shared memory-based GPU-accelerated GNN training)`
      -
 
+..
+  
+|
+|
 
-
-A description of the package are:
-
-* cugraph: GPU-accelerated graph algorithms
-* cugraph-ops: GPU-accelerated GNN aggregators and operators
-* cugraph-service: multi-user, remote GPU-accelerated graph algorithm service
-* cugraph-pyg:  GPU-accelerated extensions for use with the PyG framework
-* cugraph-dgl:  GPU-accelerated extensions for use with the DGL framework
-* wholegraph: shared memory-based GPU-accelerated GNN training
-
-cuGraph is a library of graph algorithms that seamlessly integrates into the RAPIDS data science ecosystem and allows the data scientist to easily call graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
+cuGraph is a library of graph algorithms that seamlessly integrates into the
+RAPIDS data science ecosystem and allows the data scientist to easily call
+graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or 
+even CuPy or SciPy sparse Matrices.
 
 Note: We are redoing all of our documents, please be patient as we update
 the docs and links
