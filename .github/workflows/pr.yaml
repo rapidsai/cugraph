@@ -133,5 +133,5 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
         sccache -z;
-        build-all --verbose -j$(nproc --ignore=1);
+        build-all --verbose -j2;
         sccache -s;
