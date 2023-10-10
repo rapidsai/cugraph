@@ -16,7 +16,7 @@ repos:
       - id: black
         language_version: python3
         args: [--target-version=py38]
-        files: ^python/
+        files: ^(python/.*|benchmarks/.*)$
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
