@@ -35,6 +35,7 @@ def setup_function():
 
 IS_DIRECTED = [False]
 HAS_VERTEX_PAIR = [True, False]
+IS_WEIGHTED = [True, False]
 
 
 # =============================================================================
@@ -49,6 +50,7 @@ fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     (HAS_VERTEX_PAIR, "has_vertex_pair"),
+    (IS_WEIGHTED, "is_weighted"),
 )
 
 
@@ -58,7 +60,9 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "directed", "has_vertex_pair"), request.param))
+    parameters = dict(
+        zip(("graph_file", "directed", "has_vertex_pair", "is_weighted"), request.param)
+    )
 
     return parameters
 
@@ -73,7 +77,10 @@ def input_expected_output(input_combo):
     input_data_path = input_combo["graph_file"]
     directed = input_combo["directed"]
     has_vertex_pair = input_combo["has_vertex_pair"]
-    G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
+    is_weighted = input_combo["is_weighted"]
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=directed, edgevals=is_weighted
+    )
     if has_vertex_pair:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -85,7 +92,9 @@ def input_expected_output(input_combo):
         vertex_pair = None
 
     input_combo["vertex_pair"] = vertex_pair
-    sg_cugraph_sorensen = cugraph.experimental.sorensen(G, input_combo["vertex_pair"])
+    sg_cugraph_sorensen = cugraph.sorensen(
+        G, input_combo["vertex_pair"], use_weight=is_weighted
+    )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
@@ -105,6 +114,7 @@ def input_expected_output(input_combo):
         ddf,
         source="src",
         destination="dst",
+        edge_attr="value" if is_weighted else None,
         renumber=True,
         store_transposed=True,
     )
@@ -121,11 +131,14 @@ def input_expected_output(input_combo):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-def test_dask_sorensen(dask_client, benchmark, input_expected_output):
+def test_dask_mg_sorensen(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
+    use_weight = input_expected_output["is_weighted"]
 
-    result_sorensen = benchmark(dcg.sorensen, dg, input_expected_output["vertex_pair"])
+    result_sorensen = benchmark(
+        dcg.sorensen, dg, input_expected_output["vertex_pair"], use_weight=use_weight
+    )
 
     result_sorensen = (
         result_sorensen.compute()
@@ -153,41 +166,3 @@ def test_dask_sorensen(dask_client, benchmark, input_expected_output):
 
     assert len(sorensen_coeff_diffs1) == 0
     assert len(sorensen_coeff_diffs2) == 0
-
-
-@pytest.mark.mg
-def test_dask_weighted_sorensen(dask_client):
-    input_data_path = datasets[0]
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value",
-        renumber=True,
-        store_transposed=True,
-    )
-    with pytest.raises(ValueError):
-        dcg.sorensen(dg)
-
-    dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value",
-        store_transposed=True,
-    )
-
-    use_weight = True
-    with pytest.raises(ValueError):
-        dcg.sorensen(dg, use_weight=use_weight)

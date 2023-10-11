@@ -73,7 +73,7 @@ def persist_distributed_data(dask_df, client):
     _keys = dask_df.__dask_keys__()
     worker_dict = {}
     for i, key in enumerate(_keys):
-        worker_dict[str(key)] = tuple([worker_addresses[i]])
+        worker_dict[key] = tuple([worker_addresses[i]])
     persisted = client.persist(dask_df, workers=worker_dict)
     parts = futures_of(persisted)
     return parts
@@ -89,7 +89,7 @@ def get_persisted_df_worker_map(dask_df, client):
     ddf_keys = futures_of(dask_df)
     output_map = {}
     for w, w_keys in client.has_what().items():
-        output_map[w] = [ddf_k for ddf_k in ddf_keys if str(ddf_k.key) in w_keys]
+        output_map[w] = [ddf_k for ddf_k in ddf_keys if ddf_k.key in w_keys]
         if len(output_map[w]) == 0:
             output_map[w] = _create_empty_dask_df_future(dask_df._meta, client, w)
     return output_map
@@ -99,19 +99,65 @@ def _chunk_lst(ls, num_parts):
     return [ls[i::num_parts] for i in range(num_parts)]
 
 
-def persist_dask_df_equal_parts_per_worker(dask_df, client):
+def persist_dask_df_equal_parts_per_worker(
+    dask_df, client, return_type="dask_cudf.DataFrame"
+):
+    """
+    Persist dask_df with equal parts per worker
+    Args:
+        dask_df: dask_cudf.DataFrame
+        client: dask.distributed.Client
+        return_type: str, "dask_cudf.DataFrame" or "dict"
+    Returns:
+        persisted_keys: dict of {worker: [persisted_keys]}
+    """
+    if return_type not in ["dask_cudf.DataFrame", "dict"]:
+        raise ValueError("return_type must be either 'dask_cudf.DataFrame' or 'dict'")
+
     ddf_keys = dask_df.to_delayed()
     workers = client.scheduler_info()["workers"].keys()
     ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
-    persisted_keys = []
+    persisted_keys_d = {}
     for w, ddf_k in zip(workers, ddf_keys_ls):
-        persisted_keys.extend(
-            client.persist(ddf_k, workers=w, allow_other_workers=False)
+        persisted_keys_d[w] = client.compute(
+            ddf_k, workers=w, allow_other_workers=False, pure=False
         )
-    dask_df = dask_cudf.from_delayed(persisted_keys, meta=dask_df._meta).persist()
-    wait(dask_df)
-    client.rebalance(dask_df)
-    return dask_df
+
+    persisted_keys_ls = [
+        item for sublist in persisted_keys_d.values() for item in sublist
+    ]
+    wait(persisted_keys_ls)
+    if return_type == "dask_cudf.DataFrame":
+        dask_df = dask_cudf.from_delayed(
+            persisted_keys_ls, meta=dask_df._meta
+        ).persist()
+        wait(dask_df)
+        return dask_df
+
+    return persisted_keys_d
+
+
+def get_length_of_parts(persisted_keys_d, client):
+    """
+    Get the length of each partition
+    Args:
+        persisted_keys_d: dict of {worker: [persisted_keys]}
+        client: dask.distributed.Client
+    Returns:
+        length_of_parts: dict of {worker: [length_of_parts]}
+    """
+    length_of_parts = {}
+    for w, p_keys in persisted_keys_d.items():
+        length_of_parts[w] = [
+            client.submit(
+                len, p_key, pure=False, workers=[w], allow_other_workers=False
+            )
+            for p_key in p_keys
+        ]
+
+    for w, len_futures in length_of_parts.items():
+        length_of_parts[w] = client.gather(len_futures)
+    return length_of_parts
 
 
 async def _extract_partitions(
@@ -157,7 +203,7 @@ async def _extract_partitions(
         # NOTE: We colocate (X, y) here by zipping delayed
         # n partitions of them as (X1, y1), (X2, y2)...
         # and asking client to compute a single future for
-        # each tuple in the list
+        # each tuple in the list.
         dela = [np.asarray(d.to_delayed()) for d in dask_obj]
 
         # TODO: ravel() is causing strange behavior w/ delayed Arrays which are
@@ -167,7 +213,7 @@ async def _extract_partitions(
         parts = client.compute([p for p in zip(*raveled)])
 
     await wait(parts)
-    key_to_part = [(str(part.key), part) for part in parts]
+    key_to_part = [(part.key, part) for part in parts]
     who_has = await client.who_has(parts)
     return [(first(who_has[key]), part) for key, part in key_to_part]
 
@@ -229,7 +275,7 @@ def load_balance_func(ddf_, by, client=None):
     wait(parts)
 
     who_has = client.who_has(parts)
-    key_to_part = [(str(part.key), part) for part in parts]
+    key_to_part = [(part.key, part) for part in parts]
     gpu_fututres = [
         (first(who_has[key]), part.key[1], part) for key, part in key_to_part
     ]
@@ -245,7 +291,7 @@ def load_balance_func(ddf_, by, client=None):
     for cumsum in cumsum_parts:
         num_rows.append(cumsum.iloc[-1])
 
-    # Calculate current partition divisions
+    # Calculate current partition divisions.
     divisions = [sum(num_rows[0:x:1]) for x in range(0, len(num_rows) + 1)]
     divisions[-1] = divisions[-1] - 1
     divisions = tuple(divisions)
@@ -271,7 +317,7 @@ def load_balance_func(ddf_, by, client=None):
 
 def concat_dfs(df_list):
     """
-    Concat a list of cudf dataframes
+    Concat a list of cudf dataframes.
     """
     return cudf.concat(df_list)
 
@@ -279,17 +325,17 @@ def concat_dfs(df_list):
 def get_delayed_dict(ddf):
     """
     Returns a dicitionary with the dataframe tasks as keys and
-    the dataframe delayed objects as values
+    the dataframe delayed objects as values.
     """
     df_delayed = {}
     for delayed_obj in ddf.to_delayed():
-        df_delayed[str(delayed_obj.key)] = delayed_obj
+        df_delayed[delayed_obj.key] = delayed_obj
     return df_delayed
 
 
 def concat_within_workers(client, ddf):
     """
-    Concats all partitions within workers without transfers
+    Concats all partitions within workers without transfers.
     """
     df_delayed = get_delayed_dict(ddf)
 

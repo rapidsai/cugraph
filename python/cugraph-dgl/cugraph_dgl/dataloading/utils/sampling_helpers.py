@@ -11,13 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-from typing import Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional
 from collections import defaultdict
 import cudf
+import cupy
 from cugraph.utilities.utils import import_optional
+from cugraph_dgl.nn import SparseGraph
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
+cugraph_dgl = import_optional("cugraph_dgl")
 
 
 def cast_to_tensor(ser: cudf.Series):
@@ -40,6 +43,30 @@ def _split_tensor(t, split_indices):
     return torch.tensor_split(t, split_indices)
 
 
+def _get_source_destination_range(sampled_df):
+    o = sampled_df.groupby(["batch_id", "hop_id"], as_index=True).agg(
+        {"sources": "max", "destinations": "max"}
+    )
+    o.rename(
+        columns={"sources": "sources_range", "destinations": "destinations_range"},
+        inplace=True,
+    )
+    d = o.to_dict(orient="index")
+    return d
+
+
+def _create_split_dict(tensor):
+    min_value = tensor.min()
+    max_value = tensor.max()
+    indices = torch.arange(
+        start=min_value + 1,
+        end=max_value + 1,
+        device=tensor.device,
+    )
+    split_dict = {i: {} for i in range(min_value, max_value + 1)}
+    return split_dict, indices
+
+
 def _get_renumber_map(df):
     map = df["map"]
     df.drop(columns=["map"], inplace=True)
@@ -49,9 +76,12 @@ def _get_renumber_map(df):
     renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
     renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
 
-    # Drop all rows with NaN values
-    df.dropna(axis=0, how="all", inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    map_end_offset = map_starting_offset + len(renumber_map)
+    # We only need to drop rows if the length of dataframe is determined by the map
+    # that is if map_length > sampled edges length
+    if map_end_offset == len(df):
+        df.dropna(axis=0, how="all", inplace=True)
+        df.reset_index(drop=True, inplace=True)
 
     return df, cast_to_tensor(renumber_map), cast_to_tensor(renumber_map_batch_indices)
 
@@ -65,24 +95,16 @@ def _get_tensor_d_from_sampled_df(df):
     Returns:
         dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
+    range_d = _get_source_destination_range(df)
     df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
     batch_id_tensor = cast_to_tensor(df["batch_id"])
-    batch_id_min = batch_id_tensor.min()
-    batch_id_max = batch_id_tensor.max()
-    batch_indices = torch.arange(
-        start=batch_id_min + 1,
-        end=batch_id_max + 1,
-        device=batch_id_tensor.device,
-    )
-    # TODO: Fix below
-    # batch_indices = _get_id_tensor_boundaries(batch_id_tensor)
-    batch_indices = torch.searchsorted(batch_id_tensor, batch_indices).to("cpu")
-    split_d = {i: {} for i in range(batch_id_min, batch_id_max + 1)}
+    split_d, batch_indices = _create_split_dict(batch_id_tensor)
+    batch_split_indices = torch.searchsorted(batch_id_tensor, batch_indices).to("cpu")
 
     for column in df.columns:
         if column != "batch_id":
             t = cast_to_tensor(df[column])
-            split_t = _split_tensor(t, batch_indices)
+            split_t = _split_tensor(t, batch_split_indices)
             for bid, batch_t in zip(split_d.keys(), split_t):
                 split_d[bid][column] = batch_t
 
@@ -91,35 +113,37 @@ def _get_tensor_d_from_sampled_df(df):
         split_d[bid]["map"] = batch_t
     del df
     result_tensor_d = {}
+    # Cache hop_split_d, hop_indices
+    hop_split_empty_d, hop_indices = None, None
     for batch_id, batch_d in split_d.items():
         hop_id_tensor = batch_d["hop_id"]
-        hop_id_min = hop_id_tensor.min()
-        hop_id_max = hop_id_tensor.max()
+        if hop_split_empty_d is None:
+            hop_split_empty_d, hop_indices = _create_split_dict(hop_id_tensor)
 
-        hop_indices = torch.arange(
-            start=hop_id_min + 1,
-            end=hop_id_max + 1,
-            device=hop_id_tensor.device,
-        )
-        # TODO: Fix below
-        # hop_indices = _get_id_tensor_boundaries(hop_id_tensor)
-        hop_indices = torch.searchsorted(hop_id_tensor, hop_indices).to("cpu")
-        hop_split_d = {i: {} for i in range(hop_id_min, hop_id_max + 1)}
+        hop_split_d = {k: {} for k in hop_split_empty_d.keys()}
+        hop_split_indices = torch.searchsorted(hop_id_tensor, hop_indices).to("cpu")
         for column, t in batch_d.items():
             if column not in ["hop_id", "map"]:
-                split_t = _split_tensor(t, hop_indices)
+                split_t = _split_tensor(t, hop_split_indices)
                 for hid, ht in zip(hop_split_d.keys(), split_t):
                     hop_split_d[hid][column] = ht
+        for hid in hop_split_d.keys():
+            hop_split_d[hid]["sources_range"] = range_d[(batch_id, hid)][
+                "sources_range"
+            ]
+            hop_split_d[hid]["destinations_range"] = range_d[(batch_id, hid)][
+                "destinations_range"
+            ]
 
         result_tensor_d[batch_id] = hop_split_d
-        if "map" in batch_d:
-            result_tensor_d[batch_id]["map"] = batch_d["map"]
+        result_tensor_d[batch_id]["map"] = batch_d["map"]
     return result_tensor_d
 
 
 def create_homogeneous_sampled_graphs_from_dataframe(
     sampled_df: cudf.DataFrame,
     edge_dir: str = "in",
+    return_type: str = "dgl.Block",
 ):
     """
     This helper function creates DGL MFGS  for
@@ -136,11 +160,16 @@ def create_homogeneous_sampled_graphs_from_dataframe(
             - output_nodes: The output nodes for the batch.
             - graph_per_hop_ls: A list of DGL MFGS for each hop.
     """
+    if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
+        raise ValueError(
+            "return_type must be either dgl.Block or cugraph_dgl.nn.SparseGraph"
+        )
+
     result_tensor_d = _get_tensor_d_from_sampled_df(sampled_df)
     del sampled_df
     result_mfgs = [
         _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_batch_d, edge_dir
+            tensors_batch_d, edge_dir, return_type
         )
         for tensors_batch_d in result_tensor_d.values()
     ]
@@ -148,71 +177,109 @@ def create_homogeneous_sampled_graphs_from_dataframe(
     return result_mfgs
 
 
-def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge_dir):
+def _create_homogeneous_sampled_graphs_from_tensors_perhop(
+    tensors_batch_d, edge_dir, return_type
+):
     """
     This helper function creates sampled DGL MFGS for
     homogeneous graphs from tensors per hop for a single
     batch
-
     Args:
         tensors_batch_d (dict): A dictionary of tensors, keyed by hop_id.
         edge_dir (str): Direction of edges from samples
+        metagraph (dgl.metagraph): The metagraph for the sampled graph
+        return_type (str): The type of graph to return
     Returns:
         tuple: A tuple of three elements:
             - input_nodes: The input nodes for the batch.
             - output_nodes: The output nodes for the batch.
-            - graph_per_hop_ls: A list of DGL MFGS for each hop.
+            - graph_per_hop_ls: A list of MFGS for each hop.
     """
     if edge_dir not in ["in", "out"]:
         raise ValueError(f"Invalid edge_dir {edge_dir} provided")
     if edge_dir == "out":
         raise ValueError("Outwards edges not supported yet")
     graph_per_hop_ls = []
-    seednodes = None
+    seednodes_range = None
     for hop_id, tensor_per_hop_d in tensors_batch_d.items():
         if hop_id != "map":
-            block = _create_homogeneous_dgl_block_from_tensor_d(
-                tensor_per_hop_d, tensors_batch_d["map"], seednodes
+            if return_type == "dgl.Block":
+                mfg = _create_homogeneous_dgl_block_from_tensor_d(
+                    tensor_d=tensor_per_hop_d,
+                    renumber_map=tensors_batch_d["map"],
+                    seednodes_range=seednodes_range,
+                )
+            elif return_type == "cugraph_dgl.nn.SparseGraph":
+                mfg = _create_homogeneous_cugraph_dgl_nn_sparse_graph(
+                    tensor_d=tensor_per_hop_d, seednodes_range=seednodes_range
+                )
+            else:
+                raise ValueError(f"Invalid return_type {return_type} provided")
+            seednodes_range = max(
+                tensor_per_hop_d["sources_range"],
+                tensor_per_hop_d["destinations_range"],
             )
-            seednodes = torch.concat(
-                [tensor_per_hop_d["sources"], tensor_per_hop_d["destinations"]]
-            )
-            graph_per_hop_ls.append(block)
+            graph_per_hop_ls.append(mfg)
 
     # default DGL behavior
     if edge_dir == "in":
         graph_per_hop_ls.reverse()
-
-    input_nodes = graph_per_hop_ls[0].srcdata[dgl.NID]
-    output_nodes = graph_per_hop_ls[-1].dstdata[dgl.NID]
+    if return_type == "dgl.Block":
+        input_nodes = graph_per_hop_ls[0].srcdata[dgl.NID]
+        output_nodes = graph_per_hop_ls[-1].dstdata[dgl.NID]
+    else:
+        map = tensors_batch_d["map"]
+        input_nodes = map[0 : graph_per_hop_ls[0].num_src_nodes()]
+        output_nodes = map[0 : graph_per_hop_ls[-1].num_dst_nodes()]
     return input_nodes, output_nodes, graph_per_hop_ls
 
 
-def _create_homogeneous_dgl_block_from_tensor_d(tensor_d, renumber_map, seednodes=None):
+def _create_homogeneous_dgl_block_from_tensor_d(
+    tensor_d,
+    renumber_map,
+    seednodes_range=None,
+):
     rs = tensor_d["sources"]
     rd = tensor_d["destinations"]
-
-    max_src_nodes = rs.max()
-    max_dst_nodes = rd.max()
-    if seednodes is not None:
-        # If we have isolated vertices
+    max_src_nodes = tensor_d["sources_range"]
+    max_dst_nodes = tensor_d["destinations_range"]
+    if seednodes_range is not None:
+        # If we have  vertices without outgoing edges, then
         # sources can be missing from seednodes
         # so we add them
         # to ensure all the blocks are
-        # linedup correctly
-        max_dst_nodes = max(max_dst_nodes, seednodes.max())
+        # lined up correctly
+        max_dst_nodes = max(max_dst_nodes, seednodes_range)
 
     data_dict = {("_N", "_E", "_N"): (rs, rd)}
-    num_src_nodes = {"_N": max_src_nodes.item() + 1}
-    num_dst_nodes = {"_N": max_dst_nodes.item() + 1}
+    num_src_nodes = {"_N": max_src_nodes + 1}
+    num_dst_nodes = {"_N": max_dst_nodes + 1}
+
     block = dgl.create_block(
         data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
     )
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
-    block.srcdata[dgl.NID] = renumber_map[block.srcnodes()]
-    block.dstdata[dgl.NID] = renumber_map[block.dstnodes()]
+    # Below adds run time overhead
+    block.srcdata[dgl.NID] = renumber_map[0 : max_src_nodes + 1]
+    block.dstdata[dgl.NID] = renumber_map[0 : max_dst_nodes + 1]
     return block
+
+
+def _create_homogeneous_cugraph_dgl_nn_sparse_graph(tensor_d, seednodes_range):
+    max_src_nodes = tensor_d["sources_range"]
+    max_dst_nodes = tensor_d["destinations_range"]
+    if seednodes_range is not None:
+        max_dst_nodes = max(max_dst_nodes, seednodes_range)
+    size = (max_src_nodes + 1, max_dst_nodes + 1)
+    sparse_graph = cugraph_dgl.nn.SparseGraph(
+        size=size,
+        src_ids=tensor_d["sources"],
+        dst_ids=tensor_d["destinations"],
+        formats=["csc"],
+        reduce_memory=True,
+    )
+    return sparse_graph
 
 
 def create_heterogeneous_sampled_graphs_from_dataframe(
@@ -336,3 +403,154 @@ def create_heterogenous_dgl_block_from_tensors_dict(
     block = dgl.to_block(sampled_graph, dst_nodes=seed_nodes, src_nodes=src_d)
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
+
+
+def _process_sampled_df_csc(
+    df: cudf.DataFrame,
+    reverse_hop_id: bool = True,
+) -> Tuple[
+    Dict[int, Dict[int, Dict[str, torch.Tensor]]],
+    List[torch.Tensor],
+    List[List[int, int]],
+]:
+    """
+    Convert a dataframe generated by BulkSampler to a dictionary of tensors, to
+    facilitate MFG creation. The sampled graphs in the dataframe use CSC-format.
+
+    Parameters
+    ----------
+    df: cudf.DataFrame
+        The output from BulkSampler compressed in CSC format. The dataframe
+        should be generated with `compression="CSR"` in BulkSampler,
+        since the sampling routine treats seed nodes as sources.
+
+    reverse_hop_id: bool (default=True)
+        Reverse hop id.
+
+    Returns
+    -------
+    tensors_dict: dict
+        A nested dictionary keyed by batch id and hop id.
+        `tensor_dict[batch_id][hop_id]` holds "minors" and "major_offsets"
+        values for CSC MFGs.
+
+    renumber_map_list: list
+        List of renumbering maps for looking up global indices of nodes. One
+        map for each batch.
+
+    mfg_sizes: list
+        List of the number of nodes in each message passing layer. For the
+        k-th hop, mfg_sizes[k] and mfg_sizes[k+1] is the number of sources and
+        destinations, respectively.
+    """
+    # dropna
+    major_offsets = df.major_offsets.dropna().values
+    label_hop_offsets = df.label_hop_offsets.dropna().values
+    renumber_map_offsets = df.renumber_map_offsets.dropna().values
+    renumber_map = df.map.dropna().values
+    minors = df.minors.dropna().values
+
+    n_batches = renumber_map_offsets.size - 1
+    n_hops = int((label_hop_offsets.size - 1) / n_batches)
+
+    # make global offsets local
+    major_offsets -= major_offsets[0]
+    label_hop_offsets -= label_hop_offsets[0]
+    renumber_map_offsets -= renumber_map_offsets[0]
+
+    # get the sizes of each adjacency matrix (for MFGs)
+    mfg_sizes = (label_hop_offsets[1:] - label_hop_offsets[:-1]).reshape(
+        (n_batches, n_hops)
+    )
+    n_nodes = renumber_map_offsets[1:] - renumber_map_offsets[:-1]
+    mfg_sizes = cupy.hstack((mfg_sizes, n_nodes.reshape(n_batches, -1)))
+    if reverse_hop_id:
+        mfg_sizes = mfg_sizes[:, ::-1]
+
+    tensors_dict = {}
+    renumber_map_list = []
+    for batch_id in range(n_batches):
+        batch_dict = {}
+
+        for hop_id in range(n_hops):
+            hop_dict = {}
+            idx = batch_id * n_hops + hop_id  # idx in label_hop_offsets
+            major_offsets_start = label_hop_offsets[idx].item()
+            major_offsets_end = label_hop_offsets[idx + 1].item()
+            minors_start = major_offsets[major_offsets_start].item()
+            minors_end = major_offsets[major_offsets_end].item()
+            # Note: minors and major_offsets from BulkSampler are of type int32
+            # and int64 respectively. Since pylibcugraphops binding code doesn't
+            # support distinct node and edge index type, we simply casting both
+            # to int32 for now.
+            hop_dict["minors"] = torch.as_tensor(
+                minors[minors_start:minors_end], device="cuda"
+            ).int()
+            hop_dict["major_offsets"] = torch.as_tensor(
+                major_offsets[major_offsets_start : major_offsets_end + 1]
+                - major_offsets[major_offsets_start],
+                device="cuda",
+            ).int()
+            if reverse_hop_id:
+                batch_dict[n_hops - 1 - hop_id] = hop_dict
+            else:
+                batch_dict[hop_id] = hop_dict
+
+        tensors_dict[batch_id] = batch_dict
+
+        renumber_map_list.append(
+            torch.as_tensor(
+                renumber_map[
+                    renumber_map_offsets[batch_id] : renumber_map_offsets[batch_id + 1]
+                ],
+                device="cuda",
+            )
+        )
+
+    return tensors_dict, renumber_map_list, mfg_sizes.tolist()
+
+
+def _create_homogeneous_sparse_graphs_from_csc(
+    tensors_dict: Dict[int, Dict[int, Dict[str, torch.Tensor]]],
+    renumber_map_list: List[torch.Tensor],
+    mfg_sizes: List[int, int],
+) -> List[List[torch.Tensor, torch.Tensor, List[SparseGraph]]]:
+    """Create mini-batches of MFGs. The input arguments are the outputs of
+    the function `_process_sampled_df_csc`.
+
+    Returns
+    -------
+    output: list
+        A list of mini-batches. Each mini-batch is a list that consists of
+        `input_nodes` tensor, `output_nodes` tensor and a list of MFGs.
+    """
+    n_batches, n_hops = len(mfg_sizes), len(mfg_sizes[0]) - 1
+    output = []
+    for b_id in range(n_batches):
+        output_batch = []
+        output_batch.append(renumber_map_list[b_id])
+        output_batch.append(renumber_map_list[b_id][: mfg_sizes[b_id][-1]])
+        mfgs = [
+            SparseGraph(
+                size=(mfg_sizes[b_id][h_id], mfg_sizes[b_id][h_id + 1]),
+                src_ids=tensors_dict[b_id][h_id]["minors"],
+                cdst_ids=tensors_dict[b_id][h_id]["major_offsets"],
+                formats=["csc"],
+                reduce_memory=True,
+            )
+            for h_id in range(n_hops)
+        ]
+
+        output_batch.append(mfgs)
+
+        output.append(output_batch)
+
+    return output
+
+
+def create_homogeneous_sampled_graphs_from_dataframe_csc(sampled_df: cudf.DataFrame):
+    """Public API to create mini-batches of MFGs using a dataframe output by
+    BulkSampler, where the sampled graph is compressed in CSC format."""
+    return _create_homogeneous_sparse_graphs_from_csc(
+        *(_process_sampled_df_csc(sampled_df))
+    )

@@ -240,15 +240,6 @@ ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
-# - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
-ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
-
-###################################################################################################
-# - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
-
-###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
@@ -399,9 +390,9 @@ ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampli
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
 ###################################################################################################
-# - RENUMBER SAMPLED EDGE LIST tests --------------------------------------------------------------
-ConfigureTest(RENUMBER_SAMPLED_EDGELIST_TEST sampling/renumber_sampled_edgelist_test.cu)
-target_link_libraries(RENUMBER_SAMPLED_EDGELIST_TEST PRIVATE cuco::cuco)
+# - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
+ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cu)
+target_link_libraries(SAMPLING_POST_PROCESSING_TEST PRIVATE cuco::cuco)
 
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
@@ -427,6 +418,14 @@ ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/libcugraph)
+
+###################################################################################################
+# - MTMG tests -------------------------------------------------------------------------
+ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
+target_link_libraries(MTMG_TEST
+                      PRIVATE
+                      UCP::UCP
+                    )
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -742,5 +741,6 @@ ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
+ConfigureCTest(CAPI_LEGACY_K_TRUSS_TEST c_api/legacy_k_truss_test.c)
 
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_c DESTINATION bin/gtests/libcugraph_c)

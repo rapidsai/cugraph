@@ -1,0 +1,87 @@
+# Copyright (c) 2023, NVIDIA CORPORATION.
+#
+# https://pre-commit.com/
+#
+# Before first use: `pre-commit install`
+# To run: `make lint`
+# To update: `make lint-update`
+#  - &flake8_dependencies below needs updated manually
+fail_fast: false
+default_language_version:
+    python: python3
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-ast
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+        exclude_types: [svg]
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.14
+    hooks:
+      - id: validate-pyproject
+        name: Validate pyproject.toml
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.2.1
+    hooks:
+      - id: autoflake
+        args: [--in-place]
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.13.0
+    hooks:
+      - id: pyupgrade
+        args: [--py39-plus]
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+      # - id: black-jupyter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.291
+    hooks:
+      - id: ruff
+        args: [--fix-only, --show-fixes]
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        args: ['--per-file-ignores=_nx_cugraph/__init__.py:E501']  # Why is this necessary?
+        additional_dependencies: &flake8_dependencies
+          # These versions need updated manually
+          - flake8==6.1.0
+          - flake8-bugbear==23.9.16
+          - flake8-simplify==0.21.0
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.5.0
+    hooks:
+      - id: yesqa
+        additional_dependencies: *flake8_dependencies
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.5
+    hooks:
+      - id: codespell
+        types_or: [python, rst, markdown]
+        additional_dependencies: [tomli]
+        files: ^(nx_cugraph|docs)/
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.291
+    hooks:
+      - id: ruff
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [-p, "^branch-2....$"]

@@ -9,14 +9,6 @@ RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-whe
 python -m pip install --no-deps ./local-pylibcugraph-dep/pylibcugraph*.whl
 
 # Always install latest dask for testing
-python -m pip install git+https://github.com/dask/dask.git@2023.7.1 git+https://github.com/dask/distributed.git@2023.7.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.08
-
-# Only download test data for x86
-arch=$(uname -m)
-if [[ "${arch}" == "x86_64" ]]; then
-    pushd ./datasets
-    bash ./get_test_data.sh
-    popd
-fi
+python -m pip install git+https://github.com/dask/dask.git@2023.9.2 git+https://github.com/dask/distributed.git@2023.9.2
 
 ./ci/test_wheel.sh cugraph python/cugraph

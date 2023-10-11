@@ -34,6 +34,7 @@ rapids-mamba-retry install \
   libcugraph \
   pylibcugraph \
   cugraph \
+  nx-cugraph \
   cugraph-service-server \
   cugraph-service-client
 
@@ -64,7 +65,10 @@ popd
 
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
-export DASK_WORKER_DEVICES="0"
+DASK_WORKER_DEVICES="0" \
+DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
+DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
+DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT=20 \
 pytest \
   -v \
   --benchmark-disable \
@@ -86,6 +90,31 @@ pytest \
   -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
+popd
+
+rapids-logger "pytest nx-cugraph"
+pushd python/nx-cugraph/nx_cugraph
+pytest \
+  --capture=no \
+  --verbose \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-nx-cugraph.xml" \
+  --cov-config=../../.coveragerc \
+  --cov=nx_cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/nx-cugraph-coverage.xml" \
+  --cov-report=term \
+  --benchmark-disable \
+  tests
+popd
+
+rapids-logger "pytest networkx using nx-cugraph backend"
+pushd python/nx-cugraph
+./run_nx_tests.sh
+# run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
+# in case nx-cugraph failed to load but fallback mode allowed the run to pass.
+_coverage=$(coverage report|grep "^TOTAL")
+echo "nx-cugraph coverage from networkx tests: $_coverage"
+echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
@@ -174,8 +203,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel pytorch \
       --channel nvidia \
       'pyg=2.3' \
-      'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
+      'pytorch=2.0.0' \
+      'pytorch-cuda=11.8'
+    
+    # Install pyg dependencies (which requires pip)
+    pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
 
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \

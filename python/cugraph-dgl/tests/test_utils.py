@@ -20,11 +20,15 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     _split_tensor,
     _get_tensor_d_from_sampled_df,
     create_homogeneous_sampled_graphs_from_dataframe,
+    _get_source_destination_range,
+    _create_homogeneous_cugraph_dgl_nn_sparse_graph,
+    create_homogeneous_sampled_graphs_from_dataframe_csc,
 )
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
+cugraph_dgl = import_optional("cugraph_dgl")
 
 
 def test_casting_empty_array():
@@ -45,6 +49,23 @@ def get_dummy_sampled_df():
     df["hop_id"] = df["hop_id"].astype("uint8")
     df["map"] = df["map"].astype("int64")
     return df
+
+
+def get_dummy_sampled_df_csc():
+    df_dict = dict(
+        minors=np.array(
+            [1, 1, 2, 1, 0, 3, 1, 3, 2, 3, 2, 4, 0, 1, 1, 0, 3, 2], dtype=np.int32
+        ),
+        major_offsets=np.arange(19, dtype=np.int64),
+        map=np.array(
+            [26, 29, 33, 22, 23, 32, 18, 29, 33, 33, 8, 30, 32], dtype=np.int32
+        ),
+        renumber_map_offsets=np.array([0, 4, 9, 13], dtype=np.int64),
+        label_hop_offsets=np.array([0, 1, 3, 6, 7, 9, 13, 14, 16, 18], dtype=np.int64),
+    )
+
+    # convert values to Series so that NaNs are padded automatically
+    return cudf.DataFrame({k: cudf.Series(v) for k, v in df_dict.items()})
 
 
 def test_get_renumber_map():
@@ -140,3 +161,46 @@ def test_create_homogeneous_sampled_graphs_from_dataframe():
         de, dd = d_block.edges()
         assert torch.equal(ce, de)
         assert torch.equal(cd, dd)
+
+
+def test_get_source_destination_range():
+    df = get_dummy_sampled_df()
+    output_d = _get_source_destination_range(df)
+
+    expected_output = {
+        (0, 0): {"sources_range": 0, "destinations_range": 1},
+        (0, 1): {"sources_range": 1, "destinations_range": 2},
+        (1, 0): {"sources_range": 0, "destinations_range": 1},
+        (1, 1): {"sources_range": 1, "destinations_range": 2},
+        (2, 0): {"sources_range": 0, "destinations_range": 2},
+        (2, 1): {"sources_range": 2, "destinations_range": 1},
+    }
+
+    assert output_d == expected_output
+
+
+def test__create_homogeneous_cugraph_dgl_nn_sparse_graph():
+    tensor_d = {
+        "sources_range": 1,
+        "destinations_range": 2,
+        "sources": torch.as_tensor([0, 0, 1, 1], dtype=torch.int64, device="cuda"),
+        "destinations": torch.as_tensor([0, 0, 1, 2], dtype=torch.int64, device="cuda"),
+    }
+
+    seednodes_range = 10
+    sparse_graph = _create_homogeneous_cugraph_dgl_nn_sparse_graph(
+        tensor_d, seednodes_range
+    )
+    assert sparse_graph.num_src_nodes() == 2
+    assert sparse_graph.num_dst_nodes() == seednodes_range + 1
+    assert isinstance(sparse_graph, cugraph_dgl.nn.SparseGraph)
+
+
+def test_create_homogeneous_sampled_graphs_from_dataframe_csc():
+    df = get_dummy_sampled_df_csc()
+    batches = create_homogeneous_sampled_graphs_from_dataframe_csc(df)
+
+    assert len(batches) == 3
+    assert torch.equal(batches[0][0], torch.IntTensor([26, 29, 33, 22]).cuda())
+    assert torch.equal(batches[1][0], torch.IntTensor([23, 32, 18, 29, 33]).cuda())
+    assert torch.equal(batches[2][0], torch.IntTensor([33, 8, 30, 32]).cuda())

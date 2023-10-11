@@ -1,0 +1,14 @@
+# Copyright (c) 2023, NVIDIA CORPORATION.
+
+[flake8]
+max-line-length = 88
+inline-quotes = "
+extend-ignore =
+    E203,
+    SIM105,
+    SIM401,
+# E203 whitespace before ':' (to be compatible with black)
+per-file-ignores =
+    nx_cugraph/tests/*.py:T201,
+    __init__.py:F401,F403,
+    _nx_cugraph/__init__.py:E501,

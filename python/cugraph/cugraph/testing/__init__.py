@@ -11,9 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_DATASET_ROOT_DIR
+from cugraph.testing.utils import (
+    RAPIDS_DATASET_ROOT_DIR_PATH,
+    RAPIDS_DATASET_ROOT_DIR,
+)
+from cugraph.testing.resultset import (
+    Resultset,
+    load_resultset,
+    get_resultset,
+    results_dir_path,
+)
 from cugraph.datasets import (
     cyber,
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,
@@ -33,6 +43,7 @@ from cugraph.datasets import (
 UNDIRECTED_DATASETS = [karate, dolphins]
 SMALL_DATASETS = [karate, dolphins, polbooks]
 WEIGHTED_DATASETS = [
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,
@@ -42,6 +53,7 @@ WEIGHTED_DATASETS = [
     small_tree,
 ]
 ALL_DATASETS = [
+    dining_prefs,
     dolphins,
     karate,
     karate_disjoint,
