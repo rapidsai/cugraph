@@ -19,6 +19,8 @@ from cugraph.testing.mg_utils import (
 
 import os
 import tempfile
+import asyncio
+import logging
 
 # module-wide fixtures
 
@@ -44,7 +46,11 @@ def dask_client():
 
     yield dask_client
 
-    stop_dask_client(dask_client, dask_cluster)
+    # FIXME: Temporarily suppress the timeout error
+    try:
+        stop_dask_client(dask_client, dask_cluster)
+    except asyncio.CancelledError as exception:
+        logging.warning(f"{type(exception).__name__}\n {exception}")
 
 
 @pytest.fixture(scope="module")
