@@ -11,7 +11,7 @@ RAPIDS Graph documentation
    :header-rows: 1
 
    * - Core
-     - GNN
+     - GNNß
      - Extension
    * - :abbr:`cugraph (Heavy-weight Python wrapper with lot of guard rails)`
      - :abbr:`cugraph-ops (GPU-accelerated GNN aggregators and operators)`
@@ -27,7 +27,7 @@ RAPIDS Graph documentation
      -
 
 ..
-  
+
 |
 |
 
