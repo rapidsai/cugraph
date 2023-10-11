@@ -11,6 +11,7 @@ channels:
 - nvidia
 dependencies:
 - aiohttp
+- breathe
 - c-compiler
 - cmake>=3.26.4
 - cuda-nvcc
