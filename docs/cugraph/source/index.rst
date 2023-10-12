@@ -11,19 +11,19 @@ RAPIDS Graph documentation
    :header-rows: 1
 
    * - Core
-     - GNNß
+     - GNN
      - Extension
-   * - :abbr:`cugraph (Heavy-weight Python wrapper with lot of guard rails)`
-     - :abbr:`cugraph-ops (GPU-accelerated GNN aggregators and operators)`
+   * - :abbr:`cugraph (Python wrapper with lots of convenience functions)`
+     - :abbr:`cugraph-ops (GNN aggregators and operators)`
      - :abbr:`cugraph-service (Graph-as-a-service provides both Client and Server packages)`
    * - :abbr:`pylibcugraph (light-weight Python wrapper no guard rails)`
-     - :abbr:`cugraph-dgl (GPU-accelerated extensions for use with the DGL framework)`
+     - :abbr:`cugraph-dgl (Accelerated extensions for use with the DGL framework)`
      - 
    * - :abbr:`libcugraph (C++ API)`
-     - :abbr:`cugraph-pyg (GPU-accelerated extensions for use with the PyG framework)`
+     - :abbr:`cugraph-pyg (Accelerated extensions for use with the PyG framework)`
      -
    * - :abbr:`libcugraph_etl (C++ renumbering function for strings)`
-     - :abbr:`wholegraph (shared memory-based GPU-accelerated GNN training)`
+     - :abbr:`wholegraph (Shared memory-based GPU-accelerated GNN training)`
      -
 
 ..
