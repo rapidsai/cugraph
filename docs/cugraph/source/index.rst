@@ -16,7 +16,7 @@ RAPIDS Graph documentation
    * - :abbr:`cugraph (Python wrapper with lots of convenience functions)`
      - :abbr:`cugraph-ops (GNN aggregators and operators)`
      - :abbr:`cugraph-service (Graph-as-a-service provides both Client and Server packages)`
-   * - :abbr:`pylibcugraph (light-weight Python wrapper no guard rails)`
+   * - :abbr:`pylibcugraph (light-weight Python wrapper with no guard rails)`
      - :abbr:`cugraph-dgl (Accelerated extensions for use with the DGL framework)`
      - 
    * - :abbr:`libcugraph (C++ API)`
