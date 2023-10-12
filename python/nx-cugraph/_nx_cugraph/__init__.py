@@ -75,7 +75,7 @@ def get_info():
     return d
 
 
-__version__ = "23.10.00"
+__version__ = "23.12.00"
 
 if __name__ == "__main__":
     from pathlib import Path
