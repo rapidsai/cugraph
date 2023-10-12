@@ -65,10 +65,7 @@ popd
 
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
-DASK_WORKER_DEVICES="0" \
-DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
-DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
-DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT=20 \
+DASK_WORKER_DEVICES="0" 
 pytest \
   -v \
   --benchmark-disable \
