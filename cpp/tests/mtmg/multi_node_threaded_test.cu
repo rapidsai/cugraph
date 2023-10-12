@@ -185,7 +185,7 @@ class Tests_Multithreaded
         num_gpus_file.close();
 
         for (int j = 0; j < num_gpus_this_node; ++j) {
-          resource_manager.register_remote_gpu(node_rank++, i);
+          resource_manager.register_remote_gpu(node_rank++);
         }
       } else {
         std::for_each(
