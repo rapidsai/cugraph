@@ -70,6 +70,8 @@ class resource_manager_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
+    CUGRAPH_EXPECTS(remote_rank_set_.find(rank) == remote_rank_set_.end(),
+                    "cannot register same rank as local and remote");
     CUGRAPH_EXPECTS(local_rank_map_.find(rank) == local_rank_map_.end(),
                     "cannot register same rank multiple times");
 
@@ -120,6 +122,8 @@ class resource_manager_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
+    CUGRAPH_EXPECTS(local_rank_map_.find(rank) == local_rank_map_.end(),
+                    "cannot register same rank as local and remote");
     CUGRAPH_EXPECTS(remote_rank_set_.find(rank) == remote_rank_set_.end(),
                     "cannot register same rank multiple times");
 
