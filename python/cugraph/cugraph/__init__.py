@@ -120,4 +120,4 @@ from cugraph import gnn
 
 from cugraph import exceptions
 
-__version__ = "23.12.00"
+from cugraph._version import __git_commit__, __version__

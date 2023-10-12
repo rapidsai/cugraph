@@ -9,8 +9,10 @@ export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
+version=$(rapids-generate-version)
+
 rapids-logger "Begin cpp build"
 
-rapids-conda-retry mambabuild conda/recipes/libcugraph
+RAPIDS_PACKAGE_VERSION=${version} rapids-conda-retry mambabuild conda/recipes/libcugraph
 
 rapids-upload-conda-to-s3 cpp
