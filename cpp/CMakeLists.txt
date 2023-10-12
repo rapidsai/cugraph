@@ -182,116 +182,116 @@ endif()
 set(CUGRAPH_SOURCES
     src/detail/shuffle_vertices.cu
     src/detail/shuffle_vertex_pairs.cu
-    src/detail/collect_local_vertex_values.cu
+#    src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
-    src/sampling/random_walks_mg.cu
-    src/community/detail/common_methods_mg.cu
-    src/community/detail/common_methods_sg.cu
-    src/community/detail/refine_sg.cu
-    src/community/detail/refine_mg.cu
-    src/community/detail/mis_sg.cu
-    src/community/detail/mis_mg.cu
+#    src/sampling/random_walks_mg.cu
+#    src/community/detail/common_methods_mg.cu
+#    src/community/detail/common_methods_sg.cu
+#    src/community/detail/refine_sg.cu
+#    src/community/detail/refine_mg.cu
+#    src/community/detail/mis_sg.cu
+#    src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
-    src/utilities/path_retrieval.cu
-    src/structure/legacy/graph.cu
-    src/linear_assignment/legacy/hungarian.cu
-    src/link_prediction/jaccard_sg.cu
-    src/link_prediction/sorensen_sg.cu
-    src/link_prediction/overlap_sg.cu
-    src/link_prediction/jaccard_mg.cu
-    src/link_prediction/sorensen_mg.cu
-    src/link_prediction/overlap_mg.cu
-    src/layout/legacy/force_atlas2.cu
-    src/converters/legacy/COOtoCSR.cu
-    src/community/legacy/spectral_clustering.cu
-    src/community/louvain_sg.cu
-    src/community/louvain_mg.cu
-    src/community/leiden_sg.cu
-    src/community/leiden_mg.cu
-    src/community/legacy/louvain.cu
-    src/community/legacy/ktruss.cu
-    src/community/legacy/ecg.cu
-    src/community/egonet_sg.cu
-    src/community/egonet_mg.cu
-    src/sampling/random_walks.cu
-    src/sampling/random_walks_sg.cu
-    src/sampling/detail/prepare_next_frontier_sg.cu
-    src/sampling/detail/prepare_next_frontier_mg.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg.cu
-    src/sampling/detail/remove_visited_vertices_from_frontier.cu
-    src/sampling/detail/sample_edges_sg.cu
-    src/sampling/detail/sample_edges_mg.cu
-    src/sampling/detail/shuffle_and_organize_output_mg.cu
-    src/sampling/uniform_neighbor_sampling_mg.cpp
-    src/sampling/uniform_neighbor_sampling_sg.cpp
-    src/sampling/renumber_sampled_edgelist_sg.cu
-    src/sampling/sampling_post_processing_sg.cu
-    src/cores/core_number_sg.cu
-    src/cores/core_number_mg.cu
-    src/cores/k_core_sg.cu
-    src/cores/k_core_mg.cu
-    src/components/legacy/connectivity.cu
+#    src/utilities/path_retrieval.cu
+#    src/structure/legacy/graph.cu
+#    src/linear_assignment/legacy/hungarian.cu
+#    src/link_prediction/jaccard_sg.cu
+#    src/link_prediction/sorensen_sg.cu
+#    src/link_prediction/overlap_sg.cu
+#    src/link_prediction/jaccard_mg.cu
+#    src/link_prediction/sorensen_mg.cu
+#    src/link_prediction/overlap_mg.cu
+#    src/layout/legacy/force_atlas2.cu
+#    src/converters/legacy/COOtoCSR.cu
+#    src/community/legacy/spectral_clustering.cu
+#    src/community/louvain_sg.cu
+#    src/community/louvain_mg.cu
+#    src/community/leiden_sg.cu
+#    src/community/leiden_mg.cu
+#    src/community/legacy/louvain.cu
+#    src/community/legacy/ktruss.cu
+#    src/community/legacy/ecg.cu
+#    src/community/egonet_sg.cu
+#    src/community/egonet_mg.cu
+#    src/sampling/random_walks.cu
+#    src/sampling/random_walks_sg.cu
+#    src/sampling/detail/prepare_next_frontier_sg.cu
+#    src/sampling/detail/prepare_next_frontier_mg.cu
+#    src/sampling/detail/gather_one_hop_edgelist_sg.cu
+#    src/sampling/detail/gather_one_hop_edgelist_mg.cu
+#    src/sampling/detail/remove_visited_vertices_from_frontier.cu
+#    src/sampling/detail/sample_edges_sg.cu
+#    src/sampling/detail/sample_edges_mg.cu
+#    src/sampling/detail/shuffle_and_organize_output_mg.cu
+#    src/sampling/uniform_neighbor_sampling_mg.cpp
+#    src/sampling/uniform_neighbor_sampling_sg.cpp
+#    src/sampling/renumber_sampled_edgelist_sg.cu
+#    src/sampling/sampling_post_processing_sg.cu
+#    src/cores/core_number_sg.cu
+#    src/cores/core_number_mg.cu
+#    src/cores/k_core_sg.cu
+#    src/cores/k_core_mg.cu
+#    src/components/legacy/connectivity.cu
     src/generators/generate_rmat_edgelist.cu
-    src/generators/generate_bipartite_rmat_edgelist.cu
+#    src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
-    src/generators/simple_generators.cu
-    src/generators/erdos_renyi_generator.cu
+#    src/generators/simple_generators.cu
+#    src/generators/erdos_renyi_generator.cu
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
     src/structure/decompress_to_edgelist_sg.cu
     src/structure/decompress_to_edgelist_mg.cu
-    src/structure/symmetrize_graph_sg.cu
-    src/structure/symmetrize_graph_mg.cu
-    src/structure/transpose_graph_sg.cu
-    src/structure/transpose_graph_mg.cu
-    src/structure/transpose_graph_storage_sg.cu
-    src/structure/transpose_graph_storage_mg.cu
-    src/structure/coarsen_graph_sg.cu
-    src/structure/coarsen_graph_mg.cu
+#    src/structure/symmetrize_graph_sg.cu
+#    src/structure/symmetrize_graph_mg.cu
+#    src/structure/transpose_graph_sg.cu
+#    src/structure/transpose_graph_mg.cu
+#    src/structure/transpose_graph_storage_sg.cu
+#    src/structure/transpose_graph_storage_mg.cu
+#    src/structure/coarsen_graph_sg.cu
+#    src/structure/coarsen_graph_mg.cu
     src/structure/graph_weight_utils_mg.cu
     src/structure/graph_weight_utils_sg.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu
     src/structure/renumber_utils_mg.cu
-    src/structure/relabel_sg.cu
-    src/structure/relabel_mg.cu
-    src/structure/induced_subgraph_sg.cu
-    src/structure/induced_subgraph_mg.cu
+#    src/structure/relabel_sg.cu
+#    src/structure/relabel_mg.cu
+#    src/structure/induced_subgraph_sg.cu
+#    src/structure/induced_subgraph_mg.cu
     src/structure/select_random_vertices_sg.cu
     src/structure/select_random_vertices_mg.cu
-    src/traversal/extract_bfs_paths_sg.cu
-    src/traversal/extract_bfs_paths_mg.cu
+#    src/traversal/extract_bfs_paths_sg.cu
+#    src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
-    src/traversal/od_shortest_distances_sg.cu
+#    src/traversal/od_shortest_distances_sg.cu
     src/traversal/sssp_mg.cu
-    src/link_analysis/hits_sg.cu
-    src/link_analysis/hits_mg.cu
+#    src/link_analysis/hits_sg.cu
+#    src/link_analysis/hits_mg.cu
     src/link_analysis/pagerank_sg.cu
     src/link_analysis/pagerank_mg.cu
-    src/centrality/katz_centrality_sg.cu
-    src/centrality/katz_centrality_mg.cu
-    src/centrality/eigenvector_centrality_sg.cu
-    src/centrality/eigenvector_centrality_mg.cu
-    src/centrality/betweenness_centrality_sg.cu
-    src/centrality/betweenness_centrality_mg.cu
-    src/tree/legacy/mst.cu
-    src/components/weakly_connected_components_sg.cu
-    src/components/weakly_connected_components_mg.cu
+#    src/centrality/katz_centrality_sg.cu
+#    src/centrality/katz_centrality_mg.cu
+#    src/centrality/eigenvector_centrality_sg.cu
+#    src/centrality/eigenvector_centrality_mg.cu
+#    src/centrality/betweenness_centrality_sg.cu
+#    src/centrality/betweenness_centrality_mg.cu
+#    src/tree/legacy/mst.cu
+#    src/components/weakly_connected_components_sg.cu
+#    src/components/weakly_connected_components_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
     src/structure/symmetrize_edgelist_mg.cu
-    src/community/triangle_count_sg.cu
-    src/community/triangle_count_mg.cu
-    src/traversal/k_hop_nbrs_sg.cu
-    src/traversal/k_hop_nbrs_mg.cu
-    src/mtmg/vertex_result.cu
+#    src/community/triangle_count_sg.cu
+#    src/community/triangle_count_mg.cu
+#    src/traversal/k_hop_nbrs_sg.cu
+#    src/traversal/k_hop_nbrs_mg.cu
+#    src/mtmg/vertex_result.cu
 )
 
 if(USE_CUGRAPH_OPS)
@@ -398,44 +398,44 @@ endif()
 
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
-        src/c_api/array.cpp
-        src/c_api/error.cpp
-        src/c_api/graph_sg.cpp
-        src/c_api/graph_mg.cpp
-        src/c_api/graph_functions.cpp
-        src/c_api/pagerank.cpp
-        src/c_api/katz.cpp
-        src/c_api/centrality_result.cpp
-        src/c_api/eigenvector_centrality.cpp
-        src/c_api/betweenness_centrality.cpp
-        src/c_api/core_number.cpp
-        src/c_api/core_result.cpp
-        src/c_api/extract_ego.cpp
-        src/c_api/k_core.cpp
-	src/c_api/hierarchical_clustering_result.cpp
-        src/c_api/induced_subgraph.cpp
-        src/c_api/capi_helper.cu
-        src/c_api/legacy_spectral.cpp
-        src/c_api/legacy_ecg.cpp
-        src/c_api/graph_helper_sg.cu
-        src/c_api/graph_helper_mg.cu
-        src/c_api/graph_generators.cpp
-        src/c_api/induced_subgraph_result.cpp
-        src/c_api/hits.cpp
-        src/c_api/bfs.cpp
-        src/c_api/sssp.cpp
-        src/c_api/extract_paths.cpp
-        src/c_api/random_walks.cpp
-        src/c_api/random.cpp
-        src/c_api/similarity.cpp
-        src/c_api/leiden.cpp
-        src/c_api/louvain.cpp
-        src/c_api/triangle_count.cpp
-        src/c_api/uniform_neighbor_sampling.cpp
-        src/c_api/labeling_result.cpp
-        src/c_api/weakly_connected_components.cpp
-        src/c_api/strongly_connected_components.cpp
-        src/c_api/legacy_k_truss.cpp
+        #src/c_api/array.cpp
+        #src/c_api/error.cpp
+        #src/c_api/graph_sg.cpp
+        #src/c_api/graph_mg.cpp
+        #src/c_api/graph_functions.cpp
+        #src/c_api/pagerank.cpp
+        #src/c_api/katz.cpp
+        #src/c_api/centrality_result.cpp
+        #src/c_api/eigenvector_centrality.cpp
+        #src/c_api/betweenness_centrality.cpp
+        #src/c_api/core_number.cpp
+        #src/c_api/core_result.cpp
+        #src/c_api/extract_ego.cpp
+        #src/c_api/k_core.cpp
+	#src/c_api/hierarchical_clustering_result.cpp
+        #src/c_api/induced_subgraph.cpp
+        #src/c_api/capi_helper.cu
+        #src/c_api/legacy_spectral.cpp
+        #src/c_api/legacy_ecg.cpp
+        #src/c_api/graph_helper_sg.cu
+        #src/c_api/graph_helper_mg.cu
+        #src/c_api/graph_generators.cpp
+        #src/c_api/induced_subgraph_result.cpp
+        #src/c_api/hits.cpp
+        #src/c_api/bfs.cpp
+        #src/c_api/sssp.cpp
+        #src/c_api/extract_paths.cpp
+        #src/c_api/random_walks.cpp
+        #src/c_api/random.cpp
+        #src/c_api/similarity.cpp
+        #src/c_api/leiden.cpp
+        #src/c_api/louvain.cpp
+        #src/c_api/triangle_count.cpp
+        #src/c_api/uniform_neighbor_sampling.cpp
+        #src/c_api/labeling_result.cpp
+        #src/c_api/weakly_connected_components.cpp
+        #src/c_api/strongly_connected_components.cpp
+        #src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
@@ -507,71 +507,3 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-################################################################################
-# - install targets ------------------------------------------------------------
-rapids_cmake_install_lib_dir( lib_dir )
-include(CPack)
-
-install(TARGETS cugraph
-        DESTINATION ${lib_dir}
-        EXPORT cugraph-exports)
-
-install(DIRECTORY include/cugraph/
-        DESTINATION include/cugraph)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
-        DESTINATION include/cugraph)
-
-install(TARGETS cugraph_c
-        DESTINATION ${lib_dir}
-        EXPORT cugraph-exports)
-
-install(DIRECTORY include/cugraph_c/
-        DESTINATION include/cugraph_c)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
-        DESTINATION include/cugraph_c)
-
-################################################################################
-# - install export -------------------------------------------------------------
-
-set(doc_string
-[=[
-Provide targets for cuGraph.
-
-cuGraph library is a collection of GPU accelerated graph algorithms that process data found in
-[GPU DataFrames](https://github.com/rapidsai/cudf).
-
-]=])
-
-rapids_export(INSTALL cugraph
-    EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
-    NAMESPACE cugraph::
-    DOCUMENTATION doc_string
-    )
-
-################################################################################
-# - build export ---------------------------------------------------------------
-rapids_export(BUILD cugraph
-    EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
-    NAMESPACE cugraph::
-    DOCUMENTATION doc_string
-    )
-
-################################################################################
-# - make documentation ---------------------------------------------------------
-# requires doxygen and graphviz to be installed
-# from build directory, run make docs_cugraph
-
-# doc targets for cugraph
-find_package(Doxygen 1.8.11)
-if(Doxygen_FOUND)
-    add_custom_command(OUTPUT CUGRAPH_DOXYGEN
-                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                       COMMAND doxygen Doxyfile
-                       VERBATIM)
-
-    add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
-endif()

@@ -55,9 +55,6 @@ value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& va
   return sorted_values;
 }
 
-template rmm::device_uvector<int32_t> sort(raft::handle_t const& handle,
-                                           rmm::device_uvector<int32_t> const& values);
-
 template rmm::device_uvector<int64_t> sort(raft::handle_t const& handle,
                                            rmm::device_uvector<int64_t> const& values);
 
@@ -91,45 +88,10 @@ std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const&
   return std::make_tuple(std::move(sorted_keys), std::move(sorted_values));
 }
 
-template std::tuple<rmm::device_uvector<float>, rmm::device_uvector<int32_t>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<float> const& keys,
-  rmm::device_uvector<int32_t> const& values);
-
-template std::tuple<rmm::device_uvector<double>, rmm::device_uvector<int32_t>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<double> const& keys,
-  rmm::device_uvector<int32_t> const& values);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& keys,
-  rmm::device_uvector<float> const& values);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& keys,
-  rmm::device_uvector<double> const& values);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& keys,
-  rmm::device_uvector<int32_t> const& values);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& keys,
-  rmm::device_uvector<int64_t> const& values);
-
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>> sort_by_key(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& keys,
   rmm::device_uvector<float> const& values);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> const& keys,
-  rmm::device_uvector<double> const& values);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>> sort_by_key(
   raft::handle_t const& handle,
@@ -140,12 +102,6 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> 
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& keys,
   rmm::device_uvector<int64_t> const& values);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
-sort_by_key(raft::handle_t const& handle,
-            rmm::device_uvector<int32_t> const& keys,
-            std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
@@ -164,8 +120,6 @@ vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t co
   return ret;
 }
 
-template int32_t max_element(raft::handle_t const& handle,
-                             raft::device_span<int32_t const> vertices);
 template int64_t max_element(raft::handle_t const& handle,
                              raft::device_span<int64_t const> vertices);
 
@@ -191,16 +145,8 @@ void populate_vertex_ids(raft::handle_t const& handle,
 }
 
 template void translate_vertex_ids(raft::handle_t const& handle,
-                                   rmm::device_uvector<int32_t>& vertices,
-                                   int32_t vertex_id_offset);
-
-template void translate_vertex_ids(raft::handle_t const& handle,
                                    rmm::device_uvector<int64_t>& vertices,
                                    int64_t vertex_id_offset);
-
-template void populate_vertex_ids(raft::handle_t const& handle,
-                                  rmm::device_uvector<int32_t>& d_vertices_v,
-                                  int32_t vertex_id_offset);
 
 template void populate_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_vertices_v,
@@ -246,27 +192,9 @@ void remove_self_loops(raft::handle_t const& handle,
 
 template void remove_self_loops(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int32_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<float>>& d_weight_v /* [INOUT] */);
-
-template void remove_self_loops(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int32_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<double>>& d_weight_v /* [INOUT] */);
-
-template void remove_self_loops(
-  raft::handle_t const& handle,
   rmm::device_uvector<int64_t>& d_src_v /* [INOUT] */,
   rmm::device_uvector<int64_t>& d_dst_v /* [INOUT] */,
   std::optional<rmm::device_uvector<float>>& d_weight_v /* [INOUT] */);
-
-template void remove_self_loops(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int64_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<double>>& d_weight_v /* [INOUT] */);
 
 template <typename vertex_t, typename weight_t>
 void sort_and_remove_multi_edges(
@@ -310,27 +238,9 @@ void sort_and_remove_multi_edges(
 
 template void sort_and_remove_multi_edges(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int32_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<float>>& d_weight_v /* [INOUT] */);
-
-template void sort_and_remove_multi_edges(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int32_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<double>>& d_weight_v /* [INOUT] */);
-
-template void sort_and_remove_multi_edges(
-  raft::handle_t const& handle,
   rmm::device_uvector<int64_t>& d_src_v /* [INOUT] */,
   rmm::device_uvector<int64_t>& d_dst_v /* [INOUT] */,
   std::optional<rmm::device_uvector<float>>& d_weight_v /* [INOUT] */);
-
-template void sort_and_remove_multi_edges(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<int64_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<double>>& d_weight_v /* [INOUT] */);
 
 }  // namespace test
 }  // namespace cugraph

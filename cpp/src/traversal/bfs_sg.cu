@@ -21,26 +21,6 @@ namespace cugraph {
 // SG instantiation
 
 template void bfs(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-                  int32_t* distances,
-                  int32_t* predecessors,
-                  int32_t const* sources,
-                  size_t n_sources,
-                  bool direction_optimizing,
-                  int32_t depth_limit,
-                  bool do_expensive_check);
-
-template void bfs(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-                  int32_t* distances,
-                  int32_t* predecessors,
-                  int32_t const* sources,
-                  size_t n_sources,
-                  bool direction_optimizing,
-                  int32_t depth_limit,
-                  bool do_expensive_check);
-
-template void bfs(raft::handle_t const& handle,
                   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
                   int64_t* distances,
                   int64_t* predecessors,

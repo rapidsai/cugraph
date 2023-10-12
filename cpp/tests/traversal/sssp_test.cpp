@@ -255,29 +255,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
   }
 };
 
-using Tests_SSSP_File = Tests_SSSP<cugraph::test::File_Usecase>;
 using Tests_SSSP_Rmat = Tests_SSSP<cugraph::test::Rmat_Usecase>;
-
-// FIXME: add tests for type combinations
-TEST_P(Tests_SSSP_File, CheckInt32Int32Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_SSSP_Rmat, CheckInt32Int32Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_SSSP_Rmat, CheckInt32Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
 
 TEST_P(Tests_SSSP_Rmat, CheckInt64Int64Float)
 {
@@ -285,16 +263,6 @@ TEST_P(Tests_SSSP_Rmat, CheckInt64Int64Float)
   run_current_test<int64_t, int64_t, float>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_SSSP_File,
-  // enable correctness checks
-  ::testing::Values(
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
-    std::make_tuple(SSSP_Usecase{1000},
-                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

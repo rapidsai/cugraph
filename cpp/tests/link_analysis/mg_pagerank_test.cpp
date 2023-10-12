@@ -252,28 +252,7 @@ class Tests_MGPageRank
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGPageRank<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGPageRank_File = Tests_MGPageRank<cugraph::test::File_Usecase>;
 using Tests_MGPageRank_Rmat = Tests_MGPageRank<cugraph::test::Rmat_Usecase>;
-
-TEST_P(Tests_MGPageRank_File, CheckInt32Int32FloatFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int32FloatFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int64FloatFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
 
 TEST_P(Tests_MGPageRank_Rmat, CheckInt64Int64FloatFloat)
 {
@@ -281,20 +260,6 @@ TEST_P(Tests_MGPageRank_Rmat, CheckInt64Int64FloatFloat)
   run_current_test<int64_t, int64_t, float, float>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-  file_tests,
-  Tests_MGPageRank_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(PageRank_Usecase{0.0, false},
-                      PageRank_Usecase{0.5, false},
-                      PageRank_Usecase{0.0, true},
-                      PageRank_Usecase{0.5, true}),
-    ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGPageRank_Rmat,

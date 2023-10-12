@@ -19,10 +19,6 @@ namespace cugraph {
 
 // MG instantiation
 
-template class graph_view_t<int32_t, int32_t, true, true>;
-template class graph_view_t<int32_t, int32_t, false, true>;
-template class graph_view_t<int32_t, int64_t, true, true>;
-template class graph_view_t<int32_t, int64_t, false, true>;
 template class graph_view_t<int64_t, int64_t, true, true>;
 template class graph_view_t<int64_t, int64_t, false, true>;
 

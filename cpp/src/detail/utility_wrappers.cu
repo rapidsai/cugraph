@@ -52,13 +52,6 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 }
 
 template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                                  int32_t* d_value,
-                                  size_t size,
-                                  int32_t min_value,
-                                  int32_t max_value,
-                                  raft::random::RngState& rng_state);
-
-template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   int64_t* d_value,
                                   size_t size,
                                   int64_t min_value,
@@ -72,23 +65,11 @@ template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   float max_value,
                                   raft::random::RngState& rng_state);
 
-template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                                  double* d_value,
-                                  size_t size,
-                                  double min_value,
-                                  double max_value,
-                                  raft::random::RngState& rng_state);
-
 template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
 {
   thrust::fill_n(handle.get_thrust_policy(), d_value, size, value);
 }
-
-template void scalar_fill(raft::handle_t const& handle,
-                          int32_t* d_value,
-                          size_t size,
-                          int32_t value);
 
 template void scalar_fill(raft::handle_t const& handle,
                           int64_t* d_value,
@@ -99,8 +80,6 @@ template void scalar_fill(raft::handle_t const& handle, size_t* d_value, size_t 
 
 template void scalar_fill(raft::handle_t const& handle, float* d_value, size_t size, float value);
 
-template void scalar_fill(raft::handle_t const& handle, double* d_value, size_t size, double value);
-
 template <typename value_t>
 void sequence_fill(rmm::cuda_stream_view const& stream_view,
                    value_t* d_value,
@@ -109,11 +88,6 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
 {
   thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
 }
-
-template void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                            int32_t* d_value,
-                            size_t size,
-                            int32_t start_value);
 
 template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             int64_t* d_value,
@@ -141,11 +115,6 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
     vertex_t{0},
     thrust::maximum<vertex_t>());
 }
-
-template int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                           int32_t const* d_edgelist_srcs,
-                                           int32_t const* d_edgelist_dsts,
-                                           size_t num_edges);
 
 template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                            int64_t const* d_edgelist_srcs,
@@ -180,16 +149,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   return std::make_tuple(std::move(d_vertices), std::move(d_out_degs));
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-filter_degree_0_vertices(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>&& d_vertices,
-                         rmm::device_uvector<int32_t>&& d_out_degs);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
-filter_degree_0_vertices(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>&& d_vertices,
-                         rmm::device_uvector<int64_t>&& d_out_degs);
-
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 filter_degree_0_vertices(raft::handle_t const& handle,
                          rmm::device_uvector<int64_t>&& d_vertices,
@@ -214,12 +173,6 @@ bool is_equal(raft::handle_t const& handle,
   return thrust::equal(handle.get_thrust_policy(), span1.begin(), span1.end(), span2.begin());
 }
 
-template bool is_equal(raft::handle_t const& handle,
-                       raft::device_span<int32_t> span1,
-                       raft::device_span<int32_t> span2);
-template bool is_equal(raft::handle_t const& handle,
-                       raft::device_span<int32_t const> span1,
-                       raft::device_span<int32_t const> span2);
 template bool is_equal(raft::handle_t const& handle,
                        raft::device_span<int64_t> span1,
                        raft::device_span<int64_t> span2);

@@ -233,29 +233,9 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
   }
 };
 
-using Tests_BFS_File = Tests_BFS<cugraph::test::File_Usecase>;
 using Tests_BFS_Rmat = Tests_BFS<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_BFS_File, CheckInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_BFS_Rmat, CheckInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_BFS_Rmat, CheckInt32Int64)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
 
 TEST_P(Tests_BFS_Rmat, CheckInt64Int64)
 {
@@ -263,19 +243,6 @@ TEST_P(Tests_BFS_Rmat, CheckInt64Int64)
   run_current_test<int64_t, int64_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_BFS_File,
-  ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(BFS_Usecase{100}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(BFS_Usecase{1000}, cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(BFS_Usecase{1000},
-                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

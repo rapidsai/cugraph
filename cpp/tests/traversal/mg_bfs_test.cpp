@@ -250,28 +250,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGBFS<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGBFS_File = Tests_MGBFS<cugraph::test::File_Usecase>;
 using Tests_MGBFS_Rmat = Tests_MGBFS<cugraph::test::Rmat_Usecase>;
-
-TEST_P(Tests_MGBFS_File, CheckInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_MGBFS_Rmat, CheckInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGBFS_Rmat, CheckInt32Int64)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
 
 TEST_P(Tests_MGBFS_Rmat, CheckInt64Int64)
 {
@@ -279,17 +258,6 @@ TEST_P(Tests_MGBFS_Rmat, CheckInt64Int64)
   run_current_test<int64_t, int64_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_MGBFS_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(BFS_Usecase{0}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
