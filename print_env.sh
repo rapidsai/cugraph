@@ -84,4 +84,4 @@ echo "     "
 print_env | while read -r line; do
     echo "     $line"
 done
-echo "</pre></details>" 
+echo "</pre></details>"
