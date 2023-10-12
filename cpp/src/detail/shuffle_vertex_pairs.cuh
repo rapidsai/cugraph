@@ -66,15 +66,11 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-#if 0
   auto mem_frugal_flag =
     host_scalar_allreduce(comm,
                           majors.size() > mem_frugal_threshold ? int{1} : int{0},
                           raft::comms::op_t::MAX,
                           handle.get_stream());
-#else
-  bool mem_frugal_flag{true};
-#endif
 
   // invoke groupby_and_count and shuffle values to pass mem_frugal_threshold instead of directly
   // calling groupby_gpu_id_and_shuffle_values there is no benefit in reducing peak memory as we
@@ -124,8 +120,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
           mem_frugal_threshold,
           handle.get_stream());
       } else {
-        std::cout << "  just weights, calling group_by_and_count, rank = " << comm.get_rank()
-                  << std::endl;
         d_tx_value_counts = cugraph::groupby_and_count(
           thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
           thrust::make_zip_iterator(majors.end(), minors.end(), weights->end()),
@@ -133,7 +127,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
           comm_size,
           mem_frugal_threshold,
           handle.get_stream());
-        std::cout << "  just weights finished, rank = " << comm.get_rank() << std::endl;
       }
     }
   } else {
@@ -166,8 +159,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
           mem_frugal_threshold,
           handle.get_stream());
       } else {
-        std::cout << "  no weights, calling group_by_and_count, rank = " << comm.get_rank()
-                  << std::endl;
         d_tx_value_counts = cugraph::groupby_and_count(
           thrust::make_zip_iterator(majors.begin(), minors.begin()),
           thrust::make_zip_iterator(majors.end(), minors.end()),
@@ -186,11 +177,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                     handle.get_stream());
   handle.sync_stream();
 
-  std::cout << "  mem_frugal_flag check, rank = " << comm.get_rank() << std::endl;
-
   if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-    std::cout << "  mem_frugal_flag true, shuffle values, rank = " << comm.get_rank() << std::endl;
-
     std::tie(majors, std::ignore) =
       shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
 
@@ -242,8 +229,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                            h_tx_value_counts,
                            handle.get_stream());
         } else {
-          std::cout << "  mem_frugal_flag false, shuffle values, rank = " << comm.get_rank()
-                    << std::endl;
           std::forward_as_tuple(std::tie(majors, minors, weights), std::ignore) = shuffle_values(
             comm,
             thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
@@ -276,8 +261,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
             h_tx_value_counts,
             handle.get_stream());
         } else {
-          std::cout << "  mem_frugal_flag false, shuffle values no weights, rank = "
-                    << comm.get_rank() << std::endl;
           std::forward_as_tuple(std::tie(majors, minors), std::ignore) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(majors.begin(), minors.begin()),
@@ -288,7 +271,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     }
   }
 
-  std::cout << "  make tuple, rank = " << comm.get_rank() << std::endl;
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
@@ -320,8 +302,6 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   auto const major_comm_size = major_comm.get_size();
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_size = minor_comm.get_size();
-
-  std::cout << "  in shuffle... rank = " << comm.get_rank() << std::endl;
 
   return shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     handle,

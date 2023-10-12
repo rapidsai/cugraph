@@ -89,6 +89,9 @@ class resource_manager_t {
     // There is a deprecated environment variable: NCCL_LAUNCH_MODE=GROUP
     // which should temporarily work around this problem.
     //
+    // Further NOTE: multi-node requires the NCCL_LAUNCH_MODE=GROUP feature
+    // to be enabled even with the pool memory resource.
+    //
     // Ultimately there should be some RMM parameters passed into this function
     // (or the constructor of the object) to configure this behavior
 #if 0
@@ -209,11 +212,7 @@ class resource_manager_t {
         int rank = local_ranks_to_include[idx];
         RAFT_CUDA_TRY(cudaSetDevice(device_ids[idx].value()));
 
-        std::cout << "calling init_subcomm, rank = " << rank << ", comm_size = " << comm_size
-                  << ", gpu_row_comm_size = " << gpu_row_comm_size << std::endl;
-        //  This one requires paralellism, I believe
         cugraph::partition_manager::init_subcomm(*handles[idx], gpu_row_comm_size);
-        std::cout << "finished initialization thread, rank = " << rank << std::endl;
       });
     }
 
