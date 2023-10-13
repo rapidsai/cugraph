@@ -43,8 +43,8 @@
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
 - General
   - [Latest News](./readme_pages/news.md)
-  - [Current list of algorithms](./readme_pages/algorithms.md)
-  - [Blogs and Presentation](./docs/cugraph/source/basics/cugraph_blogs.rst)
+  - [Current list of algorithms](./docs/cugraph/source/graph_support/algorithms.md)
+  - [Blogs and Presentation](./docs/cugraph/source/tutorials/cugraph_blogs.rst)
   - [Performance](./readme_pages/performance/performance.md)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
