@@ -246,9 +246,9 @@ class Graph:
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
             new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
-        elif incoming_graph_data.__class__ is new_graph.__class__:
+        elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
-        elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
+        elif incoming_graph_data.__class__ is cls.to_networkx_class():
             new_graph = nxcg.from_networkx(incoming_graph_data, preserve_all_attrs=True)
         else:
             raise NotImplementedError
@@ -370,6 +370,12 @@ class Graph:
                 u = self.key_to_id[u]
                 v = self.key_to_id[v]
             except KeyError:
+                return default
+        else:
+            try:
+                if u < 0 or v < 0 or u >= self._N or v >= self._N:
+                    return default
+            except TypeError:
                 return default
         index = cp.nonzero((self.row_indices == u) & (self.col_indices == v))[0]
         if index.size == 0:

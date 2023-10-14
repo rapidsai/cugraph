@@ -109,7 +109,7 @@ addopts = [
     # "-ra",  # Print summary of all fails/errors
     "--benchmark-warmup=off",
     "--benchmark-max-time=0",
-    "--benchmark-min-rounds=3",
+    "--benchmark-min-rounds=1",
     "--benchmark-columns=min,median,max",
 ]
 

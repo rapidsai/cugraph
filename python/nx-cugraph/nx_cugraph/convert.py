@@ -274,7 +274,7 @@ def from_networkx(
         col_indices = cp.array(np.repeat(col_indices, num_multiedges))
         # Determine edge keys and edge ids for multigraphs
         edge_keys = list(concat(concat(map(dict.values, adj.values()))))
-        edge_indices = np.fromiter(
+        edge_indices = cp.fromiter(
             concat(map(range, map(len, concat(map(dict.values, adj.values()))))),
             np.int32,
         )

@@ -102,22 +102,162 @@ class MultiGraph(Graph):
             raise ValueError
         return new_graph
 
-    # TODO:
-    # from_csr
-    # from_csc
-    # from_dcsr
-    # from_dcsc
+    @classmethod
+    def from_csr(
+        cls,
+        indptr: cp.ndarray[IndexValue],
+        col_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        **attr,
+    ) -> MultiGraph:
+        N = indptr.size - 1
+        row_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            **attr,
+        )
 
-    def __new__(cls, incoming_graph_data=None, multigraph_input=None, **attr) -> Graph:
-        # TODO: handle multigraph_input
-        if incoming_graph_data is None:
-            new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
-        elif incoming_graph_data.__class__ is new_graph.__class__:
-            new_graph = incoming_graph_data.copy()
-        elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
-            new_graph = nxcg.from_networkx(incoming_graph_data, preserve_all_attrs=True)
+    @classmethod
+    def from_csc(
+        cls,
+        indptr: cp.ndarray[IndexValue],
+        row_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        **attr,
+    ) -> MultiGraph:
+        N = indptr.size - 1
+        col_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            **attr,
+        )
+
+    @classmethod
+    def from_dcsr(
+        cls,
+        N: int,
+        compressed_rows: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        col_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        **attr,
+    ) -> MultiGraph:
+        row_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_rows.get(), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            **attr,
+        )
+
+    @classmethod
+    def from_dcsc(
+        cls,
+        N: int,
+        compressed_cols: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        row_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        **attr,
+    ) -> Graph:
+        col_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_cols.get(), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            **attr,
+        )
+
+    def __new__(
+        cls, incoming_graph_data=None, multigraph_input=None, **attr
+    ) -> MultiGraph:
+        if isinstance(incoming_graph_data, dict) and multigraph_input is not False:
+            new_graph = nxcg.from_networkx(
+                nx.MultiGraph(incoming_graph_data, multigraph_input=multigraph_input),
+                preserve_all_attrs=True,
+            )
         else:
-            raise NotImplementedError
+            new_graph = super().__new__(cls, incoming_graph_data)
         new_graph.graph.update(attr)
         return new_graph
 
@@ -165,9 +305,68 @@ class MultiGraph(Graph):
         self.edge_indices = None
         self.edge_keys = None
 
-    # TODO:
-    # copy
-    # get_edge_data
+    @networkx_api
+    def copy(self, as_view: bool = False) -> MultiGraph:
+        # Does shallow copy in networkx
+        return self._copy(as_view, self.__class__)
+
+    @networkx_api
+    def get_edge_data(
+        self,
+        u: NodeKey,
+        v: NodeKey,
+        key: EdgeKey | None = None,
+        default: EdgeValue | None = None,
+    ):
+        if self.key_to_id is not None:
+            try:
+                u = self.key_to_id[u]
+                v = self.key_to_id[v]
+            except KeyError:
+                return default
+        else:
+            try:
+                if u < 0 or v < 0 or u >= self._N or v >= self._N:
+                    return default
+            except TypeError:
+                return default
+        mask = (self.row_indices == u) & (self.col_indices == v)
+        if not mask.any():
+            return default
+        if self.edge_keys is None:
+            if self.edge_indices is None:
+                self._calculate_edge_indices()
+            if key is not None:
+                try:
+                    mask = mask & (self.edge_indices == key)
+                except TypeError:
+                    return default
+        indices = cp.nonzero(mask)[0]
+        if indices.size == 0:
+            return default
+        edge_keys = self.edge_keys
+        if key is not None and edge_keys is not None:
+            mask[[i for i in indices.tolist() if edge_keys[i] != key]] = False
+            indices = cp.nonzero(mask)[0]
+            if indices.size == 0:
+                return default
+        if key is not None:
+            [index] = indices.tolist()
+            return {
+                k: v[index].tolist()
+                for k, v in self.edge_values.items()
+                if k not in self.edge_masks or self.edge_masks[k][index]
+            }
+        return {
+            edge_keys[index]
+            if edge_keys is not None
+            else index: {
+                k: v[index].tolist()
+                for k, v in self.edge_values.items()
+                if k not in self.edge_masks or self.edge_masks[k][index]
+            }
+            for index in indices.tolist()
+        }
 
     @networkx_api
     def has_edge(self, u: NodeKey, v: NodeKey, key: EdgeKey | None = None) -> bool:
@@ -181,7 +380,10 @@ class MultiGraph(Graph):
         if key is None or (self.edge_indices is None and self.edge_keys is None):
             return bool(mask.any())
         if self.edge_keys is None:
-            return bool((mask & (self.edge_indices == key)).any())
+            try:
+                return bool((mask & (self.edge_indices == key)).any())
+            except TypeError:
+                return False
         indices = cp.nonzero(mask)[0]
         if indices.size == 0:
             return False
