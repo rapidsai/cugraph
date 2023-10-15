@@ -31,20 +31,23 @@ _info = {
         # BEGIN: functions
         "betweenness_centrality",
         "edge_betweenness_centrality",
+        "is_isolate",
+        "isolates",
         "louvain_communities",
+        "number_of_isolates",
         # END: functions
     },
     "extra_docstrings": {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
-        "louvain_communities": "`threshold` and `seed` parameters are currently ignored.",
+        "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },
     "extra_parameters": {
         # BEGIN: extra_parameters
         "louvain_communities": {
-            "max_level : int, optional": "Upper limit of the number of macro-iterations.",
+            "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         # END: extra_parameters
     },
