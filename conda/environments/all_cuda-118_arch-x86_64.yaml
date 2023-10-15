@@ -75,5 +75,6 @@ dependencies:
 - sphinxcontrib-websupport
 - ucx-proc=*=gpu
 - ucx-py==0.35.*
+- wget
 - wheel
 name: all_cuda-118_arch-x86_64
