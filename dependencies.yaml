@@ -453,6 +453,9 @@ dependencies:
         packages:
           - ipython
           - notebook>=0.5.0
+      - output_types: [conda]
+        packages:
+          - wget
   test_python_common:
     common:
       - output_types: [conda, pyproject]
