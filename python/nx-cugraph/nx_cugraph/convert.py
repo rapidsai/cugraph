@@ -24,7 +24,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue
 
 __all__ = [
