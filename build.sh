@@ -404,8 +404,34 @@ if hasArg docs || hasArg all; then
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
     fi
+
+    for PROJECT in libcugraphops libwholegraph; do
+        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+        if [ -d ${XML_DIR} ]; then
+            echo "removing ${XML_DIR} docs dir"
+            rm -r ${XML_DIR}
+        fi
+        mkdir -p "${XML_DIR}"
+        export XML_DIR_${PROJECT^^}="$XML_DIR"
+
+        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz" && tar -xzf xml.tar.gz -C "${XML_DIR}"
+        rm "./xml.tar.gz"
+    done
+
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
+
+    if [ -d ${REPODIR}/docs/cugraph/libcugraph ]; then
+        echo "removing libcugraph docs dir"
+        rm -r ${REPODIR}/docs/cugraph/libcugraph
+    fi
+    echo "making libcugraph doc dir"
+    mkdir -p ${REPODIR}/docs/cugraph/libcugraph
+
+    mv ${REPODIR}/cpp/doxygen/xml   ${REPODIR}/docs/cugraph/libcugraph/_xml
+    mv ${REPODIR}/cpp/doxygen/html  ${REPODIR}/docs/cugraph/libcugraph/html
+
     cd ${REPODIR}/docs/cugraph
     make html
 fi

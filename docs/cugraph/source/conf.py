@@ -181,10 +181,18 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'cugraph', 'cugraph Documentation',
-     author, 'cugraph', 'One line description of project.',
+     author, 'cugraph', 'GPU-accelerated graph analysis.',
      'Miscellaneous'),
 ]
 
+autodoc_mock_imports = [
+    "numpy",
+    "torch",
+    "torch.distributed",
+    "torch.utils.dlpack",
+    "torch.utils.data.Dataset",
+    "pylibcugraph.binding.cugraph_binding"
+]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
@@ -209,7 +217,9 @@ linkcode_resolve = make_linkcode_resolve(
 )
 
 breathe_projects = {
+    'libcugraph': '../libcugraph/_xml',
     'libcugraphops': os.environ['XML_DIR_LIBCUGRAPHOPS'],
     'libwholegraph': os.environ['XML_DIR_LIBWHOLEGRAPH']
 }
+
 breathe_default_project = "libcugraph"

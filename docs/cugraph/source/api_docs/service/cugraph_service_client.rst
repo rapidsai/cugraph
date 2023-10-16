@@ -9,7 +9,7 @@ cugraph-service
 .. autosummary::
    :toctree: ../api/service/
 
-   cugraph_service_client.client.RunAsyncioThread
+..   cugraph_service_client.client.RunAsyncioThread
    cugraph_service_client.client.run_async
    cugraph_service_client.client.DeviceArrayAllocator
    cugraph_service_client.client.CugraphServiceClient

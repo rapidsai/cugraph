@@ -23,7 +23,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
- *  @ingroup c_api
  *  @{
  */
 

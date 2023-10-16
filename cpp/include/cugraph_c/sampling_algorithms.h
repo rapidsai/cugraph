@@ -21,8 +21,7 @@
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
-/** @defgroup sampling Sampling algorithms
- *  @ingroup c_api
+/** @defgroup samplingC Sampling algorithms
  *  @{
  */
 
