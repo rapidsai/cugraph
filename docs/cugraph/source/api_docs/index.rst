@@ -1,5 +1,5 @@
-API reference
-=============
+cugraph-ops API Reference
+=========================
 
 This page provides a list of all publicly accessible Python modules with in the Graph collection
 

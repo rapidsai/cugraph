@@ -26,7 +26,6 @@ RAPIDS Graph documentation
      - :abbr:`wholegraph (Shared memory-based GPU-accelerated GNN training)`
      -
 
-..
 
 |
 |
@@ -51,6 +50,7 @@ the docs and links
    references/index
    dev_resources/index
    releases/index
+   wholegraph/index
    api_docs/index
 
 Indices and tables
