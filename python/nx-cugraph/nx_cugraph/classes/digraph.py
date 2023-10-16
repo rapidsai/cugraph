@@ -20,7 +20,7 @@ import nx_cugraph as nxcg
 
 from .graph import Graph
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import NodeKey
 
 __all__ = ["DiGraph"]
