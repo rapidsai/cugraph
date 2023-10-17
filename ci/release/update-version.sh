@@ -54,24 +54,15 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
-# Python __init__.py updates
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/__init__.py
-
-# Python pyproject.toml updates
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/pyproject.toml
+# Python _version.py updates
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/_version.py
+sed_runner "/__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/_version.py
 
 # Wheel testing script
 sed_runner "s/branch-.*/branch-${NEXT_SHORT_TAG}/g" ci/test_wheel_cugraph.sh
