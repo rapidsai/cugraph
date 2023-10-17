@@ -11,10 +11,6 @@ RAPIDS WholeGraph has following package:
 
    basics/index
    installation/index
-   api_docs/index
-
-Indices and tables
-==================
 
 * :ref:`genindex`
 * :ref:`search`
