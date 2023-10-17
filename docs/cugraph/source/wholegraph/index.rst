@@ -1,5 +1,5 @@
-WholeGraph documentation
-========================
+WholeGraph
+==========
 RAPIDS WholeGraph has following package:
 
 * pylibwholegraph: shared memory-based GPU-accelerated GNN training
@@ -12,5 +12,3 @@ RAPIDS WholeGraph has following package:
    basics/index
    installation/index
 
-* :ref:`genindex`
-* :ref:`search`

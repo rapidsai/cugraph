@@ -28,9 +28,9 @@ RAPIDS Graph documentation
 ..
 |
 
-++++++++++++
+~~~~~~~~~~~~
 Introduction
-++++++++++++
+~~~~~~~~~~~~
 cuGraph is a library of graph algorithms that seamlessly integrates into the
 RAPIDS data science ecosystem and allows the data scientist to easily call
 graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or 
@@ -49,10 +49,8 @@ the docs and links
    installation/index
    tutorials/index
    graph_support/index
-   references/index
-   dev_resources/index
-   releases/index
    wholegraph/index
+   references/index
    api_docs/index
 
 Indices and tables
