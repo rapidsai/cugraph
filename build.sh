@@ -18,6 +18,8 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
+RAPIDS_VERSION=23.12
+
 # Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
    clean
@@ -415,7 +417,8 @@ if hasArg docs || hasArg all; then
         export XML_DIR_${PROJECT^^}="$XML_DIR"
 
         echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
-        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz" && tar -xzf xml.tar.gz -C "${XML_DIR}"
+        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+        tar -xzf xml.tar.gz -C "${XML_DIR}"
         rm "./xml.tar.gz"
     done
 
