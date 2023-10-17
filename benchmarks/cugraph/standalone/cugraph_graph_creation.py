@@ -210,7 +210,7 @@ if __name__ == "__main__":
 
             print("-" * 40 + f"renumber completed" + "-" * 40)
             stats_df = pd.DataFrame(
-            stats_ls,
+                stats_ls,
                 columns=[
                     "scale",
                     "num_input_edges",

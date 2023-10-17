@@ -88,6 +88,7 @@ jobs:
       extra-repo: rapidsai/cugraph-ops
       extra-repo-sha: branch-23.12
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      node_type: cpu32
   wheel-tests-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -133,5 +134,5 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
         sccache -z;
-        build-all --verbose;
+        build-all --verbose -j$(nproc --ignore=1);
         sccache -s;

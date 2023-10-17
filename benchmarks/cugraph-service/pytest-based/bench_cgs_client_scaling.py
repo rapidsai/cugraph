@@ -46,11 +46,8 @@ def running_server_for_sampling_with_graph(request):
     control returns to this fixture, the graph is deleted. If the fixture
     started a server subprocess, then it is terminated as well.
     """
-    (client, server_process) = (
-        utils.ensure_running_server_for_sampling(host=_host,
-                                                 port=_port,
-                                                 dask_scheduler_file=None,
-                                                 start_local_cuda_cluster=True)
+    (client, server_process) = utils.ensure_running_server_for_sampling(
+        host=_host, port=_port, dask_scheduler_file=None, start_local_cuda_cluster=True
     )
     num_edges = (2**_graph_scale) * _edge_factor
     gid = client.call_graph_creation_extension(
@@ -80,9 +77,7 @@ def create_sampling_client(host, port, graph_id):
     """
     client = CugraphServiceClient(host, port)
     fanout_vals = [10, 25]
-    start_list = client.call_extension(
-        "gen_vertex_list", graph_id, _batch_size
-    )
+    start_list = client.call_extension("gen_vertex_list", graph_id, _batch_size)
 
     def sampling_function(result_device):
         return client.uniform_neighbor_sample(
@@ -108,9 +103,11 @@ def create_sampling_client(host, port, graph_id):
 # Use the benchmark fixture once it can be run in a way where each run is timed
 # with other running clients.
 
+
 @pytest.mark.parametrize("num_clients", params.num_clients.values())
-def bench_cgs_client_scaling_individual_time(running_server_for_sampling_with_graph,
-                                             num_clients):
+def bench_cgs_client_scaling_individual_time(
+    running_server_for_sampling_with_graph, num_clients
+):
 
     graph_id = running_server_for_sampling_with_graph
 
@@ -133,8 +130,9 @@ def bench_cgs_client_scaling_individual_time(running_server_for_sampling_with_gr
 
 
 @pytest.mark.parametrize("num_clients", params.num_clients.values())
-def bench_cgs_client_scaling_total_time(running_server_for_sampling_with_graph,
-                                        num_clients):
+def bench_cgs_client_scaling_total_time(
+    running_server_for_sampling_with_graph, num_clients
+):
 
     graph_id = running_server_for_sampling_with_graph
 

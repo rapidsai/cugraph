@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,11 +18,12 @@ from cugraph.generators import rmat
 import cudf
 
 
-def generate_edgelist(scale,
-                      edgefactor,
-                      seed=None,
-                      unweighted=False,
-                     ):
+def generate_edgelist(
+    scale,
+    edgefactor,
+    seed=None,
+    unweighted=False,
+):
     """
     Returns a cudf DataFrame created using the R-MAT graph generator.
 
@@ -43,7 +44,7 @@ def generate_edgelist(scale,
     """
     df = rmat(
         scale,
-        (2**scale)*edgefactor,
+        (2**scale) * edgefactor,
         0.57,  # from Graph500
         0.19,  # from Graph500
         0.19,  # from Graph500
@@ -51,7 +52,7 @@ def generate_edgelist(scale,
         clip_and_flip=False,
         scramble_vertex_ids=True,
         create_using=None,  # return edgelist instead of Graph instance
-        mg=False
+        mg=False,
     )
     if not unweighted:
         rng = np.random.default_rng(seed)
@@ -72,16 +73,17 @@ def read_csv(input_csv_file, scale):
     """
     vertex_t = "int32" if scale <= 32 else "int64"
     dtypes = [vertex_t, vertex_t, "float32"]
-    names=["src", "dst", "weight"],
+    names = (["src", "dst", "weight"],)
 
     chunksize = cugraph.dask.get_chunksize(input_csv_file)
-    return cudf.read_csv(input_csv_file,
-                         chunksize=chunksize,
-                         delimiter=" ",
-                         #names=names,
-                         dtype=dtypes,
-                         header=None,
-                        )
+    return cudf.read_csv(
+        input_csv_file,
+        chunksize=chunksize,
+        delimiter=" ",
+        # names=names,
+        dtype=dtypes,
+        header=None,
+    )
 
 
 ################################################################################
@@ -89,6 +91,7 @@ def read_csv(input_csv_file, scale):
 #
 # The "benchmark_name" attr is used by the benchmark infra for reporting and is
 # set to assign more meaningful names to be displayed in reports.
+
 
 def construct_graph(dataframe, symmetric=False):
     """
@@ -103,15 +106,17 @@ def construct_graph(dataframe, symmetric=False):
 
     if len(dataframe.columns) > 2:
         G.from_cudf_edgelist(
-            dataframe, source="src", destination="dst", edge_attr="weight")
-        #G.from_cudf_edgelist(
+            dataframe, source="src", destination="dst", edge_attr="weight"
+        )
+        # G.from_cudf_edgelist(
         #    dataframe, source="0", destination="1", edge_attr="2")
     else:
-        G.from_cudf_edgelist(
-            dataframe, source="src", destination="dst")
-        #G.from_cudf_edgelist(
+        G.from_cudf_edgelist(dataframe, source="src", destination="dst")
+        # G.from_cudf_edgelist(
         #    dataframe, source="0", destination="1")
     return G
+
+
 construct_graph.benchmark_name = "from_cudf_edgelist"
 
 
@@ -138,23 +143,30 @@ def pagerank(G):
 def katz(G, alpha=None):
     return cugraph.katz_centrality(G, alpha)
 
+
 def hits(G):
     return cugraph.hits(G)
 
+
 def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
     # convert list to cudf.Series
-    start_list = cudf.Series(start_list, dtype="int32")  
+    start_list = cudf.Series(start_list, dtype="int32")
     return cugraph.uniform_neighbor_sample(
-        G, start_list=start_list, fanout_vals=fanout_vals)
+        G, start_list=start_list, fanout_vals=fanout_vals
+    )
+
 
 def triangle_count(G):
     return cugraph.triangle_count(G)
 
+
 def eigenvector_centrality(G):
     return cugraph.eigenvector_centrality(G)
 
+
 ################################################################################
 # Session-wide setup and teardown
+
 
 def setup(*args, **kwargs):
     return tuple()
