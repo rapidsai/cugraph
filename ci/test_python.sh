@@ -63,6 +63,7 @@ pytest \
   tests
 popd
 
+# Remove this comment once PR 3940 is merged
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 DASK_WORKER_DEVICES="0" \
