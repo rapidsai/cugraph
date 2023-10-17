@@ -23,7 +23,7 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
 
     from nx_cugraph.typing import (
@@ -245,9 +245,9 @@ class Graph:
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
             new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
-        elif incoming_graph_data.__class__ is new_graph.__class__:
+        elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
-        elif incoming_graph_data.__class__ is new_graph.to_networkx_class():
+        elif incoming_graph_data.__class__ is cls.to_networkx_class():
             new_graph = nxcg.from_networkx(incoming_graph_data, preserve_all_attrs=True)
         else:
             raise NotImplementedError
