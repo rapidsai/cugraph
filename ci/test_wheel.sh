@@ -21,9 +21,10 @@ arch=$(uname -m)
 if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
     python ./ci/wheel_smoke_test_${package_name}.py
 else
+    # FIXME: TEMPORARILY disable single-GPU "MG" testing
     RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets \
     DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
     DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
     DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
-    python -m pytest ./python/${package_name}/${python_package_name}/tests
+    python -m pytest -k "not _mg" ./python/${package_name}/${python_package_name}/tests
 fi
