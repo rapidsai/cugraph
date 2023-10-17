@@ -13,7 +13,7 @@ col_names:
 col_types:
   - int32
   - int32
-has_loop: true
+has_loop: false
 is_directed: false
 is_multigraph: false
 is_symmetric: false

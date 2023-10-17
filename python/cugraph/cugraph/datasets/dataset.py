@@ -137,12 +137,6 @@ class Dataset:
 
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
-            if "benchmark.tar.gz" in url:
-                # Benchmark dataset first requires uncompressing
-                raise RuntimeError(
-                    "To download a dataset used for benchmarking, "
-                    "use download_all instead."
-                )
             df = cudf.read_csv(url)
             self._path = self._dl_path.path / filename
             df.to_csv(self._path, index=False)

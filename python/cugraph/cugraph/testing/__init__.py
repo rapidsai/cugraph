@@ -38,7 +38,7 @@ from cugraph.datasets import (
     cit_patents,
     europe_osm,
     hollywood,
-    twitter,
+    # twitter,
 )
 
 #
