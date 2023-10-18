@@ -10,8 +10,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .graph import Graph
+from __future__ import annotations
+
+import networkx as nx
+
+import nx_cugraph as nxcg
+
+from .digraph import DiGraph
 from .multigraph import MultiGraph
 
-from .digraph import DiGraph  # isort:skip
-from .multidigraph import MultiDiGraph  # isort:skip
+__all__ = ["MultiDiGraph"]
+
+networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiDiGraph)
+
+
+class MultiDiGraph(MultiGraph, DiGraph):
+    @classmethod
+    def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
+        return nx.MultiDiGraph

@@ -43,7 +43,8 @@ networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
 class Graph:
     # Tell networkx to dispatch calls with this object to nx-cugraph
-    __networkx_plugin__: ClassVar[str] = "cugraph"
+    __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
+    __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
 
     # networkx properties
     graph: dict
@@ -58,7 +59,7 @@ class Graph:
     node_values: dict[AttrKey, cp.ndarray[NodeValue]]
     node_masks: dict[AttrKey, cp.ndarray[bool]]
     key_to_id: dict[NodeKey, IndexValue] | None
-    _id_to_key: dict[IndexValue, NodeKey] | None
+    _id_to_key: list[NodeKey] | None
     _N: int
 
     ####################
@@ -77,7 +78,7 @@ class Graph:
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: dict[IndexValue, NodeKey] | None = None,
+        id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
         new_graph = object.__new__(cls)
@@ -88,7 +89,7 @@ class Graph:
         new_graph.node_values = {} if node_values is None else dict(node_values)
         new_graph.node_masks = {} if node_masks is None else dict(node_masks)
         new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
-        new_graph._id_to_key = None if id_to_key is None else dict(id_to_key)
+        new_graph._id_to_key = None if id_to_key is None else list(id_to_key)
         new_graph._N = op.index(N)  # Ensure N is integral
         new_graph.graph = new_graph.graph_attr_dict_factory()
         new_graph.graph.update(attr)
@@ -123,7 +124,7 @@ class Graph:
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: dict[IndexValue, NodeKey] | None = None,
+        id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -155,7 +156,7 @@ class Graph:
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: dict[IndexValue, NodeKey] | None = None,
+        id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -189,7 +190,7 @@ class Graph:
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: dict[IndexValue, NodeKey] | None = None,
+        id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
         row_indices = cp.array(
@@ -222,7 +223,7 @@ class Graph:
         node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: dict[IndexValue, NodeKey] | None = None,
+        id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
         col_indices = cp.array(
@@ -295,11 +296,11 @@ class Graph:
         return {key: val.dtype for key, val in self.node_values.items()}
 
     @property
-    def id_to_key(self) -> dict[IndexValue, NodeKey] | None:
+    def id_to_key(self) -> [NodeKey] | None:
         if self.key_to_id is None:
             return None
         if self._id_to_key is None:
-            self._id_to_key = {val: key for key, val in self.key_to_id.items()}
+            self._id_to_key = sorted(self.key_to_id, key=self.key_to_id.__getitem__)
         return self._id_to_key
 
     name = nx.Graph.name
@@ -369,6 +370,12 @@ class Graph:
                 u = self.key_to_id[u]
                 v = self.key_to_id[v]
             except KeyError:
+                return default
+        else:
+            try:
+                if u < 0 or v < 0 or u >= self._N or v >= self._N:
+                    return default
+            except TypeError:
                 return default
         index = cp.nonzero((self.row_indices == u) & (self.col_indices == v))[0]
         if index.size == 0:
@@ -447,6 +454,7 @@ class Graph:
     ###################
 
     def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
+        # DRY warning: see also MultiGraph._copy
         indptr = self.indptr
         row_indices = self.row_indices
         col_indices = self.col_indices
