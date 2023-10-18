@@ -82,7 +82,6 @@ endif()
 
 rapids_cython_init()
 
-add_subdirectory(cugraph/community)
 add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/structure)

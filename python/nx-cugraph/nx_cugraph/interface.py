@@ -62,9 +62,7 @@ class BackendInterface:
         # Reasons for xfailing
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
-        louvain_different = (
-            "Louvain may be different due to RNG or unsupported threshold parameter"
-        )
+        louvain_different = "Louvain may be different due to RNG"
 
         xfail = {}
 
@@ -176,7 +174,10 @@ class BackendInterface:
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
                     key("test_louvain.py:test_multigraph"): louvain_different,
-                    key("test_louvain.py:test_threshold"): louvain_different,
+                    # See networkx#6630
+                    key(
+                        "test_louvain.py:test_undirected_selfloops"
+                    ): "self-loops not handled in Louvain",
                 }
             )
 
@@ -192,10 +193,4 @@ class BackendInterface:
 
         This is a proposed API to add to networkx dispatching machinery and may change.
         """
-        return (
-            hasattr(cls, name)
-            and getattr(cls, name).can_run(*args, **kwargs)
-            # We don't support MultiGraphs yet
-            and not any(isinstance(x, nx.MultiGraph) for x in args)
-            and not any(isinstance(x, nx.MultiGraph) for x in kwargs.values())
-        )
+        return hasattr(cls, name) and getattr(cls, name).can_run(*args, **kwargs)
