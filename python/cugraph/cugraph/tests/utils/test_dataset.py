@@ -98,7 +98,7 @@ def setup_deprecation_warning_tests():
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:
         return False
-    df = dataset.get_edgelist()
+    df = dataset.get_edgelist(download=True)
     df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
     res = df.where(df["src"] == df["dst"])
 
@@ -113,7 +113,13 @@ def is_symmetric(dataset):
     else:
         df = dataset.get_edgelist(download=True)
         df_a = df.sort_values("src")
-        df_b = df_a[["dst", "src", "wgt"]]
+
+        # create df with swapped src/dst columns
+        df_b = None
+        if "wgt" in df_a.columns:
+            df_b = df_a[["dst", "src", "wgt"]]
+        else:
+            df_b = df_a[["dst", "src"]]
         df_b.rename(columns={"dst": "src", "src": "dst"}, inplace=True)
         # created a df by appending the two
         res = cudf.concat([df_a, df_b])
@@ -314,9 +320,7 @@ def test_is_directed(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_has_selfloop(dataset):
-    df = dataset.get_edgelist(download=True)
-
-    assert has_selfloop(df) == dataset.metadata["has_loop"]
+    assert has_selfloop(dataset) == dataset.metadata["has_loop"]
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -331,10 +335,10 @@ def test_is_multigraph(dataset):
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
 
+# The datasets used for benchmarks are in their own test, since downloading them
+# repeatedly would increase testing overhead significantly
 @pytest.mark.parametrize("dataset", BENCHMARKING_DATASETS)
 def test_benchmarking_datasets(dataset):
-    # The datasets used for benchmarks are in their own test, since downloading them
-    # repeatedly would increase testing overhead significantly
     dataset_is_directed = dataset.metadata["is_directed"]
     G = dataset.get_graph(
         download=True, create_using=Graph(directed=dataset_is_directed)
@@ -344,6 +348,7 @@ def test_benchmarking_datasets(dataset):
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert G.number_of_edges() == dataset.metadata["number_of_edges"]
     assert has_selfloop(dataset) == dataset.metadata["has_loop"]
+    assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
     dataset.unload()
