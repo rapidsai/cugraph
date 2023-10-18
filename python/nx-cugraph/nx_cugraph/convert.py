@@ -122,8 +122,6 @@ def from_networkx(
             graph = G
         else:
             raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
-    elif graph.is_multigraph():
-        raise NotImplementedError("MultiGraph support is not yet implemented")
 
     if preserve_all_attrs:
         preserve_edge_attrs = True
@@ -144,7 +142,7 @@ def from_networkx(
         else:
             node_attrs = {node_attrs: None}
 
-    if graph.__class__ in {nx.Graph, nx.DiGraph}:
+    if graph.__class__ in {nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph}:
         # This is a NetworkX private attribute, but is much faster to use
         adj = graph._adj
     else:
@@ -163,7 +161,11 @@ def from_networkx(
         edge_attrs = None
     elif preserve_edge_attrs:
         # Using comprehensions should be just as fast starting in Python 3.11
-        attr_sets = set(map(frozenset, concat(map(dict.values, adj.values()))))
+        it = concat(map(dict.values, adj.values()))
+        if graph.is_multigraph():
+            it = concat(map(dict.values, it))
+        # PERF: should we add `filter(None, ...)` to remove empty data dicts?
+        attr_sets = set(map(frozenset, it))
         attrs = frozenset.union(*attr_sets)
         edge_attrs = dict.fromkeys(attrs, REQUIRED)
         if len(attr_sets) > 1:
@@ -180,11 +182,19 @@ def from_networkx(
         if len(required) == 1:
             # Fast path for the common case of a single attribute with no default
             [attr] = required
-            it = (
-                attr in edgedata
-                for rowdata in adj.values()
-                for edgedata in rowdata.values()
-            )
+            if graph.is_multigraph():
+                it = (
+                    attr in edgedata
+                    for rowdata in adj.values()
+                    for multiedges in rowdata.values()
+                    for edgedata in multiedges.values()
+                )
+            else:
+                it = (
+                    attr in edgedata
+                    for rowdata in adj.values()
+                    for edgedata in rowdata.values()
+                )
             if next(it):
                 if all(it):
                     # All edges have data
@@ -195,9 +205,10 @@ def from_networkx(
                 del edge_attrs[attr]
             # Else some edges have attribute (default already None)
         else:
-            attr_sets = set(
-                map(required.intersection, concat(map(dict.values, adj.values())))
-            )
+            it = concat(map(dict.values, adj.values()))
+            if graph.is_multigraph():
+                it = concat(map(dict.values, it))
+            attr_sets = set(map(required.intersection, it))
             for attr in required - frozenset.union(*attr_sets):
                 # No edges have these attributes
                 del edge_attrs[attr]
@@ -254,7 +265,23 @@ def from_networkx(
         key_to_id = None
     else:
         col_iter = map(key_to_id.__getitem__, col_iter)
-    col_indices = cp.fromiter(col_iter, np.int32)
+    if graph.is_multigraph():
+        col_indices = np.fromiter(col_iter, np.int32)
+        num_multiedges = np.fromiter(
+            map(len, concat(map(dict.values, adj.values()))), np.int32
+        )
+        # cp.repeat is slow to use here, so use numpy instead
+        col_indices = cp.array(np.repeat(col_indices, num_multiedges))
+        # Determine edge keys and edge ids for multigraphs
+        edge_keys = list(concat(concat(map(dict.values, adj.values()))))
+        edge_indices = cp.fromiter(
+            concat(map(range, map(len, concat(map(dict.values, adj.values()))))),
+            np.int32,
+        )
+        if edge_keys == edge_indices.tolist():
+            edge_keys = None  # Prefer edge_indices
+    else:
+        col_indices = cp.fromiter(col_iter, np.int32)
 
     edge_values = {}
     edge_masks = {}
@@ -268,16 +295,29 @@ def from_networkx(
             if edge_default is None:
                 vals = []
                 append = vals.append
-                iter_mask = (
-                    append(
-                        edgedata[edge_attr]
-                        if (present := edge_attr in edgedata)
-                        else False
+                if graph.is_multigraph():
+                    iter_mask = (
+                        append(
+                            edgedata[edge_attr]
+                            if (present := edge_attr in edgedata)
+                            else False
+                        )
+                        or present
+                        for rowdata in adj.values()
+                        for multiedges in rowdata.values()
+                        for edgedata in multiedges.values()
                     )
-                    or present
-                    for rowdata in adj.values()
-                    for edgedata in rowdata.values()
-                )
+                else:
+                    iter_mask = (
+                        append(
+                            edgedata[edge_attr]
+                            if (present := edge_attr in edgedata)
+                            else False
+                        )
+                        or present
+                        for rowdata in adj.values()
+                        for edgedata in rowdata.values()
+                    )
                 edge_masks[edge_attr] = cp.fromiter(iter_mask, bool)
                 edge_values[edge_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
@@ -289,8 +329,16 @@ def from_networkx(
                     #     for rowdata in adj.values()
                     #     for edgedata in rowdata.values()
                     # )
-                    iter_values = map(
-                        op.itemgetter(edge_attr), concat(map(dict.values, adj.values()))
+                    it = concat(map(dict.values, adj.values()))
+                    if graph.is_multigraph():
+                        it = concat(map(dict.values, it))
+                    iter_values = map(op.itemgetter(edge_attr), it)
+                elif graph.is_multigraph():
+                    iter_values = (
+                        edgedata.get(edge_attr, edge_default)
+                        for rowdata in adj.values()
+                        for multiedges in rowdata.values()
+                        for edgedata in multiedges.values()
                     )
                 else:
                     iter_values = (
@@ -304,13 +352,13 @@ def from_networkx(
                     edge_values[edge_attr] = cp.fromiter(iter_values, dtype)
                 # if vals.ndim > 1: ...
 
-    row_indices = cp.array(
-        # cp.repeat is slow to use here, so use numpy instead
-        np.repeat(
-            np.arange(N, dtype=np.int32),
-            np.fromiter(map(len, adj.values()), np.int32),
-        )
+    # cp.repeat is slow to use here, so use numpy instead
+    row_indices = np.repeat(
+        np.arange(N, dtype=np.int32), np.fromiter(map(len, adj.values()), np.int32)
     )
+    if graph.is_multigraph():
+        row_indices = np.repeat(row_indices, num_multiedges)
+    row_indices = cp.array(row_indices)
 
     node_values = {}
     node_masks = {}
@@ -350,21 +398,38 @@ def from_networkx(
                 else:
                     node_values[node_attr] = cp.fromiter(iter_values, dtype)
                 # if vals.ndim > 1: ...
-
-    if graph.is_directed() or as_directed:
-        klass = nxcg.DiGraph
+    if graph.is_multigraph():
+        if graph.is_directed() or as_directed:
+            klass = nxcg.MultiDiGraph
+        else:
+            klass = nxcg.MultiGraph
+        rv = klass.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            edge_keys=edge_keys,
+        )
     else:
-        klass = nxcg.Graph
-    rv = klass.from_coo(
-        N,
-        row_indices,
-        col_indices,
-        edge_values,
-        edge_masks,
-        node_values,
-        node_masks,
-        key_to_id=key_to_id,
-    )
+        if graph.is_directed() or as_directed:
+            klass = nxcg.DiGraph
+        else:
+            klass = nxcg.Graph
+        rv = klass.from_coo(
+            N,
+            row_indices,
+            col_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+        )
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
     return rv
@@ -427,7 +492,7 @@ def to_networkx(G: nxcg.Graph) -> nx.Graph:
         full_node_dicts = _iter_attr_dicts(node_values, node_masks)
         rv.add_nodes_from(zip(node_iter, full_node_dicts))
     elif id_to_key is not None:
-        rv.add_nodes_from(id_to_key.values())
+        rv.add_nodes_from(id_to_key)
     else:
         rv.add_nodes_from(range(len(G)))
 
@@ -448,7 +513,17 @@ def to_networkx(G: nxcg.Graph) -> nx.Graph:
     if id_to_key is not None:
         row_iter = map(id_to_key.__getitem__, row_indices)
         col_iter = map(id_to_key.__getitem__, col_indices)
-    if edge_values:
+    if G.is_multigraph() and (G.edge_keys is not None or G.edge_indices is not None):
+        if G.edge_keys is not None:
+            edge_keys = G.edge_keys
+        else:
+            edge_keys = G.edge_indices.tolist()
+        if edge_values:
+            full_edge_dicts = _iter_attr_dicts(edge_values, edge_masks)
+            rv.add_edges_from(zip(row_iter, col_iter, edge_keys, full_edge_dicts))
+        else:
+            rv.add_edges_from(zip(row_iter, col_iter, edge_keys))
+    elif edge_values:
         full_edge_dicts = _iter_attr_dicts(edge_values, edge_masks)
         rv.add_edges_from(zip(row_iter, col_iter, full_edge_dicts))
     else:

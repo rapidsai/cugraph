@@ -401,12 +401,13 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - networkx>=3.0
+          - &numpy numpy>=1.21
   python_run_cugraph_dgl:
     common:
       - output_types: [conda, pyproject]
         packages:
           - *numba
-          - &numpy numpy>=1.21
+          - *numpy
       - output_types: [pyproject]
         packages:
           - &cugraph cugraph==23.12.*

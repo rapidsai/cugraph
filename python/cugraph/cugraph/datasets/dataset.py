@@ -26,10 +26,22 @@ class DefaultDownloadDir:
     a single object.
     """
 
-    def __init__(self):
-        self._path = Path(
-            os.environ.get("RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets")
-        )
+    def __init__(self, path_modifier=None):
+        if path_modifier:
+            self._path = (
+                Path(
+                    os.environ.get(
+                        "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
+                    )
+                )
+                / path_modifier
+            )
+        else:
+            self._path = Path(
+                os.environ.get(
+                    "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
+                )
+            )
 
     @property
     def path(self):
@@ -52,6 +64,23 @@ class DefaultDownloadDir:
 
     def clear(self):
         self._path = None
+
+    def set_download_dir(self, path):
+        """
+        Set the download location for datasets
+
+        Parameters
+        ----------
+        path : String
+            Location used to store datafiles
+        """
+        if path is None:
+            self.clear()
+        else:
+            self._path = path
+
+    def get_download_dir(self):
+        return self._path.absolute()
 
 
 default_download_dir = DefaultDownloadDir()
@@ -346,7 +375,7 @@ def download_all(force=False):
 
 def set_download_dir(path):
     """
-    Set the download location fors datasets
+    Set the download location for datasets
 
     Parameters
     ----------

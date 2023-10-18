@@ -19,7 +19,7 @@ from cugraph.testing.resultset import (
     Resultset,
     load_resultset,
     get_resultset,
-    results_dir_path,
+    default_resultset_download_dir,
 )
 from cugraph.datasets import (
     cyber,
