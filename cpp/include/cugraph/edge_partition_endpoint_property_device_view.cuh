@@ -39,12 +39,15 @@ template <typename vertex_t,
           typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_partition_endpoint_property_device_view_t {
  public:
+  using vertex_type                    = vertex_t;
+  using value_type                     = value_t;
+  static constexpr bool is_packed_bool = cugraph::is_packed_bool<ValueIterator, value_t>();
+  static constexpr bool has_packed_bool_element =
+    cugraph::has_packed_bool_element<ValueIterator, value_t>();
+
   static_assert(
     std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
-    cugraph::has_packed_bool_element<ValueIterator, value_t>());
-
-  using vertex_type = vertex_t;
-  using value_type  = value_t;
+    has_packed_bool_element);
 
   edge_partition_endpoint_property_device_view_t() = default;
 
@@ -77,8 +80,8 @@ class edge_partition_endpoint_property_device_view_t {
   __device__ value_t get(vertex_t offset) const
   {
     auto val_offset = value_offset(offset);
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       return static_cast<bool>(*(value_first_ + cugraph::packed_bool_offset(val_offset)) & mask);
     } else {
@@ -93,8 +96,8 @@ class edge_partition_endpoint_property_device_view_t {
   atomic_and(vertex_t offset, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       auto old  = atomicAnd(value_first_ + cugraph::packed_bool_offset(val_offset),
                            val ? cugraph::packed_bool_full_mask() : ~mask);
@@ -111,8 +114,8 @@ class edge_partition_endpoint_property_device_view_t {
   atomic_or(vertex_t offset, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       auto old  = atomicOr(value_first_ + cugraph::packed_bool_offset(val_offset),
                           val ? mask : cugraph::packed_bool_empty_mask());
@@ -140,8 +143,8 @@ class edge_partition_endpoint_property_device_view_t {
   elementwise_atomic_cas(vertex_t offset, value_t compare, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       auto old  = val ? atomicOr(value_first_ + cugraph::packed_bool_offset(val_offset), mask)
                       : atomicAnd(value_first_ + cugraph::packed_bool_offset(val_offset), ~mask);
@@ -203,8 +206,10 @@ class edge_partition_endpoint_property_device_view_t {
 template <typename vertex_t>
 class edge_partition_endpoint_dummy_property_device_view_t {
  public:
-  using vertex_type = vertex_t;
-  using value_type  = thrust::nullopt_t;
+  using vertex_type                             = vertex_t;
+  using value_type                              = thrust::nullopt_t;
+  static constexpr bool is_packed_bool          = false;
+  static constexpr bool has_packed_bool_element = false;
 
   edge_partition_endpoint_dummy_property_device_view_t() = default;
 
