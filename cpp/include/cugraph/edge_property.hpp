@@ -72,9 +72,11 @@ class edge_property_t {
  public:
   static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  using edge_type   = typename GraphViewType::edge_type;
-  using value_type  = T;
-  using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  using edge_type  = typename GraphViewType::edge_type;
+  using value_type = T;
+  using buffer_type =
+    decltype(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+      size_t{0}, rmm::cuda_stream_view{}));
 
   edge_property_t(raft::handle_t const& handle) {}
 
