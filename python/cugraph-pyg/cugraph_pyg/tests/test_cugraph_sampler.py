@@ -17,7 +17,9 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
+from cugraph_pyg.sampler.cugraph_sampler import (
+    _sampler_output_from_sampling_results_heterogeneous,
+)
 
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph import uniform_neighbor_sample
@@ -29,7 +31,7 @@ torch = import_optional("torch")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = CuGraphStore(F, G, N, order="CSR")
 
     batches = cudf.DataFrame(
         {
@@ -47,9 +49,10 @@ def test_neighbor_sample(basic_graph_1):
         with_batch_ids=True,
         random_state=62,
         return_offsets=False,
-    ).sort_values(by=["sources", "destinations"])
+        use_legacy_names=False,
+    ).sort_values(by=["majors", "minors"])
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -77,7 +80,7 @@ def test_neighbor_sample(basic_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 1
-    assert out.num_sampled_nodes["vt1"].tolist() == [4, 4]
+    assert out.num_sampled_nodes["vt1"].tolist() == [4, 1]
 
     assert len(out.num_sampled_edges) == 1
     assert out.num_sampled_edges[("vt1", "pig", "vt1")].tolist() == [6]
@@ -87,7 +90,7 @@ def test_neighbor_sample(basic_graph_1):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = CuGraphStore(F, G, N, order="CSR")
 
     batches = cudf.DataFrame(
         {
@@ -105,9 +108,10 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         random_state=62,
         return_offsets=False,
         with_batch_ids=True,
-    ).sort_values(by=["sources", "destinations"])
+        use_legacy_names=False,
+    ).sort_values(by=["majors", "minors"])
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
         renumber_map=None,
         graph_store=cugraph_store,
@@ -132,8 +136,8 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 2
-    assert out.num_sampled_nodes["black"].tolist() == [2, 2]
-    assert out.num_sampled_nodes["brown"].tolist() == [3, 2]
+    assert out.num_sampled_nodes["black"].tolist() == [2, 0]
+    assert out.num_sampled_nodes["brown"].tolist() == [3, 0]
 
     assert len(out.num_sampled_edges) == 5
     assert out.num_sampled_edges[("brown", "horse", "brown")].tolist() == [2]
@@ -147,19 +151,19 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 def test_neighbor_sample_mock_sampling_results(abc_graph):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N)
+    graph_store = CuGraphStore(F, G, N, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
         {
-            "sources": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
-            "destinations": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
+            "majors": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
+            "minors": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 3, 3, 3], dtype="int32"),
             "edge_type": cudf.Series([0, 0, 0, 2, 1, 2, 0, 1, 2, 2], dtype="int32"),
         }
     )
 
-    out = _sampler_output_from_sampling_results(
+    out = _sampler_output_from_sampling_results_heterogeneous(
         mock_sampling_results, None, graph_store, None
     )
 
@@ -179,9 +183,9 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.col[("B", "ba", "A")].tolist() == [1, 1]
 
     assert len(out.num_sampled_nodes) == 3
-    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 1, 0, 1]
-    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 1, 0]
-    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 2]
+    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 0, 0, 0]
+    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 0, 0]
+    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 1]
 
     assert len(out.num_sampled_edges) == 3
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]

@@ -36,6 +36,7 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
+    get_length_of_parts,
     persist_dask_df_equal_parts_per_worker,
 )
 from cugraph.dask import get_n_workers
@@ -181,7 +182,6 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
-        # FIXME: Make a copy of the input ddf before implicitly altering it.
         input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
@@ -319,9 +319,14 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
-        num_edges = len(ddf)
-        ddf = get_persisted_df_worker_map(ddf, _client)
+        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
+            ddf, _client, return_type="dict"
+        )
+        del ddf
+        length_of_parts = get_length_of_parts(persisted_keys_d, _client)
+        num_edges = sum(
+            [item for sublist in length_of_parts.values() for item in sublist]
+        )
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -332,14 +337,16 @@ class simpleDistributedGraphImpl:
                 store_transposed,
                 num_edges,
             )
-            for w, edata in ddf.items()
+            for w, edata in persisted_keys_d.items()
         }
-        del ddf
         self._plc_graph = {
-            w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
+            w: _client.compute(
+                delayed_task, workers=w, allow_other_workers=False, pure=False
+            )
             for w, delayed_task in delayed_tasks_d.items()
         }
         wait(list(self._plc_graph.values()))
+        del persisted_keys_d
         del delayed_tasks_d
         _client.run(gc.collect)
 

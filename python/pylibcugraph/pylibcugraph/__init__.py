@@ -87,6 +87,8 @@ from pylibcugraph.generate_rmat_edgelist import generate_rmat_edgelist
 
 from pylibcugraph.generate_rmat_edgelists import generate_rmat_edgelists
 
+from pylibcugraph.k_truss_subgraph import k_truss_subgraph
+
 from pylibcugraph.jaccard_coefficients import jaccard_coefficients
 
 from pylibcugraph.overlap_coefficients import overlap_coefficients
@@ -96,4 +98,4 @@ from pylibcugraph.sorensen_coefficients import sorensen_coefficients
 
 from pylibcugraph import exceptions
 
-__version__ = "23.10.00"
+__version__ = "23.12.00"
