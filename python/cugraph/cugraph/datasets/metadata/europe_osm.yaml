@@ -1,0 +1,21 @@
+name: europe_osm
+file_type: .csv
+description: A graph of OpenStreetMap data for Europe.
+author: M. Kobitzsh / Geofabrik GmbH
+refs:
+  Rossi, Ryan. Ahmed, Nesreen. The Network Data Respoistory with Interactive Graph Analytics and Visualization.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 54054660
+number_of_nodes: 50912018
+url: https://data.rapids.ai/cugraph/datasets/europe_osm.csv

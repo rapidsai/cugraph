@@ -1,0 +1,22 @@
+name: soc-twitter-2010
+file_type: .csv
+description: A network of follower relationships from a snapshot of Twitter in 2010, where an edge from i to j indicates that j is a follower of i.
+author: H. Kwak, C. Lee, H. Park, S. Moon
+refs:
+  J. Yang, J. Leskovec. Temporal Variation in Online Media. ACM Intl.        
+  Conf. on Web Search and Data Mining (WSDM '11), 2011. 
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 530051354
+number_of_nodes: 21297772
+url: https://data.rapids.ai/cugraph/datasets/soc-twitter-2010.csv

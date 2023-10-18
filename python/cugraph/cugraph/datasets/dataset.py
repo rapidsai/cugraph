@@ -188,7 +188,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False):
+    def get_edgelist(self, download=False, create_using=cudf):
         """
         Return an Edgelist
 
@@ -197,6 +197,10 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
+
+        create_using : module (default=cudf)
+            Specify which module to use when reading the dataset. This module
+            must have a read_csv function.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -212,7 +216,15 @@ class Dataset:
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            self._edgelist = cudf.read_csv(
+            if create_using is None:
+                reader = cudf
+            elif str(type(create_using)) != "<class 'module'>":
+                raise RuntimeError("create_using must be a module.")
+            elif create_using.__name__ == "cudf" or "pandas":
+                reader = create_using
+            else:
+                raise NotImplementedError()
+            self._edgelist = reader.read_csv(
                 full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
@@ -248,6 +260,10 @@ class Dataset:
             dataset -if present- will be applied to the Graph. If the
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
+
+        store_transposed: Boolean (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
             self.get_edgelist(download)
@@ -266,20 +282,19 @@ class Dataset:
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
-                edge_attr="wgt",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                edge_attr=self.metadata["col_names"][2],
                 store_transposed=store_transposed,
             )
         else:
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
                 store_transposed=store_transposed,
             )
         return G
