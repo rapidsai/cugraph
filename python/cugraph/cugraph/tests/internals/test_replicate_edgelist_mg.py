@@ -14,13 +14,15 @@
 import gc
 
 import pytest
-import pandas as pd
+
+# import pandas as pd
 
 import dask_cudf
 import numpy as np
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS, karate_disjoint
-from cugraph.structure.replicate_edgelist import replicate_edgelist
+from cugraph.testing import UNDIRECTED_DATASETS, karate_disjoint
+
+# from cugraph.structure.replicate_edgelist import replicate_edgelist
 from cudf.testing.testing import assert_frame_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
@@ -60,9 +62,18 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    return dict(zip(
-        ("graph_file", "use_weights", "use_edge_ids",
-         "use_edge_type_ids", "distributed"), request.param))
+    return dict(
+        zip(
+            (
+                "graph_file",
+                "use_weights",
+                "use_edge_ids",
+                "use_edge_type_ids",
+                "distributed",
+            ),
+            request.param,
+        )
+    )
 
 
 # =============================================================================
@@ -79,24 +90,24 @@ def test_mg_replicate_edgelist(dask_client, input_combo):
     use_weights = input_combo["use_weights"]
     use_edge_ids = input_combo["use_edge_ids"]
     use_edge_type_ids = input_combo["use_edge_type_ids"]
-    
+
     columns = [srcCol, dstCol]
 
     if use_weights:
-        df = df.rename(columns={'wgt':edgeWeightCol})
+        df = df.rename(columns={"wgt": edgeWeightCol})
         columns.append(edgeWeightCol)
     if use_edge_ids:
-        df = df.reset_index().rename(columns={'index': edgeIdCol})
-        df[edgeIdCol] = df[edgeIdCol].astype(df[srcCol].dtype) 
+        df = df.reset_index().rename(columns={"index": edgeIdCol})
+        df[edgeIdCol] = df[edgeIdCol].astype(df[srcCol].dtype)
         columns.append(edgeIdCol)
     if use_edge_type_ids:
-        df[edgeTypeCol] = np.random.randint(0,10, size=len(df))
-        df[edgeTypeCol] = df[edgeTypeCol].astype(df[srcCol].dtype) 
+        df[edgeTypeCol] = np.random.randint(0, 10, size=len(df))
+        df[edgeTypeCol] = df[edgeTypeCol].astype(df[srcCol].dtype)
         columns.append(edgeTypeCol)
 
     if distributed:
         # Distribute the edges across all ranks
-        num_workers = len(dask_client.scheduler_info()['workers'])
+        num_workers = len(dask_client.scheduler_info()["workers"])
         df = dask_cudf.from_cudf(df, npartitions=num_workers)
     ddf = cugraph.replicate_edgelist(df[columns])
 
@@ -104,10 +115,12 @@ def test_mg_replicate_edgelist(dask_client, input_combo):
         df = df.compute()
 
     for i in range(ddf.npartitions):
-        result_df =  ddf.get_partition(i).compute().sort_values(
-            [srcCol, dstCol]).reset_index(drop=True)
-        expected_df = df[columns].sort_values(
-            [srcCol, dstCol]).reset_index(drop=True)
+        result_df = (
+            ddf.get_partition(i)
+            .compute()
+            .sort_values([srcCol, dstCol])
+            .reset_index(drop=True)
+        )
+        expected_df = df[columns].sort_values([srcCol, dstCol]).reset_index(drop=True)
 
-        assert_frame_equal(
-            expected_df, result_df, check_dtype=False, check_like=True)
+        assert_frame_equal(expected_df, result_df, check_dtype=False, check_like=True)

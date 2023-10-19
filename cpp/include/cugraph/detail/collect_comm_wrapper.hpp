@@ -25,12 +25,12 @@ namespace detail {
 
 /**
  * @brief Gather the span of data from all ranks and broadcast the combined data to all ranks.
- * 
+ *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] comm Raft comms that manages underlying NCCL comms handles across the ranks.
  * @param[in] d_input The span of data to perform the 'allgatherv'.
- * 
+ *
  * @return A vector containing the combined data of all ranks.
  */
 template <typename T>
