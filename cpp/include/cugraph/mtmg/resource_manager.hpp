@@ -23,7 +23,6 @@
 #include <raft/comms/std_comms.hpp>
 
 #include <rmm/cuda_device.hpp>
-#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
@@ -125,8 +124,9 @@ class resource_manager_t {
    *
    * @return unique pointer to instance manager
    */
-  std::unique_ptr<instance_manager_t> create_instance_manager(
-    std::vector<int> ranks_to_include, ncclUniqueId instance_manager_id) const
+  std::unique_ptr<instance_manager_t> create_instance_manager(std::vector<int> ranks_to_include,
+                                                              ncclUniqueId instance_manager_id,
+                                                              size_t n_streams = 16) const
   {
     std::for_each(
       ranks_to_include.begin(), ranks_to_include.end(), [local_ranks = local_rank_map_](int rank) {
@@ -154,7 +154,6 @@ class resource_manager_t {
       auto pos = local_rank_map_.find(rank);
       RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
 
-      size_t n_streams{16};
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
         std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,

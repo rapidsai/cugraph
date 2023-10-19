@@ -125,11 +125,7 @@ class per_device_edgelist_t {
               std::optional<raft::host_span<edge_t const>> edge_id,
               std::optional<raft::host_span<edge_type_t const>> edge_type)
   {
-    std::vector<std::tuple<vertex_t*, vertex_t const*, size_t>> src_copies;
-    std::vector<std::tuple<vertex_t*, vertex_t const*, size_t>> dst_copies;
-    std::vector<std::tuple<weight_t*, weight_t const*, size_t>> wgt_copies;
-    std::vector<std::tuple<edge_t*, edge_t const*, size_t>> edge_id_copies;
-    std::vector<std::tuple<edge_type_t*, edge_type_t const*, size_t>> edge_type_copies;
+    std::vector<std::tuple<size_t, size_t, size_t, size_t>> copy_positions;
 
     {
       std::lock_guard<std::mutex> lock(lock_);
@@ -140,52 +136,61 @@ class per_device_edgelist_t {
       while (count > 0) {
         size_t copy_count = std::min(count, (src_.back().size() - current_pos_));
 
-        src_copies.push_back(
-          std::make_tuple(src_.back().begin() + current_pos_, src.begin() + pos, copy_count));
-        dst_copies.push_back(
-          std::make_tuple(dst_.back().begin() + current_pos_, dst.begin() + pos, copy_count));
-        if (wgt)
-          wgt_copies.push_back(
-            std::make_tuple(wgt_->back().begin() + current_pos_, wgt->begin() + pos, copy_count));
-        if (edge_id)
-          edge_id_copies.push_back(std::make_tuple(
-            edge_id_->back().begin() + current_pos_, edge_id->begin() + pos, copy_count));
-        if (edge_type)
-          edge_type_copies.push_back(std::make_tuple(
-            edge_type_->back().begin() + current_pos_, edge_type->begin() + pos, copy_count));
+        copy_positions.push_back(std::make_tuple(src_.size() - 1, current_pos_, pos, copy_count));
 
         count -= copy_count;
         pos += copy_count;
         current_pos_ += copy_count;
+
+        if (current_pos_ == src_.back().size()) { create_new_buffers(handle); }
       }
     }
 
-    std::for_each(src_copies.begin(), src_copies.end(), [&handle](auto tuple) {
-      raft::update_device(
-        std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), handle.get_stream());
-    });
+    std::for_each(copy_positions.begin(),
+                  copy_positions.end(),
+                  [&handle,
+                   &this_src = src_,
+                   &src,
+                   &this_dst = dst_,
+                   &dst,
+                   &this_wgt = wgt_,
+                   &wgt,
+                   &this_edge_id = edge_id_,
+                   &edge_id,
+                   &this_edge_type = edge_type_,
+                   &edge_type](auto tuple) {
+                    auto [buffer_idx, buffer_pos, input_pos, copy_count] = tuple;
 
-    std::for_each(dst_copies.begin(), dst_copies.end(), [&handle](auto tuple) {
-      raft::update_device(
-        std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), handle.get_stream());
-    });
+                    raft::update_device(this_src[buffer_idx].begin() + buffer_pos,
+                                        src.begin() + input_pos,
+                                        copy_count,
+                                        handle.get_stream());
 
-    std::for_each(wgt_copies.begin(), wgt_copies.end(), [&handle](auto tuple) {
-      raft::update_device(
-        std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), handle.get_stream());
-    });
+                    raft::update_device(this_dst[buffer_idx].begin() + buffer_pos,
+                                        dst.begin() + input_pos,
+                                        copy_count,
+                                        handle.get_stream());
 
-    std::for_each(edge_id_copies.begin(), edge_id_copies.end(), [&handle](auto tuple) {
-      raft::update_device(
-        std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), handle.get_stream());
-    });
+                    if (this_wgt)
+                      raft::update_device((*this_wgt)[buffer_idx].begin() + buffer_pos,
+                                          wgt->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
 
-    std::for_each(edge_type_copies.begin(), edge_type_copies.end(), [&handle](auto tuple) {
-      raft::update_device(
-        std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), handle.get_stream());
-    });
+                    if (this_edge_id)
+                      raft::update_device((*this_edge_id)[buffer_idx].begin() + buffer_pos,
+                                          edge_id->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
 
-    handle.raft_handle().sync_stream(handle.get_stream());
+                    if (this_edge_type)
+                      raft::update_device((*this_edge_type)[buffer_idx].begin() + buffer_pos,
+                                          edge_type->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
+                  });
+
+    handle.sync_stream();
   }
 
   /**

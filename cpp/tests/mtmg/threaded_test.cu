@@ -107,7 +107,7 @@ class Tests_Multithreaded
     ncclGetUniqueId(&instance_manager_id);
 
     auto instance_manager = resource_manager.create_instance_manager(
-      resource_manager.registered_ranks(), instance_manager_id);
+      resource_manager.registered_ranks(), instance_manager_id, 4);
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
     cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
@@ -172,15 +172,6 @@ class Tests_Multithreaded
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
-#if 0
-          if (h_weights_v) {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], (*h_weights_v)[j], std::nullopt, std::nullopt);
-          } else {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], std::nullopt, std::nullopt, std::nullopt);
-          }
-#endif
           per_thread_edgelist.append(
             thread_handle,
             h_src_v[j],
