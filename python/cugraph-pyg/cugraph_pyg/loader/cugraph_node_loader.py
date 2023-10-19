@@ -25,7 +25,9 @@ from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import (
     _sampler_output_from_sampling_results_heterogeneous,
-    _sampler_output_from_sampling_results_homogeneous,
+    _sampler_output_from_sampling_results_homogeneous_csr,
+    _sampler_output_from_sampling_results_homogeneous_coo,
+    filter_cugraph_store_csc,
 )
 
 from typing import Union, Tuple, Sequence, List, Dict
@@ -58,6 +60,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Sampler args
         num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] = None,
         replace: bool = True,
+        compression: str = "COO",
         # Other kwargs for the BulkSampler
         **kwargs,
     ):
@@ -128,6 +131,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
+        self._total_read_time = 0.0
+        self._total_convert_time = 0.0
+        self._total_feature_time = 0.0
+
         if input_nodes is None:
             # Will be loading from disk
             self.__num_batches = input_nodes
@@ -174,6 +181,10 @@ class EXPERIMENTAL__BulkSampleLoader:
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
             renumber=renumber,
+            use_legacy_names=False,
+            deduplicate_sources=True,
+            prior_sources_behavior="exclude",
+            include_hop_column=(compression == "COO"),
             **kwargs,
         )
 
@@ -211,6 +222,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__input_files = iter(os.listdir(self.__directory.name))
 
     def __next__(self):
+        from time import perf_counter
+
+        start_time_read_data = perf_counter()
+
         # Load the next set of sampling results if necessary
         if self.__next_batch >= self.__end_exclusive:
             if self.__directory is None:
@@ -245,51 +260,98 @@ class EXPERIMENTAL__BulkSampleLoader:
                 fname,
             )
 
-            columns = {
-                "sources": "int64",
-                "destinations": "int64",
-                # 'edge_id':'int64',
-                "edge_type": "int32",
-                "batch_id": "int32",
-                "hop_id": "int32",
-            }
-
             raw_sample_data = cudf.read_parquet(parquet_path)
+
             if "map" in raw_sample_data.columns:
-                num_batches = end_inclusive - self.__start_inclusive + 1
+                if "renumber_map_offsets" not in raw_sample_data.columns:
+                    num_batches = end_inclusive - self.__start_inclusive + 1
 
-                map_end = raw_sample_data["map"].iloc[num_batches]
+                    map_end = raw_sample_data["map"].iloc[num_batches]
 
-                map = torch.as_tensor(
-                    raw_sample_data["map"].iloc[0:map_end], device="cuda"
-                )
-                raw_sample_data.drop("map", axis=1, inplace=True)
+                    map = torch.as_tensor(
+                        raw_sample_data["map"].iloc[0:map_end], device="cuda"
+                    )
+                    raw_sample_data.drop("map", axis=1, inplace=True)
 
-                self.__renumber_map_offsets = map[0 : num_batches + 1] - map[0]
-                self.__renumber_map = map[num_batches + 1 :]
+                    self.__renumber_map_offsets = map[0 : num_batches + 1] - map[0]
+                    self.__renumber_map = map[num_batches + 1 :]
+                else:
+                    self.__renumber_map = raw_sample_data["map"]
+                    self.__renumber_map_offsets = raw_sample_data[
+                        "renumber_map_offsets"
+                    ]
+                    raw_sample_data.drop(
+                        columns=["map", "renumber_map_offsets"], inplace=True
+                    )
+
+                    self.__renumber_map.dropna(inplace=True)
+                    self.__renumber_map = torch.as_tensor(
+                        self.__renumber_map, device="cuda"
+                    )
+
+                    self.__renumber_map_offsets.dropna(inplace=True)
+                    self.__renumber_map_offsets = torch.as_tensor(
+                        self.__renumber_map_offsets, device="cuda"
+                    )
 
             else:
                 self.__renumber_map = None
 
-            self.__data = raw_sample_data[list(columns.keys())].astype(columns)
-            self.__data.dropna(inplace=True)
+            self.__data = raw_sample_data
+            self.__coo = "majors" in self.__data.columns
+            if self.__coo:
+                self.__data.dropna(inplace=True)
 
             if (
                 len(self.__graph_store.edge_types) == 1
                 and len(self.__graph_store.node_types) == 1
             ):
-                group_cols = ["batch_id", "hop_id"]
-                self.__data_index = self.__data.groupby(group_cols, as_index=True).agg(
-                    {"sources": "max", "destinations": "max"}
-                )
-                self.__data_index.rename(
-                    columns={"sources": "src_max", "destinations": "dst_max"},
-                    inplace=True,
-                )
-                self.__data_index = self.__data_index.to_dict(orient="index")
+                if self.__coo:
+                    group_cols = ["batch_id", "hop_id"]
+                    self.__data_index = self.__data.groupby(
+                        group_cols, as_index=True
+                    ).agg({"majors": "max", "minors": "max"})
+                    self.__data_index.rename(
+                        columns={"majors": "src_max", "minors": "dst_max"},
+                        inplace=True,
+                    )
+                    self.__data_index = self.__data_index.to_dict(orient="index")
+                else:
+                    self.__data_index = None
+
+                    self.__label_hop_offsets = self.__data["label_hop_offsets"]
+                    self.__data.drop(columns=["label_hop_offsets"], inplace=True)
+                    self.__label_hop_offsets.dropna(inplace=True)
+                    self.__label_hop_offsets = torch.as_tensor(
+                        self.__label_hop_offsets, device="cuda"
+                    )
+                    self.__label_hop_offsets -= self.__label_hop_offsets[0].clone()
+
+                    self.__major_offsets = self.__data["major_offsets"]
+                    self.__data.drop(columns="major_offsets", inplace=True)
+                    self.__major_offsets.dropna(inplace=True)
+                    self.__major_offsets = torch.as_tensor(
+                        self.__major_offsets, device="cuda"
+                    )
+                    self.__major_offsets -= self.__major_offsets[0].clone()
+
+                    self.__minors = self.__data["minors"]
+                    self.__data.drop(columns="minors", inplace=True)
+                    self.__minors.dropna(inplace=True)
+                    self.__minors = torch.as_tensor(self.__minors, device="cuda")
+
+                    num_batches = self.__end_exclusive - self.__start_inclusive
+                    offsets_len = len(self.__label_hop_offsets) - 1
+                    if offsets_len % num_batches != 0:
+                        raise ValueError("invalid label-hop offsets")
+                    self.__fanout_length = int(offsets_len / num_batches)
+
+        end_time_read_data = perf_counter()
+        self._total_read_time += end_time_read_data - start_time_read_data
 
         # Pull the next set of sampling results out of the dataframe in memory
-        f = self.__data["batch_id"] == self.__next_batch
+        if self.__coo:
+            f = self.__data["batch_id"] == self.__next_batch
         if self.__renumber_map is not None:
             i = self.__next_batch - self.__start_inclusive
 
@@ -301,18 +363,43 @@ class EXPERIMENTAL__BulkSampleLoader:
         else:
             current_renumber_map = None
 
+        start_time_convert = perf_counter()
         # Get and return the sampled subgraph
         if (
             len(self.__graph_store.edge_types) == 1
             and len(self.__graph_store.node_types) == 1
         ):
-            sampler_output = _sampler_output_from_sampling_results_homogeneous(
-                self.__data[f],
-                current_renumber_map,
-                self.__graph_store,
-                self.__data_index,
-                self.__next_batch,
-            )
+            if self.__coo:
+                sampler_output = _sampler_output_from_sampling_results_homogeneous_coo(
+                    self.__data[f],
+                    current_renumber_map,
+                    self.__graph_store,
+                    self.__data_index,
+                    self.__next_batch,
+                )
+            else:
+                i = (self.__next_batch - self.__start_inclusive) * self.__fanout_length
+                current_label_hop_offsets = self.__label_hop_offsets[
+                    i : i + self.__fanout_length + 1
+                ]
+
+                current_major_offsets = self.__major_offsets[
+                    current_label_hop_offsets[0] : (current_label_hop_offsets[-1] + 1)
+                ]
+
+                current_minors = self.__minors[
+                    current_major_offsets[0] : current_major_offsets[-1]
+                ]
+
+                sampler_output = _sampler_output_from_sampling_results_homogeneous_csr(
+                    current_major_offsets,
+                    current_minors,
+                    current_renumber_map,
+                    self.__graph_store,
+                    current_label_hop_offsets,
+                    self.__data_index,
+                    self.__next_batch,
+                )
         else:
             sampler_output = _sampler_output_from_sampling_results_heterogeneous(
                 self.__data[f], current_renumber_map, self.__graph_store
@@ -321,18 +408,35 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Get ready for next iteration
         self.__next_batch += 1
 
+        end_time_convert = perf_counter()
+        self._total_convert_time += end_time_convert - start_time_convert
+
+        start_time_feature = perf_counter()
         # Create a PyG HeteroData object, loading the required features
-        out = torch_geometric.loader.utils.filter_custom_store(
-            self.__feature_store,
-            self.__graph_store,
-            sampler_output.node,
-            sampler_output.row,
-            sampler_output.col,
-            sampler_output.edge,
-        )
+        if self.__coo:
+            out = torch_geometric.loader.utils.filter_custom_store(
+                self.__feature_store,
+                self.__graph_store,
+                sampler_output.node,
+                sampler_output.row,
+                sampler_output.col,
+                sampler_output.edge,
+            )
+        else:
+            if self.__graph_store.order == "CSR":
+                raise ValueError("CSR format incompatible with CSC output")
+
+            out = filter_cugraph_store_csc(
+                self.__feature_store,
+                self.__graph_store,
+                sampler_output.node,
+                sampler_output.row,
+                sampler_output.col,
+                sampler_output.edge,
+            )
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
-        if self.__graph_store.order == "CSC":
+        if self.__coo and self.__graph_store.order == "CSC":
             for node_type in out.edge_index_dict:
                 out[node_type].edge_index[0], out[node_type].edge_index[1] = (
                     out[node_type].edge_index[1],
@@ -341,6 +445,9 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
+
+        end_time_feature = perf_counter()
+        self._total_feature_time = end_time_feature - start_time_feature
 
         return out
 
