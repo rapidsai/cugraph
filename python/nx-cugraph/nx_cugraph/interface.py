@@ -176,6 +176,10 @@ class BackendInterface:
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
                     key("test_louvain.py:test_multigraph"): louvain_different,
+                    # See networkx#6630
+                    key(
+                        "test_louvain.py:test_undirected_selfloops"
+                    ): "self-loops not handled in Louvain",
                 }
             )
             if sys.version_info[:2] == (3, 9):
