@@ -63,7 +63,7 @@ def k_truss(G, k):
         edge_masks = {key: val[edge_indices] for key, val in G.edge_masks.items()}
     # Renumber step 2: edge indices
     mapper = cp.zeros(len(G), src_indices.dtype)
-    mapper[node_indices] = cp.arange(node_indices.size, dtype=np.int64)
+    mapper[node_indices] = cp.arange(node_indices.size, dtype=mapper.dtype)
     src_indices = mapper[src_indices]
     dst_indices = mapper[dst_indices]
     # Renumber step 3: node values
