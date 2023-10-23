@@ -12,6 +12,8 @@
 # limitations under the License.
 from __future__ import annotations
 
+import sys
+
 import networkx as nx
 
 import nx_cugraph as nxcg
@@ -180,6 +182,11 @@ class BackendInterface:
                     ): "self-loops not handled in Louvain",
                 }
             )
+            if sys.version_info[:2] == (3, 9):
+                # This test is sensitive to RNG, which depends on Python version
+                xfail[
+                    key("test_louvain.py:test_threshold")
+                ] = "Louvain does not support seed parameter"
 
         for item in items:
             kset = set(item.keywords)
