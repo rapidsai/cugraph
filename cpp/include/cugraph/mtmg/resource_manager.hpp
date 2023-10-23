@@ -121,6 +121,8 @@ class resource_manager_t {
    * @param instance_manager_id a ncclUniqueId that is shared by all processes participating
    *   in this instance.  All processes must use the same ID in this call, it is up
    *   to the calling code to share this ID properly before the call.
+   * @param n_streams           The number of streams to create in a stream pool for
+   *   each GPU.  Defaults to 16.
    *
    * @return unique pointer to instance manager
    */
