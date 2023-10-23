@@ -135,7 +135,7 @@ struct update_rx_major_local_degree_t {
   size_t local_edge_partition_idx{};
 
   raft::device_span<size_t const> rx_reordered_group_lasts{};
-  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<size_t const> rx_group_firsts{};
   raft::device_span<vertex_t const> rx_majors{};
 
   raft::device_span<edge_t> local_degrees_for_rx_majors{};
@@ -186,7 +186,7 @@ struct update_rx_major_local_nbrs_t {
   size_t local_edge_partition_idx{};
 
   raft::device_span<size_t const> rx_reordered_group_lasts{};
-  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<size_t const> rx_group_firsts{};
   raft::device_span<vertex_t const> rx_majors{};
   raft::device_span<size_t const> local_nbr_offsets_for_rx_majors{};
   raft::device_span<vertex_t> local_nbrs_for_rx_majors{};
@@ -204,7 +204,7 @@ struct update_rx_major_local_nbrs_t {
     auto major =
       rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
                 offset_in_local_edge_partition];
-    vertex_t const* indices{nullptr};
+    vertex_t const* indices{};
     [[maybe_unused]] edge_t edge_offset{0};
     edge_t local_degree{0};
     if (multi_gpu && (edge_partition.major_hypersparse_first() &&
@@ -259,10 +259,10 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct pick_min_degree_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  raft::device_span<size_t const> first_element_offsets{nullptr};
+  raft::device_span<size_t const> first_element_offsets{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  raft::device_span<size_t const> second_element_offsets{nullptr};
+  raft::device_span<size_t const> second_element_offsets{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
 
@@ -339,20 +339,20 @@ template <typename FirstElementToIdxMap,
 struct copy_intersecting_nbrs_and_update_intersection_size_t {
   FirstElementToIdxMap first_element_to_idx_map{};
   raft::device_span<size_t const> first_element_offsets{};
-  raft::device_span<vertex_t const> first_element_indices{nullptr};
+  raft::device_span<vertex_t const> first_element_indices{};
   optional_property_buffer_view_t first_element_properties{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
   raft::device_span<size_t const> second_element_offsets{};
-  raft::device_span<vertex_t const> second_element_indices{nullptr};
+  raft::device_span<vertex_t const> second_element_indices{};
   optional_property_buffer_view_t second_element_properties{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
   edge_partition_e_input_device_view_t edge_partition_e_value_input{};
 
   VertexPairIterator vertex_pair_first;
-  raft::device_span<size_t const> nbr_intersection_offsets{nullptr};
-  raft::device_span<vertex_t> nbr_intersection_indices{nullptr};
+  raft::device_span<size_t const> nbr_intersection_offsets{};
+  raft::device_span<vertex_t> nbr_intersection_indices{};
 
   optional_property_buffer_view_t nbr_intersection_properties0{};
   optional_property_buffer_view_t nbr_intersection_properties1{};
@@ -366,7 +366,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
                          std::byte /* dummy */>;
 
     auto pair = *(vertex_pair_first + i);
-    vertex_t const* indices0{nullptr};
+    vertex_t const* indices0{};
     optional_const_property_buffer_view_t properties0{};
 
     edge_t local_edge_offset0{0};
@@ -409,7 +409,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       }
     }
 
-    vertex_t const* indices1{nullptr};
+    vertex_t const* indices1{};
     optional_const_property_buffer_view_t properties1{};
 
     [[maybe_unused]] edge_t local_edge_offset1{0};
