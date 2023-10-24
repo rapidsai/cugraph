@@ -367,6 +367,17 @@ class Graph:
     ##########################
 
     @networkx_api
+    def add_nodes_from(self, nodes_for_adding: Iterable[NodeKey], **attr) -> None:
+        if self._N != 0:
+            raise NotImplementedError(
+                "add_nodes_from is not implemented for graph that already has nodes."
+            )
+        G = self.to_networkx_class()()
+        G.add_nodes_from(nodes_for_adding, **attr)
+        G = nxcg.from_networkx(G, preserve_node_attrs=True)
+        self._become(G)
+
+    @networkx_api
     def clear(self) -> None:
         self.edge_values.clear()
         self.edge_masks.clear()

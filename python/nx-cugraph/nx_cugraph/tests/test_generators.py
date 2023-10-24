@@ -17,6 +17,8 @@ import nx_cugraph as nxcg
 
 
 def assert_graphs_equal(Gnx, Gcg):
+    assert isinstance(Gnx, nx.Graph)
+    assert isinstance(Gcg, nxcg.Graph)
     assert Gnx.number_of_nodes() == Gcg.number_of_nodes()
     assert Gnx.number_of_edges() == Gcg.number_of_edges()
     assert Gnx.is_directed() == Gcg.is_directed()
@@ -42,6 +44,8 @@ def compare(name, create_using, *args, is_vanilla=False):
         nx_create_using = nxcg.to_networkx(create_using)
     elif isinstance(create_using, type) and issubclass(create_using, nxcg.Graph):
         nx_create_using = create_using.to_networkx_class()
+    elif isinstance(create_using, nx.Graph):
+        nx_create_using = create_using.copy()
     else:
         nx_create_using = create_using
     try:
@@ -95,10 +99,36 @@ GENERATORS_NOARG = [
     # classic
     "null_graph",
     "trivial_graph",
+    # small
+    "bull_graph",
+    "chvatal_graph",
+    "cubical_graph",
+    "desargues_graph",
+    "diamond_graph",
+    "dodecahedral_graph",
+    "frucht_graph",
+    "heawood_graph",
+    "house_graph",
+    "house_x_graph",
+    "icosahedral_graph",
+    "krackhardt_kite_graph",
+    "moebius_kantor_graph",
+    "octahedral_graph",
+    "petersen_graph",
+    "sedgewick_maze_graph",
+    "tetrahedral_graph",
+    "truncated_cube_graph",
+    "truncated_tetrahedron_graph",
+    "tutte_graph",
 ]
 GENERATORS_NOARG_VANILLA = [
-    # classic
+    # small
+    "pappus_graph",
+    # social
+    "davis_southern_women_graph",
+    "florentine_families_graph",
     "karate_club_graph",
+    "les_miserables_graph",
 ]
 GENERATORS_N = [
     # classic
@@ -125,8 +155,23 @@ GENERATORS_M_N_VANILLA = [
 @pytest.mark.parametrize("name", GENERATORS_NOARG)
 @pytest.mark.parametrize("create_using", COMPLETE_CREATE_USING)
 def test_generator_noarg(name, create_using):
-    print(name, create_using)
-    compare(name, create_using)
+    print(name, create_using, type(create_using))
+    if isinstance(create_using, nxcg.Graph) and name in {
+        # fmt: off
+        "bull_graph", "chvatal_graph", "cubical_graph", "diamond_graph",
+        "house_graph", "house_x_graph", "icosahedral_graph", "krackhardt_kite_graph",
+        "octahedral_graph", "petersen_graph", "truncated_cube_graph", "tutte_graph",
+        # fmt: on
+    }:
+        # The _raise_on_directed decorator used in networkx doesn't like our graphs.
+        if create_using.is_directed():
+            with pytest.raises(AssertionError):
+                compare(name, create_using)
+        else:
+            with pytest.raises(TypeError):
+                compare(name, create_using)
+    else:
+        compare(name, create_using)
 
 
 @pytest.mark.parametrize("name", GENERATORS_NOARG_VANILLA)

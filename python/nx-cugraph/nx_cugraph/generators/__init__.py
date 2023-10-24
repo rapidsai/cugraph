@@ -12,4 +12,5 @@
 # limitations under the License.
 from .classic import *
 from .community import *
+from .small import *
 from .social import *
