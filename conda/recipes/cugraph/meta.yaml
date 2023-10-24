@@ -83,7 +83,7 @@ requirements:
     - libcugraph ={{ version }}
     - pylibcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
-    - python
+    - python >=3.9,<3.10.0a0
     - raft-dask ={{ minor_version }}
     - requests
     - ucx-proc=*=gpu
