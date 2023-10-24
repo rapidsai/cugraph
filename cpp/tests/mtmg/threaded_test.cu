@@ -94,8 +94,9 @@ class Tests_Multithreaded
     size_t device_buffer_size{64 * 1024 * 1024};
     size_t thread_buffer_size{4 * 1024 * 1024};
 
+    const int num_threads_per_gpu{4};
     int num_gpus    = gpu_list.size();
-    int num_threads = num_gpus * 4;
+    int num_threads = num_gpus * num_threads_per_gpu;
 
     cugraph::mtmg::resource_manager_t resource_manager;
 
@@ -106,8 +107,10 @@ class Tests_Multithreaded
     ncclUniqueId instance_manager_id;
     ncclGetUniqueId(&instance_manager_id);
 
+    // Currently the only uses for multiple streams for each CPU threads
+    // associated with a particular GPU, which is a constant set above
     auto instance_manager = resource_manager.create_instance_manager(
-      resource_manager.registered_ranks(), instance_manager_id);
+      resource_manager.registered_ranks(), instance_manager_id, num_threads_per_gpu);
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
     cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
@@ -172,15 +175,6 @@ class Tests_Multithreaded
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
-#if 0
-          if (h_weights_v) {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], (*h_weights_v)[j], std::nullopt, std::nullopt);
-          } else {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], std::nullopt, std::nullopt, std::nullopt);
-          }
-#endif
           per_thread_edgelist.append(
             thread_handle,
             h_src_v[j],
