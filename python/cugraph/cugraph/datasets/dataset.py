@@ -170,8 +170,7 @@ class Dataset:
             the YAML file.
 
         create_using : module (default=cudf)
-            Specify which module to use when reading the dataset. This module
-            must have a read_csv function.
+            Specify between cudf and pandas to use when reading the dataset.
         """
         if self._edgelist is None:
             full_path = self.get_path()
