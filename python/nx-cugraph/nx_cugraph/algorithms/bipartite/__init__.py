@@ -10,7 +10,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import bipartite, centrality, community
-from .bipartite import complete_bipartite_graph
-from .centrality import *
-from .isolate import *
+from .generators import *

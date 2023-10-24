@@ -10,8 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import operator as op
-
 import cupy as cp
 import networkx as nx
 
@@ -21,6 +19,7 @@ from ._utils import (
     _complete_graph_indices,
     _create_using_class,
     _ensure_nonnegative_int,
+    _number_and_nodes,
 )
 
 __all__ = [
@@ -37,25 +36,6 @@ __all__ = [
     "trivial_graph",
     "wheel_graph",
 ]
-
-
-def _number_and_nodes(n_and_nodes):
-    n, nodes = n_and_nodes
-    try:
-        n = op.index(n)
-    except TypeError:
-        n = len(nodes)
-    if n < 0:
-        raise nx.NetworkXError(f"Negative number of nodes not valid: {n}")
-    if not isinstance(nodes, list):
-        nodes = list(nodes)
-    if nodes and nodes[0] == 0 and nodes[n - 1] == n - 1:
-        try:
-            if nodes == list(range(n)):
-                return (n, None)
-        except Exception:
-            pass
-    return (n, nodes)
 
 
 @networkx_algorithm

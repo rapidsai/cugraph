@@ -35,6 +35,7 @@ _info = {
         "caveman_graph",
         "chvatal_graph",
         "circular_ladder_graph",
+        "complete_bipartite_graph",
         "complete_graph",
         "cubical_graph",
         "cycle_graph",

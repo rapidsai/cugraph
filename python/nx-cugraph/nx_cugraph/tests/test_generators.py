@@ -145,6 +145,8 @@ GENERATORS_M_N = [
     # classic
     "barbell_graph",
     "lollipop_graph",
+    # bipartite
+    "complete_bipartite_graph",
 ]
 GENERATORS_M_N_VANILLA = [
     # community

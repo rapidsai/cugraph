@@ -99,3 +99,24 @@ def _create_using_class(create_using, *, default=nxcg.Graph):
     else:
         graph_class = G.__class__
     return graph_class, inplace
+
+
+def _number_and_nodes(n_and_nodes):
+    n, nodes = n_and_nodes
+    try:
+        n = op.index(n)
+    except TypeError:
+        n = len(nodes)
+    if n < 0:
+        raise nx.NetworkXError(f"Negative number of nodes not valid: {n}")
+    if not isinstance(nodes, list):
+        nodes = list(nodes)
+    if not nodes:
+        return (n, None)
+    if nodes[0] == 0 and nodes[n - 1] == n - 1:
+        try:
+            if nodes == list(range(n)):
+                return (n, None)
+        except Exception:
+            pass
+    return (n, nodes)
