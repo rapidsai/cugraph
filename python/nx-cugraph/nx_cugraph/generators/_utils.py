@@ -1,0 +1,101 @@
+# Copyright (c) 2023, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import operator as op
+
+import cupy as cp
+import networkx as nx
+
+import nx_cugraph as nxcg
+
+from ..utils import index_dtype
+
+
+def _ensure_int(n):
+    """Ensure n is integral."""
+    return op.index(n)
+
+
+def _ensure_nonnegative_int(n):
+    """Ensure n is a nonnegative integer."""
+    n = op.index(n)
+    if n < 0:
+        raise nx.NetworkXError(f"Negative number of nodes not valid: {n}")
+    return n
+
+
+def _complete_graph_indices(n):
+    all_indices = cp.indices((n, n), dtype=index_dtype)
+    src_indices = all_indices[0].ravel()
+    dst_indices = all_indices[1].ravel()
+    del all_indices
+    mask = src_indices != dst_indices
+    return (src_indices[mask], dst_indices[mask])
+
+
+def _common_small_graph(n, nodes, create_using, *, allow_directed=True):
+    """Create a "common graph" for small n.
+
+    n == 0: empty graph
+    n == 1: empty graph
+    n == 2: complete graph
+    n > 2: undefined
+    """
+    graph_class, inplace = _create_using_class(create_using)
+    if not allow_directed and graph_class.is_directed():
+        raise nx.NetworkXError("Directed Graph not supported")
+    if n < 2:
+        G = graph_class.from_coo(
+            n, cp.empty(0, index_dtype), cp.empty(0, index_dtype), id_to_key=nodes
+        )
+    else:
+        G = graph_class.from_coo(
+            n,
+            cp.arange(2, dtype=index_dtype),
+            cp.array([1, 0], index_dtype),
+            id_to_key=nodes,
+        )
+    if inplace:
+        return create_using._become(G)
+    return G
+
+
+def _create_using_class(create_using, *, default=nxcg.Graph):
+    """Handle ``create_using`` argument and return a Graph type from nx_cugraph."""
+    inplace = False
+    if create_using is None:
+        G = default()
+    elif isinstance(create_using, type):
+        G = create_using()
+    elif not hasattr(create_using, "is_directed") or not hasattr(
+        create_using, "is_multigraph"
+    ):
+        raise TypeError("create_using is not a valid graph type or instance")
+    else:
+        if isinstance(create_using, nxcg.Graph):
+            create_using.clear()
+            inplace = True
+        # What does the user intend if they give us a graph object not from nx-cugraph?
+        G = create_using
+    if not isinstance(G, nxcg.Graph):
+        if G.is_multigraph():
+            if G.is_directed():
+                graph_class = nxcg.MultiDiGraph
+            else:
+                graph_class = nxcg.MultiGraph
+        elif G.is_directed():
+            graph_class = nxcg.DiGraph
+        else:
+            graph_class = nxcg.Graph
+    else:
+        graph_class = G.__class__
+    return graph_class, inplace

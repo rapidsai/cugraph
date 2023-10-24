@@ -10,5 +10,6 @@ extend-ignore =
 # E203 whitespace before ':' (to be compatible with black)
 per-file-ignores =
     nx_cugraph/tests/*.py:T201,
+    nx_cugraph/generators/community.py:E741,
     __init__.py:F401,F403,
     _nx_cugraph/__init__.py:E501,

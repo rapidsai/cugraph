@@ -23,6 +23,8 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 
+from ..utils import index_dtype
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
 
@@ -61,6 +63,27 @@ class Graph:
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
+
+    # Used by graph._get_plc_graph
+    _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
+        # signed int
+        np.dtype(np.int8): np.dtype(np.float32),
+        np.dtype(np.int16): np.dtype(np.float32),
+        np.dtype(np.int32): np.dtype(np.float64),
+        np.dtype(np.int64): np.dtype(np.float64),  # raise if abs(x) > 2**53
+        # unsigned int
+        np.dtype(np.uint8): np.dtype(np.float32),
+        np.dtype(np.uint16): np.dtype(np.float32),
+        np.dtype(np.uint32): np.dtype(np.float64),
+        np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
+        # other
+        np.dtype(np.bool_): np.dtype(np.float16),
+        np.dtype(np.float16): np.dtype(np.float32),
+    }
+    _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {
+        np.dtype(np.float16),
+        np.dtype(np.float32),
+    }
 
     ####################
     # Creation methods #
@@ -111,6 +134,11 @@ class Graph:
             raise ValueError
         if new_graph._id_to_key is not None and len(new_graph._id_to_key) != N:
             raise ValueError
+        if new_graph._id_to_key is not None and new_graph.key_to_id is None:
+            try:
+                new_graph.key_to_id = dict(zip(new_graph._id_to_key, range(N)))
+            except TypeError as exc:
+                raise ValueError("Bad type of a node value") from exc
         return new_graph
 
     @classmethod
@@ -130,7 +158,7 @@ class Graph:
         N = indptr.size - 1
         row_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -162,7 +190,7 @@ class Graph:
         N = indptr.size - 1
         col_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -245,7 +273,9 @@ class Graph:
 
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
-            new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
+            new_graph = cls.from_coo(
+                0, cp.empty(0, index_dtype), cp.empty(0, index_dtype)
+            )
         elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
         elif incoming_graph_data.__class__ is cls.to_networkx_class():
@@ -521,11 +551,36 @@ class Graph:
             # Mask is all True; don't need anymore
             del self.edge_masks[edge_attr]
             edge_array = self.edge_values[edge_attr]
+        if edge_array is not None:
+            if edge_dtype is not None:
+                edge_dtype = np.dtype(edge_dtype)
+                if edge_array.dtype != edge_dtype:
+                    edge_array = edge_array.astype(edge_dtype)
+            # PLC doesn't handle int edge weights right now, so cast int to float
+            if edge_array.dtype in self._plc_type_map:
+                if edge_array.dtype == np.int64:
+                    if (val := edge_array.max().tolist()) > 2**53:
+                        raise ValueError(
+                            f"Integer value of value is too large (> 2**53): {val}; "
+                            "pylibcugraph only supports float16 and float32 dtypes."
+                        )
+                    if (val := edge_array.min().tolist()) < -(2**53):
+                        raise ValueError(
+                            f"Integer value of value is small large (< -2**53): {val}; "
+                            "pylibcugraph only supports float16 and float32 dtypes."
+                        )
+                elif edge_array.dtype == np.uint64:
+                    if edge_array.max().tolist() > 2**53:
+                        raise ValueError(
+                            f"Integer value of value is too large (> 2**53): {val}; "
+                            "pylibcugraph only supports float16 and float32 dtypes."
+                        )
+                    ...
+                # Should we warn?
+                edge_array = edge_array.astype(self._plc_type_map[edge_array.dtype])
+            elif edge_array.dtype not in self._plc_allowed_edge_types:
+                raise TypeError
         # Should we cache PLC graph?
-        if edge_dtype is not None:
-            edge_dtype = np.dtype(edge_dtype)
-            if edge_array.dtype != edge_dtype:
-                edge_array = edge_array.astype(edge_dtype)
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -540,6 +595,54 @@ class Graph:
             do_expensive_check=False,
         )
 
+    def _sort_edge_indices(self, primary="src"):
+        # TODO: what about multigraph edge_indices and edge_keys?
+        if primary == "src":
+            stacked = cp.vstack((self.col_indices, self.row_indices))
+        elif primary == "dst":
+            stacked = cp.vstack((self.row_indices, self.col_indices))
+        else:
+            raise ValueError(
+                f'Bad `primary` argument; expected "src" or "dst", got {primary!r}'
+            )
+        indices = cp.lexsort(stacked)
+        if (cp.diff(indices) > 0).all():
+            # Already sorted
+            return
+        self.row_indices = self.row_indices[indices]
+        self.col_indices = self.col_indices[indices]
+        self.edge_values.update(
+            {key: val[indices] for key, val in self.edge_values.items()}
+        )
+        self.edge_masks.update(
+            {key: val[indices] for key, val in self.edge_masks.items()}
+        )
+
+    def _become(self, other: Graph):
+        if self.__class__ is not other.__class__:
+            raise TypeError(
+                "Attempting to update graph inplace with graph of different type!"
+            )
+        self.clear()
+        edge_values = self.edge_values
+        edge_masks = self.edge_masks
+        node_values = self.node_values
+        node_masks = self.node_masks
+        graph = self.graph
+        edge_values.update(other.edge_values)
+        edge_masks.update(other.edge_masks)
+        node_values.update(other.node_values)
+        node_masks.update(other.node_masks)
+        graph.update(other.graph)
+        self.__dict__.update(other.__dict__)
+        self.edge_values = edge_values
+        self.edge_masks = edge_masks
+        self.node_values = node_values
+        self.node_masks = node_masks
+        self.graph = graph
+        return self
+
+    # Data conversions
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:
@@ -582,7 +685,7 @@ class Graph:
             indices_iter = d
         else:
             indices_iter = map(self.key_to_id.__getitem__, d)
-        node_ids = cp.fromiter(indices_iter, np.int32)
+        node_ids = cp.fromiter(indices_iter, index_dtype)
         if dtype is None:
             values = cp.array(list(d.values()))
         else:

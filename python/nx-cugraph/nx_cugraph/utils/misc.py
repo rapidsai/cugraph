@@ -17,8 +17,12 @@ import sys
 from random import Random
 
 import cupy as cp
+import numpy as np
 
-__all__ = ["_groupby", "_seed_to_int"]
+__all__ = ["index_dtype", "_groupby", "_seed_to_int"]
+
+# This may switch to np.uint32 at some point
+index_dtype = np.int32
 
 
 def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:

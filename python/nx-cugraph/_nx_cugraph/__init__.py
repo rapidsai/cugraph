@@ -29,12 +29,26 @@ _info = {
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "barbell_graph",
         "betweenness_centrality",
+        "caveman_graph",
+        "circular_ladder_graph",
+        "complete_graph",
+        "cycle_graph",
         "edge_betweenness_centrality",
+        "empty_graph",
         "is_isolate",
         "isolates",
+        "karate_club_graph",
+        "ladder_graph",
+        "lollipop_graph",
         "louvain_communities",
+        "null_graph",
         "number_of_isolates",
+        "path_graph",
+        "star_graph",
+        "trivial_graph",
+        "wheel_graph",
         # END: functions
     },
     "extra_docstrings": {

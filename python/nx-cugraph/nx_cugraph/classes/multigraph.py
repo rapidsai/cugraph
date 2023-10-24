@@ -21,6 +21,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
+from ..utils import index_dtype
 from .graph import Graph
 
 if TYPE_CHECKING:
@@ -121,7 +122,7 @@ class MultiGraph(Graph):
         N = indptr.size - 1
         row_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -157,7 +158,7 @@ class MultiGraph(Graph):
         N = indptr.size - 1
         col_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,

@@ -24,6 +24,8 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
+from .utils import index_dtype
+
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue
 
@@ -266,9 +268,9 @@ def from_networkx(
     else:
         col_iter = map(key_to_id.__getitem__, col_iter)
     if graph.is_multigraph():
-        col_indices = np.fromiter(col_iter, np.int32)
+        col_indices = np.fromiter(col_iter, index_dtype)
         num_multiedges = np.fromiter(
-            map(len, concat(map(dict.values, adj.values()))), np.int32
+            map(len, concat(map(dict.values, adj.values()))), index_dtype
         )
         # cp.repeat is slow to use here, so use numpy instead
         col_indices = cp.array(np.repeat(col_indices, num_multiedges))
@@ -276,12 +278,12 @@ def from_networkx(
         edge_keys = list(concat(concat(map(dict.values, adj.values()))))
         edge_indices = cp.fromiter(
             concat(map(range, map(len, concat(map(dict.values, adj.values()))))),
-            np.int32,
+            index_dtype,
         )
         if edge_keys == edge_indices.tolist():
             edge_keys = None  # Prefer edge_indices
     else:
-        col_indices = cp.fromiter(col_iter, np.int32)
+        col_indices = cp.fromiter(col_iter, index_dtype)
 
     edge_values = {}
     edge_masks = {}
@@ -354,7 +356,8 @@ def from_networkx(
 
     # cp.repeat is slow to use here, so use numpy instead
     row_indices = np.repeat(
-        np.arange(N, dtype=np.int32), np.fromiter(map(len, adj.values()), np.int32)
+        np.arange(N, dtype=index_dtype),
+        np.fromiter(map(len, adj.values()), index_dtype),
     )
     if graph.is_multigraph():
         row_indices = np.repeat(row_indices, num_multiedges)
@@ -500,12 +503,13 @@ def to_networkx(G: nxcg.Graph) -> nx.Graph:
     col_indices = G.col_indices
     edge_values = G.edge_values
     edge_masks = G.edge_masks
-    if edge_values and not G.is_directed():
+    if not G.is_directed():
         # Only add upper triangle of the adjacency matrix so we don't double-add edges
         mask = row_indices <= col_indices
         row_indices = row_indices[mask]
         col_indices = col_indices[mask]
-        edge_values = {k: v[mask] for k, v in edge_values.items()}
+        if edge_values:
+            edge_values = {k: v[mask] for k, v in edge_values.items()}
         if edge_masks:
             edge_masks = {k: v[mask] for k, v in edge_masks.items()}
     row_indices = row_iter = row_indices.tolist()

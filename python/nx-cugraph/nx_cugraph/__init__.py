@@ -23,8 +23,8 @@ from .convert import *
 # from . import convert_matrix
 # from .convert_matrix import *
 
-# from . import generators
-# from .generators import *
+from . import generators
+from .generators import *
 
 from . import algorithms
 from .algorithms import *
