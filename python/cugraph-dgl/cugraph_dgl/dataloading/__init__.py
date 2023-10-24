@@ -13,7 +13,7 @@
 
 from cugraph_dgl.dataloading.dataset import (
     HomogenousBulkSamplerDataset,
-    HetrogenousBulkSamplerDataset,
+    HeterogenousBulkSamplerDataset,
 )
 from cugraph_dgl.dataloading.neighbor_sampler import NeighborSampler
 from cugraph_dgl.dataloading.dataloader import DataLoader

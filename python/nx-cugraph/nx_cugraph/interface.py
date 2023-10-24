@@ -12,6 +12,8 @@
 # limitations under the License.
 from __future__ import annotations
 
+import sys
+
 import networkx as nx
 
 import nx_cugraph as nxcg
@@ -174,8 +176,17 @@ class BackendInterface:
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
                     key("test_louvain.py:test_multigraph"): louvain_different,
+                    # See networkx#6630
+                    key(
+                        "test_louvain.py:test_undirected_selfloops"
+                    ): "self-loops not handled in Louvain",
                 }
             )
+            if sys.version_info[:2] == (3, 9):
+                # This test is sensitive to RNG, which depends on Python version
+                xfail[
+                    key("test_louvain.py:test_threshold")
+                ] = "Louvain does not support seed parameter"
 
         for item in items:
             kset = set(item.keywords)
@@ -189,10 +200,4 @@ class BackendInterface:
 
         This is a proposed API to add to networkx dispatching machinery and may change.
         """
-        return (
-            hasattr(cls, name)
-            and getattr(cls, name).can_run(*args, **kwargs)
-            # We don't support MultiGraphs yet
-            and not any(isinstance(x, nx.MultiGraph) for x in args)
-            and not any(isinstance(x, nx.MultiGraph) for x in kwargs.values())
-        )
+        return hasattr(cls, name) and getattr(cls, name).can_run(*args, **kwargs)
