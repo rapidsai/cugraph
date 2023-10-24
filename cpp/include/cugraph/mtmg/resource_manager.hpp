@@ -239,16 +239,10 @@ class resource_manager_t {
       local_rank_map_.begin(), local_rank_map_.end(), registered_ranks.begin(), [](auto pair) {
         return pair.first;
       });
-#if 0
-    std::transform(remote_rank_set_.begin(),
-                   remote_rank_set_.end(),
-                   registered_ranks.begin() + local_rank_map_.size(),
-                   [](auto pair) { return pair.first; });
-#else
+
     std::copy(remote_rank_set_.begin(),
               remote_rank_set_.end(),
               registered_ranks.begin() + local_rank_map_.size());
-#endif
 
     std::sort(registered_ranks.begin(), registered_ranks.end());
     return registered_ranks;

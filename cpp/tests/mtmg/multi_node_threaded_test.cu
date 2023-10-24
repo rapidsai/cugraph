@@ -133,7 +133,8 @@ class Tests_Multithreaded
     //
     //  This is intended to mimic a multi-node host application (non-MPI) integrating
     //  with MTMG library.  This is a simple implementation using a shared file system
-    //  to pass configuration messages.
+    //  to pass configuration messages.  Terribly inefficient, but should mimic
+    //  expected behavior.
     //
     ncclUniqueId instance_manager_id;
     int execution_id = g_execution_id++;
@@ -261,15 +262,6 @@ class Tests_Multithreaded
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
         for (size_t j = starting_edge_offset; j < h_src_v.size(); j += stride) {
-#if 0
-          if (h_weights_v) {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], (*h_weights_v)[j], std::nullopt, std::nullopt);
-          } else {
-            thread_edgelist.append(
-              thread_handle, h_src_v[j], h_dst_v[j], std::nullopt, std::nullopt, std::nullopt);
-          }
-#endif
           per_thread_edgelist.append(
             thread_handle,
             h_src_v[j],
