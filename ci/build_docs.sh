@@ -44,7 +44,7 @@ for PROJECT in libcugraphops libwholegraph; do
   rapids-logger "Download ${PROJECT} xml_tar"
   TMP_DIR=$(mktemp -d)
   export XML_DIR_${PROJECT^^}="$TMP_DIR"
-  aws s3 cp --only-show-errors "s3://rapidsai-docs/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" - | tar xzf - -C "${TMP_DIR}"
+  curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz" && tar -xzf "xml.tar.gz" -C "${TMP_DIR}"
 done
 
 rapids-logger "Build CPP docs"
