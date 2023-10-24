@@ -54,18 +54,18 @@ class instance_manager_t {
    * the request.  Threads will be assigned to GPUs in a round-robin fashion to
    * spread requesting threads around the GPU resources.
    *
-   * This function will be CPU thread-safe.
+   * This function is CPU thread-safe.
    *
    * @return a handle for this thread.
    */
   handle_t get_handle()
   {
-    int local_id = thread_counter_++;
+    int local_id  = thread_counter_++;
+    int gpu_id    = local_id % raft_handle_.size();
+    int thread_id = local_id / raft_handle_.size();
 
-    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[local_id % raft_handle_.size()].value()));
-    return handle_t(*raft_handle_[local_id % raft_handle_.size()],
-                    local_id / raft_handle_.size(),
-                    static_cast<size_t>(local_id % raft_handle_.size()));
+    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[gpu_id].value()));
+    return handle_t(*raft_handle_[gpu_id], thread_id, static_cast<size_t>(gpu_id));
   }
 
   /**
