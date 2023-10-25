@@ -12,4 +12,7 @@
 # limitations under the License.
 from setuptools import setup
 
-setup()
+packages = find_packages(include=["nx_cugraph*"])
+setup(
+    package_data={key: ["VERSION"] for key in packages},
+)

@@ -14,7 +14,7 @@
 import os
 import shutil
 
-from setuptools import Command, setup
+from setuptools import Command, find_packages, setup
 
 from setuputils import get_environment_option
 
@@ -59,6 +59,8 @@ class CleanCommand(Command):
         os.system("rm -rf *.egg-info")
 
 
+packages = find_packages(include=["cugraph_pyg*"])
 setup(
     cmdclass={"clean": CleanCommand},
+    package_data={key: ["VERSION"] for key in packages},
 )
