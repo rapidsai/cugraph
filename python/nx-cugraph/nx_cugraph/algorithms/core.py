@@ -34,7 +34,11 @@ def k_truss(G, k):
         )
     # TODO: create renumbering helper function(s)
     if k < 3:
-        # Drop nodes with zero degree
+        # k-truss graph is comprised of nodes incident on k-2 triangles, so k<3 is a
+        # boundary condition. Here, all we need to do is drop nodes with zero degree.
+        # Technically, it would be okay to delete this branch of code, because
+        # plc.k_truss_subgraph behaves the same for 0 <= k < 3. We keep this branch b/c
+        # it's faster and has an "early return" if there are no nodes with zero degree.
         degrees = G._degrees_array()
         # Renumber step 0: node indices
         node_indices = degrees.nonzero()[0]
@@ -77,6 +81,7 @@ def k_truss(G, k):
         }
     else:
         key_to_id = None
+    # Same as calling `G.from_coo`, but use __class__ to indicate it's a classmethod.
     new_graph = G.__class__.from_coo(
         node_indices.size,
         src_indices,
