@@ -23,8 +23,8 @@
 #include <raft/comms/std_comms.hpp>
 
 #include <rmm/cuda_device.hpp>
-#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
 #include <execution>
@@ -121,11 +121,14 @@ class resource_manager_t {
    * @param instance_manager_id a ncclUniqueId that is shared by all processes participating
    *   in this instance.  All processes must use the same ID in this call, it is up
    *   to the calling code to share this ID properly before the call.
+   * @param n_streams           The number of streams to create in a stream pool for
+   *   each GPU.  Defaults to 16.
    *
    * @return unique pointer to instance manager
    */
-  std::unique_ptr<instance_manager_t> create_instance_manager(
-    std::vector<int> ranks_to_include, ncclUniqueId instance_manager_id) const
+  std::unique_ptr<instance_manager_t> create_instance_manager(std::vector<int> ranks_to_include,
+                                                              ncclUniqueId instance_manager_id,
+                                                              size_t n_streams = 16) const
   {
     std::for_each(
       ranks_to_include.begin(), ranks_to_include.end(), [local_ranks = local_rank_map_](int rank) {
@@ -153,11 +156,11 @@ class resource_manager_t {
       auto pos = local_rank_map_.find(rank);
       RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
 
-      raft::handle_t tmp_handle;
-
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
-        std::make_unique<raft::handle_t>(tmp_handle, per_device_rmm_resources_.find(rank)->second));
+        std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+                                         std::make_shared<rmm::cuda_stream_pool>(n_streams),
+                                         per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
     }
 
