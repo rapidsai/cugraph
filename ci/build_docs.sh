@@ -29,8 +29,7 @@ rapids-mamba-retry install \
   cugraph-pyg \
   cugraph-service-server \
   cugraph-service-client \
-  libcugraph_etl \
-  pylibwholegraph 
+  libcugraph_etl 
 
 # This command installs `cugraph-dgl` without its dependencies
 # since this package can currently only run in `11.6` CTK environments
@@ -62,8 +61,8 @@ pushd docs/cugraph
 # Ensure cugraph is importable, since sphinx does not report details about this
 # type of failure well.
 python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
-sphinx-build -b dirhtml source _html
-sphinx-build -b text source _text
+sphinx-build -v -b dirhtml source _html
+sphinx-build -v -b text source _text
 mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/"{html,txt}
 mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
 mv _text/* "${RAPIDS_DOCS_DIR}/cugraph/txt"
