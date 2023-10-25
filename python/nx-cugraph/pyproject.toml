@@ -62,7 +62,7 @@ cugraph = "_nx_cugraph:get_info"
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "nx_cugraph._version.__version__"}
+version = {file = "nx_cugraph/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [

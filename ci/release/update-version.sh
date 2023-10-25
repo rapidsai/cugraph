@@ -54,15 +54,8 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
-# Python _version.py updates
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/_version.py
-sed_runner "/^__version__ / s/= .*/= \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/_version.py
+# Centralized version file update
+echo "${NEXT_FULL_TAG}" | tr -d '"' > VERSION
 
 # Wheel testing script
 sed_runner "s/branch-.*/branch-${NEXT_SHORT_TAG}/g" ci/test_wheel_cugraph.sh

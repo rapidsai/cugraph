@@ -71,4 +71,4 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "cugraph._version.__version__"}
+version = {file = "cugraph/VERSION"}

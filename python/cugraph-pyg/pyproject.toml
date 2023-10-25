@@ -39,7 +39,7 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "cugraph_pyg._version.__version__"}
+version = {file = "cugraph_pyg/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [

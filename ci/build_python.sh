@@ -14,13 +14,13 @@ CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 version=$(rapids-generate-version)
 git_commit=$(git rev-parse HEAD)
 export RAPIDS_PACKAGE_VERSION=${version}
+echo "${version}" | tr -d '"' > VERSION
 
 rapids-logger "Begin py build"
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
 version_file_pylibcugraph="python/pylibcugraph/pylibcugraph/_version.py"
-sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_pylibcugraph}
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_pylibcugraph}
 rapids-conda-retry mambabuild \
   --no-test \
@@ -28,7 +28,6 @@ rapids-conda-retry mambabuild \
   conda/recipes/pylibcugraph
 
 version_file_cugraph="python/cugraph/cugraph/_version.py"
-sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_cugraph}
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph}
 rapids-conda-retry mambabuild \
   --no-test \
@@ -41,7 +40,6 @@ rapids-conda-retry mambabuild \
 # scripts only install from one set of artifacts based on the CUDA version used
 # for the test run.
 version_file_nx_cugraph="python/nx-cugraph/nx_cugraph/_version.py"
-sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_nx_cugraph}
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_nx_cugraph}
 rapids-conda-retry mambabuild \
   --no-test \
@@ -54,10 +52,8 @@ rapids-conda-retry mambabuild \
 # artifacts, since test scripts only install from one set of artifacts based on
 # the CUDA version used for the test run.
 version_file_cugraph_service_client="python/cugraph-service/client/cugraph_service_client/_version.py"
-sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_cugraph_service_client}
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_service_client}
 version_file_cugraph_service_server="python/cugraph-service/server/cugraph_service_server/_version.py"
-sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_cugraph_service_server}
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_service_server}
 rapids-conda-retry mambabuild \
   --no-test \
@@ -70,7 +66,6 @@ RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
   # Only CUDA 11 is supported right now due to PyTorch requirement.
   version_file_cugraph_pyg="python/cugraph-pyg/cugraph_pyg/_version.py"
-  sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_cugraph_pyg}
   sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_pyg}
   rapids-conda-retry mambabuild \
     --no-test \
@@ -83,7 +78,6 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
 
   # Only CUDA 11 is supported right now due to PyTorch requirement.
   version_file_cugraph_dgl="python/cugraph-dgl/cugraph_dgl/_version.py"
-  sed -i "/^__version__/ s/= .*/= ${version}/g" ${version_file_cugraph_dgl}
   sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_dgl}
   rapids-conda-retry mambabuild \
     --no-test \
