@@ -163,8 +163,8 @@ def karate_club_graph():
         ],
         np.int8,
     )
-    # For now, cupy doesn't handle str dtypes and we only handle cupy arrays.
-    # This means we are definitely cheating by using a numpy array here! FIXME
+    # For now, cupy doesn't handle str dtypes and we primarily handle cupy arrays.
+    # We try to support numpy arrays for node values, so let's use numpy here.
     clubs = np.array([
         "Mr. Hi", "Mr. Hi", "Mr. Hi", "Mr. Hi", "Mr. Hi", "Mr. Hi", "Mr. Hi",
         "Mr. Hi", "Mr. Hi", "Officer", "Mr. Hi", "Mr. Hi", "Mr. Hi", "Mr. Hi",

@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import networkx as nx
+import numpy as np
 import pytest
 
 import nx_cugraph as nxcg
@@ -234,3 +235,23 @@ def test_generator_m_n_complete_vanilla(name, m, n):
 
 def test_bad_lollipop_graph():
     compare("lollipop_graph", None, [0, 1], [1, 2])
+
+
+def test_can_convert_karate_club():
+    # Karate club graph has string node values.
+    # This really tests conversions, but it's here so we can use `assert_graphs_equal`.
+    G = nx.karate_club_graph()
+    G.add_node(0, foo="bar")  # string dtype with a mask
+    G.add_node(1, object=object())  # haha
+    Gcg = nxcg.from_networkx(G, preserve_all_attrs=True)
+    assert_graphs_equal(G, Gcg)
+    Gnx = nxcg.to_networkx(Gcg)
+    assert nx.utils.graphs_equal(G, Gnx)
+    assert isinstance(Gcg.node_values["club"], np.ndarray)
+    assert Gcg.node_values["club"].dtype.kind == "U"
+    assert isinstance(Gcg.node_values["foo"], np.ndarray)
+    assert isinstance(Gcg.node_masks["foo"], np.ndarray)
+    assert Gcg.node_values["foo"].dtype.kind == "U"
+    assert isinstance(Gcg.node_values["object"], np.ndarray)
+    assert Gcg.node_values["object"].dtype.kind == "O"
+    assert isinstance(Gcg.node_masks["object"], np.ndarray)

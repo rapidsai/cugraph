@@ -36,6 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
         IndexValue,
         NodeKey,
         NodeValue,
+        any_ndarray,
     )
 
 __all__ = ["Graph"]
@@ -58,8 +59,8 @@ class Graph:
     col_indices: cp.ndarray[IndexValue]
     edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
     edge_masks: dict[AttrKey, cp.ndarray[bool]]
-    node_values: dict[AttrKey, cp.ndarray[NodeValue]]
-    node_masks: dict[AttrKey, cp.ndarray[bool]]
+    node_values: dict[AttrKey, any_ndarray[NodeValue]]
+    node_masks: dict[AttrKey, any_ndarray[bool]]
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
@@ -97,8 +98,8 @@ class Graph:
         col_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -139,6 +140,22 @@ class Graph:
                 new_graph.key_to_id = dict(zip(new_graph._id_to_key, range(N)))
             except TypeError as exc:
                 raise ValueError("Bad type of a node value") from exc
+        if new_graph.row_indices.dtype != index_dtype:
+            row_indices = new_graph.row_indices.astype(index_dtype)
+            if not (new_graph.row_indices == row_indices).all():
+                raise ValueError(
+                    f"Unable to convert row_indices to {row_indices.dtype.name} "
+                    f"(got {new_graph.row_indices.dtype.name})."
+                )
+            new_graph.row_indices = row_indices
+        if new_graph.col_indices.dtype != index_dtype:
+            col_indices = new_graph.col_indices.astype(index_dtype)
+            if not (new_graph.col_indices == col_indices).all():
+                raise ValueError(
+                    f"Unable to convert col_indices to {col_indices.dtype.name} "
+                    f"(got {new_graph.col_indices.dtype.name})."
+                )
+            new_graph.col_indices = col_indices
         return new_graph
 
     @classmethod
@@ -148,8 +165,8 @@ class Graph:
         col_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -180,8 +197,8 @@ class Graph:
         row_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -214,8 +231,8 @@ class Graph:
         col_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -247,8 +264,8 @@ class Graph:
         row_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -666,7 +683,7 @@ class Graph:
         return list(self._nodeiter_to_iter(node_ids.tolist()))
 
     def _nodearrays_to_dict(
-        self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]
+        self, node_ids: cp.ndarray[IndexValue], values: any_ndarray[NodeValue]
     ) -> dict[NodeKey, NodeValue]:
         it = zip(node_ids.tolist(), values.tolist())
         if (id_to_key := self.id_to_key) is not None:

@@ -27,7 +27,7 @@ import nx_cugraph as nxcg
 from .utils import index_dtype
 
 if TYPE_CHECKING:  # pragma: no cover
-    from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue
+    from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue, any_ndarray
 
 __all__ = [
     "from_networkx",
@@ -386,8 +386,18 @@ def from_networkx(
                     or present
                     for node_id in adj
                 )
-                node_masks[node_attr] = cp.fromiter(iter_mask, bool)
-                node_values[node_attr] = cp.array(vals, dtype)
+                # Node values may be numpy or cupy arrays (useful for str, object, etc).
+                # Someday we'll let the user choose np or cp, and support edge values.
+                node_mask = np.fromiter(iter_mask, bool)
+                node_value = np.array(vals, dtype)
+                try:
+                    node_value = cp.array(node_value)
+                except ValueError:
+                    pass
+                else:
+                    node_mask = cp.array(node_mask)
+                node_values[node_attr] = node_value
+                node_masks[node_attr] = node_mask
                 # if vals.ndim > 1: ...
             else:
                 if node_default is REQUIRED:
@@ -396,10 +406,17 @@ def from_networkx(
                     iter_values = (
                         nodes[node_id].get(node_attr, node_default) for node_id in adj
                     )
+                # Node values may be numpy or cupy arrays (useful for str, object, etc).
+                # Someday we'll let the user choose np or cp, and support edge values.
                 if dtype is None:
-                    node_values[node_attr] = cp.array(list(iter_values))
+                    node_value = np.array(list(iter_values))
                 else:
-                    node_values[node_attr] = cp.fromiter(iter_values, dtype)
+                    node_value = np.fromiter(iter_values, dtype)
+                try:
+                    node_value = cp.array(node_value)
+                except ValueError:
+                    pass
+                node_values[node_attr] = node_value
                 # if vals.ndim > 1: ...
     if graph.is_multigraph():
         if graph.is_directed() or as_directed:
@@ -439,8 +456,8 @@ def from_networkx(
 
 
 def _iter_attr_dicts(
-    values: dict[AttrKey, cp.ndarray[EdgeValue | NodeValue]],
-    masks: dict[AttrKey, cp.ndarray[bool]],
+    values: dict[AttrKey, any_ndarray[EdgeValue | NodeValue]],
+    masks: dict[AttrKey, any_ndarray[bool]],
 ):
     full_attrs = list(values.keys() - masks.keys())
     if full_attrs:
