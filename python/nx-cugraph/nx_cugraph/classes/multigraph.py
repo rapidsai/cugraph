@@ -67,8 +67,8 @@ class MultiGraph(Graph):
     def from_coo(
         cls,
         N: int,
-        row_indices: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
@@ -82,8 +82,8 @@ class MultiGraph(Graph):
     ) -> MultiGraph:
         new_graph = super().from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -97,7 +97,7 @@ class MultiGraph(Graph):
         # Easy and fast sanity checks
         if (
             new_graph.edge_keys is not None
-            and len(new_graph.edge_keys) != row_indices.size
+            and len(new_graph.edge_keys) != src_indices.size
         ):
             raise ValueError
         return new_graph
@@ -106,7 +106,7 @@ class MultiGraph(Graph):
     def from_csr(
         cls,
         indptr: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
@@ -119,14 +119,14 @@ class MultiGraph(Graph):
         **attr,
     ) -> MultiGraph:
         N = indptr.size - 1
-        row_indices = cp.array(
+        src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_indices,
             edge_values,
             edge_masks,
@@ -142,7 +142,7 @@ class MultiGraph(Graph):
     def from_csc(
         cls,
         indptr: cp.ndarray[IndexValue],
-        row_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
@@ -155,14 +155,14 @@ class MultiGraph(Graph):
         **attr,
     ) -> MultiGraph:
         N = indptr.size - 1
-        col_indices = cp.array(
+        dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_indices,
             edge_values,
             edge_masks,
@@ -180,7 +180,7 @@ class MultiGraph(Graph):
         N: int,
         compressed_rows: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
@@ -192,14 +192,14 @@ class MultiGraph(Graph):
         edge_keys: list[EdgeKey] | None = None,
         **attr,
     ) -> MultiGraph:
-        row_indices = cp.array(
+        src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_rows.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_indices,
             edge_values,
             edge_masks,
@@ -217,7 +217,7 @@ class MultiGraph(Graph):
         N: int,
         compressed_cols: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
-        row_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
@@ -229,14 +229,14 @@ class MultiGraph(Graph):
         edge_keys: list[EdgeKey] | None = None,
         **attr,
     ) -> Graph:
-        col_indices = cp.array(
+        dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_cols.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_indices,
             edge_values,
             edge_masks,
@@ -330,7 +330,7 @@ class MultiGraph(Graph):
                     return default
             except TypeError:
                 return default
-        mask = (self.row_indices == u) & (self.col_indices == v)
+        mask = (self.src_indices == u) & (self.dst_indices == v)
         if not mask.any():
             return default
         if self.edge_keys is None:
@@ -376,7 +376,7 @@ class MultiGraph(Graph):
                 v = self.key_to_id[v]
             except KeyError:
                 return False
-        mask = (self.row_indices == u) & (self.col_indices == v)
+        mask = (self.src_indices == u) & (self.dst_indices == v)
         if key is None or (self.edge_indices is None and self.edge_keys is None):
             return bool(mask.any())
         if self.edge_keys is None:
@@ -405,9 +405,8 @@ class MultiGraph(Graph):
 
     def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
         # DRY warning: see also Graph._copy
-        indptr = self.indptr
-        row_indices = self.row_indices
-        col_indices = self.col_indices
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
         edge_indices = self.edge_indices
         edge_values = self.edge_values
         edge_masks = self.edge_masks
@@ -417,9 +416,8 @@ class MultiGraph(Graph):
         id_to_key = None if key_to_id is None else self._id_to_key
         edge_keys = self.edge_keys
         if not as_view:
-            indptr = indptr.copy()
-            row_indices = row_indices.copy()
-            col_indices = col_indices.copy()
+            src_indices = src_indices.copy()
+            dst_indices = dst_indices.copy()
             edge_indices = edge_indices.copy()
             edge_values = {key: val.copy() for key, val in edge_values.items()}
             edge_masks = {key: val.copy() for key, val in edge_masks.items()}
@@ -432,11 +430,11 @@ class MultiGraph(Graph):
             if edge_keys is not None:
                 edge_keys = edge_keys.copy()
         if reverse:
-            row_indices, col_indices = col_indices, row_indices
+            src_indices, dst_indices = dst_indices, src_indices
         rv = cls.from_coo(
-            indptr,
-            row_indices,
-            col_indices,
+            self._N,
+            src_indices,
+            dst_indices,
             edge_indices,
             edge_values,
             edge_masks,
