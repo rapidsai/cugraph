@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from numbers import Integral
+
 import cupy as cp
 import networkx as nx
 import numpy as np
@@ -28,6 +30,8 @@ def complete_bipartite_graph(n1, n2, create_using=None):
     graph_class, inplace = _create_using_class(create_using)
     if graph_class.is_directed():
         raise nx.NetworkXError("Directed Graph not supported")
+    orig_n1, unused_nodes1 = n1
+    orig_n2, unused_nodes2 = n2
     n1, nodes1 = _number_and_nodes(n1)
     n2, nodes2 = _number_and_nodes(n2)
     all_indices = cp.indices((n1, n2), dtype=index_dtype)
@@ -37,24 +41,21 @@ def complete_bipartite_graph(n1, n2, create_using=None):
     src_indices = cp.hstack((indices0, indices1))
     dst_indices = cp.hstack((indices1, indices0))
     bipartite = cp.zeros(n1 + n2, np.int8)
-    bipartite[n1 : n1 + n2] = 1
-    if nodes1 is None:
-        if nodes2 is None:
-            nodes = None
-        else:
-            nodes = list(range(n1))
-            nodes.extend(nodes2)
+    bipartite[n1:] = 1
+    if isinstance(orig_n1, Integral) and isinstance(orig_n2, Integral):
+        nodes = None
     else:
-        nodes = nodes1
-        nodes.extend(range(n1, n1 + n2) if nodes2 is None else nodes2)
-    if nodes is not None and len(set(nodes)) != len(nodes):
-        raise nx.NetworkXError("Inputs n1 and n2 must contain distinct nodes")
+        nodes = list(range(n1)) if nodes1 is None else nodes1
+        nodes.extend(range(n2) if nodes2 is None else nodes2)
+        if len(set(nodes)) != len(nodes):
+            raise nx.NetworkXError("Inputs n1 and n2 must contain distinct nodes")
     G = graph_class.from_coo(
         n1 + n2,
         src_indices,
         dst_indices,
         node_values={"bipartite": bipartite},
-        name=f"complete_bipartite_graph({n1}, {n2})",
+        id_to_key=nodes,
+        name=f"complete_bipartite_graph({orig_n1}, {orig_n2})",
     )
     if inplace:
         return create_using._become(G)

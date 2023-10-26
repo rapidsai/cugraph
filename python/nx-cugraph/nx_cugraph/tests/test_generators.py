@@ -84,10 +84,11 @@ COMPLETE_CREATE_USING = [
     nxcg.DiGraph,
     nxcg.MultiGraph,
     nxcg.MultiDiGraph,
-    nx.Graph(),
-    nx.DiGraph(),
-    nx.MultiGraph(),
-    nx.MultiDiGraph(),
+    # These raise NotImplementedError
+    # nx.Graph(),
+    # nx.DiGraph(),
+    # nx.MultiGraph(),
+    # nx.MultiDiGraph(),
     nxcg.Graph(),
     nxcg.DiGraph(),
     nxcg.MultiGraph(),
@@ -123,6 +124,8 @@ GENERATORS_NOARG = [
     "tutte_graph",
 ]
 GENERATORS_NOARG_VANILLA = [
+    # classic
+    "complete_multipartite_graph",
     # small
     "pappus_graph",
     # social
@@ -150,6 +153,9 @@ GENERATORS_M_N = [
     "complete_bipartite_graph",
 ]
 GENERATORS_M_N_VANILLA = [
+    # classic
+    "complete_multipartite_graph",
+    "turan_graph",
     # community
     "caveman_graph",
 ]

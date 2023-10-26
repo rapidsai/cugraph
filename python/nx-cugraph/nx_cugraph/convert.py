@@ -483,7 +483,7 @@ def _iter_attr_dicts(
     return full_dicts
 
 
-def to_networkx(G: nxcg.Graph) -> nx.Graph:
+def to_networkx(G: nxcg.Graph, *, sort_edges: bool = True) -> nx.Graph:
     """Convert a nx_cugraph graph to networkx graph.
 
     All edge and node attributes and ``G.graph`` properties are converted.
@@ -491,6 +491,9 @@ def to_networkx(G: nxcg.Graph) -> nx.Graph:
     Parameters
     ----------
     G : nx_cugraph.Graph
+    sort_edges : bool, default True
+        Whether to sort the edge data of the input graph by (src, dst) indices
+        before converting. This can be useful for consistent conversions.
 
     Returns
     -------
@@ -502,6 +505,8 @@ def to_networkx(G: nxcg.Graph) -> nx.Graph:
     """
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
+    if sort_edges:
+        G._sort_edge_indices()
 
     node_values = G.node_values
     node_masks = G.node_masks

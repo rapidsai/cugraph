@@ -10,14 +10,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import itertools
+from numbers import Integral
+
 import cupy as cp
 import networkx as nx
+import numpy as np
+
+import nx_cugraph as nxcg
 
 from ..utils import index_dtype, networkx_algorithm, nodes_or_number
 from ._utils import (
     _common_small_graph,
     _complete_graph_indices,
     _create_using_class,
+    _ensure_int,
     _ensure_nonnegative_int,
     _number_and_nodes,
 )
@@ -26,6 +33,7 @@ __all__ = [
     "barbell_graph",
     "circular_ladder_graph",
     "complete_graph",
+    "complete_multipartite_graph",
     "cycle_graph",
     "empty_graph",
     "ladder_graph",
@@ -34,8 +42,11 @@ __all__ = [
     "path_graph",
     "star_graph",
     "trivial_graph",
+    "turan_graph",
     "wheel_graph",
 ]
+
+concat = itertools.chain.from_iterable
 
 
 @networkx_algorithm
@@ -85,6 +96,46 @@ def complete_graph(n, create_using=None):
     if inplace:
         return create_using._become(G)
     return G
+
+
+@networkx_algorithm
+def complete_multipartite_graph(*subset_sizes):
+    if not subset_sizes:
+        return nxcg.Graph()
+    try:
+        subset_sizes = [_ensure_int(size) for size in subset_sizes]
+    except TypeError:
+        subsets = [list(subset) for subset in subset_sizes]
+        subset_sizes = [len(subset) for subset in subsets]
+        nodes = list(concat(subsets))
+    else:
+        subsets = nodes = None
+        subset_sizes = [_ensure_nonnegative_int(size) for size in subset_sizes]
+    L1 = []
+    L2 = []
+    total = 0
+    for size in subset_sizes:
+        all_indices = cp.indices((total, size), dtype=index_dtype)
+        L1.append(all_indices[0].ravel())
+        L2.append(all_indices[1].ravel() + total)
+        total += size
+    src_indices = cp.hstack(L1 + L2)
+    dst_indices = cp.hstack(L2 + L1)
+    subsets_array = cp.array(
+        np.repeat(
+            np.arange(
+                len(subset_sizes), dtype=np.min_scalar_type(len(subset_sizes) - 1)
+            ),
+            subset_sizes,
+        )
+    )
+    return nxcg.Graph.from_coo(
+        subsets_array.size,
+        src_indices,
+        dst_indices,
+        node_values={"subset": subsets_array},
+        id_to_key=nodes,
+    )
 
 
 @nodes_or_number(0)
@@ -190,6 +241,8 @@ def ladder_graph(n, create_using=None):
 @networkx_algorithm
 def lollipop_graph(m, n, create_using=None):
     # Like complete_graph then path_graph
+    orig_m, unused_nodes1 = m
+    orig_n, unused_nodes2 = n
     m, m_nodes = _number_and_nodes(m)
     if m < 2:
         raise nx.NetworkXError(
@@ -207,17 +260,13 @@ def lollipop_graph(m, n, create_using=None):
     ).ravel()[1:-1]
     src_indices = cp.hstack((msrc_indices, nsrc_indices))
     dst_indices = cp.hstack((mdst_indices, ndst_indices))
-    if m_nodes is None:
-        if n_nodes is None:
-            nodes = None
-        else:
-            nodes = list(range(m))
-            nodes.extend(n_nodes)
+    if isinstance(orig_m, Integral) and isinstance(orig_n, Integral):
+        nodes = None
     else:
-        nodes = m_nodes
-        nodes.extend(range(m, m + n) if n_nodes is None else n_nodes)
-    if nodes is not None and len(set(nodes)) != len(nodes):
-        raise nx.NetworkXError("Nodes must be distinct in containers m and n")
+        nodes = list(range(m)) if m_nodes is None else m_nodes
+        nodes.extend(range(n) if n_nodes is None else n_nodes)
+        if len(set(nodes)) != len(nodes):
+            raise nx.NetworkXError("Nodes must be distinct in containers m and n")
     G = graph_class.from_coo(m + n, src_indices, dst_indices, id_to_key=nodes)
     if inplace:
         return create_using._become(G)
@@ -253,19 +302,23 @@ def path_graph(n, create_using=None):
 @nodes_or_number(0)
 @networkx_algorithm
 def star_graph(n, create_using=None):
+    orig_n, orig_nodes = n
     n, nodes = _number_and_nodes(n)
-    if nodes is not None:
-        nodes.append(n)
-    if n < 2:
-        return _common_small_graph(n + 1, nodes, create_using, allow_directed=False)
+    # star_graph behaves differently whether the input was an int or iterable
+    if isinstance(orig_n, Integral):
+        if nodes is not None:
+            nodes.append(n)
+        n += 1
+    if n < 3:
+        return _common_small_graph(n, nodes, create_using, allow_directed=False)
     graph_class, inplace = _create_using_class(create_using)
     if graph_class.is_directed():
         raise nx.NetworkXError("Directed Graph not supported")
-    flat = cp.zeros(n, index_dtype)
-    ramp = cp.arange(1, n + 1, dtype=index_dtype)
+    flat = cp.zeros(n - 1, index_dtype)
+    ramp = cp.arange(1, n, dtype=index_dtype)
     src_indices = cp.hstack((flat, ramp))
     dst_indices = cp.hstack((ramp, flat))
-    G = graph_class.from_coo(n + 1, src_indices, dst_indices, id_to_key=nodes)
+    G = graph_class.from_coo(n, src_indices, dst_indices, id_to_key=nodes)
     if inplace:
         return create_using._become(G)
     return G
@@ -274,6 +327,15 @@ def star_graph(n, create_using=None):
 @networkx_algorithm
 def trivial_graph(create_using=None):
     return _common_small_graph(1, None, create_using)
+
+
+@networkx_algorithm
+def turan_graph(n, r):
+    if not 1 <= r <= n:
+        raise nx.NetworkXError("Must satisfy 1 <= r <= n")
+    n_div_r, n_mod_r = divmod(n, r)
+    partitions = [n_div_r] * (r - n_mod_r) + [n_div_r + 1] * n_mod_r
+    return complete_multipartite_graph(*partitions)
 
 
 @nodes_or_number(0)

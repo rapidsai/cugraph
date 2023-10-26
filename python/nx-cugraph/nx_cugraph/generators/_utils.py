@@ -80,12 +80,15 @@ def _create_using_class(create_using, *, default=nxcg.Graph):
         create_using, "is_multigraph"
     ):
         raise TypeError("create_using is not a valid graph type or instance")
+    elif not isinstance(create_using, nxcg.Graph):
+        raise NotImplementedError(
+            f"create_using with object of type {type(create_using)} is not supported "
+            "by the cugraph backend; only nx_cugraph.Graph objects are allowed."
+        )
     else:
-        if isinstance(create_using, nxcg.Graph):
-            create_using.clear()
-            inplace = True
-        # What does the user intend if they give us a graph object not from nx-cugraph?
+        inplace = True
         G = create_using
+        G.clear()
     if not isinstance(G, nxcg.Graph):
         if G.is_multigraph():
             if G.is_directed():
@@ -96,6 +99,12 @@ def _create_using_class(create_using, *, default=nxcg.Graph):
             graph_class = nxcg.DiGraph
         else:
             graph_class = nxcg.Graph
+        if G.__class__ not in {nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph}:
+            raise NotImplementedError(
+                f"create_using with type {type(G)} is not supported by the cugraph "
+                "backend; only standard networkx or nx_cugraph Graph objects are "
+                "allowed (but not customized subclasses derived from them)."
+            )
     else:
         graph_class = G.__class__
     return graph_class, inplace

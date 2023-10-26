@@ -37,6 +37,7 @@ _info = {
         "circular_ladder_graph",
         "complete_bipartite_graph",
         "complete_graph",
+        "complete_multipartite_graph",
         "cubical_graph",
         "cycle_graph",
         "davis_southern_women_graph",
@@ -72,6 +73,7 @@ _info = {
         "trivial_graph",
         "truncated_cube_graph",
         "truncated_tetrahedron_graph",
+        "turan_graph",
         "tutte_graph",
         "wheel_graph",
         # END: functions
