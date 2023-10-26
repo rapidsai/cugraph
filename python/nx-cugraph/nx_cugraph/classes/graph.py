@@ -52,8 +52,8 @@ class Graph:
 
     # Not networkx properties
     # We store edge data in COO format with {row,col}_indices and edge_values.
-    row_indices: cp.ndarray[IndexValue]
-    col_indices: cp.ndarray[IndexValue]
+    src_indices: cp.ndarray[IndexValue]
+    dst_indices: cp.ndarray[IndexValue]
     edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
     edge_masks: dict[AttrKey, cp.ndarray[bool]]
     node_values: dict[AttrKey, cp.ndarray[NodeValue]]
@@ -70,8 +70,8 @@ class Graph:
     def from_coo(
         cls,
         N: int,
-        row_indices: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
@@ -82,8 +82,8 @@ class Graph:
         **attr,
     ) -> Graph:
         new_graph = object.__new__(cls)
-        new_graph.row_indices = row_indices
-        new_graph.col_indices = col_indices
+        new_graph.src_indices = src_indices
+        new_graph.dst_indices = dst_indices
         new_graph.edge_values = {} if edge_values is None else dict(edge_values)
         new_graph.edge_masks = {} if edge_masks is None else dict(edge_masks)
         new_graph.node_values = {} if node_values is None else dict(node_values)
@@ -93,9 +93,9 @@ class Graph:
         new_graph._N = op.index(N)  # Ensure N is integral
         new_graph.graph = new_graph.graph_attr_dict_factory()
         new_graph.graph.update(attr)
-        size = new_graph.row_indices.size
+        size = new_graph.src_indices.size
         # Easy and fast sanity checks
-        if size != new_graph.col_indices.size:
+        if size != new_graph.dst_indices.size:
             raise ValueError
         for attr in ["edge_values", "edge_masks"]:
             if datadict := getattr(new_graph, attr):
@@ -117,7 +117,7 @@ class Graph:
     def from_csr(
         cls,
         indptr: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
@@ -128,14 +128,14 @@ class Graph:
         **attr,
     ) -> Graph:
         N = indptr.size - 1
-        row_indices = cp.array(
+        src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -149,7 +149,7 @@ class Graph:
     def from_csc(
         cls,
         indptr: cp.ndarray[IndexValue],
-        row_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
@@ -160,14 +160,14 @@ class Graph:
         **attr,
     ) -> Graph:
         N = indptr.size - 1
-        col_indices = cp.array(
+        dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -183,7 +183,7 @@ class Graph:
         N: int,
         compressed_rows: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
-        col_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
@@ -193,14 +193,14 @@ class Graph:
         id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
-        row_indices = cp.array(
+        src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_rows.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -216,7 +216,7 @@ class Graph:
         N: int,
         compressed_cols: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
-        row_indices: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
         node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
@@ -226,14 +226,14 @@ class Graph:
         id_to_key: list[NodeKey] | None = None,
         **attr,
     ) -> Graph:
-        col_indices = cp.array(
+        dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_cols.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
-            row_indices,
-            col_indices,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -343,8 +343,8 @@ class Graph:
         self.node_values.clear()
         self.node_masks.clear()
         self.graph.clear()
-        self.row_indices = cp.empty(0, self.row_indices.dtype)
-        self.col_indices = cp.empty(0, self.col_indices.dtype)
+        self.src_indices = cp.empty(0, self.src_indices.dtype)
+        self.dst_indices = cp.empty(0, self.dst_indices.dtype)
         self._N = 0
         self.key_to_id = None
         self._id_to_key = None
@@ -353,8 +353,8 @@ class Graph:
     def clear_edges(self) -> None:
         self.edge_values.clear()
         self.edge_masks.clear()
-        self.row_indices = cp.empty(0, self.row_indices.dtype)
-        self.col_indices = cp.empty(0, self.col_indices.dtype)
+        self.src_indices = cp.empty(0, self.src_indices.dtype)
+        self.dst_indices = cp.empty(0, self.dst_indices.dtype)
 
     @networkx_api
     def copy(self, as_view: bool = False) -> Graph:
@@ -377,7 +377,7 @@ class Graph:
                     return default
             except TypeError:
                 return default
-        index = cp.nonzero((self.row_indices == u) & (self.col_indices == v))[0]
+        index = cp.nonzero((self.src_indices == u) & (self.dst_indices == v))[0]
         if index.size == 0:
             return default
         [index] = index.tolist()
@@ -397,7 +397,7 @@ class Graph:
                 v = self.key_to_id[v]
             except KeyError:
                 return False
-        return bool(((self.row_indices == u) & (self.col_indices == v)).any())
+        return bool(((self.src_indices == u) & (self.dst_indices == v)).any())
 
     @networkx_api
     def has_node(self, n: NodeKey) -> bool:
@@ -431,8 +431,8 @@ class Graph:
     def size(self, weight: AttrKey | None = None) -> int:
         if weight is not None:
             raise NotImplementedError
-        # If no self-edges, then `self.row_indices.size // 2`
-        return int((self.row_indices <= self.col_indices).sum())
+        # If no self-edges, then `self.src_indices.size // 2`
+        return int((self.src_indices <= self.dst_indices).sum())
 
     @networkx_api
     def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
@@ -455,9 +455,8 @@ class Graph:
 
     def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
         # DRY warning: see also MultiGraph._copy
-        indptr = self.indptr
-        row_indices = self.row_indices
-        col_indices = self.col_indices
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
         edge_values = self.edge_values
         edge_masks = self.edge_masks
         node_values = self.node_values
@@ -465,9 +464,8 @@ class Graph:
         key_to_id = self.key_to_id
         id_to_key = None if key_to_id is None else self._id_to_key
         if not as_view:
-            indptr = indptr.copy()
-            row_indices = row_indices.copy()
-            col_indices = col_indices.copy()
+            src_indices = src_indices.copy()
+            dst_indices = dst_indices.copy()
             edge_values = {key: val.copy() for key, val in edge_values.items()}
             edge_masks = {key: val.copy() for key, val in edge_masks.items()}
             node_values = {key: val.copy() for key, val in node_values.items()}
@@ -477,11 +475,11 @@ class Graph:
                 if id_to_key is not None:
                     id_to_key = id_to_key.copy()
         if reverse:
-            row_indices, col_indices = col_indices, row_indices
+            src_indices, dst_indices = dst_indices, src_indices
         rv = cls.from_coo(
-            indptr,
-            row_indices,
-            col_indices,
+            self._N,
+            src_indices,
+            dst_indices,
             edge_values,
             edge_masks,
             node_values,
@@ -502,8 +500,11 @@ class Graph:
         edge_dtype: Dtype | None = None,
         *,
         store_transposed: bool = False,
+        edge_array: cp.ndarray[EdgeValue] | None = None,
     ):
-        if edge_attr is None:
+        if edge_array is not None:
+            pass
+        elif edge_attr is None:
             edge_array = None
         elif edge_attr not in self.edge_values:
             raise KeyError("Graph has no edge attribute {edge_attr!r}")
@@ -532,13 +533,19 @@ class Graph:
                 is_multigraph=self.is_multigraph(),
                 is_symmetric=not self.is_directed(),
             ),
-            src_or_offset_array=self.row_indices,
-            dst_or_index_array=self.col_indices,
+            src_or_offset_array=self.src_indices,
+            dst_or_index_array=self.dst_indices,
             weight_array=edge_array,
             store_transposed=store_transposed,
             renumber=False,
             do_expensive_check=False,
         )
+
+    def _degrees_array(self):
+        degrees = cp.bincount(self.src_indices, minlength=self._N)
+        if self.is_directed():
+            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+        return degrees
 
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
@@ -550,6 +557,14 @@ class Graph:
         if self.key_to_id is None:
             return node_ids.tolist()
         return list(self._nodeiter_to_iter(node_ids.tolist()))
+
+    def _nodearray_to_dict(
+        self, values: cp.ndarray[NodeValue]
+    ) -> dict[NodeKey, NodeValue]:
+        it = enumerate(values.tolist())
+        if (id_to_key := self.id_to_key) is not None:
+            return {id_to_key[key]: val for key, val in it}
+        return dict(it)
 
     def _nodearrays_to_dict(
         self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]
