@@ -10,9 +10,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .graph import Graph
-from .digraph import DiGraph
-from .multigraph import MultiGraph
-from .multidigraph import MultiDiGraph
+from nx_cugraph.convert import _to_graph
+from nx_cugraph.utils import networkx_algorithm
 
-from .function import *
+__all__ = ["number_of_selfloops"]
+
+
+@networkx_algorithm
+def number_of_selfloops(G):
+    G = _to_graph(G)
+    is_selfloop = G.src_indices == G.dst_indices
+    return is_selfloop.sum().tolist()

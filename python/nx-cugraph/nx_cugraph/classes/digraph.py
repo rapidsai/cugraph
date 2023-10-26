@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import cupy as cp
 import networkx as nx
 
 import nx_cugraph as nxcg
@@ -48,7 +49,7 @@ class DiGraph(Graph):
     ) -> int:
         if u is not None or v is not None:
             raise NotImplementedError
-        return self.row_indices.size
+        return self.src_indices.size
 
     ##########################
     # NetworkX graph methods #
@@ -59,3 +60,13 @@ class DiGraph(Graph):
         return self._copy(not copy, self.__class__, reverse=True)
 
     # Many more methods to implement...
+
+    ###################
+    # Private methods #
+    ###################
+
+    def _in_degrees_array(self):
+        return cp.bincount(self.dst_indices, minlength=self._N)
+
+    def _out_degrees_array(self):
+        return cp.bincount(self.src_indices, minlength=self._N)
