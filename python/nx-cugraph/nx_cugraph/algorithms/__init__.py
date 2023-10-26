@@ -13,4 +13,5 @@
 from . import bipartite, centrality, community
 from .bipartite import complete_bipartite_graph
 from .centrality import *
+from .core import *
 from .isolate import *
