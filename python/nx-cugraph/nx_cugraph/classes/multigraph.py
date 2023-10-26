@@ -45,11 +45,11 @@ class MultiGraph(Graph):
 
     # Not networkx properties
 
-    # In a MultiGraph, each edge has a unique `(row, col, key)` key.
+    # In a MultiGraph, each edge has a unique `(src, dst, key)` key.
     # By default, `key` is 0 if possible, else 1, else 2, etc.
     # This key can be any hashable Python object in NetworkX.
     # We don't use a dict for our data structure here, because
-    # that would require a `(row, col, key)` key.
+    # that would require a `(src, dst, key)` key.
     # Instead, we keep `edge_keys` and/or `edge_indices`.
     # `edge_keys` is the list of Python objects for each edge.
     # `edge_indices` is for the common case of default multiedge keys,
@@ -180,7 +180,7 @@ class MultiGraph(Graph):
     def from_dcsr(
         cls,
         N: int,
-        compressed_rows: cp.ndarray[IndexValue],
+        compressed_srcs: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         dst_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
@@ -196,7 +196,7 @@ class MultiGraph(Graph):
     ) -> MultiGraph:
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_rows.get(), cp.diff(indptr).get())
+            np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -217,7 +217,7 @@ class MultiGraph(Graph):
     def from_dcsc(
         cls,
         N: int,
-        compressed_cols: cp.ndarray[IndexValue],
+        compressed_dsts: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         src_indices: cp.ndarray[IndexValue],
         edge_indices: cp.ndarray[IndexValue] | None = None,
@@ -233,7 +233,7 @@ class MultiGraph(Graph):
     ) -> Graph:
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_cols.get(), cp.diff(indptr).get())
+            np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,

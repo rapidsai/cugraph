@@ -54,7 +54,7 @@ class Graph:
     graph_attr_dict_factory: ClassVar[type] = dict
 
     # Not networkx properties
-    # We store edge data in COO format with {row,col}_indices and edge_values.
+    # We store edge data in COO format with {src,dst}_indices and edge_values.
     src_indices: cp.ndarray[IndexValue]
     dst_indices: cp.ndarray[IndexValue]
     edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
@@ -226,7 +226,7 @@ class Graph:
     def from_dcsr(
         cls,
         N: int,
-        compressed_rows: cp.ndarray[IndexValue],
+        compressed_srcs: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
@@ -240,7 +240,7 @@ class Graph:
     ) -> Graph:
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_rows.get(), cp.diff(indptr).get())
+            np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -259,7 +259,7 @@ class Graph:
     def from_dcsc(
         cls,
         N: int,
-        compressed_cols: cp.ndarray[IndexValue],
+        compressed_dsts: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         src_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
@@ -273,7 +273,7 @@ class Graph:
     ) -> Graph:
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_cols.get(), cp.diff(indptr).get())
+            np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
