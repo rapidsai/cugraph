@@ -444,12 +444,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   size_t number_of_local_edge_partitions() const { return edge_partition_offsets_.size(); }
 
-  edge_t number_of_local_edge_partition_edges(size_t partition_idx) const
-  {
-    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-    return edge_partition_number_of_edges_[partition_idx];
-  }
-
   vertex_t local_edge_partition_src_range_size() const
   {
     if constexpr (!store_transposed) {  // source range can be non-contiguous
@@ -589,8 +583,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   edge_partition_view_t<vertex_t, edge_t, true> local_edge_partition_view(
     size_t partition_idx) const
   {
-    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
     vertex_t major_range_first{};
     vertex_t major_range_last{};
     vertex_t minor_range_first{};
@@ -748,6 +740,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   bool has_edge_mask() const { return edge_mask_view_.has_value(); }
 
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
+
  private:
   std::vector<edge_t const*> edge_partition_offsets_{};
   std::vector<vertex_t const*> edge_partition_indices_{};
@@ -855,12 +852,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   constexpr bool in_local_vertex_partition_range_nocheck(vertex_t v) const { return true; }
 
   constexpr size_t number_of_local_edge_partitions() const { return size_t(1); }
-
-  edge_t number_of_local_edge_partition_edges(size_t partition_idx = 0) const
-  {
-    assert(partition_idx == 0);
-    return this->number_of_edges();
-  }
 
   vertex_t local_edge_partition_src_range_size(size_t partition_idx = 0) const
   {
@@ -1029,6 +1020,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
 
   bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
 
  private:
   edge_t const* offsets_{nullptr};
