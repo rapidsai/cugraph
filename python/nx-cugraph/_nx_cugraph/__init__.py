@@ -48,6 +48,7 @@ _info = {
         "edge_betweenness_centrality",
         "empty_graph",
         "florentine_families_graph",
+        "from_pandas_edgelist",
         "from_scipy_sparse_array",
         "frucht_graph",
         "heawood_graph",
@@ -88,6 +89,7 @@ _info = {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
         "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },
