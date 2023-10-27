@@ -625,7 +625,7 @@ class Graph:
         )
 
     def _sort_edge_indices(self, primary="src"):
-        # TODO: what about multigraph edge_indices and edge_keys?
+        # DRY warning: see also MultiGraph._sort_edge_indices
         if primary == "src":
             stacked = cp.vstack((self.dst_indices, self.src_indices))
         elif primary == "dst":

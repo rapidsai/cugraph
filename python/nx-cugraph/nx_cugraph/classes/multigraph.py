@@ -451,3 +451,39 @@ class MultiGraph(Graph):
         else:
             rv.graph.update(deepcopy(self.graph))
         return rv
+
+    def _sort_edge_indices(self, primary="src"):
+        # DRY warning: see also Graph._sort_edge_indices
+        if self.edge_indices is None and self.edge_keys is None:
+            return super()._sort_edge_indices(primary=primary)
+        if primary == "src":
+            if self.edge_indices is None:
+                stacked = (self.dst_indices, self.src_indices)
+            else:
+                stacked = (self.edge_indices, self.dst_indices, self.src_indices)
+        elif primary == "dst":
+            if self.edge_indices is None:
+                stacked = (self.src_indices, self.dst_indices)
+            else:
+                stacked = (self.edge_indices, self.dst_indices, self.src_indices)
+        else:
+            raise ValueError(
+                f'Bad `primary` argument; expected "src" or "dst", got {primary!r}'
+            )
+        indices = cp.lexsort(cp.vstack(stacked))
+        if (cp.diff(indices) > 0).all():
+            # Already sorted
+            return
+        self.src_indices = self.src_indices[indices]
+        self.dst_indices = self.dst_indices[indices]
+        self.edge_values.update(
+            {key: val[indices] for key, val in self.edge_values.items()}
+        )
+        self.edge_masks.update(
+            {key: val[indices] for key, val in self.edge_masks.items()}
+        )
+        if self.edge_indices is not None:
+            self.edge_indices = self.edge_indices[indices]
+        if self.edge_keys is not None:
+            edge_keys = self.edge_keys
+            self.edge_keys = [edge_keys[i] for i in indices.tolist()]
