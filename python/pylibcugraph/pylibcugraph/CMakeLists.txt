@@ -56,7 +56,7 @@ set(cython_sources
     uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
-    replicate_edgelist.pyx
+    replication.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
