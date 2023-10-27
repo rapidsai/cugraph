@@ -57,30 +57,26 @@ def _call_plc_replicate_edgelist(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         src_array=edgelist_df[col_names[0]],
         dst_array=edgelist_df[col_names[1]],
-        weight_array=edgelist_df[col_names[2]]
-        if len(col_names) > 2
-        else None,
-        edge_id_array=edgelist_df[col_names[3]]
-        if len(col_names) > 3
-        else None,
-        edge_type_id_array=edgelist_df[col_names[4]]
-        if len(col_names) > 4
-        else None,
+        weight_array=edgelist_df[col_names[2]] if len(col_names) > 2 else None,
+        edge_id_array=edgelist_df[col_names[3]] if len(col_names) > 3 else None,
+        edge_type_id_array=edgelist_df[col_names[4]] if len(col_names) > 4 else None,
     )
     return convert_to_cudf(cp_arrays, col_names)
 
 
-def _call_plc_replicate_dataframe(
-    sID: bytes, df: cudf.DataFrame
-) -> cudf.DataFrame:
+def _call_plc_replicate_dataframe(sID: bytes, df: cudf.DataFrame) -> cudf.DataFrame:
     df = df[0]
     df_replicated = cudf.DataFrame()
     for col_name in df.columns:
         cp_array = pylibcugraph_replication(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-            src_array=df[col_name] if df[col_name].dtype in [np.int32, np.int64] else None,
+            src_array=df[col_name]
+            if df[col_name].dtype in [np.int32, np.int64]
+            else None,
             dst_array=None,
-            weight_array=df[col_name] if df[col_name].dtype in [np.float32, np.float64] else None,
+            weight_array=df[col_name]
+            if df[col_name].dtype in [np.float32, np.float64]
+            else None,
             edge_id_array=None,
             edge_type_id_array=None,
         )
@@ -90,13 +86,10 @@ def _call_plc_replicate_dataframe(
         elif wgt is not None:
             df_replicated[col_name] = wgt
 
-
     return df_replicated
 
 
-def _call_plc_replicate_series(
-    sID: bytes, series: cudf.Series
-) -> cudf.Series:
+def _call_plc_replicate_series(sID: bytes, series: cudf.Series) -> cudf.Series:
     series = series[0]
     series_replicated = cudf.Series()
     cp_array = pylibcugraph_replication(
@@ -112,7 +105,6 @@ def _call_plc_replicate_series(
         series_replicated = cudf.Series(src)
     elif wgt is not None:
         series_replicated = cudf.Series(wgt)
-
 
     return series_replicated
 
@@ -185,7 +177,7 @@ def replicate_edgelist(
 
     edgelist_ddf: cudf.DataFrame or dask_cudf.DataFrame
         A DataFrame that contains edge information.
-    
+
     source : str or array-like
             source column name or array of column names
 
@@ -220,14 +212,14 @@ def replicate_edgelist(
             edgelist_ddf, npartitions=len(Comms.get_workers())
         )
     col_names = [source, destination]
-    
+
     if weight is not None:
         col_names.append(weight)
     if edge_id is not None:
         col_names.append(edge_id)
     if edge_type is not None:
         col_names.append(edge_type)
-    
+
     if not (set(col_names).issubset(set(edgelist_ddf.columns))):
         raise ValueError(
             "Invalid column names were provided: valid columns names are "
@@ -289,7 +281,6 @@ def replicate_cudf_dataframe(cudf_dataframe):
             )
     else:
         df = cudf_dataframe
-
 
     df = persist_dask_df_equal_parts_per_worker(df, _client)
     df = get_persisted_df_worker_map(df, _client)

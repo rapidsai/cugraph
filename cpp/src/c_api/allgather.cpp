@@ -65,23 +65,18 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-
     std::optional<rmm::device_uvector<vertex_t>> edgelist_srcs{std::nullopt};
     if (src_) {
       edgelist_srcs = rmm::device_uvector<vertex_t>(src_->size_, handle_.get_stream());
-      raft::copy(edgelist_srcs->data(),
-                 src_->as_type<vertex_t>(),
-                 src_->size_,
-                 handle_.get_stream());
+      raft::copy(
+        edgelist_srcs->data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
     }
 
     std::optional<rmm::device_uvector<vertex_t>> edgelist_dsts{std::nullopt};
     if (dst_) {
       edgelist_dsts = rmm::device_uvector<vertex_t>(dst_->size_, handle_.get_stream());
-      raft::copy(edgelist_dsts->data(),
-                 dst_->as_type<vertex_t>(),
-                 dst_->size_,
-                 handle_.get_stream());
+      raft::copy(
+        edgelist_dsts->data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
     }
 
     std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
@@ -110,8 +105,8 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
                  handle_.get_stream());
     }
 
-    auto& comm    = handle_.get_comms();
-  
+    auto& comm = handle_.get_comms();
+
     if (edgelist_srcs) {
       edgelist_srcs = cugraph::detail::device_allgatherv(
         handle_,
@@ -128,7 +123,8 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
 
     rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());
 
-    std::vector<size_t> h_edge_offsets{{0, edgelist_srcs ? edgelist_srcs->size() : edgelist_weights->size()}};
+    std::vector<size_t> h_edge_offsets{
+      {0, edgelist_srcs ? edgelist_srcs->size() : edgelist_weights->size()}};
     raft::update_device(
       edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
 
@@ -206,15 +202,14 @@ extern "C" cugraph_error_code_t cugraph_allgather(
   auto p_edge_type_ids =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(edge_type_ids);
 
-
   CAPI_EXPECTS((dst == nullptr) || (src == nullptr) || p_src->size_ == p_dst->size_,
-              CUGRAPH_INVALID_INPUT,
-              "Invalid input arguments: src size != dst size.",
-              *error);
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src size != dst size.",
+               *error);
   CAPI_EXPECTS((dst == nullptr) || (src == nullptr) || p_src->type_ == p_dst->type_,
-              CUGRAPH_INVALID_INPUT,
-              "Invalid input arguments: src type != dst type.",
-              *error);
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src type != dst type.",
+               *error);
 
   CAPI_EXPECTS((weights == nullptr) || (src == nullptr) || (p_weights->size_ == p_src->size_),
                CUGRAPH_INVALID_INPUT,
@@ -226,7 +221,7 @@ extern "C" cugraph_error_code_t cugraph_allgather(
   cugraph_data_type_id_t weight_type;
   cugraph_data_type_id_t edge_type_id_type;
 
-  if (src != nullptr){
+  if (src != nullptr) {
     vertex_type = p_src->type_;
   } else {
     vertex_type = cugraph_data_type_id_t::INT32;
@@ -252,14 +247,14 @@ extern "C" cugraph_error_code_t cugraph_allgather(
 
   if (src != nullptr) {
     CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->size_ == p_src->size_),
-                CUGRAPH_INVALID_INPUT,
-                "Invalid input arguments: src size != edge id prop size",
-                *error);
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: src size != edge id prop size",
+                 *error);
 
     CAPI_EXPECTS((edge_type_ids == nullptr) || (p_edge_type_ids->size_ == p_src->size_),
-                CUGRAPH_INVALID_INPUT,
-                "Invalid input arguments: src size != edge type prop size",
-                *error);
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: src size != edge type prop size",
+                 *error);
   }
 
   constexpr bool multi_gpu        = false;
@@ -269,13 +264,8 @@ extern "C" cugraph_error_code_t cugraph_allgather(
     *p_handle->handle_, p_src, p_dst, p_weights, p_edge_ids, p_edge_type_ids);
 
   try {
-    cugraph::c_api::vertex_dispatcher(vertex_type,
-                                      edge_type,
-                                      weight_type,
-                                      edge_type_id_type,
-                                      store_transposed,
-                                      multi_gpu,
-                                      functor);
+    cugraph::c_api::vertex_dispatcher(
+      vertex_type, edge_type, weight_type, edge_type_id_type, store_transposed, multi_gpu, functor);
 
     if (functor.error_code_ != CUGRAPH_SUCCESS) {
       *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
