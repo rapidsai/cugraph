@@ -9,6 +9,6 @@ RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-whe
 python -m pip install --no-deps ./local-pylibcugraph-dep/pylibcugraph*.whl
 
 # Always install latest dask for testing
-python -m pip install git+https://github.com/dask/dask.git@2023.9.2 git+https://github.com/dask/distributed.git@2023.9.2
+python -m pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main
 
 ./ci/test_wheel.sh cugraph python/cugraph
