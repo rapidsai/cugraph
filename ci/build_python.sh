@@ -18,17 +18,19 @@ echo "${version}" | tr -d '"' > VERSION
 
 rapids-logger "Begin py build"
 
+package_dir="python"
+for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do 
+  underscore_package_name=$(echo "${package_name}" | tr "-" "_")
+  sed -i "/^__git_commit__/ s/= .*/= \"${commit}\"/g" "${package_dir}/${package_name}/${underscore_package_name}/_version.py"
+done
+
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
-version_file_pylibcugraph="python/pylibcugraph/pylibcugraph/_version.py"
-sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_pylibcugraph}
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   conda/recipes/pylibcugraph
 
-version_file_cugraph="python/cugraph/cugraph/_version.py"
-sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph}
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
@@ -39,7 +41,6 @@ rapids-conda-retry mambabuild \
 # platform to ensure it is included in each set of artifacts, since test
 # scripts only install from one set of artifacts based on the CUDA version used
 # for the test run.
-version_file_nx_cugraph="python/nx-cugraph/nx_cugraph/_version.py"
 sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_nx_cugraph}
 rapids-conda-retry mambabuild \
   --no-test \
@@ -65,8 +66,6 @@ RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
 if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
   # Only CUDA 11 is supported right now due to PyTorch requirement.
-  version_file_cugraph_pyg="python/cugraph-pyg/cugraph_pyg/_version.py"
-  sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_pyg}
   rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
@@ -77,8 +76,6 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     conda/recipes/cugraph-pyg
 
   # Only CUDA 11 is supported right now due to PyTorch requirement.
-  version_file_cugraph_dgl="python/cugraph-dgl/cugraph_dgl/_version.py"
-  sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_dgl}
   rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
