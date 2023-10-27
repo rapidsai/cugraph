@@ -21,7 +21,7 @@ import cugraph.testing.utils as utils
 
 # FIXME: Deprecate this call
 import cugraph.dask.structure.replication as replication
-from cugraph.python.cugraph.cugraph.structure.replication import replicate_edgelist
+from cugraph.structure.replication import replicate_edgelist
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cudf.testing import assert_series_equal, assert_frame_equal
 
