@@ -48,6 +48,7 @@ _info = {
         "edge_betweenness_centrality",
         "empty_graph",
         "florentine_families_graph",
+        "from_scipy_sparse_array",
         "frucht_graph",
         "heawood_graph",
         "house_graph",
