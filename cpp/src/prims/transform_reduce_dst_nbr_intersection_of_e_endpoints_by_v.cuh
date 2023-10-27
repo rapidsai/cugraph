@@ -25,6 +25,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
@@ -269,10 +270,17 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                init);
 
+  auto edge_mask_view = graph_view.edge_mask_view();
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : std::nullopt;
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
     edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
@@ -286,22 +294,29 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
-    rmm::device_uvector<vertex_t> majors(edge_partition.number_of_edges(), handle.get_stream());
+    rmm::device_uvector<vertex_t> majors(
+      edge_partition_e_mask
+        ? detail::count_set_bits(
+            handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
+        : static_cast<size_t>(edge_partition.number_of_edges()),
+      handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     detail::decompress_edge_partition_to_edgelist<vertex_t,
                                                   edge_t,
                                                   weight_t,
-                                                  GraphViewType::is_multi_gpu>(handle,
-                                                                               edge_partition,
-                                                                               std::nullopt,
-                                                                               std::nullopt,
-                                                                               majors.data(),
-                                                                               minors.data(),
-                                                                               std::nullopt,
-                                                                               std::nullopt,
-                                                                               segment_offsets);
+                                                  GraphViewType::is_multi_gpu>(
+      handle,
+      edge_partition,
+      std::nullopt,
+      std::nullopt,
+      edge_partition_e_mask,
+      raft::device_span<vertex_t>(majors.data(), majors.size()),
+      raft::device_span<vertex_t>(minors.data(), minors.size()),
+      std::nullopt,
+      std::nullopt,
+      segment_offsets);
 
     auto vertex_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));

@@ -50,14 +50,14 @@
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t> operator()(
+  __device__ thrust::tuple<weight_t, weight_t> operator()(
     vertex_t a,
     vertex_t b,
     weight_t weight_a /* weighted out degree */,
     weight_t weight_b /* weighted out degree */,
     raft::device_span<vertex_t const> intersection,
-    raft::device_span<weight_t const> intersected_properties_a,
-    raft::device_span<weight_t const> intersected_properties_b) const
+    raft::device_span<weight_t const> intersected_property_values_a,
+    raft::device_span<weight_t const> intersected_property_values_b) const
   {
     weight_t min_weight_a_intersect_b = weight_t{0};
     weight_t max_weight_a_intersect_b = weight_t{0};
@@ -65,10 +65,12 @@ struct intersection_op_t {
     weight_t sum_of_intersected_b     = weight_t{0};
 
     for (size_t k = 0; k < intersection.size(); k++) {
-      min_weight_a_intersect_b += min(intersected_properties_a[k], intersected_properties_b[k]);
-      max_weight_a_intersect_b += max(intersected_properties_a[k], intersected_properties_b[k]);
-      sum_of_intersected_a += intersected_properties_a[k];
-      sum_of_intersected_b += intersected_properties_b[k];
+      min_weight_a_intersect_b +=
+        min(intersected_property_values_a[k], intersected_property_values_b[k]);
+      max_weight_a_intersect_b +=
+        max(intersected_property_values_a[k], intersected_property_values_b[k]);
+      sum_of_intersected_a += intersected_property_values_a[k];
+      sum_of_intersected_b += intersected_property_values_b[k];
     }
 
     weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
@@ -99,7 +101,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
   virtual void TearDown() {}
 
   // Verify the results of per_v_pair_transform_dst_nbr_intersection primitive
-  template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     HighResTimer hr_timer{};
@@ -189,16 +191,13 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
-    auto mg_out_degrees = mg_graph_view.compute_out_degrees(*handle_);
+    auto mg_out_weight_sums = compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG per_v_pair_transform_dst_nbr_intersection");
     }
-
-    rmm::device_uvector<weight_t> mg_out_weight_sums =
-      compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
 
     cugraph::per_v_pair_transform_dst_nbr_intersection(
       *handle_,
@@ -272,7 +271,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
-
         auto sg_result_buffer =
           cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
             cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
@@ -290,11 +288,21 @@ class Tests_MGPerVPairTransformDstNbrIntersection
           */), sg_out_weight_sums.begin(),  intersection_op_t<vertex_t, edge_t, weight_t>{},
           cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 
+        auto threshold_ratio     = weight_t{1e-4};
+        auto threshold_magnitude = std::numeric_limits<weight_t>::min();
+        auto nearly_equal = [threshold_ratio, threshold_magnitude] __device__(auto lhs, auto rhs) {
+          return (fabs(thrust::get<0>(lhs) - thrust::get<0>(rhs)) <
+                  max(max(thrust::get<0>(lhs), thrust::get<0>(rhs)) * threshold_ratio,
+                      threshold_magnitude)) &&
+                 (fabs(thrust::get<1>(lhs) - thrust::get<1>(rhs)) <
+                  max(max(thrust::get<1>(lhs), thrust::get<1>(rhs)) * threshold_ratio,
+                      threshold_magnitude));
+        };
         bool valid = thrust::equal(handle_->get_thrust_policy(),
                                    cugraph::get_dataframe_buffer_begin(mg_aggregate_result_buffer),
                                    cugraph::get_dataframe_buffer_end(mg_aggregate_result_buffer),
-                                   cugraph::get_dataframe_buffer_begin(sg_result_buffer));
-
+                                   cugraph::get_dataframe_buffer_begin(sg_result_buffer),
+                                   nearly_equal);
         ASSERT_TRUE(valid);
       }
     }
@@ -313,47 +321,16 @@ using Tests_MGPerVPairTransformDstNbrIntersection_File =
 using Tests_MGPerVPairTransformDstNbrIntersection_Rmat =
   Tests_MGPerVPairTransformDstNbrIntersection<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                       std::get<1>(param));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -361,7 +338,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int>(
+  run_current_test<int32_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -369,7 +346,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

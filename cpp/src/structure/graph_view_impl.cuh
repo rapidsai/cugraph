@@ -28,6 +28,7 @@
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -106,6 +107,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   std::vector<edge_t const*> const& edge_partition_offsets,
   std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
+  std::optional<std::vector<uint32_t const*>> const& edge_partition_masks,
   partition_t<vertex_t> const& partition,
   std::vector<vertex_t> const& edge_partition_segment_offsets)
 {
@@ -142,7 +144,9 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     vertex_t major_range_last{};
     std::tie(major_range_first, major_range_last) =
       partition.vertex_partition_range(major_range_vertex_partition_id);
-    auto p_offsets = edge_partition_offsets[i];
+    auto offsets = edge_partition_offsets[i];
+    auto masks =
+      edge_partition_masks ? thrust::make_optional((*edge_partition_masks)[i]) : thrust::nullopt;
     auto segment_offset_size_per_partition =
       edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);
     auto major_hypersparse_first =
@@ -155,9 +159,16 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_hypersparse_first - major_range_first),
                       local_degrees.begin(),
-                      [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
+                      [offsets, masks] __device__(auto i) {
+                        auto local_degree = offsets[i + 1] - offsets[i];
+                        if (masks) {
+                          local_degree = static_cast<edge_t>(
+                            detail::count_set_bits(*masks, offsets[i], local_degree));
+                        }
+                        return local_degree;
+                      });
     if (use_dcs) {
-      auto p_dcs_nzd_vertices   = (*edge_partition_dcs_nzd_vertices)[i];
+      auto dcs_nzd_vertices     = (*edge_partition_dcs_nzd_vertices)[i];
       auto dcs_nzd_vertex_count = (*edge_partition_dcs_nzd_vertex_counts)[i];
       thrust::fill(execution_policy,
                    local_degrees.begin() + (major_hypersparse_first - major_range_first),
@@ -166,15 +177,20 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       thrust::for_each(execution_policy,
                        thrust::make_counting_iterator(vertex_t{0}),
                        thrust::make_counting_iterator(dcs_nzd_vertex_count),
-                       [p_offsets,
-                        p_dcs_nzd_vertices,
+                       [offsets,
+                        dcs_nzd_vertices,
+                        masks,
                         major_range_first,
                         major_hypersparse_first,
                         local_degrees = local_degrees.data()] __device__(auto i) {
-                         auto d = p_offsets[(major_hypersparse_first - major_range_first) + i + 1] -
-                                  p_offsets[(major_hypersparse_first - major_range_first) + i];
-                         auto v                               = p_dcs_nzd_vertices[i];
-                         local_degrees[v - major_range_first] = d;
+                         auto major_idx    = (major_hypersparse_first - major_range_first) + i;
+                         auto local_degree = offsets[major_idx + 1] - offsets[major_idx];
+                         if (masks) {
+                           local_degree = static_cast<edge_t>(
+                             detail::count_set_bits(*masks, offsets[major_idx], local_degree));
+                         }
+                         auto v                               = dcs_nzd_vertices[i];
+                         local_degrees[v - major_range_first] = local_degree;
                        });
     }
     minor_comm.reduce(local_degrees.data(),
@@ -193,12 +209,21 @@ rmm::device_uvector<edge_t> compute_major_degrees(
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   edge_t const* offsets,
+                                                  std::optional<uint32_t const*> masks,
                                                   vertex_t number_of_vertices)
 {
   rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
   thrust::tabulate(
-    handle.get_thrust_policy(), degrees.begin(), degrees.end(), [offsets] __device__(auto i) {
-      return offsets[i + 1] - offsets[i];
+    handle.get_thrust_policy(),
+    degrees.begin(),
+    degrees.end(),
+    [offsets, masks = masks ? thrust::make_optional(*masks) : thrust::nullopt] __device__(auto i) {
+      auto local_degree = offsets[i + 1] - offsets[i];
+      if (masks) {
+        local_degree =
+          static_cast<edge_t>(detail::count_set_bits(*masks, offsets[i], local_degree));
+      }
+      return local_degree;
     });
   return degrees;
 }
@@ -512,16 +537,18 @@ rmm::device_uvector<edge_t>
 graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_in_degrees(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
   if (store_transposed) {
     return compute_major_degrees(handle,
                                  this->edge_partition_offsets_,
                                  this->edge_partition_dcs_nzd_vertices_,
                                  this->edge_partition_dcs_nzd_vertex_counts_,
+                                 this->has_edge_mask()
+                                   ? std::make_optional((*(this->edge_mask_view())).value_firsts())
+                                   : std::nullopt,
                                  this->partition_,
                                  this->edge_partition_segment_offsets_);
   } else {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   }
 }
@@ -531,11 +558,15 @@ rmm::device_uvector<edge_t>
 graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   compute_in_degrees(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
   if (store_transposed) {
-    return compute_major_degrees(handle, this->offsets_, this->local_vertex_partition_range_size());
+    return compute_major_degrees(
+      handle,
+      this->offsets_,
+      this->has_edge_mask() ? std::make_optional((*(this->edge_mask_view())).value_firsts()[0])
+                            : std::nullopt,
+      this->local_vertex_partition_range_size());
   } else {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   }
 }
@@ -545,15 +576,17 @@ rmm::device_uvector<edge_t>
 graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_out_degrees(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
   if (store_transposed) {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   } else {
     return compute_major_degrees(handle,
                                  this->edge_partition_offsets_,
                                  this->edge_partition_dcs_nzd_vertices_,
                                  this->edge_partition_dcs_nzd_vertex_counts_,
+                                 this->has_edge_mask()
+                                   ? std::make_optional((*(this->edge_mask_view())).value_firsts())
+                                   : std::nullopt,
                                  this->partition_,
                                  this->edge_partition_segment_offsets_);
   }
@@ -564,12 +597,16 @@ rmm::device_uvector<edge_t>
 graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   compute_out_degrees(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
-
   if (store_transposed) {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   } else {
-    return compute_major_degrees(handle, this->offsets_, this->local_vertex_partition_range_size());
+    return compute_major_degrees(
+      handle,
+      this->offsets_,
+      this->has_edge_mask() ? std::make_optional((*(this->edge_mask_view())).value_firsts()[0])
+                            : std::nullopt,
+      this->local_vertex_partition_range_size());
   }
 }
 
