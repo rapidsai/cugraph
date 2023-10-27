@@ -54,6 +54,8 @@ from cugraph.structure import (
     is_bipartite,
     is_multipartite,
     replicate_edgelist,
+    replicate_cudf_dataframe,
+    replicate_cudf_series,
 )
 
 from cugraph.centrality import (
