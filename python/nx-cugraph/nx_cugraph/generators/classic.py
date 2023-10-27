@@ -19,7 +19,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-from ..utils import index_dtype, networkx_algorithm, nodes_or_number
+from ..utils import _get_int_dtype, index_dtype, networkx_algorithm, nodes_or_number
 from ._utils import (
     _IS_NX32_OR_LESS,
     _common_small_graph,
@@ -129,9 +129,7 @@ def complete_multipartite_graph(*subset_sizes):
     dst_indices = cp.hstack(L2 + L1)
     subsets_array = cp.array(
         np.repeat(
-            np.arange(
-                len(subset_sizes), dtype=np.min_scalar_type(len(subset_sizes) - 1)
-            ),
+            np.arange(len(subset_sizes), dtype=_get_int_dtype(len(subset_sizes) - 1)),
             subset_sizes,
         )
     )

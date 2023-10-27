@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import operator as op
 from copy import deepcopy
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 import cupy as cp
 import networkx as nx
@@ -27,6 +27,7 @@ from ..utils import index_dtype
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
+    from typing import ClassVar
 
     from nx_cugraph.typing import (
         AttrKey,
