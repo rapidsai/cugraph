@@ -13,8 +13,11 @@
 import networkx as nx
 import numpy as np
 import pytest
+from packaging.version import parse
 
 import nx_cugraph as nxcg
+
+nxver = parse(nx.__version__)
 
 
 def assert_graphs_equal(Gnx, Gcg):
@@ -36,6 +39,10 @@ def assert_graphs_equal(Gnx, Gcg):
         print(nx.to_scipy_sparse_array(G).todense())
         print(nx.to_scipy_sparse_array(Gnx).todense())
     assert rv
+
+
+if nxver.major == 3 and nxver.minor < 2:
+    pytest.skip("Need NetworkX >=3.2 to test generators", allow_module_level=True)
 
 
 def compare(name, create_using, *args, is_vanilla=False):
@@ -63,6 +70,10 @@ def compare(name, create_using, *args, is_vanilla=False):
             Gcg = func(*args, create_using=create_using, backend="cugraph")
     except ZeroDivisionError:
         raise
+    except NotImplementedError as exc:
+        if name in {"complete_multipartite_graph"}:  # nx.__version__[:3] <= "3.2"
+            return
+        exc2 = exc
     except Exception as exc:
         if exc1 is None:  # pragma: no cover (debug)
             raise

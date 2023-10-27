@@ -16,7 +16,7 @@ import networkx as nx
 import nx_cugraph as nxcg
 
 from ..utils import index_dtype, networkx_algorithm
-from ._utils import _create_using_class
+from ._utils import _IS_NX32_OR_LESS, _create_using_class
 
 __all__ = [
     "bull_graph",
@@ -41,7 +41,6 @@ __all__ = [
     "truncated_tetrahedron_graph",
     "tutte_graph",
 ]
-IS_NX32_OR_LESS = nx.__version__[:3] <= "3.2" and not nx.__version__[3].isdigit()
 
 
 @networkx_algorithm
@@ -99,7 +98,7 @@ def cubical_graph(create_using=None):
         [1, 3, 4, 0, 2, 7, 1, 3, 6, 0, 2, 5, 0, 5, 7, 3, 4, 6, 2, 5, 7, 1, 4, 6],
         index_dtype,
     )
-    name = ("Platonic Cubical Graph",) if IS_NX32_OR_LESS else "Platonic Cubical Graph"
+    name = ("Platonic Cubical Graph",) if _IS_NX32_OR_LESS else "Platonic Cubical Graph"
     G = graph_class.from_coo(8, src_indices, dst_indices, name=name)
     if inplace:
         return create_using._become(G)
@@ -509,7 +508,7 @@ def tetrahedral_graph(create_using=None):
     dst_indices = cp.array([1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2], index_dtype)
     name = (
         "Platonic Tetrahedral graph"
-        if IS_NX32_OR_LESS
+        if _IS_NX32_OR_LESS
         else "Platonic Tetrahedral Graph"
     )
     G = graph_class.from_coo(4, src_indices, dst_indices, name=name)

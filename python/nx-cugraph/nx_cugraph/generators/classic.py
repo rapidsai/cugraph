@@ -21,6 +21,7 @@ import nx_cugraph as nxcg
 
 from ..utils import index_dtype, networkx_algorithm, nodes_or_number
 from ._utils import (
+    _IS_NX32_OR_LESS,
     _common_small_graph,
     _complete_graph_indices,
     _create_using_class,
@@ -110,7 +111,12 @@ def complete_multipartite_graph(*subset_sizes):
         nodes = list(concat(subsets))
     else:
         subsets = nodes = None
-        subset_sizes = [_ensure_nonnegative_int(size) for size in subset_sizes]
+        try:
+            subset_sizes = [_ensure_nonnegative_int(size) for size in subset_sizes]
+        except nx.NetworkXError:
+            if _IS_NX32_OR_LESS:
+                raise NotImplementedError("Negative number of nodes is not supported")
+            raise
     L1 = []
     L2 = []
     total = 0

@@ -19,6 +19,10 @@ import nx_cugraph as nxcg
 
 from ..utils import index_dtype
 
+_IS_NX32_OR_LESS = nx.__version__[:3] <= "3.2" and (
+    len(nx.__version__) <= 3 or not nx.__version__[3].isdigit()
+)
+
 
 def _ensure_int(n):
     """Ensure n is integral."""
