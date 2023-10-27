@@ -51,8 +51,9 @@ def k_truss(G, k):
         edge_values = {key: val.copy() for key, val in G.edge_values.items()}
         edge_masks = {key: val.copy() for key, val in G.edge_masks.items()}
     else:
-        # int dtype for edge_indices would be preferred
-        edge_indices = cp.arange(G.src_indices.size, dtype=np.float64)
+        edge_indices = cp.arange(
+            G.src_indices.size, dtype=np.min_scalar_type(G.src_indices.size - 1)
+        )
         src_indices, dst_indices, edge_indices, _ = plc.k_truss_subgraph(
             resource_handle=plc.ResourceHandle(),
             graph=G._get_plc_graph(edge_array=edge_indices),
