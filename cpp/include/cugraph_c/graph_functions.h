@@ -220,7 +220,7 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_allgather_edgelist(
+cugraph_error_code_t cugraph_allgather(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* src,
   const cugraph_type_erased_device_array_view_t* dst,
