@@ -30,11 +30,16 @@ _info = {
     "functions": {
         # BEGIN: functions
         "betweenness_centrality",
+        "degree_centrality",
         "edge_betweenness_centrality",
+        "in_degree_centrality",
         "is_isolate",
         "isolates",
+        "k_truss",
         "louvain_communities",
         "number_of_isolates",
+        "number_of_selfloops",
+        "out_degree_centrality",
         # END: functions
     },
     "extra_docstrings": {
