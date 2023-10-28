@@ -112,8 +112,8 @@ struct call_intersection_op_t {
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
-  EdgeValueInputIterator nbr_intersection_properties0{nullptr};
-  EdgeValueInputIterator nbr_intersection_properties1{nullptr};
+  EdgeValueInputIterator nbr_intersection_property_values0{nullptr};
+  EdgeValueInputIterator nbr_intersection_property_values1{nullptr};
   VertexPairIndexIterator major_minor_pair_index_first{};
   VertexPairIterator major_minor_pair_first{};
   VertexPairValueOutputIterator major_minor_pair_value_output_first{};
@@ -136,20 +136,20 @@ struct call_intersection_op_t {
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
                        std::byte /* dummy */>
-      properties0{};
+      property_values0{};
 
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
                        std::byte /* dummy */>
-      properties1{};
+      property_values1{};
 
     if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
-      properties0 = raft::device_span<edge_property_value_t const>(
-        nbr_intersection_properties0 + nbr_offsets[i],
-        nbr_intersection_properties0 + +nbr_offsets[i + 1]);
-      properties1 = raft::device_span<edge_property_value_t const>(
-        nbr_intersection_properties1 + nbr_offsets[i],
-        nbr_intersection_properties1 + +nbr_offsets[i + 1]);
+      property_values0 = raft::device_span<edge_property_value_t const>(
+        nbr_intersection_property_values0 + nbr_offsets[i],
+        nbr_intersection_property_values0 + +nbr_offsets[i + 1]);
+      property_values1 = raft::device_span<edge_property_value_t const>(
+        nbr_intersection_property_values1 + nbr_offsets[i],
+        nbr_intersection_property_values1 + +nbr_offsets[i + 1]);
     }
 
     property_t src_prop{};
@@ -174,8 +174,8 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
 
-    *(major_minor_pair_value_output_first + index) =
-      intersection_op(src, dst, src_prop, dst_prop, intersection, properties0, properties1);
+    *(major_minor_pair_value_output_first + index) = intersection_op(
+      src, dst, src_prop, dst_prop, intersection, property_values0, property_values1);
   }
 };
 
@@ -239,8 +239,6 @@ void per_v_pair_transform_dst_nbr_intersection(
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
   using edge_property_value_t = typename EdgeValueInputIterator::value_type;
   using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     auto num_invalids =
@@ -384,16 +382,16 @@ void per_v_pair_transform_dst_nbr_intersection(
 
       rmm::device_uvector<size_t> intersection_offsets(size_t{0}, handle.get_stream());
       rmm::device_uvector<vertex_t> intersection_indices(size_t{0}, handle.get_stream());
-      [[maybe_unused]] rmm::device_uvector<edge_property_value_t> r_nbr_intersection_properties0(
-        size_t{0}, handle.get_stream());
-      [[maybe_unused]] rmm::device_uvector<edge_property_value_t> r_nbr_intersection_properties1(
-        size_t{0}, handle.get_stream());
+      [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
+        r_nbr_intersection_property_values0(size_t{0}, handle.get_stream());
+      [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
+        r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
 
       if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
         std::tie(intersection_offsets,
                  intersection_indices,
-                 r_nbr_intersection_properties0,
-                 r_nbr_intersection_properties1) =
+                 r_nbr_intersection_property_values0,
+                 r_nbr_intersection_property_values1) =
           detail::nbr_intersection(handle,
                                    graph_view,
                                    edge_value_input,
@@ -422,7 +420,7 @@ void per_v_pair_transform_dst_nbr_intersection(
           detail::call_intersection_op_t<
             GraphViewType,
             decltype(vertex_value_input_for_unique_vertices_first),
-            typename decltype(r_nbr_intersection_properties0)::const_pointer,
+            typename decltype(r_nbr_intersection_property_values0)::const_pointer,
             IntersectionOp,
             decltype(chunk_vertex_pair_index_first),
             VertexPairIterator,
@@ -433,8 +431,8 @@ void per_v_pair_transform_dst_nbr_intersection(
                                            intersection_op,
                                            intersection_offsets.data(),
                                            intersection_indices.data(),
-                                           r_nbr_intersection_properties0.data(),
-                                           r_nbr_intersection_properties1.data(),
+                                           r_nbr_intersection_property_values0.data(),
+                                           r_nbr_intersection_property_values1.data(),
                                            chunk_vertex_pair_index_first,
                                            vertex_pair_first,
                                            vertex_pair_value_output_first});
@@ -445,7 +443,7 @@ void per_v_pair_transform_dst_nbr_intersection(
                          detail::call_intersection_op_t<
                            GraphViewType,
                            VertexValueInputIterator,
-                           typename decltype(r_nbr_intersection_properties0)::const_pointer,
+                           typename decltype(r_nbr_intersection_property_values0)::const_pointer,
                            IntersectionOp,
                            decltype(chunk_vertex_pair_index_first),
                            VertexPairIterator,
@@ -456,8 +454,8 @@ void per_v_pair_transform_dst_nbr_intersection(
                            intersection_op,
                            intersection_offsets.data(),
                            intersection_indices.data(),
-                           r_nbr_intersection_properties0.data(),
-                           r_nbr_intersection_properties1.data(),
+                           r_nbr_intersection_property_values0.data(),
+                           r_nbr_intersection_property_values1.data(),
                            chunk_vertex_pair_index_first,
                            vertex_pair_first,
                            vertex_pair_value_output_first});
