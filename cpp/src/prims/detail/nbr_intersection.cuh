@@ -311,10 +311,10 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct pick_min_degree_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  raft::device_span<size_t const> first_element_offsets{};
+  raft::device_span<edge_t const> first_element_offsets{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  raft::device_span<size_t const> second_element_offsets{};
+  raft::device_span<edge_t const> second_element_offsets{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
   thrust::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
@@ -472,14 +472,14 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct copy_intersecting_nbrs_and_update_intersection_size_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  raft::device_span<size_t const> first_element_offsets{};
+  raft::device_span<edge_t const> first_element_offsets{};
   raft::device_span<vertex_t const> first_element_indices{};
-  optional_property_buffer_view_t first_element_properties{};
+  optional_property_buffer_view_t first_element_edge_property_values{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  raft::device_span<size_t const> second_element_offsets{};
+  raft::device_span<edge_t const> second_element_offsets{};
   raft::device_span<vertex_t const> second_element_indices{};
-  optional_property_buffer_view_t second_element_properties{};
+  optional_property_buffer_view_t second_element_edge_property_values{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
   edge_partition_e_input_device_view_t edge_partition_e_value_input{};
