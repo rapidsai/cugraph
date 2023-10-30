@@ -21,9 +21,13 @@
 #include <utilities/test_utilities.hpp>
 
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <prims/transform_e.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -61,6 +65,7 @@ struct intersection_op_t {
 
 struct Prims_Usecase {
   size_t num_vertex_pairs{0};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -78,7 +83,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
   virtual void TearDown() {}
 
   // Verify the results of per_v_pair_transform_dst_nbr_intersection primitive
-  template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     HighResTimer hr_timer{};
@@ -108,6 +113,34 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      cugraph::edge_src_property_t<decltype(mg_graph_view), vertex_t> edge_src_renumber_map(
+        *handle_, mg_graph_view);
+      cugraph::edge_dst_property_t<decltype(mg_graph_view), vertex_t> edge_dst_renumber_map(
+        *handle_, mg_graph_view);
+      cugraph::update_edge_src_property(
+        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_src_renumber_map);
+      cugraph::update_edge_dst_property(
+        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_dst_renumber_map);
+
+      edge_mask = cugraph::edge_property_t<decltype(mg_graph_view), bool>(*handle_, mg_graph_view);
+
+      cugraph::transform_e(
+        *handle_,
+        mg_graph_view,
+        edge_src_renumber_map.view(),
+        edge_dst_renumber_map.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+          return ((src_property % 2 == 0) && (dst_property % 2 == 0))
+                   ? false
+                   : true;  // mask out the edges with even unrenumbered src & dst vertex IDs
+        },
+        (*edge_mask).mutable_view());
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG per_v_pair_transform_dst_nbr_intersection primitive
 
@@ -224,6 +257,42 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
+        if (prims_usecase.edge_masking) {
+          rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
+          rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());
+          std::tie(srcs, dsts, std::ignore, std::ignore) =
+            cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, false, false>(
+              *handle_, sg_graph_view, std::nullopt, std::nullopt, std::nullopt);
+          auto edge_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
+          srcs.resize(thrust::distance(edge_first,
+                                       thrust::remove_if(handle_->get_thrust_policy(),
+                                                         edge_first,
+                                                         edge_first + srcs.size(),
+                                                         [] __device__(auto pair) {
+                                                           return (thrust::get<0>(pair) % 2 == 0) &&
+                                                                  (thrust::get<1>(pair) % 2 == 0);
+                                                         })),
+                      handle_->get_stream());
+          dsts.resize(srcs.size(), handle_->get_stream());
+          rmm::device_uvector<vertex_t> vertices(sg_graph_view.number_of_vertices(),
+                                                 handle_->get_stream());
+          thrust::sequence(
+            handle_->get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
+          std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) = cugraph::
+            create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, false>(
+              *handle_,
+              std::move(vertices),
+              std::move(srcs),
+              std::move(dsts),
+              std::nullopt,
+              std::nullopt,
+              std::nullopt,
+              cugraph::graph_properties_t{sg_graph_view.is_symmetric(),
+                                          sg_graph_view.is_multigraph()},
+              false);
+          sg_graph_view = sg_graph.view();
+        }
+
         auto sg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
           cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
         auto sg_out_degrees = sg_graph_view.compute_out_degrees(*handle_);
@@ -262,47 +331,16 @@ using Tests_MGPerVPairTransformDstNbrIntersection_File =
 using Tests_MGPerVPairTransformDstNbrIntersection_Rmat =
   Tests_MGPerVPairTransformDstNbrIntersection<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                       std::get<1>(param));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -310,7 +348,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int>(
+  run_current_test<int32_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -318,7 +356,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -327,15 +365,18 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024}, true}),
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024}, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -345,7 +386,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false}),
+    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false, false},
+                      Prims_Usecase{size_t{1024 * 1024}, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
