@@ -30,18 +30,18 @@ def is_isolate(G, n):
     G = _to_graph(G)
     index = n if G.key_to_id is None else G.key_to_id[n]
     return not (
-        (G.row_indices == index).any().tolist()
+        (G.src_indices == index).any().tolist()
         or G.is_directed()
-        and (G.col_indices == index).any().tolist()
+        and (G.dst_indices == index).any().tolist()
     )
 
 
 def _mark_isolates(G) -> cp.ndarray[bool]:
     """Return a boolean mask array indicating indices of isolated nodes."""
     mark_isolates = cp.ones(len(G), bool)
-    mark_isolates[G.row_indices] = False
+    mark_isolates[G.src_indices] = False
     if G.is_directed():
-        mark_isolates[G.col_indices] = False
+        mark_isolates[G.dst_indices] = False
     return mark_isolates
 
 

@@ -81,7 +81,10 @@ float_to_top = true
 default_section = "THIRDPARTY"
 known_first_party = "nx_cugraph"
 line_length = 88
-extend_skip_glob = ["nx_cugraph/__init__.py"]
+extend_skip_glob = [
+    "nx_cugraph/__init__.py",
+    "nx_cugraph/classes/__init__.py",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

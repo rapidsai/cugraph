@@ -941,7 +941,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       minor_comm_ranks.begin(),
       thrust::make_zip_iterator(
         thrust::make_tuple(tmp_sample_local_nbr_indices.begin(), tmp_sample_key_indices.begin())),
-      not_equal_t<int>{-1});
+      is_not_equal_t<int>{-1});
 
     sample_local_nbr_indices = std::move(tmp_sample_local_nbr_indices);
     sample_key_indices       = std::move(tmp_sample_key_indices);
