@@ -22,7 +22,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 
 | Category          | Notebooks                          | Scale               | Notes                                                           |
 | ----------------- | ---------------------------------- | ------------------- | --------------------------------------------------------------- |
-| [Centrality](./algorithms/Centrality.md)        | [Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb)          |           |        |
+| [Centrality](./algorithms/Centrality.html )        | [Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb)          |           |        |
 |                   | [Katz](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Katz.ipynb)                                    | __Multi-GPU__  |                  |
 |                   | [Betweenness Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Betweenness.ipynb)           | __Multi-GPU__  | MG as of 23.06   |
 |                   | [Edge Betweenness Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Betweenness.ipynb)      | __Multi-GPU__  | MG as of 23.08   |
@@ -55,7 +55,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | [Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Pagerank)                |
 |                   | [Personal Pagerank]()                  | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank)   |
 |                   | [HITS](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/HITS.ipynb)        | __Multi-GPU__ |                |
-| [Link Prediction](./algorithms/Similarity.md)   |                                    |                     |                                                                 |
+| [Link Prediction](algorithms/Similarity.html)   |                                    |                     |                                                                 |
 |                   | [Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)                 | __Multi-GPU__      | Directed graph only                         |
 |                   | [Weighted Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)        | Single-GPU          |                                                                 |
 |                   | [Overlap Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Overlap-Similarity.ipynb)                 | **Multi-GPU** |                                                   |
