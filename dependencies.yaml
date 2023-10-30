@@ -377,8 +377,8 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &dask dask>=2023.7.1
-          - &distributed distributed>=2023.7.1
+          - &dask dask>=2023.9.2
+          - &distributed distributed>=2023.9.2
           - &dask_cuda dask-cuda==23.12.*
           - &numba numba>=0.57
           - &ucx_py ucx-py==0.35.*
