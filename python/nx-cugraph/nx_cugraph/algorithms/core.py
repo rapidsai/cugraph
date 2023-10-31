@@ -32,6 +32,12 @@ def k_truss(G, k):
             "Input graph has self loops which is not permitted; "
             "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
         )
+    if (ncc := nxcg.number_connected_components(G)) > 1:
+        raise NotImplementedError(
+            "nx_cugraph.k_truss does not yet work on graphs with more than one "
+            f"connected component (this graph has {ncc}). We expect to fix this soon."
+        )
+
     # TODO: create renumbering helper function(s)
     if k < 3:
         # k-truss graph is comprised of nodes incident on k-2 triangles, so k<3 is a

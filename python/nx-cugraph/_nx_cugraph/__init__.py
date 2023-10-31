@@ -30,13 +30,17 @@ _info = {
     "functions": {
         # BEGIN: functions
         "betweenness_centrality",
+        "connected_components",
         "degree_centrality",
         "edge_betweenness_centrality",
         "in_degree_centrality",
+        "is_connected",
         "is_isolate",
         "isolates",
         "k_truss",
         "louvain_communities",
+        "node_connected_component",
+        "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
         "out_degree_centrality",
