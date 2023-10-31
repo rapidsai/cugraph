@@ -50,6 +50,10 @@ _info = {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "k_truss": (
+            "Currently raises `NotImplementedError` for graphs with more than one connected\n"
+            "component when k >= 3. We expect to fix this soon."
+        ),
         "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },
