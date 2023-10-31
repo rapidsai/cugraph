@@ -187,7 +187,7 @@ class Dataset:
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
             if create_using is None:
-                reader = cudf
+                reader = cudf.read_csv
             elif str(type(create_using)) != "<class 'module'>":
                 raise RuntimeError("create_using must be a module.")
             elif create_using.__name__ == "cudf" or "pandas":
