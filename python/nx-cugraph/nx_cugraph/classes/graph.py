@@ -599,14 +599,16 @@ class Graph:
                             f"Integer value of value is small large (< -2**53): {val}; "
                             "pylibcugraph only supports float16 and float32 dtypes."
                         )
-                elif edge_array.dtype == np.uint64:
-                    if edge_array.max().tolist() > 2**53:
-                        raise ValueError(
-                            f"Integer value of value is too large (> 2**53): {val}; "
-                            "pylibcugraph only supports float16 and float32 dtypes."
-                        )
-                    ...
-                # Should we warn?
+                elif (
+                    edge_array.dtype == np.uint64
+                    and edge_array.max().tolist() > 2**53
+                ):
+                    raise ValueError(
+                        f"Integer value of value is too large (> 2**53): {val}; "
+                        "pylibcugraph only supports float16 and float32 dtypes."
+                    )
+                # Consider warning here if we add algorithms that may
+                # introduce roundoff errors when using floats as ints.
                 edge_array = edge_array.astype(self._plc_type_map[edge_array.dtype])
             elif edge_array.dtype not in self._plc_allowed_edge_types:
                 raise TypeError(edge_array.dtype)
