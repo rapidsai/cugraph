@@ -169,8 +169,8 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        create_using : module (default=cudf)
-            Specify between cudf and pandas to use when reading the dataset.
+        create_using : callable compatible with pandas.read_csv (default=cudf.read_csv)
+            Object to call to read a CSV and return a pandas-compatible edgelist DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
