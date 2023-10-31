@@ -367,17 +367,18 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
   std::optional<std::vector<size_t>> stream_pool_indices{
     std::nullopt};  // FIXME: move this inside the if statement
+
+  auto constexpr num_chunks = size_t{
+    4};  // tuning parameter, this trade-offs # binary searches (up to num_chunks times more binary
+         // searches can be necessary if num_unique_majors << edgelist_edge_counts[i]) and temporary
+         // buffer requirement (cut by num_chunks times), currently set to 2 to avoid peak memory
+         // usage happening in this part (especially when minor_comm_size is small)
+
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
-
-    auto constexpr num_chunks = size_t{
-      2};  // tuning parameter, this trade-offs # binary searches (up to num_chunks times more
-           // binary searches can be necessary if num_unique_majors << edgelist_edge_counts[i]) and
-           // temporary buffer requirement (cut by num_chunks times), currently set to 2 to avoid
-           // peak memory usage happening in this part (especially when minor_comm_size is small)
 
     assert(edgelist_majors.size() == minor_comm_size);
 
@@ -433,29 +434,30 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                    sorted_major_degrees.end(),
                    edge_t{0});
 
-      rmm::device_uvector<vertex_t> tmp_majors(
+      rmm::device_uvector<vertex_t> tmp_majors(0, loop_stream);
+      tmp_majors.reserve(
         (static_cast<size_t>(edgelist_edge_counts[i]) + (num_chunks - 1)) / num_chunks,
-        handle.get_stream());
+        loop_stream);
       size_t offset{0};
       for (size_t j = 0; j < num_chunks; ++j) {
         size_t this_chunk_size =
-          std::min(tmp_majors.size(), static_cast<size_t>(edgelist_edge_counts[i]) - offset);
+          std::min(tmp_majors.capacity(), static_cast<size_t>(edgelist_edge_counts[i]) - offset);
+        tmp_majors.resize(this_chunk_size, loop_stream);
         thrust::copy(rmm::exec_policy(loop_stream),
                      edgelist_majors[i] + offset,
-                     edgelist_majors[i] + offset + this_chunk_size,
+                     edgelist_majors[i] + offset + tmp_majors.size(),
                      tmp_majors.begin());
-        thrust::sort(
-          rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.begin() + this_chunk_size);
+        thrust::sort(rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.end());
         auto num_unique_majors =
           thrust::count_if(rmm::exec_policy(loop_stream),
                            thrust::make_counting_iterator(size_t{0}),
-                           thrust::make_counting_iterator(this_chunk_size),
+                           thrust::make_counting_iterator(tmp_majors.size()),
                            is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
         rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
         rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
         thrust::reduce_by_key(rmm::exec_policy(loop_stream),
                               tmp_majors.begin(),
-                              tmp_majors.begin() + this_chunk_size,
+                              tmp_majors.end(),
                               thrust::make_constant_iterator(edge_t{1}),
                               tmp_keys.begin(),
                               tmp_values.begin());
@@ -486,44 +488,50 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   } else {
     assert(edgelist_majors.size() == 1);
 
-    rmm::device_uvector<vertex_t> tmp_majors(edgelist_edge_counts[0], handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 edgelist_majors[0],
-                 edgelist_majors[0] + edgelist_edge_counts[0],
-                 tmp_majors.begin());
-    thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
-    auto num_unique_majors =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(tmp_majors.size()),
-                       is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
-    rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, handle.get_stream());
-    rmm::device_uvector<edge_t> tmp_values(num_unique_majors, handle.get_stream());
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          tmp_majors.begin(),
-                          tmp_majors.end(),
-                          thrust::make_constant_iterator(edge_t{1}),
-                          tmp_keys.begin(),
-                          tmp_values.begin());
-
-    tmp_majors.resize(0, handle.get_stream());
-    tmp_majors.shrink_to_fit(handle.get_stream());
-
     sorted_local_vertex_degrees.resize(sorted_local_vertices.size(), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  sorted_local_vertex_degrees.begin(),
                  sorted_local_vertex_degrees.end(),
                  edge_t{0});
 
-    auto kv_pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-    thrust::for_each(handle.get_thrust_policy(),
-                     kv_pair_first,
-                     kv_pair_first + tmp_keys.size(),
-                     search_and_increment_degree_t<vertex_t, edge_t>{
-                       sorted_local_vertices.data(),
-                       static_cast<vertex_t>(sorted_local_vertices.size()),
-                       sorted_local_vertex_degrees.data()});
+    rmm::device_uvector<vertex_t> tmp_majors(0, handle.get_stream());
+    tmp_majors.reserve(static_cast<size_t>(edgelist_edge_counts[0] + (num_chunks - 1)) / num_chunks,
+                       handle.get_stream());
+    size_t offset{0};
+    for (size_t i = 0; i < num_chunks; ++i) {
+      size_t this_chunk_size =
+        std::min(tmp_majors.capacity(), static_cast<size_t>(edgelist_edge_counts[0]) - offset);
+      tmp_majors.resize(this_chunk_size, handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   edgelist_majors[0] + offset,
+                   edgelist_majors[0] + offset + tmp_majors.size(),
+                   tmp_majors.begin());
+      thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
+      auto num_unique_majors =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(tmp_majors.size()),
+                         is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
+      rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, handle.get_stream());
+      rmm::device_uvector<edge_t> tmp_values(num_unique_majors, handle.get_stream());
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            tmp_majors.begin(),
+                            tmp_majors.end(),
+                            thrust::make_constant_iterator(edge_t{1}),
+                            tmp_keys.begin(),
+                            tmp_values.begin());
+
+      auto kv_pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
+      thrust::for_each(handle.get_thrust_policy(),
+                       kv_pair_first,
+                       kv_pair_first + tmp_keys.size(),
+                       search_and_increment_degree_t<vertex_t, edge_t>{
+                         sorted_local_vertices.data(),
+                         static_cast<vertex_t>(sorted_local_vertices.size()),
+                         sorted_local_vertex_degrees.data()});
+      offset += this_chunk_size;
+    }
   }
 
   // 4. sort local vertices by degree (descending)
