@@ -138,7 +138,7 @@ struct update_rx_major_local_degree_t {
   size_t local_edge_partition_idx{};
 
   raft::device_span<size_t const> rx_reordered_group_lasts{};
-  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<size_t const> rx_group_firsts{};
   raft::device_span<vertex_t const> rx_majors{};
 
   raft::device_span<edge_t> local_degrees_for_rx_majors{};
@@ -200,7 +200,7 @@ struct update_rx_major_local_nbrs_t {
   size_t local_edge_partition_idx{};
 
   raft::device_span<size_t const> rx_reordered_group_lasts{};
-  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<size_t const> rx_group_firsts{};
   raft::device_span<vertex_t const> rx_majors{};
   raft::device_span<size_t const> local_nbr_offsets_for_rx_majors{};
   raft::device_span<vertex_t> local_nbrs_for_rx_majors{};
@@ -311,10 +311,10 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct pick_min_degree_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  raft::device_span<edge_t const> first_element_offsets{nullptr};
+  raft::device_span<edge_t const> first_element_offsets{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  raft::device_span<edge_t const> second_element_offsets{nullptr};
+  raft::device_span<edge_t const> second_element_offsets{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
   thrust::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
@@ -473,12 +473,12 @@ template <typename FirstElementToIdxMap,
 struct copy_intersecting_nbrs_and_update_intersection_size_t {
   FirstElementToIdxMap first_element_to_idx_map{};
   raft::device_span<edge_t const> first_element_offsets{};
-  raft::device_span<vertex_t const> first_element_indices{nullptr};
+  raft::device_span<vertex_t const> first_element_indices{};
   optional_property_buffer_view_t first_element_edge_property_values{};
 
   SecondElementToIdxMap second_element_to_idx_map{};
   raft::device_span<edge_t const> second_element_offsets{};
-  raft::device_span<vertex_t const> second_element_indices{nullptr};
+  raft::device_span<vertex_t const> second_element_indices{};
   optional_property_buffer_view_t second_element_edge_property_values{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
@@ -487,8 +487,8 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     edge_partition_e_mask{};
 
   VertexPairIterator vertex_pair_first;
-  raft::device_span<size_t const> nbr_intersection_offsets{nullptr};
-  raft::device_span<vertex_t> nbr_intersection_indices{nullptr};
+  raft::device_span<size_t const> nbr_intersection_offsets{};
+  raft::device_span<vertex_t> nbr_intersection_indices{};
 
   optional_property_buffer_mutable_view_t nbr_intersection_e_property_values0{};
   optional_property_buffer_mutable_view_t nbr_intersection_e_property_values1{};
@@ -499,12 +499,11 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     using edge_property_value_t = typename edge_partition_e_input_device_view_t::value_type;
 
     auto pair = *(vertex_pair_first + i);
-
-    vertex_t const* indices0{nullptr};
+    vertex_t const* indices0{};
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        edge_property_value_t const*,
                        void*>
-      edge_property_values0{nullptr};
+      edge_property_values0{};
 
     edge_t local_edge_offset0{0};
     edge_t local_degree0{0};
@@ -548,11 +547,11 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       local_degree0      = static_cast<edge_t>(first_element_offsets[idx + 1] - local_edge_offset0);
     }
 
-    vertex_t const* indices1{nullptr};
+    vertex_t const* indices1{};
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        edge_property_value_t const*,
                        void*>
-      edge_property_values1{nullptr};
+      edge_property_values1{};
 
     edge_t local_edge_offset1{0};
     edge_t local_degree1{0};
