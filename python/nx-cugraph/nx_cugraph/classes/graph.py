@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import operator as op
 from copy import deepcopy
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 import cupy as cp
 import networkx as nx
@@ -23,8 +23,11 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 
+from ..utils import index_dtype
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
+    from typing import ClassVar
 
     from nx_cugraph.typing import (
         AttrKey,
@@ -34,6 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
         IndexValue,
         NodeKey,
         NodeValue,
+        any_ndarray,
     )
 
 __all__ = ["Graph"]
@@ -51,16 +55,37 @@ class Graph:
     graph_attr_dict_factory: ClassVar[type] = dict
 
     # Not networkx properties
-    # We store edge data in COO format with {row,col}_indices and edge_values.
+    # We store edge data in COO format with {src,dst}_indices and edge_values.
     src_indices: cp.ndarray[IndexValue]
     dst_indices: cp.ndarray[IndexValue]
     edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
     edge_masks: dict[AttrKey, cp.ndarray[bool]]
-    node_values: dict[AttrKey, cp.ndarray[NodeValue]]
-    node_masks: dict[AttrKey, cp.ndarray[bool]]
+    node_values: dict[AttrKey, any_ndarray[NodeValue]]
+    node_masks: dict[AttrKey, any_ndarray[bool]]
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
+
+    # Used by graph._get_plc_graph
+    _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
+        # signed int
+        np.dtype(np.int8): np.dtype(np.float32),
+        np.dtype(np.int16): np.dtype(np.float32),
+        np.dtype(np.int32): np.dtype(np.float64),
+        np.dtype(np.int64): np.dtype(np.float64),  # raise if abs(x) > 2**53
+        # unsigned int
+        np.dtype(np.uint8): np.dtype(np.float32),
+        np.dtype(np.uint16): np.dtype(np.float32),
+        np.dtype(np.uint32): np.dtype(np.float64),
+        np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
+        # other
+        np.dtype(np.bool_): np.dtype(np.float16),
+        np.dtype(np.float16): np.dtype(np.float32),
+    }
+    _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {
+        np.dtype(np.float32),
+        np.dtype(np.float64),
+    }
 
     ####################
     # Creation methods #
@@ -74,8 +99,8 @@ class Graph:
         dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -111,6 +136,27 @@ class Graph:
             raise ValueError
         if new_graph._id_to_key is not None and len(new_graph._id_to_key) != N:
             raise ValueError
+        if new_graph._id_to_key is not None and new_graph.key_to_id is None:
+            try:
+                new_graph.key_to_id = dict(zip(new_graph._id_to_key, range(N)))
+            except TypeError as exc:
+                raise ValueError("Bad type of a node value") from exc
+        if new_graph.src_indices.dtype != index_dtype:
+            src_indices = new_graph.src_indices.astype(index_dtype)
+            if not (new_graph.src_indices == src_indices).all():
+                raise ValueError(
+                    f"Unable to convert src_indices to {src_indices.dtype.name} "
+                    f"(got {new_graph.src_indices.dtype.name})."
+                )
+            new_graph.src_indices = src_indices
+        if new_graph.dst_indices.dtype != index_dtype:
+            dst_indices = new_graph.dst_indices.astype(index_dtype)
+            if not (new_graph.dst_indices == dst_indices).all():
+                raise ValueError(
+                    f"Unable to convert dst_indices to {dst_indices.dtype.name} "
+                    f"(got {new_graph.dst_indices.dtype.name})."
+                )
+            new_graph.dst_indices = dst_indices
         return new_graph
 
     @classmethod
@@ -120,8 +166,8 @@ class Graph:
         dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -130,7 +176,7 @@ class Graph:
         N = indptr.size - 1
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -152,8 +198,8 @@ class Graph:
         src_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -162,7 +208,7 @@ class Graph:
         N = indptr.size - 1
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -181,13 +227,13 @@ class Graph:
     def from_dcsr(
         cls,
         N: int,
-        compressed_rows: cp.ndarray[IndexValue],
+        compressed_srcs: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         dst_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -195,7 +241,7 @@ class Graph:
     ) -> Graph:
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_rows.get(), cp.diff(indptr).get())
+            np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -214,13 +260,13 @@ class Graph:
     def from_dcsc(
         cls,
         N: int,
-        compressed_cols: cp.ndarray[IndexValue],
+        compressed_dsts: cp.ndarray[IndexValue],
         indptr: cp.ndarray[IndexValue],
         src_indices: cp.ndarray[IndexValue],
         edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
         edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, cp.ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
@@ -228,7 +274,7 @@ class Graph:
     ) -> Graph:
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_cols.get(), cp.diff(indptr).get())
+            np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
         )
         return cls.from_coo(
             N,
@@ -245,7 +291,9 @@ class Graph:
 
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
-            new_graph = cls.from_coo(0, cp.empty(0, np.int32), cp.empty(0, np.int32))
+            new_graph = cls.from_coo(
+                0, cp.empty(0, index_dtype), cp.empty(0, index_dtype)
+            )
         elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
         elif incoming_graph_data.__class__ is cls.to_networkx_class():
@@ -335,6 +383,17 @@ class Graph:
     ##########################
     # NetworkX graph methods #
     ##########################
+
+    @networkx_api
+    def add_nodes_from(self, nodes_for_adding: Iterable[NodeKey], **attr) -> None:
+        if self._N != 0:
+            raise NotImplementedError(
+                "add_nodes_from is not implemented for graph that already has nodes."
+            )
+        G = self.to_networkx_class()()
+        G.add_nodes_from(nodes_for_adding, **attr)
+        G = nxcg.from_networkx(G, preserve_node_attrs=True)
+        self._become(G)
 
     @networkx_api
     def clear(self) -> None:
@@ -522,11 +581,38 @@ class Graph:
             # Mask is all True; don't need anymore
             del self.edge_masks[edge_attr]
             edge_array = self.edge_values[edge_attr]
+        if edge_array is not None:
+            if edge_dtype is not None:
+                edge_dtype = np.dtype(edge_dtype)
+                if edge_array.dtype != edge_dtype:
+                    edge_array = edge_array.astype(edge_dtype)
+            # PLC doesn't handle int edge weights right now, so cast int to float
+            if edge_array.dtype in self._plc_type_map:
+                if edge_array.dtype == np.int64:
+                    if (val := edge_array.max().tolist()) > 2**53:
+                        raise ValueError(
+                            f"Integer value of value is too large (> 2**53): {val}; "
+                            "pylibcugraph only supports float16 and float32 dtypes."
+                        )
+                    if (val := edge_array.min().tolist()) < -(2**53):
+                        raise ValueError(
+                            f"Integer value of value is small large (< -2**53): {val}; "
+                            "pylibcugraph only supports float16 and float32 dtypes."
+                        )
+                elif (
+                    edge_array.dtype == np.uint64
+                    and edge_array.max().tolist() > 2**53
+                ):
+                    raise ValueError(
+                        f"Integer value of value is too large (> 2**53): {val}; "
+                        "pylibcugraph only supports float16 and float32 dtypes."
+                    )
+                # Consider warning here if we add algorithms that may
+                # introduce roundoff errors when using floats as ints.
+                edge_array = edge_array.astype(self._plc_type_map[edge_array.dtype])
+            elif edge_array.dtype not in self._plc_allowed_edge_types:
+                raise TypeError(edge_array.dtype)
         # Should we cache PLC graph?
-        if edge_dtype is not None:
-            edge_dtype = np.dtype(edge_dtype)
-            if edge_array.dtype != edge_dtype:
-                edge_array = edge_array.astype(edge_dtype)
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -541,12 +627,60 @@ class Graph:
             do_expensive_check=False,
         )
 
+    def _sort_edge_indices(self, primary="src"):
+        # DRY warning: see also MultiGraph._sort_edge_indices
+        if primary == "src":
+            stacked = cp.vstack((self.dst_indices, self.src_indices))
+        elif primary == "dst":
+            stacked = cp.vstack((self.src_indices, self.dst_indices))
+        else:
+            raise ValueError(
+                f'Bad `primary` argument; expected "src" or "dst", got {primary!r}'
+            )
+        indices = cp.lexsort(stacked)
+        if (cp.diff(indices) > 0).all():
+            # Already sorted
+            return
+        self.src_indices = self.src_indices[indices]
+        self.dst_indices = self.dst_indices[indices]
+        self.edge_values.update(
+            {key: val[indices] for key, val in self.edge_values.items()}
+        )
+        self.edge_masks.update(
+            {key: val[indices] for key, val in self.edge_masks.items()}
+        )
+
+    def _become(self, other: Graph):
+        if self.__class__ is not other.__class__:
+            raise TypeError(
+                "Attempting to update graph inplace with graph of different type!"
+            )
+        self.clear()
+        edge_values = self.edge_values
+        edge_masks = self.edge_masks
+        node_values = self.node_values
+        node_masks = self.node_masks
+        graph = self.graph
+        edge_values.update(other.edge_values)
+        edge_masks.update(other.edge_masks)
+        node_values.update(other.node_values)
+        node_masks.update(other.node_masks)
+        graph.update(other.graph)
+        self.__dict__.update(other.__dict__)
+        self.edge_values = edge_values
+        self.edge_masks = edge_masks
+        self.node_values = node_values
+        self.node_masks = node_masks
+        self.graph = graph
+        return self
+
     def _degrees_array(self):
         degrees = cp.bincount(self.src_indices, minlength=self._N)
         if self.is_directed():
             degrees += cp.bincount(self.dst_indices, minlength=self._N)
         return degrees
 
+    # Data conversions
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:
@@ -567,7 +701,7 @@ class Graph:
         return dict(it)
 
     def _nodearrays_to_dict(
-        self, node_ids: cp.ndarray[IndexValue], values: cp.ndarray[NodeValue]
+        self, node_ids: cp.ndarray[IndexValue], values: any_ndarray[NodeValue]
     ) -> dict[NodeKey, NodeValue]:
         it = zip(node_ids.tolist(), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
@@ -597,7 +731,7 @@ class Graph:
             indices_iter = d
         else:
             indices_iter = map(self.key_to_id.__getitem__, d)
-        node_ids = cp.fromiter(indices_iter, np.int32)
+        node_ids = cp.fromiter(indices_iter, index_dtype)
         if dtype is None:
             values = cp.array(list(d.values()))
         else:

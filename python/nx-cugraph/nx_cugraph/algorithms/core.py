@@ -12,11 +12,10 @@
 # limitations under the License.
 import cupy as cp
 import networkx as nx
-import numpy as np
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
-from nx_cugraph.utils import networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import _get_int_dtype, networkx_algorithm, not_implemented_for
 
 __all__ = ["k_truss"]
 
@@ -51,8 +50,8 @@ def k_truss(G, k):
         edge_values = {key: val.copy() for key, val in G.edge_values.items()}
         edge_masks = {key: val.copy() for key, val in G.edge_masks.items()}
     else:
-        # int dtype for edge_indices would be preferred
-        edge_indices = cp.arange(G.src_indices.size, dtype=np.float64)
+        edge_dtype = _get_int_dtype(G.src_indices.size - 1)
+        edge_indices = cp.arange(G.src_indices.size, dtype=edge_dtype)
         src_indices, dst_indices, edge_indices, _ = plc.k_truss_subgraph(
             resource_handle=plc.ResourceHandle(),
             graph=G._get_plc_graph(edge_array=edge_indices),
@@ -62,7 +61,9 @@ def k_truss(G, k):
         # Renumber step 0: node indices
         node_indices = cp.unique(cp.concatenate([src_indices, dst_indices]))
         # Renumber step 1: edge values
-        edge_indices = edge_indices.astype(np.int64)
+        if edge_indices.dtype != edge_dtype:
+            # The returned edge_indices may have different dtype (and float)
+            edge_indices = edge_indices.astype(edge_dtype)
         edge_values = {key: val[edge_indices] for key, val in G.edge_values.items()}
         edge_masks = {key: val[edge_indices] for key, val in G.edge_masks.items()}
     # Renumber step 2: edge indices

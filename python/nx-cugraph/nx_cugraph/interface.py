@@ -65,6 +65,7 @@ class BackendInterface:
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
         louvain_different = "Louvain may be different due to RNG"
+        no_string_dtype = "string edge values not currently supported"
 
         xfail = {}
 
@@ -187,6 +188,40 @@ class BackendInterface:
                 xfail[
                     key("test_louvain.py:test_threshold")
                 ] = "Louvain does not support seed parameter"
+            if nxver.major == 3 and nxver.minor >= 2:
+                xfail.update(
+                    {
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_multi_attr_incl_target"
+                        ): no_string_dtype,
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_multidigraph_and_edge_attr"
+                        ): no_string_dtype,
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_int_attr_name"
+                        ): no_string_dtype,
+                    }
+                )
+                if nxver.minor == 2:
+                    different_iteration_order = "Different graph data iteration order"
+                    xfail.update(
+                        {
+                            key(
+                                "test_cycles.py:TestMinimumCycleBasis."
+                                "test_gh6787_and_edge_attribute_names"
+                            ): different_iteration_order,
+                            key(
+                                "test_euler.py:TestEulerianCircuit."
+                                "test_eulerian_circuit_cycle"
+                            ): different_iteration_order,
+                            key(
+                                "test_gml.py:TestGraph.test_special_float_label"
+                            ): different_iteration_order,
+                        }
+                    )
 
         for item in items:
             kset = set(item.keywords)

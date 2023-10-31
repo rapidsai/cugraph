@@ -160,7 +160,8 @@ ignore = [
     # "SIM300",  # Yoda conditions are discouraged, use ... instead (Note: we're not this picky)
     # "SIM401",  # Use dict.get ... instead of if-else-block (Note: if-else better for coverage and sometimes clearer)
     # "TRY004",  # Prefer `TypeError` exception for invalid type (Note: good advice, but not worth the nuisance)
-    # "TRY200",  # Use `raise from` to specify exception cause (Note: sometimes okay to raise original exception)
+    "B904",  # Bare `raise` inside exception clause (like TRY200; sometimes okay)
+    "TRY200",  # Use `raise from` to specify exception cause (Note: sometimes okay to raise original exception)
 
     # Intentionally ignored
     "A003",  # Class attribute ... is shadowing a python builtin
