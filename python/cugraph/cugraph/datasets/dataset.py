@@ -193,7 +193,7 @@ class Dataset:
                 reader = create_using
             else:
                 raise ValueError("create_using must be a read_csv function compatible with pandas.read_csv")
-            self._edgelist = reader.read_csv(
+            self._edgelist = create_using(
                 full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
