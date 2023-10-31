@@ -154,7 +154,6 @@ sort_and_compress_edgelist(
   size_t mem_frugal_threshold,
   rmm::cuda_stream_view stream_view)
 {
-  std::cout << "with values" << std::endl;
   auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
   auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
 
@@ -163,7 +162,6 @@ sort_and_compress_edgelist(
   auto values     = allocate_dataframe_buffer<edge_value_t>(0, stream_view);
   auto pair_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
   if (edgelist_minors.size() > mem_frugal_threshold) {
-    std::cout << "frugal" << std::endl;
     offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
                                              edgelist_majors.end(),
                                              major_range_first,
@@ -193,7 +191,6 @@ sort_and_compress_edgelist(
                         pair_first + edgelist_minors.size(),
                         std::get<1>(second_first));
   } else {
-    std::cout << "nonfrugal" << std::endl;
     thrust::sort_by_key(rmm::exec_policy(stream_view),
                         pair_first,
                         pair_first + edgelist_minors.size(),
@@ -247,7 +244,6 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t> indices(0, stream_view);
   auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
   if (edgelist_minors.size() > mem_frugal_threshold) {
-    std::cout << "frugal" << std::endl;
     offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
                                              edgelist_majors.end(),
                                              major_range_first,
@@ -270,7 +266,6 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
     thrust::sort(rmm::exec_policy(stream_view), edge_first, second_first);
     thrust::sort(rmm::exec_policy(stream_view), second_first, edge_first + edgelist_minors.size());
   } else {
-    std::cout << "nonfrugal" << std::endl;
     thrust::sort(rmm::exec_policy(stream_view), edge_first, edge_first + edgelist_minors.size());
     offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
                                              edgelist_majors.end(),
