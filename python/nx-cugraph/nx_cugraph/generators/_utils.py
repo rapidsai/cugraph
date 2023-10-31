@@ -19,8 +19,9 @@ import nx_cugraph as nxcg
 
 from ..utils import index_dtype
 
-_IS_NX32_OR_LESS = nx.__version__[:3] <= "3.2" and (
-    len(nx.__version__) <= 3 or not nx.__version__[3].isdigit()
+# 3.2.1 fixed some issues in generators that occur in 3.2 and earlier
+_IS_NX32_OR_LESS = (nxver := nx.__version__)[:3] <= "3.2" and (
+    len(nxver) <= 3 or nxver[3] != "." and not nxver[3].isdigit()
 )
 
 

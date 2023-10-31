@@ -493,7 +493,7 @@ def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
     G : nx_cugraph.Graph
     sort_edges : bool, default False
         Whether to sort the edge data of the input graph by (src, dst) indices
-        before converting. This can be useful to convert to network graphs
+        before converting. This can be useful to convert to networkx graphs
         that iterate over edges consistently since edges are stored in dicts
         in the order they were added.
 

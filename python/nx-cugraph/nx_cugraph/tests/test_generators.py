@@ -38,6 +38,8 @@ def assert_graphs_equal(Gnx, Gcg):
             print(k, sorted(G._adj[k]), sorted(Gnx._adj[k]))
         print(nx.to_scipy_sparse_array(G).todense())
         print(nx.to_scipy_sparse_array(Gnx).todense())
+        print(G.graph)
+        print(Gnx.graph)
     assert rv
 
 
