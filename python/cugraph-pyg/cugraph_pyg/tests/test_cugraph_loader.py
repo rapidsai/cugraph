@@ -29,6 +29,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
+torch_sparse = import_optional("torch_sparse")
 trim_to_layer = import_optional("torch_geometric.utils.trim_to_layer")
 
 
@@ -200,11 +201,10 @@ def test_cugraph_loader_from_disk_subset():
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch_sparse, MissingModule), reason="torch-sparse not available"
+)
 def test_cugraph_loader_from_disk_subset_csr():
-    # TODO: The CSC/CSR code path in cugraph_sampler.py requires torch_sparse
-    # as dependency. Remove this check when torch_sparse becomes a dependency.
-    pytest.importorskip("torch_sparse", reason="PyTorch Sparse not available")
-
     m = [2, 9, 99, 82, 11, 13]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
     x = torch.zeros(256, dtype=torch.int32)
@@ -336,10 +336,11 @@ def test_cugraph_loader_e2e_coo():
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch_sparse, MissingModule), reason="torch-sparse not available"
+)
 @pytest.mark.parametrize("framework", ["pyg", "cugraph-ops"])
 def test_cugraph_loader_e2e_csc(framework):
-    pytest.importorskip("torch_sparse", reason="PyTorch Sparse not available")
-
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
     F = FeatureStore()
