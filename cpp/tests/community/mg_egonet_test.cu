@@ -215,7 +215,7 @@ class Tests_MGEgonet
                                                           graph_ids_v.end(),
                                                           size_t{0},
                                                           d_mg_edgelist_offsets.size() - 1,
-							  true,
+                                                          true,
                                                           handle_->get_stream());
 
         auto [d_reference_src, d_reference_dst, d_reference_wgt, d_reference_offsets] =

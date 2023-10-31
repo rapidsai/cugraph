@@ -369,7 +369,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     std::nullopt};  // FIXME: move this inside the if statement
 
   auto constexpr num_chunks = size_t{
-    4};  // tuning parameter, this trade-offs # binary searches (up to num_chunks times more binary
+    2};  // tuning parameter, this trade-offs # binary searches (up to num_chunks times more binary
          // searches can be necessary if num_unique_majors << edgelist_edge_counts[i]) and temporary
          // buffer requirement (cut by num_chunks times), currently set to 2 to avoid peak memory
          // usage happening in this part (especially when minor_comm_size is small)

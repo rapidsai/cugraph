@@ -187,8 +187,8 @@ graph_to_host_csr(
   size_t element_size   = sizeof(vertex_t) * 2;
   if (d_wgt) { element_size += sizeof(weight_t); }
   auto constexpr mem_frugal_ratio =
-    0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-          // total_global_mem, switch to the memory frugal approach
+    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+           // total_global_mem, switch to the memory frugal approach
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
