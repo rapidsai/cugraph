@@ -218,6 +218,7 @@ ignore = [
 # Allow assert, print, RNG, and no docstring
 "nx_cugraph/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
 "_nx_cugraph/__init__.py" = ["E501"]
+"nx_cugraph/algorithms/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for algorithms
 
 [tool.ruff.flake8-annotations]
 mypy-init-return = true

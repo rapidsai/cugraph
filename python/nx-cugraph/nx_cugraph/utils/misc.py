@@ -21,40 +21,56 @@ from typing import SupportsIndex
 import cupy as cp
 import numpy as np
 
+try:
+    from itertools import pairwise  # Python >=3.10
+except ImportError:
+
+    def pairwise(it):
+        it = iter(it)
+        for prev in it:
+            for cur in it:
+                yield (prev, cur)
+                prev = cur
+
+
 __all__ = ["index_dtype", "_groupby", "_seed_to_int", "_get_int_dtype"]
 
 # This may switch to np.uint32 at some point
 index_dtype = np.int32
 
 
-def _groupby(groups: cp.ndarray, values: cp.ndarray) -> dict[int, cp.ndarray]:
+def _groupby(
+    groups: cp.ndarray, values: cp.ndarray, groups_are_canonical: bool = False
+) -> dict[int, cp.ndarray]:
     """Perform a groupby operation given an array of group IDs and array of values.
 
     Parameters
     ----------
     groups : cp.ndarray
         Array that holds the group IDs.
-        Group IDs are assumed to be consecutive integers from 0.
     values : cp.ndarray
         Array of values to be grouped according to groups.
         Must be the same size as groups array.
+    groups_are_canonical : bool, default False
+        Whether the group IDs are consecutive integers beginning with 0.
 
     Returns
     -------
     dict with group IDs as keys and cp.ndarray as values.
     """
-    # It would actually be easy to support groups that aren't consecutive integers,
-    # but let's wait until we need it to implement it.
-    sorted_groups = cp.argsort(groups)
-    sorted_values = values[sorted_groups]
-    rv = {}
-    start = 0
-    for i, end in enumerate(
-        [*(cp.nonzero(cp.diff(groups[sorted_groups]))[0] + 1).tolist(), groups.size]
-    ):
-        rv[i] = sorted_values[start:end]
-        start = end
-    return rv
+    if groups.size == 0:
+        return {}
+    sort_indices = cp.argsort(groups)
+    sorted_groups = groups[sort_indices]
+    sorted_values = values[sort_indices]
+    prepend = 1 if groups_are_canonical else sorted_groups[0] + 1
+    left_bounds = cp.nonzero(cp.diff(sorted_groups, prepend=prepend))[0]
+    boundaries = pairwise(itertools.chain(left_bounds.tolist(), [groups.size]))
+    if groups_are_canonical:
+        it = enumerate(boundaries)
+    else:
+        it = zip(sorted_groups[left_bounds].tolist(), boundaries)
+    return {group: sorted_values[start:end] for group, (start, end) in it}
 
 
 def _seed_to_int(seed: int | Random | None) -> int:

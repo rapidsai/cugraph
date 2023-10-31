@@ -24,6 +24,10 @@ __all__ = ["k_truss"]
 @not_implemented_for("multigraph")
 @networkx_algorithm
 def k_truss(G, k):
+    """
+    Currently raises `NotImplementedError` for graphs with more than one connected
+    component when k >= 3. We expect to fix this soon.
+    """
     if is_nx := isinstance(G, nx.Graph):
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     if nxcg.number_of_selfloops(G) > 0:
@@ -31,6 +35,7 @@ def k_truss(G, k):
             "Input graph has self loops which is not permitted; "
             "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
         )
+
     # TODO: create renumbering helper function(s)
     if k < 3:
         # k-truss graph is comprised of nodes incident on k-2 triangles, so k<3 is a
@@ -49,6 +54,11 @@ def k_truss(G, k):
         # Renumber step 1: edge values (no changes needed)
         edge_values = {key: val.copy() for key, val in G.edge_values.items()}
         edge_masks = {key: val.copy() for key, val in G.edge_masks.items()}
+    elif (ncc := nxcg.number_connected_components(G)) > 1:
+        raise NotImplementedError(
+            "nx_cugraph.k_truss does not yet work on graphs with more than one "
+            f"connected component (this graph has {ncc}). We expect to fix this soon."
+        )
     else:
         edge_dtype = _get_int_dtype(G.src_indices.size - 1)
         edge_indices = cp.arange(G.src_indices.size, dtype=edge_dtype)

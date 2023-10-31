@@ -38,6 +38,7 @@ _info = {
         "complete_bipartite_graph",
         "complete_graph",
         "complete_multipartite_graph",
+        "connected_components",
         "cubical_graph",
         "cycle_graph",
         "davis_southern_women_graph",
@@ -56,6 +57,7 @@ _info = {
         "house_x_graph",
         "icosahedral_graph",
         "in_degree_centrality",
+        "is_connected",
         "is_isolate",
         "isolates",
         "k_truss",
@@ -66,7 +68,9 @@ _info = {
         "lollipop_graph",
         "louvain_communities",
         "moebius_kantor_graph",
+        "node_connected_component",
         "null_graph",
+        "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
         "octahedral_graph",
@@ -91,6 +95,10 @@ _info = {
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
+        "k_truss": (
+            "Currently raises `NotImplementedError` for graphs with more than one connected\n"
+            "component when k >= 3. We expect to fix this soon."
+        ),
         "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },

@@ -692,6 +692,11 @@ class Graph:
             return node_ids.tolist()
         return list(self._nodeiter_to_iter(node_ids.tolist()))
 
+    def _nodearray_to_set(self, node_ids: cp.ndarray[IndexValue]) -> set[NodeKey]:
+        if self.key_to_id is None:
+            return set(node_ids.tolist())
+        return set(self._nodeiter_to_iter(node_ids.tolist()))
+
     def _nodearray_to_dict(
         self, values: cp.ndarray[NodeValue]
     ) -> dict[NodeKey, NodeValue]:

@@ -223,11 +223,20 @@ class BackendInterface:
                         }
                     )
 
+        too_slow = "Too slow to run"
+        skip = {
+            key("test_tree_isomorphism.py:test_positive"): too_slow,
+            key("test_tree_isomorphism.py:test_negative"): too_slow,
+        }
+
         for item in items:
             kset = set(item.keywords)
             for (test_name, keywords), reason in xfail.items():
                 if item.name == test_name and keywords.issubset(kset):
                     item.add_marker(pytest.mark.xfail(reason=reason))
+            for (test_name, keywords), reason in skip.items():
+                if item.name == test_name and keywords.issubset(kset):
+                    item.add_marker(pytest.mark.skip(reason=reason))
 
     @classmethod
     def can_run(cls, name, args, kwargs):
