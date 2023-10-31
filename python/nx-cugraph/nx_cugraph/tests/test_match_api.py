@@ -31,6 +31,9 @@ def test_match_signature_and_names():
 
         if is_nx_30_or_31 and name in {"louvain_communities"}:
             continue
+        if name not in nx_backends._registered_algorithms:
+            print(f"{name} not dispatched from networkx")
+            continue
         dispatchable_func = nx_backends._registered_algorithms[name]
         # nx version >=3.2 uses orig_func, version >=3.0,<3.2 uses _orig_func
         if is_nx_30_or_31:

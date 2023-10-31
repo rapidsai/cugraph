@@ -12,4 +12,5 @@
 # limitations under the License.
 from . import centrality, community
 from .centrality import *
+from .core import *
 from .isolate import *
