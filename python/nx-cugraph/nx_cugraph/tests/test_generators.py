@@ -162,6 +162,7 @@ GENERATORS_M_N = [
     # classic
     "barbell_graph",
     "lollipop_graph",
+    "tadpole_graph",
     # bipartite
     "complete_bipartite_graph",
 ]

@@ -76,6 +76,7 @@ _info = {
         "petersen_graph",
         "sedgewick_maze_graph",
         "star_graph",
+        "tadpole_graph",
         "tetrahedral_graph",
         "trivial_graph",
         "truncated_cube_graph",

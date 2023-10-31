@@ -42,6 +42,7 @@ __all__ = [
     "null_graph",
     "path_graph",
     "star_graph",
+    "tadpole_graph",
     "trivial_graph",
     "turan_graph",
     "wheel_graph",
@@ -245,8 +246,8 @@ def ladder_graph(n, create_using=None):
 @networkx_algorithm
 def lollipop_graph(m, n, create_using=None):
     # Like complete_graph then path_graph
-    orig_m, unused_nodes1 = m
-    orig_n, unused_nodes2 = n
+    orig_m, unused_nodes_m = m
+    orig_n, unused_nodes_n = n
     m, m_nodes = _number_and_nodes(m)
     if m < 2:
         raise nx.NetworkXError(
@@ -323,6 +324,45 @@ def star_graph(n, create_using=None):
     src_indices = cp.hstack((flat, ramp))
     dst_indices = cp.hstack((ramp, flat))
     G = graph_class.from_coo(n, src_indices, dst_indices, id_to_key=nodes)
+    if inplace:
+        return create_using._become(G)
+    return G
+
+
+@nodes_or_number([0, 1])
+@networkx_algorithm
+def tadpole_graph(m, n, create_using=None):
+    orig_m, unused_nodes_m = m
+    orig_n, unused_nodes_n = n
+    m, m_nodes = _number_and_nodes(m)
+    if m < 2:
+        raise nx.NetworkXError(
+            "Invalid description: m should indicate at least 2 nodes"
+        )
+    n, n_nodes = _number_and_nodes(n)
+    graph_class, inplace = _create_using_class(create_using)
+    if graph_class.is_directed():
+        raise nx.NetworkXError("Directed Graph not supported")
+    if isinstance(orig_m, Integral) and isinstance(orig_n, Integral):
+        nodes = None
+    else:
+        nodes = list(range(m)) if m_nodes is None else m_nodes
+        nodes.extend(range(n) if n_nodes is None else n_nodes)
+    if m == 2 and not graph_class.is_multigraph():
+        src_indices = cp.arange(1, 2 * (m + n) - 1, dtype=index_dtype) // 2
+        dst_indices = (
+            cp.arange((m + n), dtype=index_dtype)[:, None]
+            + cp.array([-1, 1], index_dtype)
+        ).ravel()[1:-1]
+    else:
+        src_indices = cp.arange(2 * (m + n), dtype=index_dtype) // 2
+        dst_indices = (
+            cp.arange((m + n), dtype=index_dtype)[:, None]
+            + cp.array([-1, 1], index_dtype)
+        ).ravel()
+        dst_indices[0] = m - 1
+        dst_indices[-1] = 0
+    G = graph_class.from_coo(m + n, src_indices, dst_indices, id_to_key=nodes)
     if inplace:
         return create_using._become(G)
     return G
