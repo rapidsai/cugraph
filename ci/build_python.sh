@@ -41,7 +41,6 @@ rapids-conda-retry mambabuild \
 # platform to ensure it is included in each set of artifacts, since test
 # scripts only install from one set of artifacts based on the CUDA version used
 # for the test run.
-sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_nx_cugraph}
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
