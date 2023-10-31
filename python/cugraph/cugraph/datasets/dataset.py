@@ -192,7 +192,7 @@ class Dataset:
             elif type(create_using) == types.FunctionType:
                 reader = create_using
             else:
-                raise NotImplementedError()
+                raise ValueError("create_using must be a read_csv function compatible with pandas.read_csv")
             self._edgelist = reader.read_csv(
                 full_path,
                 delimiter=self.metadata["delim"],
