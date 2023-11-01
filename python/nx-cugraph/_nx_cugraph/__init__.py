@@ -78,6 +78,7 @@ _info = {
         "number_of_selfloops",
         "octahedral_graph",
         "out_degree_centrality",
+        "pagerank",
         "pappus_graph",
         "path_graph",
         "petersen_graph",
@@ -105,6 +106,7 @@ _info = {
         ),
         "katz_centrality": "`nstart` parameter is not used, and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored.",
+        "pagerank": "`dangling` parameter is not supported.",
         # END: extra_docstrings
     },
     "extra_parameters": {

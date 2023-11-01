@@ -681,6 +681,9 @@ class Graph:
             degrees += cp.bincount(self.dst_indices, minlength=self._N)
         return degrees
 
+    _in_degrees_array = _degrees_array
+    _out_degrees_array = _degrees_array
+
     # Data conversions
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
