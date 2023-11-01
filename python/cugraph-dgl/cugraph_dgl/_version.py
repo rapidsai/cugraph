@@ -15,6 +15,9 @@
 
 import importlib.resources
 
+# Read VERSION file from the module that is symlinked to VERSION file
+# in the root of the repo at build time or copied to the moudle at
+# installation
 __version__ = (
     importlib.resources.files("cugraph_dgl").joinpath("VERSION").read_text().strip()
 )

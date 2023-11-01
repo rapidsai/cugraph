@@ -55,6 +55,8 @@ sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/sou
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
 # Centralized version file update
+# NOTE: Any script that runs in CI will need to use gha-tool `rapids-generate-version`
+# and echo it to `VERSION` file to get an alpha spec of the current version
 echo "${NEXT_FULL_TAG}" > VERSION
 
 # Wheel testing script
