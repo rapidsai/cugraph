@@ -54,6 +54,7 @@ _info = {
         "from_scipy_sparse_array",
         "frucht_graph",
         "heawood_graph",
+        "hits",
         "house_graph",
         "house_x_graph",
         "icosahedral_graph",

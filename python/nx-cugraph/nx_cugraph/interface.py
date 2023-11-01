@@ -66,11 +66,17 @@ class BackendInterface:
         no_multigraph = "multigraphs not currently supported"
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
+        different_power_iteration = (
+            "different behavior of power iteration convergence and/or exception"
+        )
 
         xfail = {
             key(
                 "test_eigenvector_centrality.py:TestEigenvectorCentrality.test_P3"
-            ): "Power iteration failed (don't know why; networkx converges in 8 steps)"
+            ): "Power iteration failed (don't know why; networkx converges in 8 steps)",
+            key(
+                "test_hits.py:TestHITS.test_hits_not_convergent"
+            ): different_power_iteration,
         }
 
         from packaging.version import parse

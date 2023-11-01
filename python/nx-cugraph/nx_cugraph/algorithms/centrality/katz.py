@@ -39,7 +39,7 @@ def katz_centrality(
         return {}
     if nstart is not None:
         # Check if given nstart is valid even though we don't use it
-        nstart = G._dict_to_nodearray(nstart)
+        nstart = G._dict_to_nodearray(nstart, 0)
     b = bs = None
     try:
         b = float(beta)

@@ -561,12 +561,13 @@ class Graph:
         store_transposed: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
     ):
-        if edge_array is not None:
+        if edge_array is not None or edge_attr is None:
             pass
-        elif edge_attr is None:
-            edge_array = None
         elif edge_attr not in self.edge_values:
-            raise KeyError("Graph has no edge attribute {edge_attr!r}")
+            if edge_default is None:
+                raise KeyError("Graph has no edge attribute {edge_attr!r}")
+            # If we were given a default edge value, then it's probably okay to
+            # use None for the edge_array if we don't have this edge attribute.
         elif edge_attr not in self.edge_masks:
             edge_array = self.edge_values[edge_attr]
         elif not self.edge_masks[edge_attr].all():
