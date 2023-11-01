@@ -1,10 +1,10 @@
 # Building from Source
 
 The following instructions are for users wishing to build wholegraph from source code. These instructions are tested on supported distributions of Linux,CUDA,
-and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of supported environments.
+and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for a list of supported environments.
 Other operating systems _might be_ compatible, but are not currently tested.
 
-The wholegraph package include both a C/C++ CUDA portion and a python portion. Both libraries need to be installed in order for cuGraph to operate correctly.
+The wholegraph package includes both a C/C++ CUDA portion and a python portion. Both libraries need to be installed in order for cuGraph to operate correctly.
 The C/C++ CUDA library is `libwholegraph` and the python library is `pylibwholegraph`.
 
 ## Prerequisites
@@ -37,10 +37,10 @@ To install wholegraph from source, ensure the dependencies are met.
 __GIT clone a version of the repository__
 
   ```bash
-  # Set the localtion to wholegraph in an environment variable WHOLEGRAPH_HOME
+  # Set the location to wholegraph in an environment variable WHOLEGRAPH_HOME
   export WHOLEGRAPH_HOME=$(pwd)/wholegraph
 
-  # Download the wholegraph repo - if you have a folked version, use that path here instead
+  # Download the wholegraph repo - if you have a forked version, use that path here instead
   git clone https://github.com/rapidsai/wholegraph.git $WHOLEGRAPH_HOME
 
   cd $WHOLEGRAPH_HOME
@@ -66,8 +66,8 @@ conda deactivate
 
 ```bash
 
-# Where XXX is the CUDA 11 version
-conda env update --name wholegraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
+# Where XXX is the CUDA version
+conda env update --name wholegraph_dev --file conda/environments/all_cuda-XXX_arch-x86_64.yaml
 
 conda activate wholegraph_dev
 ```
@@ -126,7 +126,7 @@ CMake depends on the `nvcc` executable being on your path or defined in `$CUDACX
 This project uses cmake for building the C/C++ library. To configure cmake, run:
 
   ```bash
-  # Set the localtion to wholegraph in an environment variable WHOLEGRAPH_HOME
+  # Set the location to wholegraph in an environment variable WHOLEGRAPH_HOME
   export WHOLEGRAPH_HOME=$(pwd)/wholegraph
 
   cd $WHOLEGRAPH_HOME
