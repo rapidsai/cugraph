@@ -743,20 +743,20 @@ class Graph:
             values = cp.fromiter(d.values(), dtype)
         return node_ids, values
 
-    # def _dict_to_nodearray(
-    #     self,
-    #     d: dict[NodeKey, NodeValue] | cp.ndarray[NodeValue],
-    #     default: NodeValue | None = None,
-    #     dtype: Dtype | None = None,
-    # ) -> cp.ndarray[NodeValue]:
-    #     if isinstance(d, cp.ndarray):
-    #         if d.shape[0] != len(self):
-    #             raise ValueError
-    #         return d
-    #     if default is None:
-    #         val_iter = map(d.__getitem__, self)
-    #     else:
-    #         val_iter = (d.get(node, default) for node in self)
-    #     if dtype is None:
-    #         return cp.array(list(val_iter))
-    #     return cp.fromiter(val_iter, dtype)
+    def _dict_to_nodearray(
+        self,
+        d: dict[NodeKey, NodeValue] | cp.ndarray[NodeValue],
+        default: NodeValue | None = None,
+        dtype: Dtype | None = None,
+    ) -> cp.ndarray[NodeValue]:
+        if isinstance(d, cp.ndarray):
+            if d.shape[0] != len(self):
+                raise ValueError
+            return d
+        if default is None:
+            val_iter = map(d.__getitem__, self)
+        else:
+            val_iter = (d.get(node, default) for node in self)
+        if dtype is None:
+            return cp.array(list(val_iter))
+        return cp.fromiter(val_iter, dtype)

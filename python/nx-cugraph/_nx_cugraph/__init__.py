@@ -47,6 +47,7 @@ _info = {
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
+        "eigenvector_centrality",
         "empty_graph",
         "florentine_families_graph",
         "from_pandas_edgelist",
@@ -62,6 +63,7 @@ _info = {
         "isolates",
         "k_truss",
         "karate_club_graph",
+        "katz_centrality",
         "krackhardt_kite_graph",
         "ladder_graph",
         "les_miserables_graph",
@@ -94,11 +96,13 @@ _info = {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "eigenvector_centrality": "`nstart` parameter is not used.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
         ),
+        "katz_centrality": "`nstart` parameter is not used, and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },

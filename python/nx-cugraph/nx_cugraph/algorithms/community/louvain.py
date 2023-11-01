@@ -54,7 +54,7 @@ def louvain_communities(
             stacklevel=2,
         )
         max_level = 500
-    vertices, clusters, modularity = plc.louvain(
+    node_ids, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
         max_level=max_level,  # TODO: add this parameter to NetworkX
@@ -62,12 +62,12 @@ def louvain_communities(
         resolution=resolution,
         do_expensive_check=False,
     )
-    groups = _groupby(clusters, vertices, groups_are_canonical=True)
-    rv = [set(G._nodearray_to_list(node_ids)) for node_ids in groups.values()]
-    # TODO: PLC doesn't handle isolated vertices yet, so this is a temporary fix
+    groups = _groupby(clusters, node_ids, groups_are_canonical=True)
+    rv = [set(G._nodearray_to_list(ids)) for ids in groups.values()]
+    # TODO: PLC doesn't handle isolated node_ids yet, so this is a temporary fix
     isolates = _isolates(G)
     if isolates.size > 0:
-        isolates = isolates[isolates > vertices.max()]
+        isolates = isolates[isolates > node_ids.max()]
         if isolates.size > 0:
             rv.extend({node} for node in G._nodearray_to_list(isolates))
     return rv
