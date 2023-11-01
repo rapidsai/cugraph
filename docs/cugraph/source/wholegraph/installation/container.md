@@ -1,8 +1,7 @@
 # Build Container for WholeGraph
-To run WholeGraph or build WholeGraph from source, the environment need to be setup first.
-The recommended method to set up environment is to use Docker images.
-For example, to build WholeGraph base image from NGC pytorch 22.10 image, you can follow `Dockerfile`,
-it may be like this:
+To run WholeGraph or build WholeGraph from source, set up the environment first.
+We recommend using Docker images.
+For example, to build the WholeGraph base image from the NGC pytorch 22.10 image, you can follow `Dockerfile`:
 ```dockerfile
 FROM nvcr.io/nvidia/pytorch:22.10-py3
 
@@ -22,7 +21,7 @@ RUN pip3 install -U py
 RUN pip3 install Cython setuputils3 scikit-build nanobind pytest-forked pytest
 ```
 
-To run GNN applications, you may also need cuGraphOps, DGL or PyG library to run GNN layers.
+To run GNN applications, you may also need cuGraphOps, DGL and/or PyG libraries to run the GNN layers.
 You may refer to [DGL](https://www.dgl.ai/pages/start.html) or [PyG](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
 For example, to install DGL, you may need to add:
 ```dockerfile
