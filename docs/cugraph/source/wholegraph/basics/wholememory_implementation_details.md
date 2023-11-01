@@ -9,48 +9,48 @@ WholeMemory types. So there will be total six WholeMemory.
 | Allocate API  |   Driver    |    Host    |  Runtime  |   Host    |   Runtime   |   Runtime   |
 |  IPC Mapping  |   Unix fd   |    mmap    |  cudaIpc  |   mmap    | No IPC map  | No IPC map  |
 
-For "Continuous" and "Chunked" type of WholeMemory, all memory are mapped to each GPU,
-so these two types are all "Mapped" WholeMemory, in opposite is "Distributed" WholeMemory which are not all mapped.
+For "Continuous" and "Chunked" types of WholeMemory, all memory is mapped to each GPU,
+so these two types are all "Mapped" WholeMemory, in contrast to "Distributed" WholeMemory where all are not mapped.
 
 ## WholeMemory Layout
-As the underlying memory of a single WholeMemory object may be on multiple GPU devices, so our WholeGraph library will
+Since the underlying memory of a single WholeMemory object may be on multiple GPU devices, the WholeGraph library will
 partition data into these GPU devices.
 The partition method guarantees that each GPU can access one continuous part of the entire memory.
-Here "can access" means can directly access from CUDA kernels, but the memory don't have to be physically on that GPU.
-For example, they may on host memory or other GPU's device memory that can be access using P2P.
-In case the stored data have its own granularity that don't want to be split, when creating WholeMemory,
-data granularity can be specified. Then each data granularity can be considered as a block of data.
+Here "can access" means can directly access from CUDA kernels, but the memory doesn't have to be physically on that GPU.
+For example,it can be on host memory or other GPU's device memory that can be access using P2P.
+In that case the stored data has its own granularity that shouldn't be split. Data granularity can be specified while 
+creating WholeMemory. Then each data granularity can be considered as a block of data.
 
 The follow figure shows the layout of 15 data block over 4 GPUs.
 ![WholeMemory Layout](../imgs/general_wholememory.png)
 
 For WholeMemory Tensors, they can be 1D or 2D tensors.
 For 1D tensor, data granularity is one element. For 2D tensor, data granularity is its 1D tensor.
-Their layout will be like this:
+The layout will be like this:
 ![WholeMemory Tensor Layout](../imgs/wholememory_tensor.png)
 
 ## WholeMemory Allocation
-As there are six types of WholeMemory, the allocation process of each type are as following:
+As there are six types of WholeMemory, the allocation process of each type are as follows:
 
 ### Device Continuous WholeMemory
 For Device Continuous WholeMemory, first a range of virtual address space is reserved in each GPU, which covers the
-entire memory range. Then a part of pyhsical memory is allocated in each GPU, like shown in the follow figure.
+entire memory range. Then a part of pyhsical memory is allocated in each GPU, as shown in the following figure.
 ![Device Continuous WholeMemory Allocation Step 1](../imgs/device_continuous_wholememory_step1.png)
-After that, each GPU gather all the handles of memory from all GPUs, and mapped them to the reserved address space.
+After that, each GPU gathers all the memory handles from all GPUs, and maps them to the reserved address space.
 ![Device Continuous WholeMemory Allocation Step 2](../imgs/device_continuous_wholememory_step2.png)
 
 ### Device Chunked WholeMemory
-For Deivce Chunked WholeMemory, first each GPU allocate its own part of memory using CUDA runtime API, this will create
-both virtual address space and physical memory for its own memory.
+For Device Chunked WholeMemory, first each GPU allocates its own part of memory using CUDA runtime API, this will create
+both a virtual address space and physical memory for its own memory.
 ![Device Chunked WholeMemory Allocation Step 1](../imgs/device_chunked_wholememory_step1.png)
-They each GPU gather the Ipc handle of memory from all other GPUs, and mapped that into its own virtual address space.
+Each GPU gathers the Ipc handle of memory from all other GPUs, and maps that into its own virtual address space.
 ![Device Chunked WholeMemory Allocation Step 2](../imgs/device_chunked_wholememory_step2.png)
 
 ### Host Mapped WholeMemory
-For Host, Continuous and Chunked are using same method. First rank allocate the host physical and share that to all
+For Host, Continuous and Chunked are using the same method. First, rank and allocate the host physical and share that to all
 ranks.
 ![Host Mapped WholeMemory Allocation Step 1](../imgs/host_mapped_wholememory_step1.png)
-Then each rank register that host memory to GPU address space.
+Then each rank registers that host memory to GPU address space.
 ![Host Mapped WholeMemory Allocation Step 2](../imgs/host_mapped_wholememory_step2.png)
 
 ### Distributed WholeMemory
