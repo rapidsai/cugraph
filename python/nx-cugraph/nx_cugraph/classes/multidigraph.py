@@ -26,5 +26,10 @@ networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiDiGraph)
 
 class MultiDiGraph(MultiGraph, DiGraph):
     @classmethod
+    @networkx_api
+    def is_directed(cls) -> bool:
+        return True
+
+    @classmethod
     def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
         return nx.MultiDiGraph
