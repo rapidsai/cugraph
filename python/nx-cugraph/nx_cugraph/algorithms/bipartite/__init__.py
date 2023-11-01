@@ -10,23 +10,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from networkx.exception import *
-
-from . import utils
-
-from . import classes
-from .classes import *
-
-from . import convert
-from .convert import *
-
-from . import convert_matrix
-from .convert_matrix import *
-
-from . import generators
 from .generators import *
-
-from . import algorithms
-from .algorithms import *
-
-__version__ = "23.12.00"
