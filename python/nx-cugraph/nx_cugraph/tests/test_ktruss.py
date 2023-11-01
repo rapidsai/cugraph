@@ -10,26 +10,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
-
 import networkx as nx
+import pytest
 
 import nx_cugraph as nxcg
 
-from .digraph import DiGraph
-from .multigraph import MultiGraph
 
-__all__ = ["MultiDiGraph"]
-
-networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiDiGraph)
-
-
-class MultiDiGraph(MultiGraph, DiGraph):
-    @classmethod
-    @networkx_api
-    def is_directed(cls) -> bool:
-        return True
-
-    @classmethod
-    def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
-        return nx.MultiDiGraph
+@pytest.mark.parametrize(
+    "get_graph", [nx.florentine_families_graph, nx.les_miserables_graph]
+)
+def test_k_truss(get_graph):
+    Gnx = get_graph()
+    Gcg = nxcg.from_networkx(Gnx, preserve_all_attrs=True)
+    for k in range(10):
+        Hnx = nx.k_truss(Gnx, k)
+        Hcg = nxcg.k_truss(Gcg, k)
+        assert nx.utils.graphs_equal(Hnx, nxcg.to_networkx(Hcg))
+        if Hnx.number_of_edges() == 0:
+            break
