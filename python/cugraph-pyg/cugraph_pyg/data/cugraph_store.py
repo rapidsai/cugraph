@@ -455,22 +455,64 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
-        df = pandas.DataFrame(
-            {
-                "src": pandas.Series(na_dst)
-                if order == "CSC"
-                else pandas.Series(na_src),
-                "dst": pandas.Series(na_src)
-                if order == "CSC"
-                else pandas.Series(na_dst),
-                "etp": pandas.Series(na_etp),
-            }
-        )
-        vertex_dtype = df.src.dtype
+        vertex_dtype = na_src.dtype
 
         if multi_gpu:
-            nworkers = len(distributed.get_client().scheduler_info()["workers"])
-            df = dd.from_pandas(df, npartitions=nworkers if len(df) > 32 else 1)
+            client = distributed.get_client()
+            nworkers = len(client.scheduler_info()["workers"])
+            npartitions = nworkers * 4
+
+            na_src = np.array_split(na_src, npartitions)
+            na_dst = np.array_split(na_dst, npartitions)
+            na_etp = np.array_split(na_etp.astype('int64'), npartitions)
+
+            scna_src = client.scatter(na_src)
+            shapes = [n.shape for n in na_src]
+            del na_src
+
+            scna_dst = client.scatter(na_dst)
+            del na_dst
+            
+            scna_etp = client.scatter(na_etp)
+            del na_etp
+
+            import dask.array as dar
+            src_dar = dar.concatenate(
+                [
+                    dar.from_delayed(s, shape=shapes[i], dtype=vertex_dtype)
+                    for i, s in enumerate(scna_src)
+                ]
+            )
+            del scna_src
+
+            dst_dar = dar.concatenate(
+                [
+                    dar.from_delayed(s, shape=shapes[i], dtype=vertex_dtype)
+                    for i, s in enumerate(scna_dst)
+                ]
+            )      
+            del scna_dst
+
+            etp_dar = dar.concatenate(
+                [
+                    dar.from_delayed(s, shape=shapes[i], dtype='int32')
+                    for i, s in enumerate(scna_etp)
+                ]
+            )      
+            del scna_etp
+
+            df = dd.from_dask_array(
+                dar.stack(
+                    [dst_dar, src_dar, etp_dar] if order == 'CSC' else [src_dar, dst_dar, etp_dar],
+                    axis=1
+                ),
+                columns=['src','dst','etp']
+            )
+            del src_dar
+            del dst_dar
+            del etp_dar
+
+            df.etp=df.etp.astype('int32')
 
             # Ensure the dataframe is constructed on each partition
             # instead of adding additional synchronization head from potential
@@ -491,9 +533,21 @@ class EXPERIMENTAL__CuGraphStore:
                 if len(f) > 0
                 else get_empty_df(),
                 meta=get_empty_df(),
-            ).reset_index(drop=True)
+            ).reset_index(drop=True) # should be ok for dask
         else:
-            df = cudf.from_pandas(df).reset_index(drop=True)
+            df = pandas.DataFrame(
+                {
+                    "src": pandas.Series(na_dst)
+                    if order == "CSC"
+                    else pandas.Series(na_src),
+                    "dst": pandas.Series(na_src)
+                    if order == "CSC"
+                    else pandas.Series(na_dst),
+                    "etp": pandas.Series(na_etp),
+                }
+            )
+            df = cudf.from_pandas(df)
+            df.reset_index(drop=True, inplace=True)
 
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
@@ -512,6 +566,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_type="etp",
             )
 
+        del df
         return graph
 
     @property
