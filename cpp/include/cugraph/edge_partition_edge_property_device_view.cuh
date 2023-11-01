@@ -33,8 +33,9 @@ template <typename edge_t,
           typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_partition_edge_property_device_view_t {
  public:
-  using edge_type                      = edge_t;
-  using value_type                     = value_t;
+  using edge_type  = edge_t;
+  using value_type = value_t;
+
   static constexpr bool is_packed_bool = cugraph::is_packed_bool<ValueIterator, value_t>();
   static constexpr bool has_packed_bool_element =
     cugraph::has_packed_bool_element<ValueIterator, value_t>();
@@ -53,7 +54,7 @@ class edge_partition_edge_property_device_view_t {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
-  __host__ __device__ ValueIterator value_first() { return value_first_; }
+  __host__ __device__ ValueIterator value_first() const { return value_first_; }
 
   __device__ value_t get(edge_t offset) const
   {
@@ -173,8 +174,9 @@ class edge_partition_edge_property_device_view_t {
 template <typename edge_t>
 class edge_partition_edge_dummy_property_device_view_t {
  public:
-  using edge_type                               = edge_t;
-  using value_type                              = thrust::nullopt_t;
+  using edge_type  = edge_t;
+  using value_type = thrust::nullopt_t;
+
   static constexpr bool is_packed_bool          = false;
   static constexpr bool has_packed_bool_element = false;
 
