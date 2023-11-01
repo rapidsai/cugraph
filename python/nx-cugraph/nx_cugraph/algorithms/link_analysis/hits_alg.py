@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import networkx as nx
+import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
@@ -21,16 +22,19 @@ __all__ = ["hits"]
 
 @networkx_algorithm
 def hits(G, max_iter=100, tol=1.0e-8, nstart=None, normalized=True):
-    G = _to_graph(G, "weight")
+    # Use np.float32 dtype everywhere for performance. In the future, it may
+    # be nice to use whatever dtype the user provides (such as np.float64) and
+    # let PLC "do the right thing" to make sure dtypes of inputs are compatible.
+    G = _to_graph(G, "weight", np.float32)
     if len(G) == 0:
         return {}, {}
     if nstart is not None:
-        nstart = G._dict_to_nodearray(nstart, 0)
+        nstart = G._dict_to_nodearray(nstart, 0, np.float32)
     try:
         node_ids, hubs, authorities = plc.hits(
             resource_handle=plc.ResourceHandle(),
-            graph=G._get_plc_graph("weight", 1, store_transposed=True),
-            tol=tol,  # TODO: see if tol is handled the same by PLC and NX
+            graph=G._get_plc_graph("weight", 1, np.float32, store_transposed=True),
+            tol=tol,
             initial_hubs_guess_vertices=None,
             initial_hubs_guess_values=nstart,
             max_iter=max_iter,

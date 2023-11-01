@@ -33,17 +33,26 @@ def pagerank(
     dangling=None,
 ):
     """`dangling` parameter is not supported."""
-    G = _to_graph(G, weight, 1)
+    # Use np.float32 dtype everywhere for performance. In the future, it may
+    # be nice to use whatever dtype the user provides (such as np.float64) and
+    # let PLC "do the right thing" to make sure dtypes of inputs are compatible.
+    G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
     if nstart is not None:
         nstart = G._dict_to_nodearray(nstart, 0, dtype=np.float32)
+        if (total := nstart.sum()) == 0:
+            raise ZeroDivisionError
+        nstart /= total
     if personalization is not None:
         personalization = G._dict_to_nodearray(personalization, 0, dtype=np.float32)
-        if personalization.sum() == 0:
+        if (total := personalization.sum()) == 0:
             raise ZeroDivisionError
+        personalization /= total
     if dangling is not None:
         dangling = G._dict_to_nodearray(dangling, 0)  # Check validity
+        if dangling.sum() == 0:
+            raise ZeroDivisionError
         if (G._out_degrees_array() == 0).any():
             raise NotImplementedError("custom dangling weights is not supported")
     if max_iter <= 0:
@@ -58,7 +67,7 @@ def pagerank(
         else cp.arange(N, dtype=index_dtype),  # Why is this necessary?
         "initial_guess_values": nstart,
         "alpha": alpha,
-        "epsilon": tol**0.5 / N,  # TODO: see if tol is handled the same by PLC and NX
+        "epsilon": N * tol,
         "max_iterations": max_iter,
         "do_expensive_check": False,
         "fail_on_nonconvergence": False,

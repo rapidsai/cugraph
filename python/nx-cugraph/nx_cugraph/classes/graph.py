@@ -756,6 +756,8 @@ class Graph:
         if isinstance(d, cp.ndarray):
             if d.shape[0] != len(self):
                 raise ValueError
+            if dtype is not None and d.dtype != dtype:
+                return d.astype(dtype)
             return d
         if default is None:
             val_iter = map(d.__getitem__, self)
