@@ -29,7 +29,6 @@ from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
-
 trim_to_layer = import_optional("torch_geometric.utils.trim_to_layer")
 
 try:
