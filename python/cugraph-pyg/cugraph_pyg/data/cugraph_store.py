@@ -322,7 +322,7 @@ class EXPERIMENTAL__CuGraphStore:
             if isinstance(self.__graph._plc_graph, dict):
                 try:
                     distributed.get_client().unpublish_dataset("cugraph_graph")
-                except Exception:
+                except TypeError:
                     warnings.warn(
                         "Could not unpublish graph dataset, most likely because"
                         " dask has already shut down."
