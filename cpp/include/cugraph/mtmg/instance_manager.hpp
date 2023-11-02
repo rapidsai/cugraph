@@ -18,7 +18,7 @@
 
 #include <cugraph/mtmg/handle.hpp>
 
-#include <nccl.h>
+#include <raft/comms/std_comms.hpp>
 
 #include <vector>
 
@@ -43,6 +43,19 @@ class instance_manager_t {
       nccl_comms_{std::move(nccl_comms)},
       device_ids_{std::move(device_ids)}
   {
+  }
+
+  ~instance_manager_t()
+  {
+    int current_device{};
+    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
+
+    for (size_t i = 0; i < nccl_comms_.size(); ++i) {
+      RAFT_CUDA_TRY(cudaSetDevice(device_ids_[i].value()));
+      RAFT_NCCL_TRY(ncclCommDestroy(*nccl_comms_[i]));
+    }
+
+    RAFT_CUDA_TRY(cudaSetDevice(current_device));
   }
 
   /**

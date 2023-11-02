@@ -41,6 +41,11 @@ namespace mtmg {
  * register_local_gpu (or register_remote_gpu once we support a multi-node
  * configuration) to allocate resources that can be used in the mtmg space.
  *
+ * Each GPU in the cluster should be given a unique global rank, an integer
+ * that will be used to reference the GPU within the resource manager.  It
+ * is recommended that the GPUs be numbered sequentially from 0, although this
+ * is not required.
+ *
  * When we want to execute some graph computations, we need to create an instance for execution.
  * Based on how big a subset of the desired compute resources is desired, we can allocate some
  * number of GPUs to the problem (up to the total set of managed resources).
@@ -48,7 +53,7 @@ namespace mtmg {
  * The returned instance can be used to create a graph, execute one or more algorithms, etc.  Once
  * we are done the caller can delete the instance.
  *
- * At the moment, the caller is assumed to be responsible for scheduling use of the resources.
+ * The caller is assumed to be responsible for scheduling use of the resources.
  *
  * For our first release, we will only consider a single node multi-GPU configuration, so the remote
  * GPU methods are currently disabled via ifdef.
@@ -63,27 +68,28 @@ class resource_manager_t {
   /**
    * @brief add a local GPU to the resource manager.
    *
-   * @param rank       The rank to assign to the local GPU
-   * @param device_id  The device_id corresponding to this rank
+   * @param global_rank       The global rank to assign to the local GPU
+   * @param local_device_id  The local device_id corresponding to this rank
    */
-  void register_local_gpu(int rank, rmm::cuda_device_id device_id)
+  void register_local_gpu(int global_rank, rmm::cuda_device_id local_device_id)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    CUGRAPH_EXPECTS(remote_rank_set_.find(rank) == remote_rank_set_.end(),
-                    "cannot register same rank as local and remote");
-    CUGRAPH_EXPECTS(local_rank_map_.find(rank) == local_rank_map_.end(),
-                    "cannot register same rank multiple times");
+    CUGRAPH_EXPECTS(remote_rank_set_.find(global_rank) == remote_rank_set_.end(),
+                    "cannot register same global_rank as local and remote");
+    CUGRAPH_EXPECTS(local_rank_map_.find(global_rank) == local_rank_map_.end(),
+                    "cannot register same global_rank multiple times");
 
     int num_gpus_this_node;
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_this_node));
 
-    CUGRAPH_EXPECTS((device_id.value() >= 0) && (device_id.value() < num_gpus_this_node),
-                    "device id out of range");
+    CUGRAPH_EXPECTS(
+      (local_device_id.value() >= 0) && (local_device_id.value() < num_gpus_this_node),
+      "local device id out of range");
 
-    local_rank_map_.insert(std::pair(rank, device_id));
+    local_rank_map_.insert(std::pair(global_rank, local_device_id));
 
-    RAFT_CUDA_TRY(cudaSetDevice(device_id.value()));
+    RAFT_CUDA_TRY(cudaSetDevice(local_device_id.value()));
 
     // FIXME: There is a bug in the cuda_memory_resource that results in a Hang.
     //   using the pool resource as a work-around.
@@ -98,36 +104,36 @@ class resource_manager_t {
     // (or the constructor of the object) to configure this behavior
 #if 0
     auto per_device_it = per_device_rmm_resources_.insert(
-      std::pair{rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
+      std::pair{global_rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
 #else
     auto const [free, total] = rmm::detail::available_device_memory();
     auto const min_alloc =
       rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
 
     auto per_device_it = per_device_rmm_resources_.insert(
-      std::pair{rank,
+      std::pair{global_rank,
                 rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
                   std::make_shared<rmm::mr::cuda_memory_resource>(), min_alloc)});
 #endif
 
-    rmm::mr::set_per_device_resource(device_id, per_device_it.first->second.get());
+    rmm::mr::set_per_device_resource(local_device_id, per_device_it.first->second.get());
   }
 
   /**
    * @brief add a remote GPU to the resource manager.
    *
-   * @param rank             The rank to assign to the remote GPU
+   * @param global_rank             The global rank to assign to the remote GPU
    */
-  void register_remote_gpu(int rank)
+  void register_remote_gpu(int global_rank)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    CUGRAPH_EXPECTS(local_rank_map_.find(rank) == local_rank_map_.end(),
-                    "cannot register same rank as local and remote");
-    CUGRAPH_EXPECTS(remote_rank_set_.find(rank) == remote_rank_set_.end(),
-                    "cannot register same rank multiple times");
+    CUGRAPH_EXPECTS(local_rank_map_.find(global_rank) == local_rank_map_.end(),
+                    "cannot register same global_rank as local and remote");
+    CUGRAPH_EXPECTS(remote_rank_set_.find(global_rank) == remote_rank_set_.end(),
+                    "cannot register same global_rank multiple times");
 
-    remote_rank_set_.insert(rank);
+    remote_rank_set_.insert(global_rank);
   }
 
   /**
@@ -154,18 +160,12 @@ class resource_manager_t {
   {
     std::vector<int> local_ranks_to_include;
 
-    std::for_each(ranks_to_include.begin(),
-                  ranks_to_include.end(),
-                  [&local_ranks  = local_rank_map_,
-                   &remote_ranks = remote_rank_set_,
-                   &local_ranks_to_include](int rank) {
-                    if (local_ranks.find(rank) == local_ranks.end()) {
-                      CUGRAPH_EXPECTS(remote_ranks.find(rank) != remote_ranks.end(),
-                                      "requesting inclusion of an invalid rank");
-                    } else {
-                      local_ranks_to_include.push_back(rank);
-                    }
-                  });
+    std::copy_if(ranks_to_include.begin(),
+                 ranks_to_include.end(),
+                 std::back_inserter(local_ranks_to_include),
+                 [&local_ranks = local_rank_map_](int rank) {
+                   return (local_ranks.find(rank) != local_ranks.end());
+                 });
 
     std::vector<std::unique_ptr<ncclComm_t>> nccl_comms{};
     std::vector<std::unique_ptr<raft::handle_t>> handles{};
@@ -182,7 +182,7 @@ class resource_manager_t {
 
     int current_device{};
     RAFT_CUDA_TRY(cudaGetDevice(&current_device));
-    NCCL_TRY(ncclGroupStart());
+    RAFT_NCCL_TRY(ncclGroupStart());
 
     for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
       int rank = local_ranks_to_include[i];
@@ -196,12 +196,12 @@ class resource_manager_t {
                                          per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
 
-      NCCL_TRY(
+      RAFT_NCCL_TRY(
         ncclCommInitRank(nccl_comms[i].get(), ranks_to_include.size(), instance_manager_id, rank));
       raft::comms::build_comms_nccl_only(
         handles[i].get(), *nccl_comms[i], ranks_to_include.size(), rank);
     }
-    NCCL_TRY(ncclGroupEnd());
+    RAFT_NCCL_TRY(ncclGroupEnd());
     RAFT_CUDA_TRY(cudaSetDevice(current_device));
 
     std::vector<std::thread> running_threads;

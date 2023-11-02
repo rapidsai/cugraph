@@ -29,6 +29,7 @@
 #include <cugraph/mtmg/resource_manager.hpp>
 #include <cugraph/mtmg/vertex_result.hpp>
 
+#include <raft/comms/mpi_comms.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -49,19 +50,16 @@ struct Multithreaded_Usecase {
   bool check_correctness{true};
 };
 
-std::string g_comms_dir_name{};
-int g_node_rank{};
-int g_num_nodes{};
-int g_execution_id{0};
+// Global variable defining resource manager
+static cugraph::mtmg::resource_manager_t g_resource_manager{};
+static int g_node_rank{-1};
+static int g_num_nodes{-1};
 
 template <typename input_usecase_t>
 class Tests_Multithreaded
   : public ::testing::TestWithParam<std::tuple<Multithreaded_Usecase, input_usecase_t>> {
  public:
   Tests_Multithreaded() {}
-
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -75,32 +73,6 @@ class Tests_Multithreaded
     std::iota(gpu_list.begin(), gpu_list.end(), 0);
 
     return gpu_list;
-  }
-
-  void wait_for_directory(std::string directory_name, int max_tries = 60)
-  {
-    while (max_tries > 0) {
-      if (std::filesystem::is_directory(directory_name)) break;
-      sleep(1);
-      --max_tries;
-    }
-
-    CUGRAPH_EXPECTS(std::filesystem::is_directory(directory_name),
-                    "Timed out waiting for directory to be created");
-  }
-
-  std::ifstream wait_for_file(std::string file_name, int max_tries = 60)
-  {
-    while (max_tries > 0) {
-      if (std::filesystem::is_regular_file(file_name)) break;
-      sleep(1);
-      --max_tries;
-    }
-
-    CUGRAPH_EXPECTS(std::filesystem::is_regular_file(file_name),
-                    "Timed out waiting for file to be created");
-
-    return std::ifstream(file_name, std::ios::binary);
   }
 
   template <typename vertex_t,
@@ -130,74 +102,15 @@ class Tests_Multithreaded
     int num_local_gpus = gpu_list.size();
     int num_threads    = num_local_gpus * 4;
 
-    //
-    //  This is intended to mimic a multi-node host application (non-MPI) integrating
-    //  with MTMG library.  This is a simple implementation using a shared file system
-    //  to pass configuration messages.  Terribly inefficient, but should mimic
-    //  expected behavior.
-    //
-    ncclUniqueId instance_manager_id;
-    int execution_id = g_execution_id++;
+    ncclUniqueId instance_manager_id{};
 
-    std::ostringstream comms_dir_name;
-    comms_dir_name << g_comms_dir_name << "_" << execution_id;
+    if (g_node_rank == 0) RAFT_NCCL_TRY(ncclGetUniqueId(&instance_manager_id));
 
-    if (g_node_rank == 0) {
-      ncclGetUniqueId(&instance_manager_id);
+    RAFT_MPI_TRY(
+      MPI_Bcast(&instance_manager_id, sizeof(instance_manager_id), MPI_CHAR, 0, MPI_COMM_WORLD));
 
-      // Create directory for configuration files
-      std::filesystem::create_directory(comms_dir_name.str());
-      std::ofstream instance_manager_file(comms_dir_name.str() + "/instance_manager",
-                                          std::ios::binary);
-      instance_manager_file.write(reinterpret_cast<char const*>(&instance_manager_id),
-                                  sizeof(instance_manager_id));
-      instance_manager_file.close();
-    } else {
-      // Wait for node rank 0 to create directory
-      wait_for_directory(comms_dir_name.str());
-
-      auto instance_manager_file = wait_for_file(comms_dir_name.str() + "/instance_manager");
-      instance_manager_file.read(reinterpret_cast<char*>(&instance_manager_id),
-                                 sizeof(instance_manager_id));
-      instance_manager_file.close();
-    }
-
-    // Create a file for this process (rank) to identify how many GPUs
-    std::ostringstream filename_creator;
-
-    filename_creator << comms_dir_name.str() << "/gpu_count_" << g_node_rank;
-    {
-      std::ofstream num_gpus_file(filename_creator.str(), std::ios::binary);
-      int num_gpus_on_this_node = static_cast<int>(gpu_list.size());
-      num_gpus_file.write(reinterpret_cast<char const*>(&num_gpus_on_this_node), sizeof(int));
-      num_gpus_file.close();
-    }
-
-    cugraph::mtmg::resource_manager_t resource_manager;
-    int node_rank{0};
-
-    for (int i = 0; i < g_num_nodes; ++i) {
-      if (i != g_node_rank) {
-        filename_creator.str("");
-        filename_creator << comms_dir_name.str() << "/gpu_count_" << i;
-        auto num_gpus_file = wait_for_file(filename_creator.str());
-        int num_gpus_this_node{0};
-        num_gpus_file.read(reinterpret_cast<char*>(&num_gpus_this_node), sizeof(int));
-        num_gpus_file.close();
-
-        for (int j = 0; j < num_gpus_this_node; ++j) {
-          resource_manager.register_remote_gpu(node_rank++);
-        }
-      } else {
-        std::for_each(
-          gpu_list.begin(), gpu_list.end(), [&resource_manager, &node_rank](int gpu_id) {
-            resource_manager.register_local_gpu(node_rank++, rmm::cuda_device_id{gpu_id});
-          });
-      }
-    }
-
-    auto instance_manager = resource_manager.create_instance_manager(
-      resource_manager.registered_ranks(), instance_manager_id);
+    auto instance_manager = g_resource_manager.create_instance_manager(
+      g_resource_manager.registered_ranks(), instance_manager_id);
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
     cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
@@ -545,35 +458,17 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
-inline auto local_parse_test_options(int argc, char** argv)
-{
-  try {
-    cxxopts::Options options(argv[0], " - cuGraph tests command line options");
-    options.allow_unrecognised_options().add_options()(
-      "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"))(
-      "perf", "enalbe performance measurements", cxxopts::value<bool>()->default_value("false"))(
-      "rmat_scale", "override the hardcoded R-mat scale", cxxopts::value<size_t>())(
-      "rmat_edge_factor", "override the hardcoded R-mat edge factor", cxxopts::value<size_t>())(
-      "node_rank", "rank of this process on multi-node configuration", cxxopts::value<int>())(
-      "num_nodes", "number of nodes in this multi-node configuration", cxxopts::value<int>())(
-      "comms_dir_name",
-      "directory where comms data is stored (shared)",
-      cxxopts::value<std::string>())(
-      "test_file_name", "override the hardcoded test filename", cxxopts::value<std::string>());
-
-    return options.parse(argc, argv);
-  } catch (const cxxopts::OptionException& e) {
-    CUGRAPH_FAIL("Error parsing command line options");
-  }
-}
-
 //
 // Need to customize the test configuration to support multi-node comms not using MPI
 //
 int main(int argc, char** argv)
 {
+  cugraph::test::initialize_mpi(argc, argv);
+  auto comm_rank = cugraph::test::query_mpi_comm_world_rank();
+  auto comm_size = cugraph::test::query_mpi_comm_world_size();
+
   ::testing::InitGoogleTest(&argc, argv);
-  auto const cmd_opts = local_parse_test_options(argc, argv);
+  auto const cmd_opts = parse_test_options(argc, argv);
   auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();
   auto resource       = cugraph::test::create_memory_resource(rmm_mode);
   rmm::mr::set_current_device_resource(resource.get());
@@ -590,14 +485,34 @@ int main(int argc, char** argv)
       ? std::make_optional<std::string>(cmd_opts["test_file_name"].as<std::string>())
       : std::nullopt;
 
-  g_comms_dir_name = (cmd_opts.count("comms_dir_name") > 0)
-                       ? cmd_opts["comms_dir_name"].as<std::string>()
-                       : "COMMS_DIR";
+  //
+  //  Set global values for the test.  Need to know the rank of this process,
+  //  the comm size, number of GPUs per node, and the NCCL Id for rank 0.
+  //
+  int num_gpus_this_node{-1};
+  std::vector<int> num_gpus_per_node{};
 
-  CUGRAPH_EXPECTS(cmd_opts.count("node_rank") > 0, "node_rank not specified");
-  CUGRAPH_EXPECTS(cmd_opts.count("num_nodes") > 0, "num_nodes not specified");
-  g_node_rank = cmd_opts["node_rank"].as<int>();
-  g_num_nodes = cmd_opts["num_nodes"].as<int>();
+  g_node_rank = comm_rank;
+  g_num_nodes = comm_size;
 
-  return RUN_ALL_TESTS();
+  num_gpus_per_node.resize(comm_size);
+
+  RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_this_node));
+  RAFT_MPI_TRY(MPI_Allgather(
+    &num_gpus_this_node, 1, MPI_INT, num_gpus_per_node.data(), 1, MPI_INT, MPI_COMM_WORLD));
+
+  int node_rank{0};
+
+  for (int i = 0; i < comm_size; ++i) {
+    for (int j = 0; j < num_gpus_per_node[i]; ++j) {
+      if (i != comm_rank)
+        g_resource_manager.register_remote_gpu(node_rank++);
+      else
+        g_resource_manager.register_local_gpu(node_rank++, rmm::cuda_device_id{j});
+    }
+  }
+
+  auto result = RUN_ALL_TESTS();
+  cugraph::test::finalize_mpi();
+  return result;
 }

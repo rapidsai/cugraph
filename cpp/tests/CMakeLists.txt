@@ -427,9 +427,11 @@ target_link_libraries(MTMG_TEST
                       UCP::UCP
                     )
 
-ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu)
+	    # FIXME... should use MG library
+ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
 target_link_libraries(MTMG_MULTINODE_TEST
                       PRIVATE
+                      MPI::MPI_CXX
                       UCP::UCP
                     )
 
