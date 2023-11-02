@@ -30,7 +30,7 @@ __all__ = ["eigenvector_centrality"]
 def eigenvector_centrality(
     G, max_iter=100, tol=1.0e-6, nstart=None, weight=None, *, dtype=None
 ):
-    """`nstart` parameter is not used."""
+    """`nstart` parameter is not used, but it is checked for validity."""
     G = _to_graph(G, weight, np.float32)
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
@@ -47,9 +47,9 @@ def eigenvector_centrality(
         nstart = G._dict_to_nodearray(nstart, dtype=dtype)
         if (nstart == 0).all():
             raise nx.NetworkXError("initial vector cannot have all zero values")
-        if (total := nstart.sum()) == 0:
+        if nstart.sum() == 0:
             raise ZeroDivisionError
-        nstart /= total
+        # nstart /= total  # Uncomment (and assign total) when nstart is used below
     try:
         node_ids, values = plc.eigenvector_centrality(
             resource_handle=plc.ResourceHandle(),

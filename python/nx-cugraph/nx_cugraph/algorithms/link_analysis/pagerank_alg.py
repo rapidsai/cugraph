@@ -39,7 +39,7 @@ def pagerank(
     *,
     dtype=None,
 ):
-    """`dangling` parameter is not supported."""
+    """`dangling` parameter is not supported, but it is checked for validity."""
     G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
@@ -60,6 +60,7 @@ def pagerank(
             raise ZeroDivisionError
         personalization /= total
     if dangling is not None:
+        # Check if given dangling is valid even though we don't use it
         dangling = G._dict_to_nodearray(dangling, 0)  # Check validity
         if dangling.sum() == 0:
             raise ZeroDivisionError

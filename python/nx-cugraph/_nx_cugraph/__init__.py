@@ -98,15 +98,15 @@ _info = {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
-        "eigenvector_centrality": "`nstart` parameter is not used.",
+        "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
         ),
-        "katz_centrality": "`nstart` parameter is not used, and `normalized=False` is not supported.",
+        "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored.",
-        "pagerank": "`dangling` parameter is not supported.",
+        "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
         # END: extra_docstrings
     },
     "extra_parameters": {
