@@ -183,43 +183,42 @@ graph_to_host_csr(
     }
   }
 
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  size_t element_size   = sizeof(vertex_t) * 2;
+  if (d_wgt) { element_size += sizeof(weight_t); }
+  auto constexpr mem_frugal_ratio =
+    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+           // total_global_mem, switch to the memory frugal approach
+  auto mem_frugal_threshold =
+    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
   rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
 
   if (d_wgt) {
     std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(d_src.begin(),
-                                                          d_src.end(),
-                                                          d_dst.begin(),
-                                                          d_wgt->begin(),
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          graph_view.number_of_vertices(),
-                                                          vertex_t{0},
-                                                          graph_view.number_of_vertices(),
-                                                          handle.get_stream());
-
-    // segmented sort neighbors
-    detail::sort_adjacency_list(handle,
-                                raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size()),
-                                d_dst.begin(),
-                                d_dst.end(),
-                                d_wgt->begin());
+      detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, store_transposed>(
+        std::move(d_src),
+        std::move(d_dst),
+        std::move(*d_wgt),
+        vertex_t{0},
+        std::optional<vertex_t>{std::nullopt},
+        graph_view.number_of_vertices(),
+        vertex_t{0},
+        graph_view.number_of_vertices(),
+        mem_frugal_threshold,
+        handle.get_stream());
   } else {
     std::tie(d_offsets, d_dst, std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(d_src.begin(),
-                                                          d_src.end(),
-                                                          d_dst.begin(),
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          graph_view.number_of_vertices(),
-                                                          vertex_t{0},
-                                                          graph_view.number_of_vertices(),
-                                                          handle.get_stream());
-    // segmented sort neighbors
-    detail::sort_adjacency_list(handle,
-                                raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size()),
-                                d_dst.begin(),
-                                d_dst.end());
+      detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
+        std::move(d_src),
+        std::move(d_dst),
+        vertex_t{0},
+        std::optional<vertex_t>{std::nullopt},
+        graph_view.number_of_vertices(),
+        vertex_t{0},
+        graph_view.number_of_vertices(),
+        mem_frugal_threshold,
+        handle.get_stream());
   }
 
   return std::make_tuple(

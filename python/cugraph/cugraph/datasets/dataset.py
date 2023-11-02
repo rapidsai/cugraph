@@ -159,7 +159,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False):
+    def get_edgelist(self, download=False, reader=cudf.read_csv):
         """
         Return an Edgelist
 
@@ -168,6 +168,10 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
+
+        reader : callable compatible with pandas.read_csv (default=cudf.read_csv)
+            Object to call to read a CSV and return a pandas-compatible edgelist
+            DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -180,11 +184,21 @@ class Dataset:
                         " exist. Try setting download=True"
                         " to download the datafile"
                     )
+
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            self._edgelist = cudf.read_csv(
-                full_path,
+
+            if reader is None:
+                reader = cudf.read_csv
+            elif not callable(reader):
+                raise ValueError(
+                    "reader must be a read_csv function compatible with\
+                     pandas.read_csv"
+                )
+
+            self._edgelist = reader(
+                filepath_or_buffer=full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
                 dtype=self.metadata["col_types"],
@@ -219,6 +233,10 @@ class Dataset:
             dataset -if present- will be applied to the Graph. If the
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
+
+        store_transposed: Boolean (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
             self.get_edgelist(download)
@@ -237,20 +255,19 @@ class Dataset:
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
-                edge_attr="wgt",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                edge_attr=self.metadata["col_names"][2],
                 store_transposed=store_transposed,
             )
         else:
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
                 store_transposed=store_transposed,
             )
         return G

@@ -34,6 +34,11 @@ from cugraph.datasets import (
     email_Eu_core,
     toy_graph,
     toy_graph_undirected,
+    soc_livejournal,
+    cit_patents,
+    europe_osm,
+    hollywood,
+    # twitter,
 )
 
 #
@@ -66,3 +71,4 @@ ALL_DATASETS = [
     toy_graph_undirected,
 ]
 DEFAULT_DATASETS = [dolphins, netscience, karate_disjoint]
+BENCHMARKING_DATASETS = [soc_livejournal, cit_patents, europe_osm, hollywood]
