@@ -30,6 +30,10 @@ def hits(G, max_iter=100, tol=1.0e-8, nstart=None, normalized=True):
         return {}, {}
     if nstart is not None:
         nstart = G._dict_to_nodearray(nstart, 0, np.float32)
+    if max_iter <= 0:
+        if nx.__version__[:3] <= "3.2":
+            raise ValueError("`maxiter` must be a positive integer.")
+        raise nx.PowerIterationFailedConvergence(max_iter)
     try:
         node_ids, hubs, authorities = plc.hits(
             resource_handle=plc.ResourceHandle(),
