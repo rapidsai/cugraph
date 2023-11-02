@@ -289,10 +289,6 @@ ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_te
     GPUS 1 PERCENT 100)
 
 ###################################################################################################
-# - Graph mask tests ------------------------------------------------------------------------------
-ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
-
-###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 

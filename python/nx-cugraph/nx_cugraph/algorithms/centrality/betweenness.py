@@ -53,6 +53,7 @@ def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=No
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
         )
+    seed = _seed_to_int(seed)
     G = _to_graph(G, weight)
     src_ids, dst_ids, values, _edge_ids = plc.edge_betweenness_centrality(
         resource_handle=plc.ResourceHandle(),

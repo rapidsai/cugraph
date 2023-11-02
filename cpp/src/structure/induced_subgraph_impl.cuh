@@ -196,6 +196,7 @@ extract_induced_subgraphs(
                                              graph_ids_v.end(),
                                              size_t{0},
                                              size_t{subgraph_offsets.size() - 1},
+                                             true,
                                              handle.get_stream());
 
     dst_subgraph_offsets =
@@ -290,6 +291,7 @@ extract_induced_subgraphs(
                                            subgraph_edge_graph_ids.end(),
                                            size_t{0},
                                            size_t{subgraph_offsets.size() - 1},
+                                           true,
                                            handle.get_stream());
 
 #ifdef TIMING

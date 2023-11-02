@@ -42,7 +42,7 @@ def louvain_communities(
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
-    if G.row_indices.size == 0:
+    if G.src_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     if max_level is None:
@@ -62,7 +62,7 @@ def louvain_communities(
         resolution=resolution,
         do_expensive_check=False,
     )
-    groups = _groupby(clusters, vertices)
+    groups = _groupby(clusters, vertices, groups_are_canonical=True)
     rv = [set(G._nodearray_to_list(node_ids)) for node_ids in groups.values()]
     # TODO: PLC doesn't handle isolated vertices yet, so this is a temporary fix
     isolates = _isolates(G)

@@ -92,6 +92,13 @@ constexpr uint32_t packed_bool_mask(T bool_offset)
 
 constexpr uint32_t packed_bool_full_mask() { return uint32_t{0xffffffff}; }
 
+template <typename T>
+constexpr uint32_t packed_bool_partial_mask(T num_set_bits)
+{
+  assert(static_cast<size_t>(num_set_bits) <= sizeof(uint32_t) * 8);
+  return uint32_t{0xffffffff} >> (sizeof(uint32_t) * 8 - num_set_bits);
+}
+
 constexpr uint32_t packed_bool_empty_mask() { return uint32_t{0x0}; }
 
 template <typename T>
