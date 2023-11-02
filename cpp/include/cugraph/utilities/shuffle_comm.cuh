@@ -828,7 +828,6 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_counts{};
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
-
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
