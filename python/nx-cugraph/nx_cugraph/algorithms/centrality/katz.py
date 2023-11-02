@@ -15,7 +15,7 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import _get_float_dtype, networkx_algorithm, not_implemented_for
 
 __all__ = ["katz_centrality"]
 
@@ -33,23 +33,24 @@ def katz_centrality(
     weight=None,
 ):
     """`nstart` parameter is not used, and `normalized=False` is not supported."""
-    # Use np.float32 dtype everywhere for performance. In the future, it may
-    # be nice to use whatever dtype the user provides (such as np.float64) and
-    # let PLC "do the right thing" to make sure dtypes of inputs are compatible.
     if not normalized:
         raise NotImplementedError("normalized=False is not supported.")
     G = _to_graph(G, weight, np.float32)
     if (N := len(G)) == 0:
         return {}
+    if weight in G.edge_values:
+        dtype = _get_float_dtype(G.edge_values[weight].dtype)
+    else:
+        dtype = np.float32
     if nstart is not None:
         # Check if given nstart is valid even though we don't use it
-        nstart = G._dict_to_nodearray(nstart, 0, np.float32)
+        nstart = G._dict_to_nodearray(nstart, 0, dtype)
     b = bs = None
     try:
         b = float(beta)
     except (TypeError, ValueError) as exc:
         try:
-            bs = G._dict_to_nodearray(beta, dtype=np.float32)
+            bs = G._dict_to_nodearray(beta, dtype=dtype)
             b = 1.0  # float value must be given to PLC (and will be ignored)
         except (KeyError, ValueError):
             raise nx.NetworkXError(
@@ -58,7 +59,7 @@ def katz_centrality(
     try:
         node_ids, values = plc.katz_centrality(
             resource_handle=plc.ResourceHandle(),
-            graph=G._get_plc_graph(weight, 1, np.float32, store_transposed=True),
+            graph=G._get_plc_graph(weight, 1, dtype, store_transposed=True),
             betas=bs,
             alpha=alpha,
             beta=b,

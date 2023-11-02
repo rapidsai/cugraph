@@ -79,7 +79,7 @@ class Graph:
         np.dtype(np.uint32): np.dtype(np.float64),
         np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
         # other
-        np.dtype(np.bool_): np.dtype(np.float16),
+        np.dtype(np.bool_): np.dtype(np.float32),
         np.dtype(np.float16): np.dtype(np.float32),
     }
     _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {

@@ -16,7 +16,7 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import index_dtype, networkx_algorithm
+from nx_cugraph.utils import _get_float_dtype, index_dtype, networkx_algorithm
 
 __all__ = ["pagerank"]
 
@@ -33,19 +33,20 @@ def pagerank(
     dangling=None,
 ):
     """`dangling` parameter is not supported."""
-    # Use np.float32 dtype everywhere for performance. In the future, it may
-    # be nice to use whatever dtype the user provides (such as np.float64) and
-    # let PLC "do the right thing" to make sure dtypes of inputs are compatible.
     G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
+    if weight in G.edge_values:
+        dtype = _get_float_dtype(G.edge_values[weight].dtype)
+    else:
+        dtype = np.float32
     if nstart is not None:
-        nstart = G._dict_to_nodearray(nstart, 0, dtype=np.float32)
+        nstart = G._dict_to_nodearray(nstart, 0, dtype=dtype)
         if (total := nstart.sum()) == 0:
             raise ZeroDivisionError
         nstart /= total
     if personalization is not None:
-        personalization = G._dict_to_nodearray(personalization, 0, dtype=np.float32)
+        personalization = G._dict_to_nodearray(personalization, 0, dtype=dtype)
         if (total := personalization.sum()) == 0:
             raise ZeroDivisionError
         personalization /= total
@@ -59,7 +60,7 @@ def pagerank(
         raise nx.PowerIterationFailedConvergence(max_iter)
     kwargs = {
         "resource_handle": plc.ResourceHandle(),
-        "graph": G._get_plc_graph(weight, 1, np.float32, store_transposed=True),
+        "graph": G._get_plc_graph(weight, 1, dtype, store_transposed=True),
         "precomputed_vertex_out_weight_vertices": None,
         "precomputed_vertex_out_weight_sums": None,
         "initial_guess_vertices": None

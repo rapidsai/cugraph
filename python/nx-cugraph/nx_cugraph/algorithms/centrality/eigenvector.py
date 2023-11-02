@@ -15,7 +15,7 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import _get_float_dtype, networkx_algorithm, not_implemented_for
 
 __all__ = ["eigenvector_centrality"]
 
@@ -24,17 +24,18 @@ __all__ = ["eigenvector_centrality"]
 @networkx_algorithm
 def eigenvector_centrality(G, max_iter=100, tol=1.0e-6, nstart=None, weight=None):
     """`nstart` parameter is not used."""
-    # Use np.float32 dtype everywhere for performance. In the future, it may
-    # be nice to use whatever dtype the user provides (such as np.float64) and
-    # let PLC "do the right thing" to make sure dtypes of inputs are compatible.
     G = _to_graph(G, weight, np.float32)
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
             "cannot compute centrality for the null graph"
         )
+    if weight in G.edge_values:
+        dtype = _get_float_dtype(G.edge_values[weight].dtype)
+    else:
+        dtype = np.float32
     if nstart is not None:
         # Check if given nstart is valid even though we don't use it
-        nstart = G._dict_to_nodearray(nstart, dtype=np.float32)
+        nstart = G._dict_to_nodearray(nstart, dtype=dtype)
         if (nstart == 0).all():
             raise nx.NetworkXError("initial vector cannot have all zero values")
         if (total := nstart.sum()) == 0:
@@ -43,7 +44,7 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6, nstart=None, weight=None
     try:
         node_ids, values = plc.eigenvector_centrality(
             resource_handle=plc.ResourceHandle(),
-            graph=G._get_plc_graph(weight, 1, np.float32, store_transposed=True),
+            graph=G._get_plc_graph(weight, 1, dtype, store_transposed=True),
             epsilon=tol,
             max_iterations=max_iter,
             do_expensive_check=False,
