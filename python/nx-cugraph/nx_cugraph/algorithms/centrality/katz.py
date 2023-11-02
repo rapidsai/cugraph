@@ -15,13 +15,18 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _get_float_dtype, networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import (
+    _dtype_param,
+    _get_float_dtype,
+    networkx_algorithm,
+    not_implemented_for,
+)
 
 __all__ = ["katz_centrality"]
 
 
 @not_implemented_for("multigraph")
-@networkx_algorithm
+@networkx_algorithm(extra_params=_dtype_param)
 def katz_centrality(
     G,
     alpha=0.1,
@@ -31,6 +36,8 @@ def katz_centrality(
     nstart=None,
     normalized=True,
     weight=None,
+    *,
+    dtype=None,
 ):
     """`nstart` parameter is not used, and `normalized=False` is not supported."""
     if not normalized:
@@ -38,7 +45,9 @@ def katz_centrality(
     G = _to_graph(G, weight, np.float32)
     if (N := len(G)) == 0:
         return {}
-    if weight in G.edge_values:
+    if dtype is not None:
+        dtype = _get_float_dtype(dtype)
+    elif weight in G.edge_values:
         dtype = _get_float_dtype(G.edge_values[weight].dtype)
     else:
         dtype = np.float32

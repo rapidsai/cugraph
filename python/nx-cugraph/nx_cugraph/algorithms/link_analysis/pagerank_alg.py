@@ -16,12 +16,17 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _get_float_dtype, index_dtype, networkx_algorithm
+from nx_cugraph.utils import (
+    _dtype_param,
+    _get_float_dtype,
+    index_dtype,
+    networkx_algorithm,
+)
 
 __all__ = ["pagerank"]
 
 
-@networkx_algorithm
+@networkx_algorithm(extra_params=_dtype_param)
 def pagerank(
     G,
     alpha=0.85,
@@ -31,12 +36,16 @@ def pagerank(
     nstart=None,
     weight="weight",
     dangling=None,
+    *,
+    dtype=None,
 ):
     """`dangling` parameter is not supported."""
     G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
-    if weight in G.edge_values:
+    if dtype is not None:
+        dtype = _get_float_dtype(dtype)
+    elif weight in G.edge_values:
         dtype = _get_float_dtype(G.edge_values[weight].dtype)
     else:
         dtype = np.float32

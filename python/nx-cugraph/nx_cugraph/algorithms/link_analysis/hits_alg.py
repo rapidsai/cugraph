@@ -15,7 +15,7 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _get_float_dtype, networkx_algorithm
+from nx_cugraph.utils import _dtype_param, _get_float_dtype, networkx_algorithm
 
 __all__ = ["hits"]
 
@@ -24,14 +24,26 @@ __all__ = ["hits"]
     extra_params={
         'weight : string or None, optional (default="weight")': (
             "The edge attribute to use as the edge weight."
-        )
+        ),
+        **_dtype_param,
     }
 )
-def hits(G, max_iter=100, tol=1.0e-8, nstart=None, normalized=True, *, weight="weight"):
+def hits(
+    G,
+    max_iter=100,
+    tol=1.0e-8,
+    nstart=None,
+    normalized=True,
+    *,
+    weight="weight",
+    dtype=None,
+):
     G = _to_graph(G, weight, np.float32)
     if len(G) == 0:
         return {}, {}
-    if weight in G.edge_values:
+    if dtype is not None:
+        dtype = _get_float_dtype(dtype)
+    elif weight in G.edge_values:
         dtype = _get_float_dtype(G.edge_values[weight].dtype)
     else:
         dtype = np.float32

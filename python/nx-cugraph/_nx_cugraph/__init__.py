@@ -111,11 +111,21 @@ _info = {
     },
     "extra_parameters": {
         # BEGIN: extra_parameters
+        "eigenvector_centrality": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         "hits": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
             'weight : string or None, optional (default="weight")': "The edge attribute to use as the edge weight.",
+        },
+        "katz_centrality": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "louvain_communities": {
             "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
+        },
+        "pagerank": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         # END: extra_parameters
     },
