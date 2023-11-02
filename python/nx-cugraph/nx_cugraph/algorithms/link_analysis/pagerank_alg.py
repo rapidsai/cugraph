@@ -105,5 +105,7 @@ def pagerank(
     nstart=None,
     weight="weight",
     dangling=None,
+    *,
+    dtype=None,
 ):
     return dangling is None

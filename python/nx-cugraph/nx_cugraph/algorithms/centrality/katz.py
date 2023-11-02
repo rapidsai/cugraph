@@ -92,5 +92,7 @@ def _(
     nstart=None,
     normalized=True,
     weight=None,
+    *,
+    dtype=None,
 ):
     return normalized

@@ -183,7 +183,6 @@ class BackendInterface:
                         "test_louvain.py:test_karate_club_partition"
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
-                    key("test_louvain.py:test_multigraph"): louvain_different,
                     # See networkx#6630
                     key(
                         "test_louvain.py:test_undirected_selfloops"
