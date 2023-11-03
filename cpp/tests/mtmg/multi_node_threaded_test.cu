@@ -36,8 +36,6 @@
 
 #include <gtest/gtest.h>
 
-#include <nccl.h>
-
 #include <filesystem>
 #include <fstream>
 #include <vector>

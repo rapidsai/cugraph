@@ -98,6 +98,9 @@ class instance_manager_t {
   //        (or no) GPUs, so mapping rank to a handle might be a challenge
   //
   std::vector<std::unique_ptr<raft::handle_t>> raft_handle_{};
+
+  // FIXME: Explore what RAFT changes might be desired to allow the ncclComm_t
+  //        to be managed by RAFT instead of cugraph::mtmg
   std::vector<std::unique_ptr<ncclComm_t>> nccl_comms_{};
   std::vector<rmm::cuda_device_id> device_ids_{};
 

@@ -167,6 +167,8 @@ class resource_manager_t {
                    return (local_ranks.find(rank) != local_ranks.end());
                  });
 
+    // FIXME: Explore what RAFT changes might be desired to allow the ncclComm_t
+    //        to be managed by RAFT instead of cugraph::mtmg
     std::vector<std::unique_ptr<ncclComm_t>> nccl_comms{};
     std::vector<std::unique_ptr<raft::handle_t>> handles{};
     std::vector<rmm::cuda_device_id> device_ids{};
