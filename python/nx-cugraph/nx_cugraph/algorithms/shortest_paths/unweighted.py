@@ -16,7 +16,7 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import networkx_algorithm
+from nx_cugraph.utils import index_dtype, networkx_algorithm
 
 __all__ = ["single_source_shortest_path_length", "single_target_shortest_path_length"]
 
@@ -43,7 +43,7 @@ def _single_shortest_path_length(G, source, cutoff, kind):
     distances, predecessors, node_ids = plc.bfs(
         handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(switch_indices=kind == "Target"),
-        sources=cp.array([src_index], np.int32),
+        sources=cp.array([src_index], index_dtype),
         direction_optimizing=False,  # True for undirected only; what's recommended?
         depth_limit=cutoff,
         compute_predecessors=False,
