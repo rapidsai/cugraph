@@ -14,6 +14,7 @@
 import cudf
 import yaml
 import os
+import pandas as pd
 from pathlib import Path
 from cugraph.structure.graph_classes import Graph
 
@@ -83,6 +84,7 @@ class Dataset:
         self._dl_path = default_download_dir
         self._edgelist = None
         self._path = None
+        self.__reader = cudf.read_csv
 
         if metadata_yaml_file is not None and csv_file is not None:
             raise ValueError("cannot specify both metadata_yaml_file and csv_file")
@@ -159,7 +161,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, reader=cudf.read_csv):
+    def get_edgelist(self, download=False, reader="cudf"):
         """
         Return an Edgelist
 
@@ -169,9 +171,8 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        reader : callable compatible with pandas.read_csv (default=cudf.read_csv)
-            Object to call to read a CSV and return a pandas-compatible edgelist
-            DataFrame.
+        reader : 'cudf' or 'pandas' (default='cudf')
+            The library used to read a CSV and return an edgelist DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -189,19 +190,24 @@ class Dataset:
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
 
-            if reader is None:
-                reader = cudf.read_csv
-            elif not callable(reader):
+            if reader == "cudf":
+                self.__reader = cudf.read_csv
+            elif reader == "pandas":
+                self.__reader = pd.read_csv
+            else:
                 raise ValueError(
-                    "reader must be a read_csv function compatible with\
-                     pandas.read_csv"
+                    "reader must be a module with a read_csv function compatible with \
+                     cudf.read_csv"
                 )
 
-            self._edgelist = reader(
+            self._edgelist = self.__reader(
                 filepath_or_buffer=full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
-                dtype=self.metadata["col_types"],
+                dtype={
+                    self.metadata["col_names"][i]: self.metadata["col_types"][i]
+                    for i in range(len(self.metadata["col_types"]))
+                },
                 header=header,
             )
 
