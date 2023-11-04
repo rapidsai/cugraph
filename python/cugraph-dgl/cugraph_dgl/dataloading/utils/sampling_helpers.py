@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import List, Tuple, Dict, Optional
 from collections import defaultdict
 import cudf
-import cupy
 from cugraph.utilities.utils import import_optional
 from cugraph_dgl.nn import SparseGraph
 
@@ -75,6 +74,8 @@ def _get_renumber_map(df):
     renumber_map = map[map_starting_offset:].dropna().reset_index(drop=True)
     renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
     renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
+
+    renumber_map = renumber_map.reset_index(drop=True)
 
     map_end_offset = map_starting_offset + len(renumber_map)
     # We only need to drop rows if the length of dataframe is determined by the map
@@ -444,53 +445,64 @@ def _process_sampled_df_csc(
         destinations, respectively.
     """
     # dropna
-    major_offsets = df.major_offsets.dropna().values
-    label_hop_offsets = df.label_hop_offsets.dropna().values
-    renumber_map_offsets = df.renumber_map_offsets.dropna().values
-    renumber_map = df.map.dropna().values
-    minors = df.minors.dropna().values
-
-    n_batches = renumber_map_offsets.size - 1
-    n_hops = int((label_hop_offsets.size - 1) / n_batches)
+    major_offsets = torch.as_tensor(df.major_offsets.dropna().values, device="cuda")
+    label_hop_offsets = torch.as_tensor(
+        df.label_hop_offsets.dropna().values, device="cuda"
+    )
+    renumber_map_offsets = torch.as_tensor(
+        df.renumber_map_offsets.dropna().values, device="cuda"
+    )
+    renumber_map = torch.as_tensor(df.map.dropna().values, device="cuda")
+    minors = torch.as_tensor(df.minors.dropna().values, device="cuda")
+    n_batches = len(renumber_map_offsets) - 1
+    n_hops = int((len(label_hop_offsets) - 1) / n_batches)
 
     # make global offsets local
-    major_offsets -= major_offsets[0]
-    label_hop_offsets -= label_hop_offsets[0]
-    renumber_map_offsets -= renumber_map_offsets[0]
+    # Have to make a clone as pytorch does not allow
+    # in-place operations on tensors
+    major_offsets -= major_offsets[0].clone()
+    label_hop_offsets -= label_hop_offsets[0].clone()
+    renumber_map_offsets -= renumber_map_offsets[0].clone()
 
     # get the sizes of each adjacency matrix (for MFGs)
     mfg_sizes = (label_hop_offsets[1:] - label_hop_offsets[:-1]).reshape(
         (n_batches, n_hops)
     )
     n_nodes = renumber_map_offsets[1:] - renumber_map_offsets[:-1]
-    mfg_sizes = cupy.hstack((mfg_sizes, n_nodes.reshape(n_batches, -1)))
+    mfg_sizes = torch.hstack((mfg_sizes, n_nodes.reshape(n_batches, -1)))
     if reverse_hop_id:
-        mfg_sizes = mfg_sizes[:, ::-1]
+        mfg_sizes = mfg_sizes.flip(1)
 
     tensors_dict = {}
     renumber_map_list = []
+    # Note: minors and major_offsets from BulkSampler are of type int32
+    # and int64 respectively. Since pylibcugraphops binding code doesn't
+    # support distinct node and edge index type, we simply casting both
+    # to int32 for now.
+    minors = torch.as_tensor(minors, device="cuda").int()
+    major_offsets = torch.as_tensor(major_offsets, device="cuda").int()
+    renumber_map = torch.as_tensor(renumber_map, device="cuda")
+    renumber_map_offsets = torch.as_tensor(renumber_map_offsets, device="cuda")
+
+    # Note: We transfer tensors to CPU here to avoid the overhead of
+    # transferring them in each iteration of the for loop below.
+    major_offsets_cpu = major_offsets.to("cpu").numpy()
+    label_hop_offsets_cpu = label_hop_offsets.to("cpu").numpy()
+
     for batch_id in range(n_batches):
         batch_dict = {}
-
         for hop_id in range(n_hops):
             hop_dict = {}
             idx = batch_id * n_hops + hop_id  # idx in label_hop_offsets
-            major_offsets_start = label_hop_offsets[idx].item()
-            major_offsets_end = label_hop_offsets[idx + 1].item()
-            minors_start = major_offsets[major_offsets_start].item()
-            minors_end = major_offsets[major_offsets_end].item()
-            # Note: minors and major_offsets from BulkSampler are of type int32
-            # and int64 respectively. Since pylibcugraphops binding code doesn't
-            # support distinct node and edge index type, we simply casting both
-            # to int32 for now.
-            hop_dict["minors"] = torch.as_tensor(
-                minors[minors_start:minors_end], device="cuda"
-            ).int()
-            hop_dict["major_offsets"] = torch.as_tensor(
+            major_offsets_start = label_hop_offsets_cpu[idx]
+            major_offsets_end = label_hop_offsets_cpu[idx + 1]
+            minors_start = major_offsets_cpu[major_offsets_start]
+            minors_end = major_offsets_cpu[major_offsets_end]
+            hop_dict["minors"] = minors[minors_start:minors_end]
+            hop_dict["major_offsets"] = (
                 major_offsets[major_offsets_start : major_offsets_end + 1]
-                - major_offsets[major_offsets_start],
-                device="cuda",
-            ).int()
+                - major_offsets[major_offsets_start]
+            )
             if reverse_hop_id:
                 batch_dict[n_hops - 1 - hop_id] = hop_dict
             else:
@@ -499,12 +511,9 @@ def _process_sampled_df_csc(
         tensors_dict[batch_id] = batch_dict
 
         renumber_map_list.append(
-            torch.as_tensor(
-                renumber_map[
-                    renumber_map_offsets[batch_id] : renumber_map_offsets[batch_id + 1]
-                ],
-                device="cuda",
-            )
+            renumber_map[
+                renumber_map_offsets[batch_id] : renumber_map_offsets[batch_id + 1]
+            ],
         )
 
     return tensors_dict, renumber_map_list, mfg_sizes.tolist()
