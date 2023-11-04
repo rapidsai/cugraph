@@ -445,15 +445,11 @@ def _process_sampled_df_csc(
         destinations, respectively.
     """
     # dropna
-    major_offsets = torch.as_tensor(df.major_offsets.dropna().values, device="cuda")
-    label_hop_offsets = torch.as_tensor(
-        df.label_hop_offsets.dropna().values, device="cuda"
-    )
-    renumber_map_offsets = torch.as_tensor(
-        df.renumber_map_offsets.dropna().values, device="cuda"
-    )
-    renumber_map = torch.as_tensor(df.map.dropna().values, device="cuda")
-    minors = torch.as_tensor(df.minors.dropna().values, device="cuda")
+    major_offsets = cast_to_tensor(df.major_offsets.dropna())
+    label_hop_offsets = cast_to_tensor(df.label_hop_offsets.dropna())
+    renumber_map_offsets = cast_to_tensor(df.renumber_map_offsets.dropna())
+    renumber_map = cast_to_tensor(df.map.dropna())
+    minors = cast_to_tensor(df.minors.dropna())
     n_batches = len(renumber_map_offsets) - 1
     n_hops = int((len(label_hop_offsets) - 1) / n_batches)
 
@@ -479,11 +475,8 @@ def _process_sampled_df_csc(
     # and int64 respectively. Since pylibcugraphops binding code doesn't
     # support distinct node and edge index type, we simply casting both
     # to int32 for now.
-    minors = torch.as_tensor(minors, device="cuda").int()
-    major_offsets = torch.as_tensor(major_offsets, device="cuda").int()
-    renumber_map = torch.as_tensor(renumber_map, device="cuda")
-    renumber_map_offsets = torch.as_tensor(renumber_map_offsets, device="cuda")
-
+    minors = minors.int()
+    major_offsets = major_offsets.int()
     # Note: We transfer tensors to CPU here to avoid the overhead of
     # transferring them in each iteration of the for loop below.
     major_offsets_cpu = major_offsets.to("cpu").numpy()
