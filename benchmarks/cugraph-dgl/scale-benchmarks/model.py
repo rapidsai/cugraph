@@ -119,6 +119,10 @@ def run_1_epoch(dataloader, feat, y, fanout, batch_size, model_backend):
     else:
         model = None
         opt = None
+
+    # Warmup RUN
+    times = train_model(model, dataloader, opt, feat, y)
+
     epoch_st = time.time()
     times = train_model(model, dataloader, opt, feat, y)
     epoch_time = time.time() - epoch_st
