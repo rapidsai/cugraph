@@ -94,7 +94,7 @@ def main(args):
         )
 
     df = pd.DataFrame(time_ls)
-    df.to_csv("dgl_e2e_benchmark.csv", index=False)
+    df.to_csv("cugraph_dgl_e2e_benchmark.csv", index=False)
     print(f"Benchmark completed for all replication factors\n{'=' * 30}", flush=True)
 
 

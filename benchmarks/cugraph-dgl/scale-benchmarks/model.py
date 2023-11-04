@@ -57,11 +57,11 @@ def create_model(feat_size, num_classes, num_layers, model_backend="dgl"):
 
 
 def train_model(model, dataloader, opt, feat, y):
-    times = {key: 0 for key in ["mfg_creation", "feature", "m_fwd", "m_bkwd"]}
+    times_d = {key: 0 for key in ["mfg_creation", "feature", "m_fwd", "m_bkwd"]}
     epoch_st = time.time()
     mfg_st = time.time()
     for input_nodes, output_nodes, blocks in dataloader:
-        times["mfg_creation"] += time.time() - mfg_st
+        times_d["mfg_creation"] += time.time() - mfg_st
         if feat is not None:
             fst = time.time()
             input_nodes = input_nodes.to("cpu")
@@ -71,23 +71,24 @@ def train_model(model, dataloader, opt, feat, y):
                 output_nodes = output_nodes["paper"]
             output_nodes = output_nodes.to(y.device)
             y_batch = y[output_nodes].to("cuda")
-            times["feature"] += time.time() - fst
+            times_d["feature"] += time.time() - fst
 
             m_fwd_st = time.time()
             y_hat = model(blocks, input_feat)
-            times["m_fwd"] += time.time() - m_fwd_st
+            times_d["m_fwd"] += time.time() - m_fwd_st
 
             m_bkwd_st = time.time()
             loss = F.cross_entropy(y_hat, y_batch)
             opt.zero_grad()
             loss.backward()
             opt.step()
-            times["m_bkwd"] += time.time() - m_bkwd_st
+            times_d["m_bkwd"] += time.time() - m_bkwd_st
         mfg_st = time.time()
 
     print(f"Epoch time = {time.time() - epoch_st:.2f} seconds")
+    print(f"Time to create MFG = {times_d['mfg_creation']:.2f} seconds")
 
-    return times
+    return times_d
 
 
 def analyze_time(dataloader, times, epoch_time, fanout, batch_size):
