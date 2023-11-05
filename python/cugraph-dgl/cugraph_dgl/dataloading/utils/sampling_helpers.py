@@ -75,8 +75,6 @@ def _get_renumber_map(df):
     renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
     renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
 
-    renumber_map = renumber_map.reset_index(drop=True)
-
     map_end_offset = map_starting_offset + len(renumber_map)
     # We only need to drop rows if the length of dataframe is determined by the map
     # that is if map_length > sampled edges length
@@ -450,6 +448,7 @@ def _process_sampled_df_csc(
     renumber_map_offsets = cast_to_tensor(df.renumber_map_offsets.dropna())
     renumber_map = cast_to_tensor(df.map.dropna())
     minors = cast_to_tensor(df.minors.dropna())
+
     n_batches = len(renumber_map_offsets) - 1
     n_hops = int((len(label_hop_offsets) - 1) / n_batches)
 
