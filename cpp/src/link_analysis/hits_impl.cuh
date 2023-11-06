@@ -174,7 +174,6 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     if (diff_sum < epsilon) {
       break;
     } else if (iter >= max_iterations) {
-      std::cout << "diff_sum = " << diff_sum << ", epsilon = " << epsilon << ", iter = " << iter << std::endl;
       CUGRAPH_FAIL("HITS failed to converge.");
     }
   }
