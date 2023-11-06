@@ -27,11 +27,12 @@ import cudf
 import cugraph
 import warnings
 
-from cugraph.utilities.utils import import_optional, MissingModule
+import dask.array as dar
+import dask.dataframe as dd
+import dask.distributed as distributed
+import dask_cudf
 
-dd = import_optional("dask.dataframe")
-distributed = import_optional("dask.distributed")
-dask_cudf = import_optional("dask_cudf")
+from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -358,6 +359,22 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
+    def __dask_array_from_numpy(self, array: np.ndarray, client: distributed.client.Client, npartitions: int):
+        split_array = np.array_split(array, npartitions)
+        shapes = [n.shape for n in split_array]
+        scattered_array = client.scatter(split_array)
+        del split_array
+
+        dask_array = dar.concatenate(
+            [
+                dar.from_delayed(s, shape=shapes[i], dtype=array.dtype)
+                for i, s in enumerate(scattered_array)
+            ]
+        )
+        del scattered_array
+
+        return dask_array
+
     def __construct_graph(
         self,
         edge_info: Dict[Tuple[str, str, str], List[TensorType]],
@@ -462,57 +479,27 @@ class EXPERIMENTAL__CuGraphStore:
             nworkers = len(client.scheduler_info()["workers"])
             npartitions = nworkers * 4
 
-            na_src = np.array_split(na_src, npartitions)
-            na_dst = np.array_split(na_dst, npartitions)
-            na_etp = np.array_split(na_etp.astype('int64'), npartitions)
-
-            scna_src = client.scatter(na_src)
-            shapes = [n.shape for n in na_src]
+            src_dar = self.__dask_array_from_numpy(na_src, client, npartitions)
             del na_src
 
-            scna_dst = client.scatter(na_dst)
+            dst_dar = self.__dask_array_from_numpy(na_dst, client, npartitions)
             del na_dst
-            
-            scna_etp = client.scatter(na_etp)
+
+            etp_dar = self.__dask_array_from_numpy(na_etp, client, npartitions)
             del na_etp
 
-            import dask.array as dar
-            src_dar = dar.concatenate(
-                [
-                    dar.from_delayed(s, shape=shapes[i], dtype=vertex_dtype)
-                    for i, s in enumerate(scna_src)
-                ]
-            )
-            del scna_src
+            df = dd.from_dask_array(etp_dar, columns=['etp'])
+            df['src'] = dst_dar if order == "CSC" else src_dar
+            df['dst'] = src_dar if order == "CSC" else dst_dar
 
-            dst_dar = dar.concatenate(
-                [
-                    dar.from_delayed(s, shape=shapes[i], dtype=vertex_dtype)
-                    for i, s in enumerate(scna_dst)
-                ]
-            )      
-            del scna_dst
-
-            etp_dar = dar.concatenate(
-                [
-                    dar.from_delayed(s, shape=shapes[i], dtype='int32')
-                    for i, s in enumerate(scna_etp)
-                ]
-            )      
-            del scna_etp
-
-            df = dd.from_dask_array(
-                dar.stack(
-                    [dst_dar, src_dar, etp_dar] if order == 'CSC' else [src_dar, dst_dar, etp_dar],
-                    axis=1
-                ),
-                columns=['src','dst','etp']
-            )
             del src_dar
             del dst_dar
             del etp_dar
 
-            df.etp=df.etp.astype('int32')
+            if df.etp.dtype != 'int32':
+                raise ValueError("Edge type must be int32!")
+            
+            print(df)
 
             # Ensure the dataframe is constructed on each partition
             # instead of adding additional synchronization head from potential
@@ -520,9 +507,9 @@ class EXPERIMENTAL__CuGraphStore:
             def get_empty_df():
                 return cudf.DataFrame(
                     {
+                        "etp": cudf.Series([], dtype="int32"),
                         "src": cudf.Series([], dtype=vertex_dtype),
                         "dst": cudf.Series([], dtype=vertex_dtype),
-                        "etp": cudf.Series([], dtype="int32"),
                     }
                 )
 
