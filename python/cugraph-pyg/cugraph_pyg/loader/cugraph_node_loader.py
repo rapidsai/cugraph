@@ -15,6 +15,7 @@ import tempfile
 
 import os
 import re
+import warnings
 
 import cupy
 import cudf
@@ -167,14 +168,21 @@ class EXPERIMENTAL__BulkSampleLoader:
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
-        renumber = (
-            True
-            if (
-                (len(self.__graph_store.node_types) == 1)
-                and (len(self.__graph_store.edge_types) == 1)
+        if 'renumber' in kwargs:
+            warnings.warn(
+                "Setting renumbering manually could result in invalid output,"
+                " please ensure you intended to do this."
             )
-            else False
-        )
+            renumber=kwargs.pop('renumber')
+        else:
+            renumber = (
+                True
+                if (
+                    (len(self.__graph_store.node_types) == 1)
+                    and (len(self.__graph_store.edge_types) == 1)
+                )
+                else False
+            )
 
         bulk_sampler = BulkSampler(
             batch_size,
