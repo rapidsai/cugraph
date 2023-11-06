@@ -112,14 +112,6 @@ class handle_t {
   int get_size() const { return raft_handle_.get_comms().get_size(); }
 
   /**
-   * @brief Get number of local gpus
-   *
-   * @return number of local gpus
-   */
-  // FIXME: wrong for multi-node
-  int get_local_size() const { return raft_handle_.get_comms().get_size(); }
-
-  /**
    * @brief Get gpu rank
    *
    * @return gpu rank
