@@ -10,12 +10,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import cupy as cp
 import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _dtype_param, _get_float_dtype, networkx_algorithm
+from nx_cugraph.utils import (
+    _dtype_param,
+    _get_float_dtype,
+    index_dtype,
+    networkx_algorithm,
+)
 
 __all__ = ["hits"]
 
@@ -39,7 +45,7 @@ def hits(
     dtype=None,
 ):
     G = _to_graph(G, weight, np.float32)
-    if len(G) == 0:
+    if (N := len(G)) == 0:
         return {}, {}
     if dtype is not None:
         dtype = _get_float_dtype(dtype)
@@ -58,7 +64,9 @@ def hits(
             resource_handle=plc.ResourceHandle(),
             graph=G._get_plc_graph(weight, 1, dtype, store_transposed=True),
             tol=tol,
-            initial_hubs_guess_vertices=None,
+            initial_hubs_guess_vertices=None
+            if nstart is None
+            else cp.arange(N, dtype=index_dtype),
             initial_hubs_guess_values=nstart,
             max_iter=max_iter,
             normalized=normalized,
