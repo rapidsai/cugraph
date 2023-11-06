@@ -43,7 +43,9 @@ except:  # noqa: E722
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_cugraph_loader_basic(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]):
+def test_cugraph_loader_basic(
+    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]
+):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
     loader = CuGraphNeighborLoader(
@@ -69,7 +71,9 @@ def test_cugraph_loader_basic(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarr
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_cugraph_loader_hetero(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]):
+def test_cugraph_loader_hetero(
+    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]
+):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
     loader = CuGraphNeighborLoader(
@@ -449,7 +453,10 @@ def test_cugraph_loader_e2e_csc(framework: str):
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("directory", ["local", "temp"])
-def test_load_directory(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]], directory: str):
+def test_load_directory(
+    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]],
+    directory: str,
+):
     if directory == "local":
         local_dir = tempfile.TemporaryDirectory(dir=".")
 
@@ -462,7 +469,7 @@ def test_load_directory(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], D
         random_state=62,
         replace=False,
         directory=None if directory == "temp" else local_dir.name,
-        batches_per_partition=1
+        batches_per_partition=1,
     )
 
     it = iter(cugraph_loader)
@@ -475,5 +482,5 @@ def test_load_directory(karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], D
     count = 1
     while next(it, None) is not None:
         count += 1
-    
+
     assert count == 4

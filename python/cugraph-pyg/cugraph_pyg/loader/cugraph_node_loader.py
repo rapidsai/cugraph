@@ -161,19 +161,18 @@ class EXPERIMENTAL__BulkSampleLoader:
             raise ValueError("Batch size must be >= 1")
 
         self.__directory = (
-            tempfile.TemporaryDirectory() if directory is None
-            else directory
+            tempfile.TemporaryDirectory() if directory is None else directory
         )
 
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
-        if 'renumber' in kwargs:
+        if "renumber" in kwargs:
             warnings.warn(
                 "Setting renumbering manually could result in invalid output,"
                 " please ensure you intended to do this."
             )
-            renumber=kwargs.pop('renumber')
+            renumber = kwargs.pop("renumber")
         else:
             renumber = (
                 True
@@ -186,7 +185,9 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         bulk_sampler = BulkSampler(
             batch_size,
-            self.__directory if isinstance(self.__directory, str) else self.__directory.name,
+            self.__directory
+            if isinstance(self.__directory, str)
+            else self.__directory.name,
             self.__graph_store._subgraph(edge_types),
             fanout_vals=num_neighbors,
             with_replacement=replace,
@@ -230,11 +231,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
         bulk_sampler.flush()
-        self.__input_files = iter(os.listdir(
-            self.__directory
-            if isinstance(self.__directory, str)
-            else self.__directory.name
-        ))
+        self.__input_files = iter(
+            os.listdir(
+                self.__directory
+                if isinstance(self.__directory, str)
+                else self.__directory.name
+            )
+        )
 
     def __next__(self):
         from time import perf_counter
@@ -455,7 +458,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             for edge_type in out.edge_index_dict:
                 src = out[edge_type].edge_index[0]
                 dst = out[edge_type].edge_index[1]
-                out[edge_type].edge_index = torch.stack([dst,src])
+                out[edge_type].edge_index = torch.stack([dst, src])
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)
