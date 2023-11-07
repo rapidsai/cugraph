@@ -31,12 +31,12 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | Community         |                                    |                     |                                                                 |
 |                   | [Leiden](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Louvain.ipynb)                                | __Multi-GPU__  | MG as of 23.06  |
 |                   | [Louvain](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Louvain.ipynb)                               | __Multi-GPU__  |                 |
-|                   | [Ensemble Clustering for Graphs](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ECG.ipynb)            | Single-GPU     |  MG planned for 23.10 |
+|                   | [Ensemble Clustering for Graphs](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ECG.ipynb)            | Single-GPU     |  MG planned for 24.02 |
 |                   | [Spectral-Clustering - Balanced Cut](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Spectral-Clustering.ipynb) | Single-GPU     |      |
 |                   | [Spectral-Clustering - Modularity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Spectral-Clustering.ipynb)   | Single-GPU          |        |
 |                   | [Subgraph Extraction](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Subgraph-Extraction.ipyn)                | Single-GPU          |        |
 |                   | [Triangle Counting](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Triangle-Counting.ipynb)           | __Multi-GPU__ |           |
-|                   | [K-Truss](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ktruss.ipynb)                                | Single-GPU    |  MG planned for 23.10  |
+|                   | [K-Truss](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ktruss.ipynb)                                | Single-GPU    |  MG planned for 2024  |
 | Components        |          |                |          |
 |                   | [Weakly Connected Components](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/components/ConnectedComponents.ipynb)        | __Multi-GPU__ |        |
 |                   | [Strongly Connected Components](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/components/ConnectedComponents.ipynb)      | Single-GPU    |        |
@@ -65,8 +65,8 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | [Uniform Random Walks RW](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/sampling/RandomWalk.ipynb)          | __Multi-GPU__ |                                                                 |
 |                   | *Biased Random Walks (RW)*       | ---                 |                                                                 |
 |                   | Egonet                             | __Multi-GPU__ |                                                                 |
-|                   | Node2Vec                           | Single-GPU          |                                             |
-|                   | Uniform Neighborhood sampling      | __Multi-GPU__ |                                                                 |
+|                   | Node2Vec                           | __Multi-GPU__       |                                             |
+|                   | Neighborhood sampling      | __Multi-GPU__ |                                                                 |
 | Traversal         |                                    |                     |                                                                 |
 |                   | Breadth First Search (BFS)         | __Multi-GPU__ | with cutoff support [C++ README](cpp/src/traversal/README.md#BFS) |
 |                   | Single Source Shortest Path (SSSP) | __Multi-GPU__ | [C++ README](cpp/src/traversal/README.md#SSSP)                     |
