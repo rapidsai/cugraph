@@ -420,7 +420,6 @@ rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gt
 ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
 target_link_libraries(MTMG_TEST
                       PRIVATE
-                      UCP::UCP
                     )
 
 ###################################################################################################
@@ -687,7 +686,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MTMG_MULTINODE_TEST
                           PRIVATE
                           cugraphmgtestutil
-                          UCP::UCP
                          )
 
 endif()
