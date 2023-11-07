@@ -578,13 +578,13 @@ def benchmark_cugraph_bulk_sampling(
     else:
         # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.02)
         sampling_kwargs = {
-          "deduplicate_sources": True,
-          "prior_sources_behavior": "exclude",
-          "renumber": True,
-          "compression": "COO",
-          "compress_per_hop": False,
-          "use_legacy_names": False,
-          "include_hop_column": True
+            "deduplicate_sources": True,
+            "prior_sources_behavior": "exclude",
+            "renumber": True,
+            "compression": "COO",
+            "compress_per_hop": False,
+            "use_legacy_names": False,
+            "include_hop_column": True,
         }
 
     batches_per_partition = 400_000 // batch_size
