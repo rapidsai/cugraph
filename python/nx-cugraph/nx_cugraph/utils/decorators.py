@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from functools import partial, update_wrapper
+from textwrap import dedent
 
 from networkx.utils.decorators import nodes_or_number, not_implemented_for
 
@@ -65,7 +66,9 @@ class networkx_algorithm:
             )
         instance.extra_params = extra_params
         # The docstring on our function is added to the NetworkX docstring.
-        instance.extra_doc = func.__doc__
+        instance.extra_doc = (
+            dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None
+        )
         # Copy __doc__ from NetworkX
         if instance.name in _registered_algorithms:
             instance.__doc__ = _registered_algorithms[instance.name].__doc__

@@ -12,7 +12,7 @@ testpaths = ["cugraph_pyg/tests"]
 
 [project]
 name = "cugraph_pyg"
-version = "23.12.00"
+dynamic = ["version"]
 description = "cugraph_pyg - PyG support for cuGraph massive-scale, ultra-fast GPU graph analytics."
 authors = [
     { name = "NVIDIA Corporation" },
@@ -37,6 +37,9 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {file = "cugraph_pyg/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [
