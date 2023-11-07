@@ -365,7 +365,9 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-    def __dask_array_from_numpy(self, array: np.ndarray, client: distributed.client.Client, npartitions: int):
+    def __dask_array_from_numpy(
+        self, array: np.ndarray, client: distributed.client.Client, npartitions: int
+    ):
         split_array = np.array_split(array, npartitions)
         shapes = [n.shape for n in split_array]
         scattered_array = client.scatter(split_array)
@@ -494,17 +496,17 @@ class EXPERIMENTAL__CuGraphStore:
             etp_dar = self.__dask_array_from_numpy(na_etp, client, npartitions)
             del na_etp
 
-            df = dd.from_dask_array(etp_dar, columns=['etp'])
-            df['src'] = dst_dar if order == "CSC" else src_dar
-            df['dst'] = src_dar if order == "CSC" else dst_dar
+            df = dd.from_dask_array(etp_dar, columns=["etp"])
+            df["src"] = dst_dar if order == "CSC" else src_dar
+            df["dst"] = src_dar if order == "CSC" else dst_dar
 
             del src_dar
             del dst_dar
             del etp_dar
 
-            if df.etp.dtype != 'int32':
+            if df.etp.dtype != "int32":
                 raise ValueError("Edge type must be int32!")
-            
+
             print(df)
 
             # Ensure the dataframe is constructed on each partition
@@ -526,7 +528,9 @@ class EXPERIMENTAL__CuGraphStore:
                 if len(f) > 0
                 else get_empty_df(),
                 meta=get_empty_df(),
-            ).reset_index(drop=True) # should be ok for dask
+            ).reset_index(
+                drop=True
+            )  # should be ok for dask
         else:
             df = pandas.DataFrame(
                 {
