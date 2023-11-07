@@ -120,7 +120,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
             G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=1)
             G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=1)
 
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSC")
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
@@ -386,3 +386,29 @@ def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
     assert isinstance(cugraph_store._EXPERIMENTAL__CuGraphStore__graph._plc_graph, dict)
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_cugraph_loader_large_index(dask_client):
+    large_index = (
+        np.random.randint(0, 1_000_000, (100_000_000,)),
+        np.random.randint(0, 1_000_000, (100_000_000,)),
+    )
+
+    large_features = np.random.randint(0, 50, (1_000_000,))
+    F = cugraph.gnn.FeatureStore(backend="torch")
+    F.add_data(large_features, "N", "f")
+
+    store = CuGraphStore(
+        F,
+        {("N", "e", "N"): large_index},
+        {"N": 1_000_000},
+        multi_gpu=True,
+    )
+
+    graph = store._subgraph()
+    assert isinstance(graph, cugraph.Graph)
+
+    el = graph.view_edge_list().compute()
+    assert (el["src"].values_host - large_index[0]).sum() == 0
+    assert (el["dst"].values_host - large_index[1]).sum() == 0

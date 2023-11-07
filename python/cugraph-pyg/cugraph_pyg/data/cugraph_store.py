@@ -507,8 +507,6 @@ class EXPERIMENTAL__CuGraphStore:
             if df.etp.dtype != "int32":
                 raise ValueError("Edge type must be int32!")
 
-            print(df)
-
             # Ensure the dataframe is constructed on each partition
             # instead of adding additional synchronization head from potential
             # host to device copies.
