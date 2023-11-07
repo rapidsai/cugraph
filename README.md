@@ -35,8 +35,13 @@
 </div>
 
 -----
+## News
 
-## Table of content
+[nx-cugraph](./python/nx-cugraph/README.md) is a NetworkX backend that's available to provide GPU acceleration to NetworkX.
+
+-----
+
+## Table of contents
 - Installation
   - [Getting cuGraph Packages](./docs/cugraph/source/installation/getting_cugraph.md)
   - [Building from Source](./docs/cugraph/source/installation/source_build.md)
@@ -52,6 +57,7 @@
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
+  - [nx-cugraph](./python/nx-cugraph/README.md)
   - [cugraph-service](./readme_pages/cugraph_service.md)
   - [cugraph-dgl](./readme_pages/cugraph_dgl.md)
   - [cugraph-ops](./readme_pages/cugraph_ops.md)
