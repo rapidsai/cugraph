@@ -429,7 +429,6 @@ dependencies:
         packages:
           - *dask
           - *dask_cuda
-          - *distributed
           - *numba
           - *numpy
           - *thrift
