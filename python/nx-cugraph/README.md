@@ -1,7 +1,7 @@
 # nx-cugraph
 
 ## Description
-[RAPIDS](https://rapids.ai) nx-cugraph is a [backend to NetworkX](https://networkx.org/documentation/stable/reference/classes/index.html#backends)
+[RAPIDS](https://rapids.ai) nx-cugraph is a [backend to NetworkX](https://networkx.org/documentation/stable/reference/utils.html#backends)
 to run supported algorithms with GPU acceleration.
 
 ## System Requirements
@@ -13,7 +13,7 @@ nx-cugraph requires the following:
  * Python versions 3.9, 3.10, or 3.11
  * NetworkX >= version 3.2
 
-More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req)..
+More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req).
 
 ## Installation
 
@@ -35,7 +35,7 @@ Notes:
 ## Enabling nx-cugraph
 
 NetworkX will use nx-cugraph as the graph analytics backend if any of the
-following are are used:
+following are used:
 
 ### `NETWORKX_AUTOMATIC_BACKENDS` environment variable.
 The `NETWORKX_AUTOMATIC_BACKENDS` environment variable can be used to have NetworkX automatically dispatch to specified backends an API is called that the backend supports.
