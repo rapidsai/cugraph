@@ -102,7 +102,7 @@ struct leiden_key_aggregated_edge_op_t {
           is_dst_leiden_cluster_well_connected) {
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * dst_leiden_volume / total_edge_weight;
-// NOTE: Disable random moves in refinement phase for now.
+// FIXME: Disable random moves in refinement phase for now.
 #if 0
         weight_t random_number{0.0};
         if (mod_gain > 0.0) {
