@@ -89,8 +89,9 @@ struct leiden_key_aggregated_edge_op_t {
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
-      dst_leiden_cut_to_louvain >
-      resolution * dst_leiden_volume * (louvain_cluster_volume - dst_leiden_volume);
+      dst_leiden_cut_to_louvain > resolution * dst_leiden_volume *
+                                    (louvain_cluster_volume - dst_leiden_volume) /
+                                    total_edge_weight;
 
     // E(v, Cr-v) - ||v||* ||Cr-v||/||V(G)||
     // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
@@ -100,9 +101,9 @@ struct leiden_key_aggregated_edge_op_t {
       if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
           is_dst_leiden_cluster_well_connected) {
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
-                   resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
-                     total_edge_weight;
-
+                   resolution * src_weighted_deg * dst_leiden_volume / total_edge_weight;
+// NOTE: Disable random moves in refinement phase for now.
+#if 0
         weight_t random_number{0.0};
         if (mod_gain > 0.0) {
           auto flat_id = uint64_t{threadIdx.x + blockIdx.x * blockDim.x};
@@ -117,6 +118,8 @@ struct leiden_key_aggregated_edge_op_t {
                      ? __expf(static_cast<float>((2.0 * mod_gain) / (theta * total_edge_weight))) *
                          random_number
                      : -1.0;
+#endif
+        mod_gain = mod_gain > 0.0 ? mod_gain : -1.0;
       }
     }
 
@@ -240,11 +243,12 @@ refine_clustering(
                     wcut_deg_and_cluster_vol_triple_begin,
                     wcut_deg_and_cluster_vol_triple_end,
                     singleton_and_connected_flags.begin(),
-                    [resolution] __device__(auto wcut_wdeg_and_louvain_volume) {
+                    [resolution, total_edge_weight] __device__(auto wcut_wdeg_and_louvain_volume) {
                       auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
                       auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
                       auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
-                      return wcut > (resolution * wdeg * (louvain_volume - wdeg));
+                      return wcut >
+                             (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight);
                     });
 
   edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);

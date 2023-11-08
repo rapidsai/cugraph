@@ -102,6 +102,27 @@ struct reduce_op_t {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
+struct count_updown_moves_op_t {
+  bool up_down{};
+  __device__ auto operator()(thrust::tuple<vertex_t, thrust::tuple<vertex_t, weight_t>> p) const
+  {
+    vertex_t old_cluster       = thrust::get<0>(p);
+    auto new_cluster_gain_pair = thrust::get<1>(p);
+    vertex_t new_cluster       = thrust::get<0>(new_cluster_gain_pair);
+    weight_t delta_modularity  = thrust::get<1>(new_cluster_gain_pair);
+
+    auto result_assignment =
+      (delta_modularity > weight_t{0})
+        ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
+        : old_cluster;
+
+    return (delta_modularity > weight_t{0})
+             ? (((new_cluster > old_cluster) != up_down) ? false : true)
+             : false;
+  }
+};
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
 struct cluster_update_op_t {
   bool up_down{};
   __device__ auto operator()(vertex_t old_cluster, thrust::tuple<vertex_t, weight_t> p) const
@@ -393,6 +414,21 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     thrust::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
+
+  int nr_moves = thrust::count_if(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(thrust::make_tuple(
+      next_clusters_v.begin(), cugraph::get_dataframe_buffer_begin(output_buffer))),
+    thrust::make_zip_iterator(
+      thrust::make_tuple(next_clusters_v.end(), cugraph::get_dataframe_buffer_end(output_buffer))),
+    detail::count_updown_moves_op_t<vertex_t, weight_t>{up_down});
+
+  if (multi_gpu) {
+    nr_moves = host_scalar_allreduce(
+      handle.get_comms(), nr_moves, raft::comms::op_t::SUM, handle.get_stream());
+  }
+
+  if (nr_moves == 0) { up_down = !up_down; }
 
   thrust::transform(handle.get_thrust_policy(),
                     next_clusters_v.begin(),
