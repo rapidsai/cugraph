@@ -469,8 +469,7 @@ class Graph:
         nodes: array-like or None, optional (default=None)
             A list of column names, acting as labels for nodes
         """
-        if not isinstance(np_array, np.ndarray):
-            raise TypeError("np_array input is not a Numpy array")
+        np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
             raise ValueError("np_array is not a 2D matrix")
 
