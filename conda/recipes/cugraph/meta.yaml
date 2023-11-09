@@ -88,7 +88,6 @@ requirements:
     - requests
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
-    - ucx >=1.14.0
 
 tests:
   requirements:
