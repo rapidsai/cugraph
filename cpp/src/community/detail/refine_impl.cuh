@@ -99,7 +99,7 @@ struct leiden_key_aggregated_edge_op_t {
     weight_t mod_gain = -1.0;
     if (is_src_active > 0) {
       if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
-          is_dst_leiden_cluster_well_connected) {
+          (dst_leiden_cluster_id != src_leiden_cluster) && is_dst_leiden_cluster_well_connected) {
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * dst_leiden_volume / total_edge_weight;
 // FIXME: Disable random moves in refinement phase for now.
@@ -482,7 +482,7 @@ refine_clustering(
     auto values_for_leiden_cluster_keys = thrust::make_zip_iterator(
       thrust::make_tuple(refined_community_volumes.begin(),
                          refined_community_cuts.begin(),
-                         leiden_keys_used_in_edge_reduction.begin(),  // redundant
+                         leiden_keys_used_in_edge_reduction.begin(),
                          louvain_of_leiden_keys_used_in_edge_reduction.begin()));
 
     using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
