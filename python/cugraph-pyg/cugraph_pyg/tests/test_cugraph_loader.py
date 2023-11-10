@@ -442,3 +442,36 @@ def test_cugraph_loader_e2e_csc(framework):
         x = x.narrow(dim=0, start=0, length=s - num_sampled_nodes[1])
 
         assert list(x.shape) == [1, 1]
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.parametrize('shuffle', [True, False])
+def test_shuffle(shuffle):
+    N = {'N': 10}
+    G = {
+        ('N', 'e', 'N'): torch.stack([
+            torch.tensor([0, 1, 2, 3, 4]),
+            torch.tensor([5, 6, 7, 8, 9])
+        ])
+    }
+    F = FeatureStore(backend='torch')
+    F.add_data(torch.arange(10), 'N', 'z')
+
+    store = CuGraphStore(F, G, N)
+    loader = CuGraphNeighborLoader(
+        (store, store),
+        input_nodes=torch.tensor([0, 1, 2, 3, 4]),
+        num_neighbors=[1],
+        batch_size=1,
+        shuffle=shuffle,
+        batches_per_partition=1,
+    )
+
+    t = torch.tensor([])
+    for batch in loader:
+        t = torch.concat([t, batch['N'].z])
+    
+    t = t.tolist()
+    if not shuffle:
+        assert sorted(t) == t
+

@@ -199,10 +199,13 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Truncate if we can't evenly divide the input array
         stop = (len(input_nodes) // batch_size) * batch_size
-        input_nodes = input_nodes[:stop]
+        input_nodes, remainder = cupy.array_split(stop)
 
         # Split into batches
         input_nodes = cupy.split(input_nodes, len(input_nodes) // batch_size)
+
+        if not drop_last:
+            input_nodes.append(remainder)
 
         self.__num_batches = 0
         for batch_num, batch_i in enumerate(input_nodes):
