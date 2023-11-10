@@ -236,18 +236,16 @@ struct v_op_t {
     auto tag = thrust::get<1>(tagged_v);
     auto v_offset =
       vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(tagged_v));
-    // FIXME: better switch to atomic_ref after
-    // https://github.com/nvidia/libcudacxx/milestone/2
-    auto old =
-      atomicCAS(level_components + v_offset, invalid_component_id<vertex_type>::value, tag);
-    if (old != invalid_component_id<vertex_type>::value && old != tag) {  // conflict
+    cuda::atomic_ref<vertex_type> v_component(*(level_components + v_offset));
+    auto old     = invalid_component_id<vertex_type>::value;
+    bool success = v_component.compare_exchange_strong(old, tag, cuda::std::memory_order_relaxed);
+    if (!success && (old != tag)) {  // conflict
       return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_conflict},
                                 thrust::optional<std::byte>{std::byte{0}} /* dummy */);
     } else {
-      auto update = (old == invalid_component_id<vertex_type>::value);
       return thrust::make_tuple(
-        update ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
-        update ? thrust::optional<std::byte>{std::byte{0}} /* dummy */ : thrust::nullopt);
+        success ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
+        success ? thrust::optional<std::byte>{std::byte{0}} /* dummy */ : thrust::nullopt);
     }
   }
 
