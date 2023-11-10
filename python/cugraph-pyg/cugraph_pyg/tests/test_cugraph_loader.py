@@ -44,7 +44,9 @@ except:  # noqa: E722
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_basic(
-    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]
+    karate_gnn: Tuple[
+        FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
+    ]
 ):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
@@ -72,7 +74,9 @@ def test_cugraph_loader_basic(
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_hetero(
-    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]]
+    karate_gnn: Tuple[
+        FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
+    ]
 ):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, order="CSR")
@@ -454,7 +458,9 @@ def test_cugraph_loader_e2e_csc(framework: str):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("directory", ["local", "temp"])
 def test_load_directory(
-    karate_gnn: Tuple[FeatureStore, Dict[str, np.ndarray], Dict[str, int]],
+    karate_gnn: Tuple[
+        FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
+    ],
     directory: str,
 ):
     if directory == "local":
