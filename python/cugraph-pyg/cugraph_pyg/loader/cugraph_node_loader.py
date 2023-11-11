@@ -51,10 +51,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
         input_nodes: InputNodes = None,
-        *,
         batch_size: int = 0,
+        *,
         shuffle: bool = False,
-        drop_last: bool = False,
+        drop_last: bool = True,
         edge_types: Sequence[Tuple[str]] = None,
         directory: Union[str, tempfile.TemporaryDirectory] = None,
         input_files: List[str] = None,
@@ -211,7 +211,7 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Truncate if we can't evenly divide the input array
         stop = (len(input_nodes) // batch_size) * batch_size
-        input_nodes, remainder = cupy.array_split(stop)
+        input_nodes, remainder = cupy.array_split(input_nodes, [stop])
 
         # Split into batches
         input_nodes = cupy.split(input_nodes, len(input_nodes) // batch_size)
@@ -227,7 +227,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                     {
                         "start": batch_i,
                         "batch": cupy.full(
-                            batch_size, batch_num + starting_batch_id, dtype="int32"
+                            len(batch_i), batch_num + starting_batch_id, dtype="int32"
                         ),
                     }
                 ),
