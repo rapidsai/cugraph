@@ -446,9 +446,6 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.edge,
             )
         else:
-            if self.__graph_store.order == "CSR":
-                raise ValueError("CSR format incompatible with CSC output")
-
             out = filter_cugraph_store_csc(
                 self.__feature_store,
                 self.__graph_store,
