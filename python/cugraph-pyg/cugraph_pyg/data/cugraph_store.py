@@ -211,7 +211,10 @@ class EXPERIMENTAL__CuGraphStore:
     def __init__(
         self,
         F: cugraph.gnn.FeatureStore,
-        G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
+        G: Union[
+            Dict[Tuple[str, str, str], Tuple[TensorType]],
+            Dict[Tuple[str, str, str], int],
+        ],
         num_nodes_dict: Dict[str, int],
         *,
         multi_gpu: bool = False,
@@ -788,7 +791,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_vertex_groups_from_sample(
         self, nodes_of_interest: TensorType, is_sorted: bool = False
-    ) -> dict:
+    ) -> Dict[str, torch.Tensor]:
         """
         Given a tensor of nodes of interest, this
         method a single dictionary, noi_index.
@@ -852,7 +855,10 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_renumbered_edge_groups_from_sample(
         self, sampling_results: cudf.DataFrame, noi_index: dict
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[
+        Dict[Tuple[str, str, str], torch.Tensor],
+        Tuple[Dict[Tuple[str, str, str], torch.Tensor]],
+    ]:
         """
         Given a cudf (NOT dask_cudf) DataFrame of sampling results and a dictionary
         of non-renumbered vertex ids grouped by vertex type, this method

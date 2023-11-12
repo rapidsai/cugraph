@@ -456,9 +456,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Account for CSR format in cuGraph vs. CSC format in PyG
         if self.__coo and self.__graph_store.order == "CSC":
             for edge_type in out.edge_index_dict:
-                src = out[edge_type].edge_index[0]
-                dst = out[edge_type].edge_index[1]
-                out[edge_type].edge_index = torch.stack([dst, src])
+                out[edge_type].edge_index = out[edge_type].edge_index.flip(dims=[0])
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)

@@ -77,6 +77,7 @@ requirements:
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
+    - ucx >=1.14.1,<1.16.0
 
 outputs:
   - name: libcugraph
