@@ -33,7 +33,7 @@ requirements:
     - pytorch >=2.0
     - cupy >=12.0.0
     - cugraph ={{ version }}
-    - pylibcugraphops ={{ version }}
+    - pylibcugraphops ={{ minor_version }}
     - pyg >=2.3,<2.5
 
 tests:
