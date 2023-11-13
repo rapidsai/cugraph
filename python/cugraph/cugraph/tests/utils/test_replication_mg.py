@@ -18,10 +18,7 @@ import pytest
 import cudf
 import cugraph
 import cugraph.testing.utils as utils
-
-# FIXME: Deprecate this call
 import cugraph.dask.structure.replication as replication
-from cugraph.structure.replication import replicate_edgelist
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cudf.testing import assert_series_equal, assert_frame_equal
 
@@ -40,13 +37,12 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path, dask_client):
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
-        names=["src", "dst", "weights"],
+        names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-
-    replicated_ddf = replicate_edgelist(df, weight="weights")
-    for i in range(replicated_ddf.npartitions):
-        replicated_df = replicated_ddf.partitions[i].compute()
+    worker_to_futures = replication.replicate_cudf_dataframe(df)
+    for worker in worker_to_futures:
+        replicated_df = worker_to_futures[worker].result()
         assert_frame_equal(df, replicated_df)
 
 
