@@ -25,7 +25,7 @@ from cugraph.structure.graph_classes import (
 )
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df, symmetrize_ddf
-from cugraph.structure.replication import (
+from cugraph.structure.replicate_edgelist import (
     replicate_edgelist,
     replicate_cudf_dataframe,
     replicate_cudf_series,
