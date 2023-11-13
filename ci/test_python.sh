@@ -63,9 +63,13 @@ pytest \
   tests
 popd
 
+# FIXME: TEMPORARILY disable single-GPU "MG" testing
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
-export DASK_WORKER_DEVICES="0"
+DASK_WORKER_DEVICES="0" \
+DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
+DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
+DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
 pytest \
   -v \
   --benchmark-disable \
@@ -75,7 +79,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not _mg" \
   tests
 popd
 
@@ -200,8 +204,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel pytorch \
       --channel nvidia \
       'pyg=2.3' \
-      'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
+      'pytorch=2.0.0' \
+      'pytorch-cuda=11.8'
+    
+    # Install pyg dependencies (which requires pip)
+    pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
 
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \

@@ -36,6 +36,7 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
+    get_length_of_parts,
     persist_dask_df_equal_parts_per_worker,
 )
 from cugraph.dask import get_n_workers
@@ -318,9 +319,14 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
-        num_edges = len(ddf)
-        ddf = get_persisted_df_worker_map(ddf, _client)
+        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
+            ddf, _client, return_type="dict"
+        )
+        del ddf
+        length_of_parts = get_length_of_parts(persisted_keys_d, _client)
+        num_edges = sum(
+            [item for sublist in length_of_parts.values() for item in sublist]
+        )
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -331,14 +337,16 @@ class simpleDistributedGraphImpl:
                 store_transposed,
                 num_edges,
             )
-            for w, edata in ddf.items()
+            for w, edata in persisted_keys_d.items()
         }
-        # FIXME: For now, don't delete the copied dataframe to avoid crash
         self._plc_graph = {
-            w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
+            w: _client.compute(
+                delayed_task, workers=w, allow_other_workers=False, pure=False
+            )
             for w, delayed_task in delayed_tasks_d.items()
         }
         wait(list(self._plc_graph.values()))
+        del persisted_keys_d
         del delayed_tasks_d
         _client.run(gc.collect)
 
@@ -1192,5 +1200,7 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    # FIXME: For now, don't delete the copied dataframe to avoid cras
+    for df in lst_df:
+        df.drop(columns=[col_name], inplace=True)
+    gc.collect()
     return output_col

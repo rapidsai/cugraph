@@ -11,12 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
+packages = find_packages(include=["cugraph_service_server*"])
 setup(
     entry_points={
         "console_scripts": [
             "cugraph-service-server=cugraph_service_server.__main__:main"
         ],
     },
+    package_data={key: ["VERSION"] for key in packages},
 )

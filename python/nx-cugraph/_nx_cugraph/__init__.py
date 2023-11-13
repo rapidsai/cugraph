@@ -24,27 +24,88 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.10/python/nx-cugraph",
+    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.12/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "barbell_graph",
         "betweenness_centrality",
+        "bull_graph",
+        "caveman_graph",
+        "chvatal_graph",
+        "circular_ladder_graph",
+        "complete_bipartite_graph",
+        "complete_graph",
+        "complete_multipartite_graph",
+        "connected_components",
+        "cubical_graph",
+        "cycle_graph",
+        "davis_southern_women_graph",
+        "degree_centrality",
+        "desargues_graph",
+        "diamond_graph",
+        "dodecahedral_graph",
         "edge_betweenness_centrality",
+        "empty_graph",
+        "florentine_families_graph",
+        "from_pandas_edgelist",
+        "from_scipy_sparse_array",
+        "frucht_graph",
+        "heawood_graph",
+        "house_graph",
+        "house_x_graph",
+        "icosahedral_graph",
+        "in_degree_centrality",
+        "is_connected",
+        "is_isolate",
+        "isolates",
+        "k_truss",
+        "karate_club_graph",
+        "krackhardt_kite_graph",
+        "ladder_graph",
+        "les_miserables_graph",
+        "lollipop_graph",
         "louvain_communities",
+        "moebius_kantor_graph",
+        "node_connected_component",
+        "null_graph",
+        "number_connected_components",
+        "number_of_isolates",
+        "number_of_selfloops",
+        "octahedral_graph",
+        "out_degree_centrality",
+        "pappus_graph",
+        "path_graph",
+        "petersen_graph",
+        "sedgewick_maze_graph",
+        "star_graph",
+        "tadpole_graph",
+        "tetrahedral_graph",
+        "trivial_graph",
+        "truncated_cube_graph",
+        "truncated_tetrahedron_graph",
+        "turan_graph",
+        "tutte_graph",
+        "wheel_graph",
         # END: functions
     },
     "extra_docstrings": {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
-        "louvain_communities": "`threshold` and `seed` parameters are currently ignored.",
+        "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
+        "k_truss": (
+            "Currently raises `NotImplementedError` for graphs with more than one connected\n"
+            "component when k >= 3. We expect to fix this soon."
+        ),
+        "louvain_communities": "`seed` parameter is currently ignored.",
         # END: extra_docstrings
     },
     "extra_parameters": {
         # BEGIN: extra_parameters
         "louvain_communities": {
-            "max_level : int, optional": "Upper limit of the number of macro-iterations.",
+            "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         # END: extra_parameters
     },
@@ -75,7 +136,7 @@ def get_info():
     return d
 
 
-__version__ = "23.10.00"
+__version__ = "23.12.00"
 
 if __name__ == "__main__":
     from pathlib import Path

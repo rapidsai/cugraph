@@ -21,6 +21,8 @@
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/mtmg/renumber_map.hpp>
 
+#include <optional>
+
 namespace cugraph {
 namespace mtmg {
 

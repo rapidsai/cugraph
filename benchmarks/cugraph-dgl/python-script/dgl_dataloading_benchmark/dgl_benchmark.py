@@ -52,13 +52,9 @@ def load_edges_from_disk(parquet_path, replication_factor, input_meta):
             src_ls = [ei["src"]]
             dst_ls = [ei["dst"]]
             for r in range(1, replication_factor):
-                new_src = ei["src"] + (
-                    r * input_meta["num_nodes"][can_edge_type[0]]
-                )
+                new_src = ei["src"] + (r * input_meta["num_nodes"][can_edge_type[0]])
                 src_ls.append(new_src)
-                new_dst = ei["dst"] + (
-                    r * input_meta["num_nodes"][can_edge_type[2]]
-                )
+                new_dst = ei["dst"] + (r * input_meta["num_nodes"][can_edge_type[2]])
                 dst_ls.append(new_dst)
 
             ei["src"] = torch.cat(src_ls).contiguous()
@@ -92,16 +88,11 @@ def load_node_labels(dataset_path, replication_factor, input_meta):
                             ]
                         ),
                         "label": pd.concat(
-                            [
-                                node_label.label
-                                for r in range(1, replication_factor)
-                            ]
+                            [node_label.label for r in range(1, replication_factor)]
                         ),
                     }
                 )
-                node_label = pd.concat([node_label, dfr]).reset_index(
-                    drop=True
-                )
+                node_label = pd.concat([node_label, dfr]).reset_index(drop=True)
 
             node_label_tensor = torch.full(
                 (num_nodes_dict[node_type],), -1, dtype=torch.float32
@@ -133,9 +124,7 @@ def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
         input_meta = json.load(f)
 
     parquet_path = os.path.join(dataset_path, "parquet")
-    graph_data = load_edges_from_disk(
-        parquet_path, replication_factor, input_meta
-    )
+    graph_data = load_edges_from_disk(parquet_path, replication_factor, input_meta)
     node_data = load_node_labels(dataset_path, replication_factor, input_meta)
     g = dgl.heterograph(graph_data)
 
@@ -154,7 +143,7 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
     Returns:
         DGLGraph: DGLGraph with the loaded dataset.
     """
-    
+
     print("Creating dataloader", flush=True)
     st = time.time()
     if use_uva:
@@ -220,11 +209,13 @@ def dataloading_benchmark(g, train_idx, fanouts, batch_sizes, use_uva):
             print("==============================================")
     return time_ls
 
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -232,9 +223,7 @@ if __name__ == "__main__":
         "--dataset_path", type=str, default="/datasets/abarghi/ogbn_papers100M"
     )
     parser.add_argument("--replication_factors", type=str, default="1,2,4,8")
-    parser.add_argument(
-        "--fanouts", type=str, default="25_25,10_10_10,5_10_20"
-    )
+    parser.add_argument("--fanouts", type=str, default="25_25,10_10_10,5_10_20")
     parser.add_argument("--batch_sizes", type=str, default="512,1024")
     parser.add_argument("--do_not_use_uva", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
@@ -267,22 +256,16 @@ if __name__ == "__main__":
         et = time.time()
         print(f"Replication factor = {replication_factor}")
         print(
-            f"G has {g.num_edges()} edges and took",
-            f" {et - st:.2f} seconds to load"
+            f"G has {g.num_edges()} edges and took", f" {et - st:.2f} seconds to load"
         )
         train_idx = {"paper": node_data["paper"]["train_idx"]}
         r_time_ls = dataloading_benchmark(
             g, train_idx, fanouts, batch_sizes, use_uva=use_uva
         )
-        print(
-            "Benchmark completed for replication factor = ", replication_factor
-        )
+        print("Benchmark completed for replication factor = ", replication_factor)
         print("==============================================")
         # Add replication factor to the time list
-        [
-            x.update({"replication_factor": replication_factor})
-            for x in r_time_ls
-        ]
+        [x.update({"replication_factor": replication_factor}) for x in r_time_ls]
         time_ls.extend(r_time_ls)
 
     df = pd.DataFrame(time_ls)

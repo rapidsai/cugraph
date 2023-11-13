@@ -20,6 +20,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
@@ -34,6 +35,70 @@
 #include <vector>
 
 namespace cugraph {
+
+namespace detail {
+
+int32_t constexpr transform_e_kernel_block_size = 512;
+
+template <typename GraphViewType,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
+          typename EdgePartitionEdgeValueOutputWrapper,
+          typename EdgeOp>
+__global__ void transform_e_packed_bool(
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
+                               typename GraphViewType::edge_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
+  EdgePartitionEdgeValueOutputWrapper edge_partition_e_value_output,
+  EdgeOp e_op)
+{
+  static_assert(EdgePartitionEdgeValueOutputWrapper::is_packed_bool);
+  static_assert(raft::warp_size() == packed_bools_per_word());
+
+  using edge_t = typename GraphViewType::edge_type;
+
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  static_assert(transform_e_kernel_block_size % raft::warp_size() == 0);
+  auto const lane_id = tid % raft::warp_size();
+  auto idx           = static_cast<edge_t>(packed_bool_offset(tid));
+
+  auto num_edges = edge_partition.number_of_edges();
+  while (idx < static_cast<edge_t>(packed_bool_size(num_edges))) {
+    auto local_edge_idx =
+      idx * static_cast<edge_t>(packed_bools_per_word()) + static_cast<edge_t>(lane_id);
+    uint32_t mask{0};
+    int predicate{0};
+    if (local_edge_idx < num_edges) {
+      auto major_idx    = edge_partition.major_idx_from_local_edge_idx_nocheck(local_edge_idx);
+      auto major        = edge_partition.major_from_major_idx_nocheck(major_idx);
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      auto minor        = *(edge_partition.indices() + local_edge_idx);
+      auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
+
+      auto src        = GraphViewType::is_storage_transposed ? minor : major;
+      auto dst        = GraphViewType::is_storage_transposed ? major : minor;
+      auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+      auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+      predicate       = e_op(src,
+                       dst,
+                       edge_partition_src_value_input.get(src_offset),
+                       edge_partition_dst_value_input.get(dst_offset),
+                       edge_partition_e_value_input.get(local_edge_idx))
+                          ? int{1}
+                          : int{0};
+    }
+    mask = __ballot_sync(uint32_t{0xffffffff}, predicate);
+    if (lane_id == 0) { *(edge_partition_e_value_output.value_first() + idx) = mask; }
+
+    idx += static_cast<edge_t>(gridDim.x * (blockDim.x / raft::warp_size()));
+  }
+}
+
+}  // namespace detail
 
 /**
  * @brief Iterate over the entire set of edges and update edge property values.
@@ -84,9 +149,103 @@ void transform_e(raft::handle_t const& handle,
                  EdgeValueOutputWrapper edge_value_output,
                  bool do_expensive_check = false)
 {
-  // CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
 
-  CUGRAPH_FAIL("unimplemented.");
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
+  using edge_partition_e_output_device_view_t = detail::edge_partition_edge_property_device_view_t<
+    edge_t,
+    typename EdgeValueOutputWrapper::value_iterator,
+    typename EdgeValueOutputWrapper::value_type>;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
+
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
+    } else {
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
+    }
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
+    auto edge_partition_e_value_output =
+      edge_partition_e_output_device_view_t(edge_value_output, i);
+
+    auto num_edges = edge_partition.number_of_edges();
+    if constexpr (edge_partition_e_output_device_view_t::has_packed_bool_element) {
+      static_assert(edge_partition_e_output_device_view_t::is_packed_bool,
+                    "unimplemented for thrust::tuple types.");
+      if (edge_partition.number_of_edges() > edge_t{0}) {
+        raft::grid_1d_thread_t update_grid(num_edges,
+                                           detail::transform_e_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
+        detail::transform_e_packed_bool<GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            edge_partition,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
+            edge_partition_e_value_input,
+            edge_partition_e_value_output,
+            e_op);
+      }
+    } else {
+      thrust::transform(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(edge_t{0}),
+        thrust::make_counting_iterator(num_edges),
+        edge_partition_e_value_output.value_first(),
+        [e_op,
+         edge_partition,
+         edge_partition_src_value_input,
+         edge_partition_dst_value_input,
+         edge_partition_e_value_input] __device__(edge_t i) {
+          auto major_idx    = edge_partition.major_idx_from_local_edge_idx_nocheck(i);
+          auto major        = edge_partition.major_from_major_idx_nocheck(major_idx);
+          auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+          auto minor        = *(edge_partition.indices() + i);
+          auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
+
+          auto src        = GraphViewType::is_storage_transposed ? minor : major;
+          auto dst        = GraphViewType::is_storage_transposed ? major : minor;
+          auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+          auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+          return e_op(src,
+                      dst,
+                      edge_partition_src_value_input.get(src_offset),
+                      edge_partition_dst_value_input.get(dst_offset),
+                      edge_partition_e_value_input.get(i));
+        });
+    }
+  }
 }
 
 /**
@@ -177,7 +336,7 @@ void transform_e(raft::handle_t const& handle,
     typename EdgeValueOutputWrapper::value_iterator,
     typename EdgeValueOutputWrapper::value_type>;
 
-  // CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   auto major_first =
     GraphViewType::is_storage_transposed ? edge_list.dst_begin() : edge_list.src_begin();

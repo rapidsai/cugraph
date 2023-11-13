@@ -64,7 +64,7 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-  raft::random::DeviceState<raft::random::PCGenerator> device_state{};
+  raft::random::DeviceState<raft::random::PCGenerator>& device_state;
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,

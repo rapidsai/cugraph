@@ -40,6 +40,13 @@ rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 export RAPIDS_VERSION_NUMBER="23.12"
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
+for PROJECT in libcugraphops libwholegraph; do
+  rapids-logger "Download ${PROJECT} xml_tar"
+  TMP_DIR=$(mktemp -d)
+  export XML_DIR_${PROJECT^^}="$TMP_DIR"
+  curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
+done
+
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
