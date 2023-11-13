@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,252 +12,118 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 
-
-import cudf
+import dask_cudf
+import numpy as np
 import cugraph
-import cugraph.testing.utils as utils
-import cugraph.dask.structure.replication as replication
-from cugraph.dask.common.mg_utils import is_single_gpu
-from cudf.testing import assert_series_equal, assert_frame_equal
+from cugraph.testing import UNDIRECTED_DATASETS, karate_disjoint
+
+from cugraph.structure.replicate_edgelist import replicate_edgelist
+from cudf.testing.testing import assert_frame_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
-DATASETS_OPTIONS = utils.DATASETS_SMALL
-DIRECTED_GRAPH_OPTIONS = [False, True]
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-def test_replicate_cudf_dataframe_with_weights(input_data_path, dask_client):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
     gc.collect()
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
+
+
+edgeWeightCol = "weights"
+edgeIdCol = "edge_id"
+edgeTypeCol = "edge_type"
+srcCol = "src"
+dstCol = "dst"
+
+
+input_data = UNDIRECTED_DATASETS
+input_data.append(karate_disjoint)
+datasets = [pytest.param(d) for d in input_data]
+
+fixture_params = gen_fixture_params_product(
+    (datasets, "graph_file"),
+    ([True, False], "distributed"),
+    ([True, False], "use_weights"),
+    ([True, False], "use_edge_ids"),
+    ([True, False], "use_edge_type_ids"),
+)
+
+
+@pytest.fixture(scope="module", params=fixture_params)
+def input_combo(request):
+    """
+    Simply return the current combination of params as a dictionary for use in
+    tests or other parameterized fixtures.
+    """
+    return dict(
+        zip(
+            (
+                "graph_file",
+                "use_weights",
+                "use_edge_ids",
+                "use_edge_type_ids",
+                "distributed",
+            ),
+            request.param,
+        )
     )
-    worker_to_futures = replication.replicate_cudf_dataframe(df)
-    for worker in worker_to_futures:
-        replicated_df = worker_to_futures[worker].result()
-        assert_frame_equal(df, replicated_df)
 
 
+# =============================================================================
+# Tests
+# =============================================================================
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 @pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
-    gc.collect()
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst"],
-        dtype=["int32", "int32"],
-    )
-    worker_to_futures = replication.replicate_cudf_dataframe(df)
-    for worker in worker_to_futures:
-        replicated_df = worker_to_futures[worker].result()
-        assert_frame_equal(df, replicated_df)
+def test_mg_replicate_edgelist(dask_client, input_combo):
+    df = input_combo["graph_file"].get_edgelist()
+    distributed = input_combo["distributed"]
 
+    use_weights = input_combo["use_weights"]
+    use_edge_ids = input_combo["use_edge_ids"]
+    use_edge_type_ids = input_combo["use_edge_type_ids"]
 
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-def test_replicate_cudf_series(input_data_path, dask_client):
-    gc.collect()
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-    for column in df.columns.values:
-        series = df[column]
-        worker_to_futures = replication.replicate_cudf_series(series)
-        for worker in worker_to_futures:
-            replicated_series = worker_to_futures[worker].result()
-            assert_series_equal(series, replicated_series, check_names=False)
-        # FIXME: If we do not clear this dictionary, when comparing
-        # results for the 2nd column, one of the workers still
-        # has a value from the 1st column
-        worker_to_futures = {}
+    columns = [srcCol, dstCol]
+    weight = None
+    edge_id = None
+    edge_type = None
 
+    if use_weights:
+        df = df.rename(columns={"wgt": edgeWeightCol})
+        columns.append(edgeWeightCol)
+        weight = edgeWeightCol
+    if use_edge_ids:
+        df = df.reset_index().rename(columns={"index": edgeIdCol})
+        df[edgeIdCol] = df[edgeIdCol].astype(df[srcCol].dtype)
+        columns.append(edgeIdCol)
+        edge_id = edgeIdCol
+    if use_edge_type_ids:
+        df[edgeTypeCol] = np.random.randint(0, 10, size=len(df))
+        df[edgeTypeCol] = df[edgeTypeCol].astype(df[srcCol].dtype)
+        columns.append(edgeTypeCol)
+        edge_type = edgeTypeCol
 
-@pytest.mark.skip(reason="no way of currently testing this")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.mg
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_no_context(graph_file, directed):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.batch_enabled is False, "Internal property should be False"
-    with pytest.raises(Exception):
-        G.enable_batch()
+    if distributed:
+        # Distribute the edges across all ranks
+        num_workers = len(dask_client.scheduler_info()["workers"])
+        df = dask_cudf.from_cudf(df, npartitions=num_workers)
+    ddf = replicate_edgelist(
+        df[columns], weight=weight, edge_id=edge_id, edge_type=edge_type)
 
+    if distributed:
+        df = df.compute()
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.mg
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_no_context_view_adj(graph_file, directed, dask_client):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.batch_enabled is False, "Internal property should be False"
-    G.view_adj_list()
+    for i in range(ddf.npartitions):
+        result_df = (
+            ddf.get_partition(i)
+            .compute()
+            .sort_values([srcCol, dstCol])
+            .reset_index(drop=True)
+        )
+        expected_df = df[columns].sort_values([srcCol, dstCol]).reset_index(drop=True)
 
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_context_then_views(graph_file, directed, dask_client):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.batch_enabled is False, "Internal property should be False"
-    G.enable_batch()
-    assert G.batch_enabled is True, "Internal property should be True"
-    assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
-    )
-    assert G.batch_adjlists is None
-    G.view_adj_list()
-    assert G.batch_adjlists is not None
-
-    assert G.batch_transposed_adjlists is None
-    G.view_transposed_adj_list()
-    assert G.batch_transposed_adjlists is not None
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_view_then_context(graph_file, directed, dask_client):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-
-    assert G.batch_adjlists is None
-    G.view_adj_list()
-    assert G.batch_adjlists is None
-
-    assert G.batch_transposed_adjlists is None
-    G.view_transposed_adj_list()
-    assert G.batch_transposed_adjlists is None
-
-    assert G.batch_enabled is False, "Internal property should be False"
-    G.enable_batch()
-    assert G.batch_enabled is True, "Internal property should be True"
-    assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
-    )
-    assert G.batch_adjlists is not None
-    assert G.batch_transposed_adjlists is not None
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_context_no_context_views(graph_file, directed, dask_client):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.batch_enabled is False, "Internal property should be False"
-    G.enable_batch()
-    assert G.batch_enabled is True, "Internal property should be True"
-    assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
-    )
-    G.view_edge_list()
-    G.view_adj_list()
-    G.view_transposed_adj_list()
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_edgelist_replication(graph_file, directed, dask_client):
-    gc.collect()
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    G.enable_batch()
-    df = G.edgelist.edgelist_df
-    for worker in G.batch_edgelists:
-        replicated_df = G.batch_edgelists[worker].result()
-        assert_frame_equal(df, replicated_df)
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_adjlist_replication_weights(graph_file, directed, dask_client):
-    gc.collect()
-    df = cudf.read_csv(
-        graph_file,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-    G = cugraph.Graph(directed=directed)
-    G.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="value")
-    G.enable_batch()
-    G.view_adj_list()
-    adjlist = G.adjlist
-    offsets = adjlist.offsets
-    indices = adjlist.indices
-    weights = adjlist.weights
-    for worker in G.batch_adjlists:
-        (rep_offsets, rep_indices, rep_weights) = G.batch_adjlists[worker]
-        assert_series_equal(offsets, rep_offsets.result(), check_names=False)
-        assert_series_equal(indices, rep_indices.result(), check_names=False)
-        assert_series_equal(weights, rep_weights.result(), check_names=False)
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
-)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_adjlist_replication_no_weights(graph_file, directed, dask_client):
-    gc.collect()
-    df = cudf.read_csv(
-        graph_file,
-        delimiter=" ",
-        names=["src", "dst"],
-        dtype=["int32", "int32"],
-    )
-    G = cugraph.Graph(directed=directed)
-    G.from_cudf_edgelist(df, source="src", destination="dst")
-    G.enable_batch()
-    G.view_adj_list()
-    adjlist = G.adjlist
-    offsets = adjlist.offsets
-    indices = adjlist.indices
-    weights = adjlist.weights
-    for worker in G.batch_adjlists:
-        (rep_offsets, rep_indices, rep_weights) = G.batch_adjlists[worker]
-        assert_series_equal(offsets, rep_offsets.result(), check_names=False)
-        assert_series_equal(indices, rep_indices.result(), check_names=False)
-        assert weights is None and rep_weights is None
+        assert_frame_equal(expected_df, result_df, check_dtype=False, check_like=True)
