@@ -48,15 +48,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def replication(ResourceHandle resource_handle,
-                src_array,
-                dst_array,
-                weight_array,
-                edge_id_array,
-                edge_type_id_array):
+def replicate_edgelist(ResourceHandle resource_handle,
+                       src_array,
+                       dst_array,
+                       weight_array,
+                       edge_id_array,
+                       edge_type_id_array):
     """
-        Compute vertex pairs that are two hops apart. The resulting pairs are
-        sorted before returning.
+        Replicate edges across all GPUs
 
         Parameters
         ----------
@@ -96,13 +95,9 @@ def replication(ResourceHandle resource_handle,
 
         Returns
         -------
-        return a cupy arrays of 'src' and 'dst', 'weight', 'edge_id' and 'edge_type_id'
-        (if the were passed)
+        return cupy arrays of 'src' and/or 'dst' and/or 'weight'and/or 'edge_id'
+        and/or 'edge_type_id'.
     """
-
-
-    #print("src array = \n", src_array)
-    print("wgt array = \n", weight_array)
     assert_CAI_type(src_array, "src_array", True)
     assert_CAI_type(dst_array, "dst_array", True)
     assert_CAI_type(weight_array, "weight_array", True)
@@ -114,7 +109,7 @@ def replication(ResourceHandle resource_handle,
     cdef cugraph_induced_subgraph_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-    
+
     cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(src_array)
         
@@ -131,7 +126,6 @@ def replication(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* edge_type_ids_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_id_array)
 
-
     error_code = cugraph_allgather(c_resource_handle_ptr,
                                    srcs_view_ptr,
                                    dsts_view_ptr,
@@ -141,8 +135,6 @@ def replication(ResourceHandle resource_handle,
                                    &result_ptr,
                                    &error_ptr)
     assert_success(error_code, error_ptr, "replicate_edgelist")
-    print("Done computing")
-    #print("done computing")
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* sources_ptr

@@ -17,7 +17,7 @@ from dask.distributed import wait, default_client
 import numpy as np
 from pylibcugraph import (
     ResourceHandle,
-    replication as pylibcugraph_replication,
+    replicate_edgelist as pylibcugraph_replicate_edgelist,
 )
 
 from cugraph.dask.common.part_utils import (
@@ -31,7 +31,8 @@ import cugraph.dask.comms.comms as Comms
 from typing import Union, Tuple
 
 
-def convert_to_cudf(cp_arrays: Tuple[cp.ndarray], col_names: list) -> cudf.DataFrame:
+# FIXME: Convert it to a general-purpose util function
+def _convert_to_cudf(cp_arrays: Tuple[cp.ndarray], col_names: list) -> cudf.DataFrame:
     """
     Creates a cudf Dataframe from cupy arrays
     """
@@ -53,7 +54,7 @@ def _call_plc_replicate_edgelist(
     sID: bytes, edgelist_df: cudf.DataFrame, col_names: list
 ) -> cudf.DataFrame:
     edgelist_df = edgelist_df[0]
-    cp_arrays = pylibcugraph_replication(
+    cp_arrays = pylibcugraph_replicate_edgelist(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         src_array=edgelist_df[col_names[0]],
         dst_array=edgelist_df[col_names[1]],
@@ -61,14 +62,14 @@ def _call_plc_replicate_edgelist(
         edge_id_array=edgelist_df[col_names[3]] if len(col_names) > 3 else None,
         edge_type_id_array=edgelist_df[col_names[4]] if len(col_names) > 4 else None,
     )
-    return convert_to_cudf(cp_arrays, col_names)
+    return _convert_to_cudf(cp_arrays, col_names)
 
 
 def _call_plc_replicate_dataframe(sID: bytes, df: cudf.DataFrame) -> cudf.DataFrame:
     df = df[0]
     df_replicated = cudf.DataFrame()
     for col_name in df.columns:
-        cp_array = pylibcugraph_replication(
+        cp_array = pylibcugraph_replicate_edgelist(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             src_array=df[col_name]
             if df[col_name].dtype in [np.int32, np.int64]
@@ -92,7 +93,7 @@ def _call_plc_replicate_dataframe(sID: bytes, df: cudf.DataFrame) -> cudf.DataFr
 def _call_plc_replicate_series(sID: bytes, series: cudf.Series) -> cudf.Series:
     series = series[0]
     series_replicated = cudf.Series()
-    cp_array = pylibcugraph_replication(
+    cp_array = pylibcugraph_replicate_edgelist(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         src_array=series if series.dtype in [np.int32, np.int64] else None,
         dst_array=None,
