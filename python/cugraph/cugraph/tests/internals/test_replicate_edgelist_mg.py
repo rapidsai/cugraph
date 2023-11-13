@@ -17,7 +17,6 @@ import pytest
 
 import dask_cudf
 import numpy as np
-import cugraph
 from cugraph.testing import UNDIRECTED_DATASETS, karate_disjoint
 
 from cugraph.structure.replicate_edgelist import replicate_edgelist
@@ -112,7 +111,8 @@ def test_mg_replicate_edgelist(dask_client, input_combo):
         num_workers = len(dask_client.scheduler_info()["workers"])
         df = dask_cudf.from_cudf(df, npartitions=num_workers)
     ddf = replicate_edgelist(
-        df[columns], weight=weight, edge_id=edge_id, edge_type=edge_type)
+        df[columns], weight=weight, edge_id=edge_id, edge_type=edge_type
+    )
 
     if distributed:
         df = df.compute()
