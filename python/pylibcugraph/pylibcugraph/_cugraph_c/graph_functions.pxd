@@ -170,7 +170,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         )
 
     ###########################################################################
-    # replicate_edgelist
+    # allgather
     cdef cugraph_error_code_t \
         cugraph_allgather(
             const cugraph_resource_handle_t* handle,
