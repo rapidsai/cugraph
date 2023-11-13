@@ -381,6 +381,7 @@ dependencies:
           - &distributed distributed>=2023.7.1
           - &dask_cuda dask-cuda==23.12.*
           - &numba numba>=0.57
+          - &numpy numpy>=1.21
           - &ucx_py ucx-py==0.35.*
       - output_types: conda
         packages:
