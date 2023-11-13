@@ -56,7 +56,6 @@ typedef struct {
  *    integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  properties     Properties of the graph
  * @param [out] graph          A pointer to the graph object
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
@@ -99,7 +98,6 @@ cugraph_error_code_t cugraph_sg_graph_create(
  *    integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  properties     Properties of the graph
  * @param [out] graph          A pointer to the graph object
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
@@ -142,7 +140,6 @@ cugraph_error_code_t cugraph_graph_create_sg(
  *    integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  properties     Properties of the graph
  * @param [out] graph          A pointer to the graph object
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
@@ -182,7 +179,6 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
  *    integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  properties     Properties of the graph
  * @param [out] graph          A pointer to the graph object
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS

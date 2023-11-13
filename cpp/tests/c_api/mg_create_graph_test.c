@@ -94,19 +94,21 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
+                                     NULL,
+                                     &src_view,
+                                     &dst_view,
+                                     &wgt_view,
                                      NULL,
                                      NULL,
                                      FALSE,
-                                     num_edges,
+                                     1,
                                      TRUE,
                                      &p_graph,
                                      &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   cugraph_mg_graph_free(p_graph);
 
