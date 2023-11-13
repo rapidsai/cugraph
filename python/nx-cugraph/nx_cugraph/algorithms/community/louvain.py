@@ -62,7 +62,7 @@ def louvain_communities(
         resolution=resolution,
         do_expensive_check=False,
     )
-    groups = _groupby(clusters, vertices)
+    groups = _groupby(clusters, vertices, groups_are_canonical=True)
     rv = [set(G._nodearray_to_list(node_ids)) for node_ids in groups.values()]
     # TODO: PLC doesn't handle isolated vertices yet, so this is a temporary fix
     isolates = _isolates(G)

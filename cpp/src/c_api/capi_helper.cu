@@ -44,7 +44,7 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                thrust::make_zip_iterator(ids.end(), vertices.end()));
 
   auto return_offsets = cugraph::detail::compute_sparse_offsets<size_t>(
-    ids.begin(), ids.end(), size_t{0}, size_t{offsets.size() - 1}, handle.get_stream());
+    ids.begin(), ids.end(), size_t{0}, size_t{offsets.size() - 1}, true, handle.get_stream());
 
   return std::make_tuple(std::move(vertices), std::move(return_offsets));
 }
