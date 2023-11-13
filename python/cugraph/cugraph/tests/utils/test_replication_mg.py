@@ -44,7 +44,7 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path, dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    replicated_ddf = replicate_edgelist(df)
+    replicated_ddf = replicate_edgelist(df, weight="weights")
     for i in range(replicated_ddf.npartitions):
         replicated_df = replicated_ddf.partitions[i].compute()
         assert_frame_equal(df, replicated_df)
