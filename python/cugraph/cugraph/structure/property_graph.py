@@ -800,7 +800,9 @@ class EXPERIMENTAL__PropertyGraph:
             tmp_df.index = tmp_df.index.rename(self.vertex_col_name)
 
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df[TCN] = self.__series_type(type_name, index=tmp_df.index).astype(cat_dtype)
+        tmp_df[TCN] = self.__series_type(type_name, index=tmp_df.index).astype(
+            cat_dtype
+        )
 
         if property_columns:
             # all columns
@@ -1199,7 +1201,9 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
 
-        tmp_df[TCN] = self.__series_type(type_name, index=tmp_df.index).astype(cat_dtype)
+        tmp_df[TCN] = self.__series_type(type_name, index=tmp_df.index).astype(
+            cat_dtype
+        )
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
