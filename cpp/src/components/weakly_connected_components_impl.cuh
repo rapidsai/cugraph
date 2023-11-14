@@ -455,33 +455,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                     std::numeric_limits<vertex_t>::max());
         }
 
-        // FIXME: we need to add host_scalar_scatter
-#if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
-        raft::update_device(d_counts.data(),
-                            init_max_new_root_counts.data(),
-                            init_max_new_root_counts.size(),
-                            handle.get_stream());
-        device_bcast(
-          comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
-        raft::update_host(
-          &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
-#else
         init_max_new_roots =
-          host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
-#endif
+          host_scalar_scatter(comm, init_max_new_root_counts, int{0}, handle.get_stream());
       } else {
-        // FIXME: we need to add host_scalar_scatter
-#if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
-        device_bcast(
-          comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
-        raft::update_host(
-          &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
-#else
         init_max_new_roots =
-          host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
-#endif
+          host_scalar_scatter(comm, std::vector<vertex_t>{}, int{0}, handle.get_stream());
       }
 
       handle.sync_stream();
