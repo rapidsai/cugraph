@@ -120,7 +120,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
             G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=1)
             G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=1)
 
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, order='CSC', multi_gpu=True)
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
