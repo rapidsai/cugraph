@@ -295,14 +295,14 @@ cugraph_error_code_t cugraph_mg_graph_create(
  * @return error code
  */
 cugraph_error_code_t cugraph_graph_create_mg(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t** vertices,
-  const cugraph_type_erased_device_array_view_t** src,
-  const cugraph_type_erased_device_array_view_t** dst,
-  const cugraph_type_erased_device_array_view_t** weights,
-  const cugraph_type_erased_device_array_view_t** edge_ids,
-  const cugraph_type_erased_device_array_view_t** edge_type_ids,
+  cugraph_resource_handle_t const* handle,
+  cugraph_graph_properties_t const* properties,
+  cugraph_type_erased_device_array_view_t const* const* vertices,
+  cugraph_type_erased_device_array_view_t const* const* src,
+  cugraph_type_erased_device_array_view_t const* const* dst,
+  cugraph_type_erased_device_array_view_t const* const* weights,
+  cugraph_type_erased_device_array_view_t const* const* edge_ids,
+  cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
   bool_t store_transposed,
   size_t num_arrays,
   bool_t do_expensive_check,

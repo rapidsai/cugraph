@@ -34,7 +34,7 @@ namespace {
 template <typename value_t>
 rmm::device_uvector<value_t> concatenate(
   raft::handle_t const& handle,
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** values,
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* values,
   size_t num_arrays)
 {
   size_t num_values = std::transform_reduce(
@@ -61,12 +61,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   cugraph_data_type_id_t edge_type_;
   cugraph_data_type_id_t weight_type_;
   cugraph_data_type_id_t edge_type_id_type_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** vertices_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** src_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** dst_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** weights_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** edge_ids_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const** edge_type_ids_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* vertices_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* src_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* dst_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* weights_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_ids_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_type_ids_;
   size_t num_arrays_;
   bool_t renumber_;
   bool_t check_;
@@ -79,12 +79,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     cugraph_data_type_id_t edge_type,
     cugraph_data_type_id_t weight_type,
     cugraph_data_type_id_t edge_type_id_type,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** vertices,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** src,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** dst,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** weights,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** edge_ids,
-    cugraph::c_api::cugraph_type_erased_device_array_view_t const** edge_type_ids,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* vertices,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* src,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* dst,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* weights,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_ids,
+    cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
     size_t num_arrays,
     bool_t renumber,
     bool_t check)
@@ -246,14 +246,14 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 }  // namespace
 
 extern "C" cugraph_error_code_t cugraph_graph_create_mg(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t** vertices,
-  const cugraph_type_erased_device_array_view_t** src,
-  const cugraph_type_erased_device_array_view_t** dst,
-  const cugraph_type_erased_device_array_view_t** weights,
-  const cugraph_type_erased_device_array_view_t** edge_ids,
-  const cugraph_type_erased_device_array_view_t** edge_type_ids,
+  cugraph_resource_handle_t const* handle,
+  cugraph_graph_properties_t const* properties,
+  cugraph_type_erased_device_array_view_t const* const* vertices,
+  cugraph_type_erased_device_array_view_t const* const* src,
+  cugraph_type_erased_device_array_view_t const* const* dst,
+  cugraph_type_erased_device_array_view_t const* const* weights,
+  cugraph_type_erased_device_array_view_t const* const* edge_ids,
+  cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
   bool_t store_transposed,
   size_t num_arrays,
   bool_t check,
@@ -268,17 +268,20 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
 
   auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
   auto p_vertices =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(vertices);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(
+      vertices);
   auto p_src =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(src);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(src);
   auto p_dst =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(dst);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(dst);
   auto p_weights =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(weights);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(
+      weights);
   auto p_edge_ids =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(edge_ids);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(
+      edge_ids);
   auto p_edge_type_ids =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const**>(
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const* const*>(
       edge_type_ids);
 
   size_t local_num_edges{0};
@@ -450,13 +453,13 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
 }
 
 extern "C" cugraph_error_code_t cugraph_mg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
+  cugraph_resource_handle_t const* handle,
+  cugraph_graph_properties_t const* properties,
+  cugraph_type_erased_device_array_view_t const* src,
+  cugraph_type_erased_device_array_view_t const* dst,
+  cugraph_type_erased_device_array_view_t const* weights,
+  cugraph_type_erased_device_array_view_t const* edge_ids,
+  cugraph_type_erased_device_array_view_t const* edge_type_ids,
   bool_t store_transposed,
   size_t num_edges,
   bool_t check,
