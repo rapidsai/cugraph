@@ -113,7 +113,7 @@ def test_get_edge_index(graph, edge_index_type):
             G[et][0] = cudf.Series(G[et][0])
             G[et][1] = cudf.Series(G[et][1])
 
-    cugraph_store = CuGraphStore(F, G, N, order='CSC')
+    cugraph_store = CuGraphStore(F, G, N, order="CSC")
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
