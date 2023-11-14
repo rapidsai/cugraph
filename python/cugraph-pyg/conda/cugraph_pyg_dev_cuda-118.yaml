@@ -10,11 +10,11 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
-- cugraph==23.12.*
+- cugraph==24.2.*
 - pandas
 - pre-commit
 - pyg=2.3.1=*torch_2.0.0*cu118*
-- pylibcugraphops==23.12.*
+- pylibcugraphops==24.2.*
 - pytest
 - pytest-benchmark
 - pytest-cov
