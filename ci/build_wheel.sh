@@ -36,7 +36,7 @@ if ! rapids-is-release-build; then
     alpha_spec=',>=0.0.0a0'
 fi
 
-for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
+for dep in rmm cudf raft-dask pylibcugraph pylibraft-cu12 ucx-py; do
     sed -r -i "s/${dep}==(.*)\"/${dep}${PACKAGE_CUDA_SUFFIX}==\1${alpha_spec}\"/g" ${pyproject_file}
 done
 
