@@ -33,6 +33,7 @@ namespace {
 struct create_graph_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_properties_t const* properties_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* src_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* weights_;
@@ -45,6 +46,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
   create_graph_functor(raft::handle_t const& handle,
                        cugraph_graph_properties_t const* properties,
+                       cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices,
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* src,
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst,
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* weights,
@@ -56,6 +58,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     : abstract_functor(),
       properties_(properties),
       handle_(handle),
+      vertices_(vertices),
       src_(src),
       dst_(dst),
       weights_(weights),
@@ -98,6 +101,18 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>>
         new_edge_types{std::nullopt};
+
+      std::optional<rmm::device_uvector<vertex_t>> vertex_list =
+        vertices_ ? std::make_optional(
+                      rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream()))
+                  : std::nullopt;
+
+      if (vertex_list) {
+        raft::copy<vertex_t>(vertex_list->data(),
+                             vertices_->as_type<vertex_t>(),
+                             vertices_->size_,
+                             handle_.get_stream());
+      }
 
       rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
@@ -169,7 +184,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                             store_transposed,
                                             multi_gpu>(
           handle_,
-          std::nullopt,
+          std::move(vertex_list),
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
@@ -279,6 +294,12 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         edge_type_id_t>>
         new_edge_types{std::nullopt};
 
+      std::optional<rmm::device_uvector<vertex_t>> vertex_list = std::make_optional(
+        rmm::device_uvector<vertex_t>(offsets_->size_ - 1, handle_.get_stream()));
+
+      cugraph::detail::sequence_fill(
+        handle_.get_stream(), vertex_list->data(), vertex_list->size(), vertex_t{0});
+
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(indices_->size_, handle_.get_stream());
 
@@ -354,7 +375,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                             store_transposed,
                                             multi_gpu>(
           handle_,
-          std::nullopt,
+          std::move(vertex_list),
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
@@ -452,9 +473,10 @@ struct destroy_graph_functor : public cugraph::c_api::abstract_functor {
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_sg_graph_create(
+extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* vertices,
   const cugraph_type_erased_device_array_view_t* src,
   const cugraph_type_erased_device_array_view_t* dst,
   const cugraph_type_erased_device_array_view_t* weights,
@@ -473,6 +495,8 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   *error = nullptr;
 
   auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+  auto p_vertices =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices);
   auto p_src =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
   auto p_dst =
@@ -488,6 +512,12 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src size != dst size.",
                *error);
+
+  CAPI_EXPECTS((p_vertices == nullptr) || (p_src->type_ == p_vertices->type_),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src type != vertices type.",
+               *error);
+
   CAPI_EXPECTS(p_src->type_ == p_dst->type_,
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src type != dst type.",
@@ -533,6 +563,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
 
   ::create_graph_functor functor(*p_handle->handle_,
                                  properties,
+                                 p_vertices,
                                  p_src,
                                  p_dst,
                                  p_weights,
@@ -563,6 +594,35 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   }
 
   return CUGRAPH_SUCCESS;
+}
+
+extern "C" cugraph_error_code_t cugraph_sg_graph_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_type_ids,
+  bool_t store_transposed,
+  bool_t renumber,
+  bool_t do_expensive_check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error)
+{
+  return cugraph_graph_create_sg(handle,
+                                 properties,
+                                 NULL,
+                                 src,
+                                 dst,
+                                 weights,
+                                 edge_ids,
+                                 edge_type_ids,
+                                 store_transposed,
+                                 renumber,
+                                 do_expensive_check,
+                                 graph,
+                                 error);
 }
 
 cugraph_error_code_t cugraph_sg_graph_create_from_csr(
@@ -662,23 +722,27 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   return CUGRAPH_SUCCESS;
 }
 
-extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph)
+extern "C" void cugraph_graph_free(cugraph_graph_t* ptr_graph)
 {
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(ptr_graph);
+  if (ptr_graph != NULL) {
+    auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(ptr_graph);
 
-  destroy_graph_functor functor(internal_pointer->graph_,
-                                internal_pointer->number_map_,
-                                internal_pointer->edge_weights_,
-                                internal_pointer->edge_ids_,
-                                internal_pointer->edge_types_);
+    destroy_graph_functor functor(internal_pointer->graph_,
+                                  internal_pointer->number_map_,
+                                  internal_pointer->edge_weights_,
+                                  internal_pointer->edge_ids_,
+                                  internal_pointer->edge_types_);
 
-  cugraph::c_api::vertex_dispatcher(internal_pointer->vertex_type_,
-                                    internal_pointer->edge_type_,
-                                    internal_pointer->weight_type_,
-                                    internal_pointer->edge_type_id_type_,
-                                    internal_pointer->store_transposed_,
-                                    internal_pointer->multi_gpu_,
-                                    functor);
+    cugraph::c_api::vertex_dispatcher(internal_pointer->vertex_type_,
+                                      internal_pointer->edge_type_,
+                                      internal_pointer->weight_type_,
+                                      internal_pointer->edge_type_id_type_,
+                                      internal_pointer->store_transposed_,
+                                      internal_pointer->multi_gpu_,
+                                      functor);
 
-  delete internal_pointer;
+    delete internal_pointer;
+  }
 }
+
+extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph) { cugraph_graph_free(ptr_graph); }
