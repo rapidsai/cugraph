@@ -26,7 +26,7 @@ requirements:
     - python
     - scikit-build >=0.13.1
   run:
-    - rapids-dask-dependency ={{ version }}
+    - rapids-dask-dependency ={{ minor_version }}
     - numba >=0.57
     - numpy >=1.21
     - python
