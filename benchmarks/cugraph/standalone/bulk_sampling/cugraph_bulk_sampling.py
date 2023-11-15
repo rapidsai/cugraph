@@ -182,7 +182,6 @@ def _replicate_df(
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
 def sample_graph(
-<<<<<<< HEAD
                 G,
                 label_df,
                 output_path,seed=42,
@@ -196,18 +195,6 @@ def sample_graph(
                 persist=False,
                 compression='COO',
                 compress_per_hop=False,):
-=======
-    G,
-    label_df,
-    output_path,
-    seed=42,
-    batch_size=500,
-    seeds_per_call=200000,
-    batches_per_partition=100,
-    fanout=[5, 5, 5],
-    persist=False,
-):
->>>>>>> origin/branch-23.12
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -221,13 +208,10 @@ def sample_graph(
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
-<<<<<<< HEAD
         renumber=renumber,
         compression=compression,
         compress_per_hop=compress_per_hop,
         include_hop_column=False,
-=======
->>>>>>> origin/branch-23.12
         log_level=logging.INFO,
     )
 
@@ -423,14 +407,6 @@ def load_disk_dataset(
 
         if persist:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
-<<<<<<< HEAD
-    
-        print('min src:', edge_index_dict[can_edge_type].src.min().compute())
-        print('max src:', edge_index_dict[can_edge_type].src.max().compute())
-        print('min dst:', edge_index_dict[can_edge_type].dst.min().compute())
-        print('max dst:', edge_index_dict[can_edge_type].dst.max().compute())
-=======
->>>>>>> origin/branch-23.12
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
@@ -496,7 +472,6 @@ def load_disk_dataset(
 
 
 def benchmark_cugraph_bulk_sampling(
-<<<<<<< HEAD
                                     dataset,
                                     output_path,
                                     seed,
@@ -515,22 +490,6 @@ def benchmark_cugraph_bulk_sampling(
                                     renumber=False,
                                     compression='COO',
                                     compress_per_hop=False):
-=======
-    dataset,
-    output_path,
-    seed,
-    batch_size,
-    seeds_per_call,
-    fanout,
-    reverse_edges=True,
-    dataset_dir=".",
-    replication_factor=1,
-    num_labels=256,
-    labeled_percentage=0.001,
-    persist=False,
-    add_edge_types=False,
-):
->>>>>>> origin/branch-23.12
     """
     Entry point for the benchmark.
 
@@ -769,15 +728,9 @@ def get_args():
     )
 
     parser.add_argument(
-<<<<<<< HEAD
-        '--reverse_edges',
-        action='store_true',
-        help='Whether to reverse the edges for DGL (defaults to False).  Should be True for both DGL and PyG.',
-=======
         "--reverse_edges",
         action="store_true",
         help="Whether to reverse the edges for DGL (defaults to False).  Should be True for DGL, False for PyG.",
->>>>>>> origin/branch-23.12
         required=False,
         default=False,
     )
@@ -875,16 +828,10 @@ if __name__ == "__main__":
     stats_ls = []
     client.run(enable_spilling)
     for dataset in datasets:
-<<<<<<< HEAD
         m = re.match(r'(\w+)\[([0-9]+)\]', dataset)
         if m:
             replication_factor = int(m.groups()[1])
             dataset = m.groups()[0]
-=======
-        if re.match(r"([A-z]|[0-9])+\[[0-9]+\]", dataset):
-            replication_factor = int(dataset[-2])
-            dataset = dataset[:-3]
->>>>>>> origin/branch-23.12
         else:
             replication_factor = 1
 
