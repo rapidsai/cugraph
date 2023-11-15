@@ -1,6 +1,6 @@
 <h1 align="center"; style="font-style: italic";>
   <br>
-  <img src="../../img/cugraph_logo_2.png" alt="cuGraph" width="500">
+  <img src="img/cugraph_logo_2.png" alt="cuGraph" width="500">
 </h1>
 
 <div align="center">
@@ -16,7 +16,7 @@
 
 <img alt="Conda" src="https://img.shields.io/conda/pn/rapidsai/cugraph" />
 
-<a href="https://rapids.ai/"><img src="../../img/rapids_logo.png" alt="RAPIDS" width="125"></a>
+<a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="125"></a>
 
 </div>
 
@@ -82,7 +82,7 @@ That's it.  NetworkX now leverages cuGraph for accelerated graph algorithms.
 
 -----
 
-<img src="../../img/Stack2.png" alt="Stack" width="800">
+<img src="img/Stack2.png" alt="Stack" width="800">
 
 [RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms and services. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To simplify integration, cuGraph also supports data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
 
@@ -138,12 +138,12 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 ------
 <br>
 
-## <div align="center"><img src="../../img/rapids_logo.png" width="265px"/></div> Open GPU Data Science <a name="rapids"></a>
+## <div align="center"><img src="img/rapids_logo.png" width="265px"/></div> Open GPU Data Science <a name="rapids"></a>
 
 
 The RAPIDS suite of open source software libraries aims to enable execution of end-to-end data science and analytics pipelines entirely on GPUs. It relies on NVIDIA® CUDA® primitives for low-level compute optimization but exposing that GPU parallelism and high-bandwidth memory speed through user-friendly Python interfaces.
 
-<p align="center"><img src="../../img/rapids_arrow.png" width="50%"/></p>
+<p align="center"><img src="img/rapids_arrow.png" width="50%"/></p>
 
 For more project details, see [rapids.ai](https://rapids.ai/).
 
