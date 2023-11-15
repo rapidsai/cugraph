@@ -24,10 +24,14 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_sg_graph_create,
+    cugraph_graph_create_sg,
     cugraph_mg_graph_create,
-    cugraph_sg_graph_create_from_csr,
-    cugraph_sg_graph_free,
-    cugraph_mg_graph_free,
+    cugraph_sg_graph_create_from_csr, #FIXME: Remove this once
+    # 'cugraph_graph_create_sg_from_csr' is exposed
+    cugraph_graph_create_sg_from_csr,
+    cugraph_sg_graph_free, #FIXME: Remove this
+    cugraph_graph_free,
+    cugraph_mg_graph_free, #FIXME: Remove this
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -70,6 +74,9 @@ cdef class SGGraph(_GPUGraph):
         CSR format. In the case of a COO, The order of the array corresponds to
         the ordering of the src_offset_array, where the ith item in src_offset_array
         and the ith item in dst_index_array define the ith edge of the graph.
+    
+    vertices_array : device array type
+        Device array containing the isolated vertices of the graph.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
@@ -125,6 +132,7 @@ cdef class SGGraph(_GPUGraph):
                   GraphProperties graph_properties,
                   src_or_offset_array,
                   dst_or_index_array,
+                  vertices_array=None,
                   weight_array=None,
                   store_transposed=False,
                   renumber=False,
@@ -145,11 +153,10 @@ cdef class SGGraph(_GPUGraph):
                             f"{type(do_expensive_check)}")
         assert_CAI_type(src_or_offset_array, "src_or_offset_array")
         assert_CAI_type(dst_or_index_array, "dst_or_index_array")
+        assert_CAI_type(vertices_array, "vertices_array", True)
         assert_CAI_type(weight_array, "weight_array", True)
-        if edge_id_array is not None:
-            assert_CAI_type(edge_id_array, "edge_id_array")
-        if edge_type_array is not None:
-            assert_CAI_type(edge_type_array, "edge_type_array")
+        assert_CAI_type(edge_id_array, "edge_id_array", True)
+        assert_CAI_type(edge_type_array, "edge_type_array", True)
 
         # FIXME: assert that src_or_offset_array and dst_or_index_array have the same type
 
@@ -166,7 +173,11 @@ cdef class SGGraph(_GPUGraph):
                 dst_or_index_array
             )
 
-        
+        cdef cugraph_type_erased_device_array_view_t* vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertices_array
+            )
+
         self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
@@ -181,9 +192,10 @@ cdef class SGGraph(_GPUGraph):
             )
 
         if input_array_format == "COO":
-            error_code = cugraph_sg_graph_create(
+            error_code = cugraph_graph_create_sg(
                 resource_handle.c_resource_handle_ptr,
                 &(graph_properties.c_graph_properties),
+                vertices_view_ptr,
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
                 self.weights_view_ptr,
@@ -194,9 +206,8 @@ cdef class SGGraph(_GPUGraph):
                 do_expensive_check,
                 &(self.c_graph_ptr),
                 &error_ptr)
-
             assert_success(error_code, error_ptr,
-                       "cugraph_sg_graph_create()")
+                       "cugraph_graph_create_sg()")
 
         elif input_array_format == "CSR":
             error_code = cugraph_sg_graph_create_from_csr(
@@ -377,3 +388,24 @@ cdef class MGGraph(_GPUGraph):
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
             cugraph_mg_graph_free(self.c_graph_ptr)
+
+
+
+
+"""
+    cdef cugraph_error_code_t \
+        cugraph_graph_create_sg_from_csr(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_properties_t* properties,
+            const cugraph_type_erased_device_array_view_t* offsets,
+            const cugraph_type_erased_device_array_view_t* indices,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* edge_ids,
+            const cugraph_type_erased_device_array_view_t* edge_type_ids,
+            bool_t store_transposed,
+            bool_t renumber,
+            bool_t check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error
+        )
+"""
