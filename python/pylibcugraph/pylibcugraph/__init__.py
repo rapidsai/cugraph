@@ -98,4 +98,4 @@ from pylibcugraph.sorensen_coefficients import sorensen_coefficients
 
 from pylibcugraph import exceptions
 
-__version__ = "23.12.00"
+from pylibcugraph._version import __git_commit__, __version__

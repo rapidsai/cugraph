@@ -46,7 +46,7 @@ class CleanCommand(Command):
 packages = find_packages(include=["cugraph*"])
 setup(
     packages=packages,
-    package_data={key: ["*.pxd", "*.yaml"] for key in packages},
+    package_data={key: ["VERSION", "*.pxd", "*.yaml"] for key in packages},
     cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )

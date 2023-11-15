@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nx-cugraph"
-version = "23.12.00"
+dynamic = ["version"]
 description = "cugraph backend for NetworkX"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -60,6 +60,9 @@ cugraph = "_nx_cugraph:get_info"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {file = "nx_cugraph/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [

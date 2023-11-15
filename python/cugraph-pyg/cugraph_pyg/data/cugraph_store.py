@@ -214,7 +214,7 @@ class EXPERIMENTAL__CuGraphStore:
         num_nodes_dict: Dict[str, int],
         *,
         multi_gpu: bool = False,
-        order: str = "CSC",
+        order: str = "CSR",
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -260,11 +260,11 @@ class EXPERIMENTAL__CuGraphStore:
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
 
-        order: str (Optional ["CSR", "CSC"], default = CSC)
-            The order to use for sampling.  Should nearly always be CSC
-            unless there is a specific expectation of "reverse" sampling.
-            It is also not uncommon to use CSR order for correctness
-            testing, which some cuGraph-PyG tests do.
+        order: str (Optional ["CSR", "CSC"], default = CSR)
+            The order to use for sampling.  CSR corresponds to the
+            standard OGB dataset order that is usually used in PyG.
+            CSC order constructs the same graph as CSR, but with
+            edges in the opposite direction.
         """
 
         if None in G:
@@ -320,7 +320,13 @@ class EXPERIMENTAL__CuGraphStore:
     def __del__(self):
         if self.__is_graph_owner:
             if isinstance(self.__graph._plc_graph, dict):
-                distributed.get_client().unpublish_dataset("cugraph_graph")
+                try:
+                    distributed.get_client().unpublish_dataset("cugraph_graph")
+                except TypeError:
+                    warnings.warn(
+                        "Could not unpublish graph dataset, most likely because"
+                        " dask has already shut down."
+                    )
             del self.__graph
 
     def __make_offsets(self, input_dict):

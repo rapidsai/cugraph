@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cugraph-service-server"
-version = "23.12.00"
+dynamic = ["version", "entry-points"]
 description = "cuGraph Service server"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -25,10 +25,9 @@ dependencies = [
     "cupy-cuda11x>=12.0.0",
     "dask-cuda==23.12.*",
     "dask-cudf==23.12.*",
-    "dask>=2023.7.1",
-    "distributed>=2023.7.1",
     "numba>=0.57",
     "numpy>=1.21",
+    "rapids-dask-dependency==23.12.*",
     "rmm==23.12.*",
     "thriftpy2",
     "ucx-py==0.35.*",
@@ -39,7 +38,6 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
-dynamic = ["entry-points"]
 
 [project.optional-dependencies]
 test = [
@@ -61,6 +59,9 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {file = "cugraph_service_server/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [

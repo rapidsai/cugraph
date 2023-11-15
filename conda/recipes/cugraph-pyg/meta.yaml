@@ -1,6 +1,6 @@
 # Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
-{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
+{% set version = environ['RAPIDS_PACKAGE_VERSION'].lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set py_version = environ['CONDA_PY'] %}
 {% set date_string = environ['RAPIDS_DATE_STRING'] %}
@@ -10,7 +10,7 @@ package:
   version: {{ version }}
 
 source:
-  git_url: ../../..
+  path: ../../..
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
@@ -26,14 +26,14 @@ requirements:
     - python
     - scikit-build >=0.13.1
   run:
-    - distributed >=2023.9.2
+    - rapids-dask-dependency ={{ minor_version }}
     - numba >=0.57
     - numpy >=1.21
     - python
     - pytorch >=2.0
     - cupy >=12.0.0
     - cugraph ={{ version }}
-    - pylibcugraphops ={{ version }}
+    - pylibcugraphops ={{ minor_version }}
     - pyg >=2.3,<2.4
 
 tests:
