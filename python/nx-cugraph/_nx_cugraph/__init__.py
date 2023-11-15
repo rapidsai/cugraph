@@ -136,6 +136,7 @@ def get_info():
     return d
 
 
+# FIXME: can this use the standard VERSION file and update mechanism?
 __version__ = "23.12.00"
 
 if __name__ == "__main__":
