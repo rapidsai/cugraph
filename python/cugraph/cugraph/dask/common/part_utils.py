@@ -99,19 +99,65 @@ def _chunk_lst(ls, num_parts):
     return [ls[i::num_parts] for i in range(num_parts)]
 
 
-def persist_dask_df_equal_parts_per_worker(dask_df, client):
+def persist_dask_df_equal_parts_per_worker(
+    dask_df, client, return_type="dask_cudf.DataFrame"
+):
+    """
+    Persist dask_df with equal parts per worker
+    Args:
+        dask_df: dask_cudf.DataFrame
+        client: dask.distributed.Client
+        return_type: str, "dask_cudf.DataFrame" or "dict"
+    Returns:
+        persisted_keys: dict of {worker: [persisted_keys]}
+    """
+    if return_type not in ["dask_cudf.DataFrame", "dict"]:
+        raise ValueError("return_type must be either 'dask_cudf.DataFrame' or 'dict'")
+
     ddf_keys = dask_df.to_delayed()
     workers = client.scheduler_info()["workers"].keys()
     ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
-    persisted_keys = []
+    persisted_keys_d = {}
     for w, ddf_k in zip(workers, ddf_keys_ls):
-        persisted_keys.extend(
-            client.persist(ddf_k, workers=w, allow_other_workers=False)
+        persisted_keys_d[w] = client.compute(
+            ddf_k, workers=w, allow_other_workers=False, pure=False
         )
-    dask_df = dask_cudf.from_delayed(persisted_keys, meta=dask_df._meta).persist()
-    wait(dask_df)
-    client.rebalance(dask_df)
-    return dask_df
+
+    persisted_keys_ls = [
+        item for sublist in persisted_keys_d.values() for item in sublist
+    ]
+    wait(persisted_keys_ls)
+    if return_type == "dask_cudf.DataFrame":
+        dask_df = dask_cudf.from_delayed(
+            persisted_keys_ls, meta=dask_df._meta
+        ).persist()
+        wait(dask_df)
+        return dask_df
+
+    return persisted_keys_d
+
+
+def get_length_of_parts(persisted_keys_d, client):
+    """
+    Get the length of each partition
+    Args:
+        persisted_keys_d: dict of {worker: [persisted_keys]}
+        client: dask.distributed.Client
+    Returns:
+        length_of_parts: dict of {worker: [length_of_parts]}
+    """
+    length_of_parts = {}
+    for w, p_keys in persisted_keys_d.items():
+        length_of_parts[w] = [
+            client.submit(
+                len, p_key, pure=False, workers=[w], allow_other_workers=False
+            )
+            for p_key in p_keys
+        ]
+
+    for w, len_futures in length_of_parts.items():
+        length_of_parts[w] = client.gather(len_futures)
+    return length_of_parts
 
 
 async def _extract_partitions(

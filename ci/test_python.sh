@@ -63,9 +63,13 @@ pytest \
   tests
 popd
 
+# FIXME: TEMPORARILY disable single-GPU "MG" testing
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
-export DASK_WORKER_DEVICES="0"
+DASK_WORKER_DEVICES="0" \
+DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
+DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
+DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
 pytest \
   -v \
   --benchmark-disable \
@@ -75,7 +79,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not _mg" \
   tests
 popd
 

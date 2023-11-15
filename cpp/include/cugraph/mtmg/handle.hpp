@@ -18,6 +18,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/exec_policy.hpp>
+
 namespace cugraph {
 namespace mtmg {
 
@@ -60,9 +62,40 @@ class handle_t {
   rmm::cuda_stream_view get_stream() const
   {
     return raft_handle_.is_stream_pool_initialized()
-             ? raft_handle_.get_stream_from_stream_pool(device_id_)
+             ? raft_handle_.get_stream_from_stream_pool(thread_rank_)
              : raft_handle_.get_stream();
   }
+
+  /**
+   * @brief Sync on the cuda stream
+   *
+   * @param stream  Which stream to synchronize (defaults to the stream for this handle)
+   */
+  void sync_stream(rmm::cuda_stream_view stream) const { raft_handle_.sync_stream(stream); }
+
+  /**
+   * @brief Sync on the cuda stream for this handle
+   */
+  void sync_stream() const { sync_stream(get_stream()); }
+
+  /**
+   * @brief get thrust policy for the stream
+   *
+   * @param stream  Which stream to use for this thrust call
+   *
+   * @return exec policy using the current stream
+   */
+  rmm::exec_policy get_thrust_policy(rmm::cuda_stream_view stream) const
+  {
+    return rmm::exec_policy(stream);
+  }
+
+  /**
+   * @brief get thrust policy for the stream for this handle
+   *
+   * @return exec policy using the current stream
+   */
+  rmm::exec_policy get_thrust_policy() const { return get_thrust_policy(get_stream()); }
 
   /**
    * @brief Get thread rank
@@ -77,14 +110,6 @@ class handle_t {
    * @return number of gpus
    */
   int get_size() const { return raft_handle_.get_comms().get_size(); }
-
-  /**
-   * @brief Get number of local gpus
-   *
-   * @return number of local gpus
-   */
-  // FIXME: wrong for multi-node
-  int get_local_size() const { return raft_handle_.get_comms().get_size(); }
 
   /**
    * @brief Get gpu rank

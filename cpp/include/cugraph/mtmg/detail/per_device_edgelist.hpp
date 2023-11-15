@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/mtmg/handle.hpp>
 
 // FIXME: Could use std::span once compiler supports C++20
@@ -58,6 +59,15 @@ class per_device_edgelist_t {
   per_device_edgelist_t& operator=(per_device_edgelist_t const&) = delete;
   per_device_edgelist_t& operator=(per_device_edgelist_t&&)      = delete;
 
+  /**
+   * @brief Construct a new per device edgelist t object
+   *
+   * @param handle             MTMG resource handle - used to identify GPU resources
+   * @param device_buffer_size Number of edges to store in each device buffer
+   * @param use_weight         Whether or not the edgelist will have weights
+   * @param use_edge_id        Whether or not the edgelist will have edge ids
+   * @param use_edge_type      Whether or not the edgelist will have edge types
+   */
   per_device_edgelist_t(cugraph::mtmg::handle_t const& handle,
                         size_t device_buffer_size,
                         bool use_weight,
@@ -82,6 +92,11 @@ class per_device_edgelist_t {
     create_new_buffers(handle);
   }
 
+  /**
+   * @brief Move construct a new per device edgelist t object
+   *
+   * @param other Object to move into this instance
+   */
   per_device_edgelist_t(per_device_edgelist_t&& other)
     : device_buffer_size_{other.device_buffer_size_},
       current_pos_{other.current_pos_},
@@ -110,45 +125,72 @@ class per_device_edgelist_t {
               std::optional<raft::host_span<edge_t const>> edge_id,
               std::optional<raft::host_span<edge_type_t const>> edge_type)
   {
-    // FIXME:  This lock guard could be on a smaller region, but it
-    //   would require more careful coding.  The raft::update_device
-    //   calls could be done without the lock if we made a local
-    //   of the values of *.back() and did an increment of current_pos_
-    //   while we hold the lock.
-    std::lock_guard<std::mutex> lock(lock_);
+    std::vector<std::tuple<size_t, size_t, size_t, size_t>> copy_positions;
 
-    size_t count = src.size();
-    size_t pos   = 0;
+    {
+      std::lock_guard<std::mutex> lock(lock_);
 
-    while (count > 0) {
-      size_t copy_count = std::min(count, (src_.back().size() - current_pos_));
+      size_t count = src.size();
+      size_t pos   = 0;
 
-      raft::update_device(
-        src_.back().begin() + current_pos_, src.begin() + pos, copy_count, handle.get_stream());
-      raft::update_device(
-        dst_.back().begin() + current_pos_, dst.begin() + pos, copy_count, handle.get_stream());
-      if (wgt)
-        raft::update_device(
-          wgt_->back().begin() + current_pos_, wgt->begin() + pos, copy_count, handle.get_stream());
-      if (edge_id)
-        raft::update_device(edge_id_->back().begin() + current_pos_,
-                            edge_id->begin() + pos,
-                            copy_count,
-                            handle.get_stream());
-      if (edge_type)
-        raft::update_device(edge_type_->back().begin() + current_pos_,
-                            edge_type->begin() + pos,
-                            copy_count,
-                            handle.get_stream());
+      while (count > 0) {
+        size_t copy_count = std::min(count, (src_.back().size() - current_pos_));
 
-      count -= copy_count;
-      pos += copy_count;
-      current_pos_ += copy_count;
+        copy_positions.push_back(std::make_tuple(src_.size() - 1, current_pos_, pos, copy_count));
 
-      if (current_pos_ == src_.back().size()) { create_new_buffers(handle); }
+        count -= copy_count;
+        pos += copy_count;
+        current_pos_ += copy_count;
+
+        if (current_pos_ == src_.back().size()) { create_new_buffers(handle); }
+      }
     }
 
-    handle.raft_handle().sync_stream();
+    std::for_each(copy_positions.begin(),
+                  copy_positions.end(),
+                  [&handle,
+                   &this_src = src_,
+                   &src,
+                   &this_dst = dst_,
+                   &dst,
+                   &this_wgt = wgt_,
+                   &wgt,
+                   &this_edge_id = edge_id_,
+                   &edge_id,
+                   &this_edge_type = edge_type_,
+                   &edge_type](auto tuple) {
+                    auto [buffer_idx, buffer_pos, input_pos, copy_count] = tuple;
+
+                    raft::update_device(this_src[buffer_idx].begin() + buffer_pos,
+                                        src.begin() + input_pos,
+                                        copy_count,
+                                        handle.get_stream());
+
+                    raft::update_device(this_dst[buffer_idx].begin() + buffer_pos,
+                                        dst.begin() + input_pos,
+                                        copy_count,
+                                        handle.get_stream());
+
+                    if (this_wgt)
+                      raft::update_device((*this_wgt)[buffer_idx].begin() + buffer_pos,
+                                          wgt->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
+
+                    if (this_edge_id)
+                      raft::update_device((*this_edge_id)[buffer_idx].begin() + buffer_pos,
+                                          edge_id->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
+
+                    if (this_edge_type)
+                      raft::update_device((*this_edge_type)[buffer_idx].begin() + buffer_pos,
+                                          edge_type->begin() + input_pos,
+                                          copy_count,
+                                          handle.get_stream());
+                  });
+
+    handle.sync_stream();
   }
 
   /**

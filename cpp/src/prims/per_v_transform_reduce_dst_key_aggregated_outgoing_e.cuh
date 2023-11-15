@@ -336,8 +336,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     if (edge_partition.number_of_edges() > 0) {
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
-      detail::decompress_edge_partition_to_fill_edgelist_majors(
-        handle, edge_partition, tmp_majors.data(), segment_offsets);
+      detail::decompress_edge_partition_to_fill_edgelist_majors<vertex_t,
+                                                                edge_t,
+                                                                GraphViewType::is_multi_gpu>(
+        handle,
+        edge_partition,
+        std::nullopt,
+        raft::device_span<vertex_t>(tmp_majors.data(), tmp_majors.size()),
+        segment_offsets);
 
       auto minor_key_first = thrust::make_transform_iterator(
         edge_partition.indices(),

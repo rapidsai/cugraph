@@ -248,6 +248,13 @@ class SparseGraph(object):
             value = value[self._perm_csc2csr]
         return csrc_ids, dst_ids, value
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(num_src_nodes={self._num_src_nodes}, "
+            f"num_dst_nodes={self._num_dst_nodes}, "
+            f"num_edges={self._src_ids.size(0)}, formats={self._formats})"
+        )
+
 
 class BaseConv(torch.nn.Module):
     r"""An abstract base class for cugraph-ops nn module."""

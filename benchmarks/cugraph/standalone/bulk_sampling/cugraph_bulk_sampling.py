@@ -66,19 +66,19 @@ def construct_graph(dask_dataframe):
     Returns:
         G:  cugraph.Graph
     """
-    assert dask_dataframe['src'].dtype == 'int64'
-    assert dask_dataframe['dst'].dtype == 'int64'
+    assert dask_dataframe["src"].dtype == "int64"
+    assert dask_dataframe["dst"].dtype == "int64"
 
-    if 'etp' in dask_dataframe.columns:
-        assert dask_dataframe['etp'].dtype == 'int32'
+    if "etp" in dask_dataframe.columns:
+        assert dask_dataframe["etp"].dtype == "int32"
 
     G = cugraph.MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
         dask_dataframe,
-        source="src", 
+        source="src",
         destination="dst",
-        edge_type='etp' if 'etp' in dask_dataframe.columns else None,
-        renumber=False
+        edge_type="etp" if "etp" in dask_dataframe.columns else None,
+        renumber=False,
     )
     return G
 
@@ -86,66 +86,87 @@ def construct_graph(dask_dataframe):
 def symmetrize_ddf(dask_dataframe):
     source_col, dest_col = symmetrize(
         dask_dataframe,
-        'src',
-        'dst',
+        "src",
+        "dst",
         multi=True,
         symmetrize=True,
     )
 
     new_ddf = source_col.to_frame()
-    new_ddf['dst'] = dest_col
+    new_ddf["dst"] = dest_col
 
     return new_ddf
 
+
 def renumber_ddf(dask_df, persist=False):
-    vertices = dask_cudf.concat([dask_df['src'], dask_df['dst']]).unique().reset_index(drop=True)
-    if persist:
-        vertices = vertices.persist()
-    
-    vertices.name = 'v'
-    vertices = vertices.reset_index().set_index('v').rename(columns={'index': 'm'})
+    vertices = (
+        dask_cudf.concat([dask_df["src"], dask_df["dst"]])
+        .unique()
+        .reset_index(drop=True)
+    )
     if persist:
         vertices = vertices.persist()
 
-    src = dask_df.merge(vertices, left_on='src', right_on='v', how='left').m.rename('src')
-    dst = dask_df.merge(vertices, left_on='dst', right_on='v', how='left').m.rename('dst')
+    vertices.name = "v"
+    vertices = vertices.reset_index().set_index("v").rename(columns={"index": "m"})
+    if persist:
+        vertices = vertices.persist()
+
+    src = dask_df.merge(vertices, left_on="src", right_on="v", how="left").m.rename(
+        "src"
+    )
+    dst = dask_df.merge(vertices, left_on="dst", right_on="v", how="left").m.rename(
+        "dst"
+    )
     df = src.to_frame()
-    df['dst'] = dst
+    df["dst"] = dst
 
     return df.reset_index(drop=True)
 
-def _make_batch_ids(bdf: cudf.DataFrame, batch_size: int, num_workers: int, partition_info: Optional[Union[dict, str]] = None):
+
+def _make_batch_ids(
+    bdf: cudf.DataFrame,
+    batch_size: int,
+    num_workers: int,
+    partition_info: Optional[Union[dict, str]] = None,
+):
     # Required by dask; need to skip dummy partitions.
     if partition_info is None:
-        return cudf.DataFrame({
-            'batch': cudf.Series(dtype='int32'),
-            'start': cudf.Series(dtype='int64')
-        })
-    
-    partition = partition_info['number']
+        return cudf.DataFrame(
+            {"batch": cudf.Series(dtype="int32"), "start": cudf.Series(dtype="int64")}
+        )
+
+    partition = partition_info["number"]
     if partition is None:
-        raise ValueError('division is absent')
+        raise ValueError("division is absent")
 
     num_batches = int(ceil(len(bdf) / batch_size))
-    
+
     batch_ids = cupy.repeat(
-        cupy.arange(num_batches * partition, num_batches * (partition + 1), dtype='int32'),
-        batch_size
-    )[:len(bdf)]
+        cupy.arange(
+            num_batches * partition, num_batches * (partition + 1), dtype="int32"
+        ),
+        batch_size,
+    )[: len(bdf)]
 
     bdf = bdf.reset_index(drop=True)
-    bdf['batch'] = cudf.Series(batch_ids)
+    bdf["batch"] = cudf.Series(batch_ids)
 
     return bdf
 
 
-def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:Dict[str, int], partition_info: Optional[Union[dict, str]] = None):
+def _replicate_df(
+    df: cudf.DataFrame,
+    replication_factor: int,
+    col_item_counts: Dict[str, int],
+    partition_info: Optional[Union[dict, str]] = None,
+):
     # Required by dask; need to skip dummy partitions.
     if partition_info is None:
-        return cudf.DataFrame({
-            col: cudf.Series(dtype=df[col].dtype) for col in col_item_counts.keys()
-        })
-    
+        return cudf.DataFrame(
+            {col: cudf.Series(dtype=df[col].dtype) for col in col_item_counts.keys()}
+        )
+
     original_df = df.copy()
 
     if replication_factor > 1:
@@ -153,14 +174,15 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:D
             df_replicated = original_df.copy()
             for col, offset in col_item_counts.items():
                 df_replicated[col] += offset * r
-        
+
             df = cudf.concat([df, df_replicated], ignore_index=True)
-    
+
     return df
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
 def sample_graph(
+<<<<<<< HEAD
                 G,
                 label_df,
                 output_path,seed=42,
@@ -174,6 +196,18 @@ def sample_graph(
                 persist=False,
                 compression='COO',
                 compress_per_hop=False,):
+=======
+    G,
+    label_df,
+    output_path,
+    seed=42,
+    batch_size=500,
+    seeds_per_call=200000,
+    batches_per_partition=100,
+    fanout=[5, 5, 5],
+    persist=False,
+):
+>>>>>>> origin/branch-23.12
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -187,39 +221,42 @@ def sample_graph(
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
+<<<<<<< HEAD
         renumber=renumber,
         compression=compression,
         compress_per_hop=compress_per_hop,
         include_hop_column=False,
+=======
+>>>>>>> origin/branch-23.12
         log_level=logging.INFO,
     )
 
-    n_workers = len(default_client().scheduler_info()['workers'])
+    n_workers = len(default_client().scheduler_info()["workers"])
 
-    meta = cudf.DataFrame({
-        'node': cudf.Series(dtype='int64'),
-        'batch': cudf.Series(dtype='int32')
-    })
+    meta = cudf.DataFrame(
+        {"node": cudf.Series(dtype="int64"), "batch": cudf.Series(dtype="int32")}
+    )
 
-    batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta)
-    #batch_df = batch_df.sort_values(by='node')
-    
+    batch_df = label_df.map_partitions(
+        _make_batch_ids, batch_size, n_workers, meta=meta
+    )
+    # batch_df = batch_df.sort_values(by='node')
+
     # should always persist the batch dataframe or performance may be suboptimal
     batch_df = batch_df.persist()
 
     del label_df
-    print('created batches')
-    
+    print("created batches")
 
     start_time = perf_counter()
-    sampler.add_batches(batch_df, start_col_name='node', batch_col_name='batch')
+    sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
     sampler.flush()
     end_time = perf_counter()
-    print('flushed all batches')
-    return (end_time - start_time)
+    print("flushed all batches")
+    return end_time - start_time
 
 
-def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
+def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor: int = 1):
     # cuGraph-PyG assigns offsets based on lexicographic order
     node_offsets = {}
     node_offsets_replicated = {}
@@ -231,10 +268,19 @@ def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
 
         count += node_counts[node_type]
         count_replicated += node_counts[node_type] * replication_factor
-    
+
     return node_offsets, node_offsets_replicated, count_replicated
 
-def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False, persist=False, add_edge_types=False):
+
+def generate_rmat_dataset(
+    dataset,
+    seed=62,
+    labeled_percentage=0.01,
+    num_labels=256,
+    reverse_edges=False,
+    persist=False,
+    add_edge_types=False,
+):
     """
     Generates an rmat dataset.  Currently does not support heterogeneous datasets.
 
@@ -246,16 +292,19 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
     reverse_edges: Whether to reverse the edges in the edgelist (should be True for DGL, False, for PyG)
     """
 
-    dataset = dataset.split('_')
+    dataset = dataset.split("_")
     scale = int(dataset[1])
     edgefactor = int(dataset[2])
 
     dask_edgelist_df = generate_edgelist_rmat(
-        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
+        scale=scale,
+        edgefactor=edgefactor,
+        seed=seed,
+        unweighted=True,
+        mg=True,
     )
     dask_edgelist_df = dask_edgelist_df.astype("int64")
     dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
-
 
     dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
     if persist:
@@ -266,101 +315,134 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
         dask_edgelist_df = dask_edgelist_df.persist()
 
     if add_edge_types:
-        dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
-    
+        dask_edgelist_df["etp"] = cupy.int32(
+            0
+        )  # doesn't matter what the value is, really
+
     # generator = np.random.default_rng(seed=seed)
-    num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
-    label_df = pd.DataFrame({
-        'node': np.arange(num_labeled_nodes),
-        # 'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
-    })
-    
-    n_workers = len(default_client().scheduler_info()['workers'])
-    dask_label_df = ddf.from_pandas(label_df, npartitions=n_workers*2)
+    num_labeled_nodes = int(2 ** (scale + 1) * labeled_percentage)
+    label_df = pd.DataFrame(
+        {
+            "node": np.arange(num_labeled_nodes),
+            # 'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
+        }
+    )
+
+    n_workers = len(default_client().scheduler_info()["workers"])
+    dask_label_df = ddf.from_pandas(label_df, npartitions=n_workers * 2)
     del label_df
     gc.collect()
 
     dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
 
-    node_offsets = {'paper': 0}
-    edge_offsets = {('paper','cites','paper'):0}
-    total_num_nodes = int(dask_cudf.concat([dask_edgelist_df.src, dask_edgelist_df.dst]).nunique().compute())
+    node_offsets = {"paper": 0}
+    edge_offsets = {("paper", "cites", "paper"): 0}
+    total_num_nodes = int(
+        dask_cudf.concat([dask_edgelist_df.src, dask_edgelist_df.dst])
+        .nunique()
+        .compute()
+    )
 
     if reverse_edges:
-        dask_edgelist_df = dask_edgelist_df.rename(columns={'src':'dst', 'dst':'src'})
+        dask_edgelist_df = dask_edgelist_df.rename(columns={"src": "dst", "dst": "src"})
 
     return dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes
 
 
-def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False, add_edge_types=False):
+def load_disk_dataset(
+    dataset,
+    dataset_dir=".",
+    reverse_edges=True,
+    replication_factor=1,
+    persist=False,
+    add_edge_types=False,
+):
     from pathlib import Path
+
     path = Path(dataset_dir) / dataset
-    parquet_path = path / 'parquet'
+    parquet_path = path / "parquet"
 
     n_workers = get_n_workers()
 
-    with open(os.path.join(path, 'meta.json')) as meta_file:
+    with open(os.path.join(path, "meta.json")) as meta_file:
         meta = json.load(meta_file)
-    
-    node_offsets, node_offsets_replicated, total_num_nodes = \
-        assign_offsets_pyg(meta['num_nodes'], replication_factor=replication_factor)
+
+    node_offsets, node_offsets_replicated, total_num_nodes = assign_offsets_pyg(
+        meta["num_nodes"], replication_factor=replication_factor
+    )
 
     edge_index_dict = {}
-    for edge_type in meta['num_edges'].keys():
-        print(f'Loading edge index for edge type {edge_type}')
+    for edge_type in meta["num_edges"].keys():
+        print(f"Loading edge index for edge type {edge_type}")
 
-        can_edge_type = tuple(edge_type.split('__'))
+        can_edge_type = tuple(edge_type.split("__"))
         edge_index_dict[can_edge_type] = dask_cudf.read_parquet(
-            Path(parquet_path) / edge_type / 'edge_index.parquet'
-        ).repartition(n_workers*2)
+            Path(parquet_path) / edge_type / "edge_index.parquet"
+        ).repartition(n_workers * 2)
 
-        edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
-        edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
+        edge_index_dict[can_edge_type]["src"] += node_offsets_replicated[
+            can_edge_type[0]
+        ]
+        edge_index_dict[can_edge_type]["dst"] += node_offsets_replicated[
+            can_edge_type[-1]
+        ]
 
         edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
         if persist:
             edge_index_dict = edge_index_dict.persist()
 
         if replication_factor > 1:
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].map_partitions(
+            edge_index_dict[can_edge_type] = edge_index_dict[
+                can_edge_type
+            ].map_partitions(
                 _replicate_df,
                 replication_factor,
                 {
-                    'src': meta['num_nodes'][can_edge_type[0]],
-                    'dst': meta['num_nodes'][can_edge_type[2]],
+                    "src": meta["num_nodes"][can_edge_type[0]],
+                    "dst": meta["num_nodes"][can_edge_type[2]],
                 },
-                meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
+                meta=cudf.DataFrame(
+                    {
+                        "src": cudf.Series(dtype="int64"),
+                        "dst": cudf.Series(dtype="int64"),
+                    }
+                ),
             )
-            
+
             if persist:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
-        
+                edge_index_dict[can_edge_type] = edge_index_dict[
+                    can_edge_type
+                ].persist()
+
         gc.collect()
 
         if reverse_edges:
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'})
-            
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(
+                columns={"src": "dst", "dst": "src"}
+            )
+
         if persist:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+<<<<<<< HEAD
     
         print('min src:', edge_index_dict[can_edge_type].src.min().compute())
         print('max src:', edge_index_dict[can_edge_type].src.max().compute())
         print('min dst:', edge_index_dict[can_edge_type].dst.min().compute())
         print('max dst:', edge_index_dict[can_edge_type].dst.max().compute())
+=======
+>>>>>>> origin/branch-23.12
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
     edge_count = 0
     for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
         if add_edge_types:
-            edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
+            edge_index_dict[can_edge_type]["etp"] = cupy.int32(num_edge_type)
         edge_offsets[can_edge_type] = edge_count
         edge_count += len(edge_index_dict[can_edge_type])
-    
-    all_edges_df = dask_cudf.concat(
-        list(edge_index_dict.values())
-    )
-    
+
+    all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
+
     if persist:
         all_edges_df = all_edges_df.persist()
 
@@ -369,42 +451,52 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
 
     node_labels = {}
     for node_type, offset in node_offsets_replicated.items():
-        print(f'Loading node labels for node type {node_type} (offset={offset})')
-        node_label_path = os.path.join(os.path.join(parquet_path, node_type), 'node_label.parquet')
+        print(f"Loading node labels for node type {node_type} (offset={offset})")
+        node_label_path = os.path.join(
+            os.path.join(parquet_path, node_type), "node_label.parquet"
+        )
         if os.path.exists(node_label_path):
-            node_labels[node_type] = dask_cudf.read_parquet(node_label_path).repartition(n_workers).drop('label',axis=1).persist()
-            node_labels[node_type]['node'] += offset
+            node_labels[node_type] = (
+                dask_cudf.read_parquet(node_label_path)
+                .repartition(n_workers)
+                .drop("label", axis=1)
+                .persist()
+            )
+            node_labels[node_type]["node"] += offset
             node_labels[node_type] = node_labels[node_type].persist()
 
             if replication_factor > 1:
                 node_labels[node_type] = node_labels[node_type].map_partitions(
                     _replicate_df,
                     replication_factor,
-                    {
-                        'node': meta['num_nodes'][node_type]
-                    },
-                    meta=cudf.DataFrame({'node':cudf.Series(dtype='int64')})
+                    {"node": meta["num_nodes"][node_type]},
+                    meta=cudf.DataFrame({"node": cudf.Series(dtype="int64")}),
                 )
-                
+
                 if persist:
                     node_labels[node_type] = node_labels[node_type].persist()
 
             gc.collect()
-    
-    node_labels_df = dask_cudf.concat(
-        list(node_labels.values())
-    )
-    
+
+    node_labels_df = dask_cudf.concat(list(node_labels.values()))
+
     if persist:
         node_labels_df = node_labels_df.persist()
 
     del node_labels
     gc.collect()
 
-    return all_edges_df, node_labels_df, node_offsets_replicated, edge_offsets, total_num_nodes
-    
+    return (
+        all_edges_df,
+        node_labels_df,
+        node_offsets_replicated,
+        edge_offsets,
+        total_num_nodes,
+    )
+
 
 def benchmark_cugraph_bulk_sampling(
+<<<<<<< HEAD
                                     dataset,
                                     output_path,
                                     seed,
@@ -423,6 +515,22 @@ def benchmark_cugraph_bulk_sampling(
                                     renumber=False,
                                     compression='COO',
                                     compress_per_hop=False):
+=======
+    dataset,
+    output_path,
+    seed,
+    batch_size,
+    seeds_per_call,
+    fanout,
+    reverse_edges=True,
+    dataset_dir=".",
+    replication_factor=1,
+    num_labels=256,
+    labeled_percentage=0.001,
+    persist=False,
+    add_edge_types=False,
+):
+>>>>>>> origin/branch-23.12
     """
     Entry point for the benchmark.
 
@@ -469,47 +577,55 @@ def benchmark_cugraph_bulk_sampling(
         Whether to output a separate CSR/CSC per hop
     """
     print(dataset)
-    if dataset[0:4] == 'rmat':
-        dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            generate_rmat_dataset(
-                dataset,
-                reverse_edges=reverse_edges,
-                seed=seed,
-                labeled_percentage=labeled_percentage,
-                num_labels=num_labels,
-                persist=persist,
-                add_edge_types=add_edge_types
-            )
+    if dataset[0:4] == "rmat":
+        (
+            dask_edgelist_df,
+            dask_label_df,
+            node_offsets,
+            edge_offsets,
+            total_num_nodes,
+        ) = generate_rmat_dataset(
+            dataset,
+            reverse_edges=reverse_edges,
+            seed=seed,
+            labeled_percentage=labeled_percentage,
+            num_labels=num_labels,
+            persist=persist,
+            add_edge_types=add_edge_types,
+        )
 
     else:
-        dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            load_disk_dataset(
-                dataset,
-                dataset_dir=dataset_dir,
-                reverse_edges=reverse_edges,
-                replication_factor=replication_factor,
-                persist=persist,
-                add_edge_types=add_edge_types
-            )
+        (
+            dask_edgelist_df,
+            dask_label_df,
+            node_offsets,
+            edge_offsets,
+            total_num_nodes,
+        ) = load_disk_dataset(
+            dataset,
+            dataset_dir=dataset_dir,
+            reverse_edges=reverse_edges,
+            replication_factor=replication_factor,
+            persist=persist,
+            add_edge_types=add_edge_types,
+        )
 
     num_input_edges = len(dask_edgelist_df)
-    print(
-        f"Number of input edges = {num_input_edges:,}"
-    )
+    print(f"Number of input edges = {num_input_edges:,}")
 
-    G = construct_graph(
-        dask_edgelist_df
-    )
+    G = construct_graph(dask_edgelist_df)
     del dask_edgelist_df
-    print('constructed graph')
+    print("constructed graph")
 
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
-    print(f'input memory: {input_memory}')
+    print(f"input memory: {input_memory}")
 
-    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout}')
+    output_subdir = os.path.join(
+        output_path, f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}"
+    )
     os.makedirs(output_subdir)
 
-    output_sample_path = os.path.join(output_subdir, 'samples')
+    output_sample_path = os.path.join(output_subdir, "samples")
     os.makedirs(output_sample_path)
 
     batches_per_partition = 200_000 // batch_size
@@ -536,30 +652,26 @@ def benchmark_cugraph_bulk_sampling(
     execution_time = mean_execution_time
 
     output_meta = {
-        'dataset': dataset,
-        'dataset_dir': dataset_dir,
-        'seed': seed,
-        'node_offsets': node_offsets,
-        'edge_offsets': {'__'.join(k): v for k, v in edge_offsets.items()},
-        'total_num_nodes': total_num_nodes,
-        'total_num_edges': num_input_edges,
-        'batch_size': batch_size,
-        'seeds_per_call': seeds_per_call,
-        'batches_per_partition': batches_per_partition,
-        'fanout': fanout,
-        'replication_factor': replication_factor,
-        'num_sampling_gpus': len(G._plc_graph),
-        'execution_time': execution_time,
+        "dataset": dataset,
+        "dataset_dir": dataset_dir,
+        "seed": seed,
+        "node_offsets": node_offsets,
+        "edge_offsets": {"__".join(k): v for k, v in edge_offsets.items()},
+        "total_num_nodes": total_num_nodes,
+        "total_num_edges": num_input_edges,
+        "batch_size": batch_size,
+        "seeds_per_call": seeds_per_call,
+        "batches_per_partition": batches_per_partition,
+        "fanout": fanout,
+        "replication_factor": replication_factor,
+        "num_sampling_gpus": len(G._plc_graph),
+        "execution_time": execution_time,
     }
 
-    with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:
-        json.dump(
-            output_meta,
-            f,
-            indent='\t'
-        )
+    with open(os.path.join(output_subdir, "output_meta.json"), "w") as f:
+        json.dump(output_meta, f, indent="\t")
 
-    print('allocation counts b:')
+    print("allocation counts b:")
     print(allocation_counts.values())
 
     (
@@ -607,91 +719,93 @@ def get_memory_statistics(allocation_counts, input_memory):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument(
-        '--output_root',
+        "--output_root",
         type=str,
-        help='The output root directory.  File/folder names are auto-generated.',
+        help="The output root directory.  File/folder names are auto-generated.",
         required=True,
     )
 
     parser.add_argument(
-        '--dataset_root',
+        "--dataset_root",
         type=str,
-        help='The dataset root directory containing ogb datasets.',
+        help="The dataset root directory containing ogb datasets.",
         required=True,
     )
 
     parser.add_argument(
-        '--datasets',
+        "--datasets",
         type=str,
         help=(
-            'Comma separated list of datasets; can specify ogb or rmat (i.e. ogb_papers100M[2],rmat_22_16).'
-            ' For ogb datasets, can provide replication factor using brackets.'
+            "Comma separated list of datasets; can specify ogb or rmat (i.e. ogb_papers100M[2],rmat_22_16)."
+            " For ogb datasets, can provide replication factor using brackets."
         ),
         required=True,
     )
 
     parser.add_argument(
-        '--fanouts',
+        "--fanouts",
         type=str,
-        help='Comma separated list of fanouts (i.e. 10_25,5_5_5)',
+        help="Comma separated list of fanouts (i.e. 10_25,5_5_5)",
         required=False,
-        default='10_25',
+        default="10_25",
     )
 
     parser.add_argument(
-        '--batch_sizes',
+        "--batch_sizes",
         type=str,
-        help='Comma separated list of batch sizes (i.e. 500,1000)',
+        help="Comma separated list of batch sizes (i.e. 500,1000)",
         required=False,
-        default='512,1024'
+        default="512,1024",
     )
 
     parser.add_argument(
-        '--seeds_per_call_opts',
+        "--seeds_per_call_opts",
         type=str,
-        help='Comma separated list of seeds per call (i.e. 1000000,2000000)',
+        help="Comma separated list of seeds per call (i.e. 1000000,2000000)",
         required=False,
-        default='524288',
+        default="524288",
     )
-    
+
     parser.add_argument(
+<<<<<<< HEAD
         '--reverse_edges',
         action='store_true',
         help='Whether to reverse the edges for DGL (defaults to False).  Should be True for both DGL and PyG.',
+=======
+        "--reverse_edges",
+        action="store_true",
+        help="Whether to reverse the edges for DGL (defaults to False).  Should be True for DGL, False for PyG.",
+>>>>>>> origin/branch-23.12
         required=False,
         default=False,
     )
 
     parser.add_argument(
-        '--dask_worker_devices',
+        "--dask_worker_devices",
         type=str,
-        help='Comma separated list of dask worker devices',
+        help="Comma separated list of dask worker devices",
         required=False,
-        default="0"
+        default="0",
     )
 
     parser.add_argument(
-        '--random_seed',
-        type=int,
-        help='Random seed',
-        required=False,
-        default=62
+        "--random_seed", type=int, help="Random seed", required=False, default=62
     )
 
     parser.add_argument(
-        '--persist',
-        action='store_true',
-        help='Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.',
+        "--persist",
+        action="store_true",
+        help="Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.",
         required=False,
         default=False,
     )
 
     parser.add_argument(
-        '--add_edge_types',
-        action='store_true',
-        help='Adds edge types to the edgelist.  Required for PyG if not providing edge ids.',
+        "--add_edge_types",
+        action="store_true",
+        help="Adds edge types to the edgelist.  Required for PyG if not providing edge ids.",
         required=False,
         default=False,
     )
@@ -743,21 +857,34 @@ if __name__ == "__main__":
     logging.basicConfig()
 
     args = get_args()
-    fanouts = [[int(f) for f in fanout.split('_')] for fanout in args.fanouts.split(',')]
-    datasets = args.datasets.split(',')
-    batch_sizes = [int(b) for b in args.batch_sizes.split(',')]
-    seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(',')]
-    dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(',')]
+    fanouts = [
+        [int(f) for f in fanout.split("_")] for fanout in args.fanouts.split(",")
+    ]
+    datasets = args.datasets.split(",")
+    batch_sizes = [int(b) for b in args.batch_sizes.split(",")]
+    seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(",")]
+    dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
-    client, cluster = start_dask_client(dask_worker_devices=dask_worker_devices, jit_unspill=False, rmm_pool_size=28e9, rmm_async=True)
+    client, cluster = start_dask_client(
+        dask_worker_devices=dask_worker_devices,
+        jit_unspill=False,
+        rmm_pool_size=28e9,
+        rmm_async=True,
+    )
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
     for dataset in datasets:
+<<<<<<< HEAD
         m = re.match(r'(\w+)\[([0-9]+)\]', dataset)
         if m:
             replication_factor = int(m.groups()[1])
             dataset = m.groups()[0]
+=======
+        if re.match(r"([A-z]|[0-9])+\[[0-9]+\]", dataset):
+            replication_factor = int(dataset[-2])
+            dataset = dataset[:-3]
+>>>>>>> origin/branch-23.12
         else:
             replication_factor = 1
 
@@ -769,10 +896,10 @@ if __name__ == "__main__":
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
-                    print(f'dataset: {dataset}')
-                    print(f'batch size: {batch_size}')
-                    print(f'fanout: {fanout}')
-                    print(f'seeds_per_call: {seeds_per_call}')
+                    print(f"dataset: {dataset}")
+                    print(f"batch size: {batch_size}")
+                    print(f"fanout: {fanout}")
+                    print(f"seeds_per_call: {seeds_per_call}")
 
                     try:
                         stats_d = {}
@@ -805,7 +932,9 @@ if __name__ == "__main__":
                         stats_d["batch_size"] = batch_size
                         stats_d["fanout"] = fanout
                         stats_d["seeds_per_call"] = seeds_per_call
-                        stats_d["input_memory_per_worker"] = sizeof_fmt(input_memory_per_worker)
+                        stats_d["input_memory_per_worker"] = sizeof_fmt(
+                            input_memory_per_worker
+                        )
                         stats_d["peak_allocation_across_workers"] = sizeof_fmt(
                             peak_allocation_across_workers
                         )
@@ -813,7 +942,7 @@ if __name__ == "__main__":
                         stats_d["output_to_peak_ratio"] = output_to_peak_ratio
                         stats_ls.append(stats_d)
                     except Exception as e:
-                        warnings.warn('An Exception Occurred!')
+                        warnings.warn("An Exception Occurred!")
                         print(e)
                         traceback.print_exc()
                     restart_client(client)

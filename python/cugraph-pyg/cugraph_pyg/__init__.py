@@ -11,4 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "23.10.00"
+from cugraph_pyg._version import __git_commit__, __version__

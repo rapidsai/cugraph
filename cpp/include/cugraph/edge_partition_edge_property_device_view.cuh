@@ -33,29 +33,33 @@ template <typename edge_t,
           typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_partition_edge_property_device_view_t {
  public:
-  static_assert(
-    std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
-    cugraph::has_packed_bool_element<ValueIterator, value_t>());
-  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
-
   using edge_type  = edge_t;
   using value_type = value_t;
+
+  static constexpr bool is_packed_bool = cugraph::is_packed_bool<ValueIterator, value_t>();
+  static constexpr bool has_packed_bool_element =
+    cugraph::has_packed_bool_element<ValueIterator, value_t>();
+
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
+    has_packed_bool_element);
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
   edge_partition_edge_property_device_view_t() = default;
 
   edge_partition_edge_property_device_view_t(
-    edge_property_view_t<edge_t, ValueIterator> const& view, size_t partition_idx)
+    edge_property_view_t<edge_t, ValueIterator, value_t> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx])
   {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
-  __host__ __device__ ValueIterator value_first() { return value_first_; }
+  __host__ __device__ ValueIterator value_first() const { return value_first_; }
 
   __device__ value_t get(edge_t offset) const
   {
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       return static_cast<bool>(*(value_first_ + cugraph::packed_bool_offset(offset)) & mask);
     } else {
@@ -69,8 +73,8 @@ class edge_partition_edge_property_device_view_t {
     void>
   set(edge_t offset, value_t val) const
   {
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       if (val) {
         atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask);
@@ -88,8 +92,8 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   atomic_and(edge_t offset, value_t val) const
   {
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       auto old  = atomicAnd(value_first_ + cugraph::packed_bool_offset(offset),
                            val ? uint32_t{0xffffffff} : ~mask);
@@ -105,8 +109,8 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   atomic_or(edge_t offset, value_t val) const
   {
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       auto old =
         atomicOr(value_first_ + cugraph::packed_bool_offset(offset), val ? mask : uint32_t{0});
@@ -132,8 +136,8 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   elementwise_atomic_cas(edge_t offset, value_t compare, value_t val) const
   {
-    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
-      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+    if constexpr (has_packed_bool_element) {
+      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       auto old  = val ? atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask)
                       : atomicAnd(value_first_ + cugraph::packed_bool_offset(offset), ~mask);
@@ -172,6 +176,9 @@ class edge_partition_edge_dummy_property_device_view_t {
  public:
   using edge_type  = edge_t;
   using value_type = thrust::nullopt_t;
+
+  static constexpr bool is_packed_bool          = false;
+  static constexpr bool has_packed_bool_element = false;
 
   edge_partition_edge_dummy_property_device_view_t() = default;
 

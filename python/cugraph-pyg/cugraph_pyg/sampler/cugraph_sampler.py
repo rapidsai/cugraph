@@ -216,7 +216,6 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 
     if renumber_map is None:
         raise ValueError("Renumbered input is expected for homogeneous graphs")
-    
     node_type = graph_store.node_types[0]
     edge_type = graph_store.edge_types[0]
 

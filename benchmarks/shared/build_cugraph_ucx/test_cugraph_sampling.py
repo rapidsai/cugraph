@@ -23,18 +23,21 @@ from cugraph.generators import rmat
 
 _seed = 42
 
+
 def benchmark_func(func, n_times=10):
     def wrap_func(*args, **kwargs):
         time_ls = []
         # ignore 1st run
         # and return other runs
-        for _ in range(0,n_times+1):
+        for _ in range(0, n_times + 1):
             t1 = perf_counter_ns()
             result = func(*args, **kwargs)
             t2 = perf_counter_ns()
-            time_ls.append(t2-t1)
+            time_ls.append(t2 - t1)
         return result, time_ls[1:]
+
     return wrap_func
+
 
 def create_mg_graph(graph_data):
     """
@@ -67,11 +70,15 @@ def create_mg_graph(graph_data):
     )
     return G
 
+
 @benchmark_func
 def sample_graph(G, start_list):
-    output_ddf = uniform_neighbor_sample_mg(G,start_list=start_list, fanout_vals=[10,25])
+    output_ddf = uniform_neighbor_sample_mg(
+        G, start_list=start_list, fanout_vals=[10, 25]
+    )
     df = output_ddf.compute()
     return df
+
 
 def run_sampling_test(ddf, start_list):
     df, time_ls = sample_graph(ddf, start_list)
@@ -79,28 +86,30 @@ def run_sampling_test(ddf, start_list):
     time_mean = time_ar.mean()
     print(f"Sampling {len(start_list):,} took = {time_mean*1e-6} ms")
     return
-    
 
 
 if __name__ == "__main__":
-    cluster = LocalCUDACluster(protocol='ucx',rmm_pool_size='15GB', CUDA_VISIBLE_DEVICES='1,2,3,4,5,6,7,8')
+    cluster = LocalCUDACluster(
+        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES="1,2,3,4,5,6,7,8"
+    )
     client = Client(cluster)
     Comms.initialize(p2p=True)
 
     rmm.reinitialize(pool_allocator=True)
 
-    graph_data = {"scale": 26,
-              "edgefactor": 8 ,
-              }
-    
+    graph_data = {
+        "scale": 26,
+        "edgefactor": 8,
+    }
+
     g = create_mg_graph(graph_data)
 
     for num_start_verts in [1_000, 10_000, 100_000]:
         start_list = g.input_df["src"].head(num_start_verts)
-        assert len(start_list)==num_start_verts
+        assert len(start_list) == num_start_verts
         run_sampling_test(g, start_list)
-    
-    print("--"*20+"Completed Test"+"--"*20, flush=True)
+
+    print("--" * 20 + "Completed Test" + "--" * 20, flush=True)
 
     Comms.destroy()
     client.shutdown()

@@ -15,18 +15,11 @@
  */
 #pragma once
 
-#include <raft/core/handle.hpp>
-#include <raft/util/cudart_utils.hpp>
-#include <rmm/device_uvector.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
-#include <thrust/binary_search.h>
-#include <thrust/gather.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/iterator_traits.h>
 
 #include <cstddef>
-#include <tuple>
-#include <vector>
 
 namespace cugraph {
 
@@ -44,16 +37,32 @@ struct pack_bool_t {
 
   __device__ uint32_t operator()(size_t i) const
   {
-    auto first = i * (sizeof(uint32_t) * 8);
-    auto last  = std::min((i + 1) * (sizeof(uint32_t) * 8), num_bools);
+    auto first = i * packed_bools_per_word();
+    auto last  = std::min((i + 1) * packed_bools_per_word(), num_bools);
     uint32_t ret{0};
     for (auto j = first; j < last; ++j) {
       if (*(bool_first + j)) {
-        auto mask = uint32_t{1} << (j % (sizeof(uint32_t) * 8));
+        auto mask = packed_bool_mask(j);
         ret |= mask;
       }
     }
     return ret;
+  }
+};
+
+template <typename PackedBoolIterator, typename T>
+struct check_bit_set_t {
+  PackedBoolIterator bitmap_first{};
+  T idx_first{};
+
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<PackedBoolIterator>::value_type, uint32_t>);
+
+  __device__ bool operator()(T idx) const
+  {
+    auto offset = idx - idx_first;
+    return static_cast<bool>(*(bitmap_first + packed_bool_offset(offset)) &
+                             packed_bool_mask(offset));
   }
 };
 
@@ -80,7 +89,14 @@ struct indirection_if_idx_valid_t {
 };
 
 template <typename T>
-struct not_equal_t {
+struct is_equal_t {
+  T compare{};
+
+  __device__ bool operator()(T val) const { return val == compare; }
+};
+
+template <typename T>
+struct is_not_equal_t {
   T compare{};
 
   __device__ bool operator()(T val) const { return val != compare; }
@@ -93,19 +109,6 @@ struct is_first_in_run_t {
   __device__ bool operator()(size_t i) const
   {
     return (i == 0) || (*(iter + (i - 1)) != *(iter + i));
-  }
-};
-
-template <typename T>
-struct check_bit_set_t {
-  uint32_t const* bitmaps{nullptr};
-  T idx_first{};
-
-  __device__ bool operator()(T idx) const
-  {
-    auto offset = idx - idx_first;
-    auto mask   = uint32_t{1} << (offset % (sizeof(uint32_t) * 8));
-    return (*(bitmaps + (offset / (sizeof(uint32_t) * 8))) & mask) > uint32_t{0};
   }
 };
 

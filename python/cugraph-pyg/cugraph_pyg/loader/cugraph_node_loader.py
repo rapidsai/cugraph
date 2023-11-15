@@ -382,9 +382,9 @@ class EXPERIMENTAL__BulkSampleLoader:
                 current_label_hop_offsets = self.__label_hop_offsets[
                     i : i + self.__fanout_length + 1
                 ]
-                
+
                 current_major_offsets = self.__major_offsets[
-                    current_label_hop_offsets[0] : (current_label_hop_offsets[-1] +1)
+                    current_label_hop_offsets[0] : (current_label_hop_offsets[-1] + 1)
                 ]
 
                 current_minors = self.__minors[
@@ -425,7 +425,6 @@ class EXPERIMENTAL__BulkSampleLoader:
         else:
             if self.__graph_store.order == "CSR":
                 raise ValueError("CSR format incompatible with CSC output")
-            
             out = filter_cugraph_store_csc(
                 self.__feature_store,
                 self.__graph_store,

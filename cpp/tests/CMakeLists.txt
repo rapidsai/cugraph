@@ -289,10 +289,6 @@ ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_te
     GPUS 1 PERCENT 100)
 
 ###################################################################################################
-# - Graph mask tests ------------------------------------------------------------------------------
-ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
-
-###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
@@ -684,6 +680,16 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 
     rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_mg DESTINATION bin/gtests/libcugraph_mg)
+
+    ###############################################################################################
+    # - Multi-node MTMG tests ---------------------------------------------------------------------
+    ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
+    target_link_libraries(MTMG_MULTINODE_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          UCP::UCP
+                         )
+
 endif()
 
 ###################################################################################################
