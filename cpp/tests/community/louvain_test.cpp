@@ -30,8 +30,9 @@
 #include <vector>
 
 struct Louvain_Usecase {
-  size_t max_level_{100};
-  double resolution_{1};
+  std::optional<size_t> max_level_{std::nullopt};
+  std::optional<double> threshold_{std::nullopt};
+  std::optional<double> resolution_{std::nullopt};
   bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
@@ -53,6 +54,12 @@ class Tests_Louvain
   void run_legacy_test(std::tuple<Louvain_Usecase const&, input_usecase_t const&> const& param)
   {
     auto [louvain_usecase, input_usecase] = param;
+
+    // Legacy implementation does not support resolution parameter,
+    //   defaulting it to 1.  If the test case is not resolution
+    //   1 then skip it.
+    if (louvain_usecase.resolution_)
+      if (louvain_usecase.resolution_ != double{1}) return;
 
     raft::handle_t handle{};
 
@@ -134,6 +141,9 @@ class Tests_Louvain
       EXPECT_THROW(louvain(graph_view,
                            edge_weight_view,
                            graph_view.local_vertex_partition_range_size(),
+                           louvain_usecase.max_level_,
+                           louvain_usecase.threshold_,
+                           louvain_usecase.resolution_,
                            louvain_usecase.check_correctness_,
                            louvain_usecase.expected_level_,
                            louvain_usecase.expected_modularity_),
@@ -142,6 +152,9 @@ class Tests_Louvain
       louvain(graph_view,
               edge_weight_view,
               graph_view.local_vertex_partition_range_size(),
+              louvain_usecase.max_level_,
+              louvain_usecase.threshold_,
+              louvain_usecase.resolution_,
               louvain_usecase.check_correctness_,
               louvain_usecase.expected_level_,
               louvain_usecase.expected_modularity_);
@@ -185,6 +198,9 @@ class Tests_Louvain
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     vertex_t num_vertices,
+    std::optional<size_t> max_level,
+    std::optional<double> threshold,
+    std::optional<double> resolution,
     bool check_correctness,
     int expected_level,
     float expected_modularity)
@@ -195,8 +211,29 @@ class Tests_Louvain
     size_t level;
     weight_t modularity;
 
-    std::tie(level, modularity) = cugraph::louvain(
-      handle, graph_view, edge_weight_view, clustering_v.data(), size_t{100}, weight_t{1});
+    if (resolution) {
+      std::tie(level, modularity) =
+        cugraph::louvain(handle,
+                         graph_view,
+                         edge_weight_view,
+                         clustering_v.data(),
+                         max_level ? *max_level : size_t{100},
+                         threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
+                         static_cast<weight_t>(*resolution));
+    } else if (threshold) {
+      std::tie(level, modularity) = cugraph::louvain(handle,
+                                                     graph_view,
+                                                     edge_weight_view,
+                                                     clustering_v.data(),
+                                                     max_level ? *max_level : size_t{100},
+                                                     static_cast<weight_t>(*threshold));
+    } else if (max_level) {
+      std::tie(level, modularity) =
+        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data(), *max_level);
+    } else {
+      std::tie(level, modularity) =
+        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data());
+    }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -421,8 +458,11 @@ TEST_P(Tests_Louvain_Rmat64, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Louvain_File,
-  ::testing::Combine(::testing::Values(Louvain_Usecase{100, 1, true, 3, 0.408695}),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  ::testing::Combine(
+    ::testing::Values(Louvain_Usecase{std::nullopt, std::nullopt, std::nullopt, true, 3, 0.408695},
+                      Louvain_Usecase{20, double{1e-4}, std::nullopt, true, 3, 0.408695},
+                      Louvain_Usecase{100, double{1e-4}, double{0.8}, true, 3, 0.48336622}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with

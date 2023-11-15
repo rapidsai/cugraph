@@ -19,6 +19,7 @@
 #include <prims/kv_store.cuh>
 
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/core/handle.hpp>
@@ -41,6 +42,7 @@
 
 #include <optional>
 
+// FIXME: deprecated, to be deleted
 namespace cugraph {
 
 namespace {

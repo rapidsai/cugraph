@@ -15,10 +15,10 @@ import warnings
 from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
+from pylibcugraphops.pytorch import CSC, HeteroCSC
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
-ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class BaseConv(torch.nn.Module):  # pragma: no cover
@@ -74,7 +74,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> ops_torch.CSC:
+    ) -> CSC:
         r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
 
@@ -87,22 +87,22 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
             bipartite (bool): If set to :obj:`True`, will create the bipartite
                 structure in cugraph-ops. (default: :obj:`False`)
             max_num_neighbors (int, optional): The maximum number of neighbors
-                of a target node. It is only effective when operating in a
-                bipartite graph. When not given, will be computed on-the-fly,
-                leading to slightly worse performance. (default: :obj:`None`)
+                of a destination node. When enabled, it allows models to use
+                the message-flow-graph primitives in cugraph-ops.
+                (default: :obj:`None`)
         """
         row, colptr, num_src_nodes = csc
 
         if not row.is_cuda:
             raise RuntimeError(
-                f"'{self.__class__.__name__}' requires GPU-"
-                f"based processing (got CPU tensor)"
+                f"'{self.__class__.__name__}' requires GPU-based processing "
+                f"but got CPU tensor."
             )
 
         if max_num_neighbors is None:
             max_num_neighbors = -1
 
-        return ops_torch.CSC(
+        return CSC(
             offsets=colptr,
             indices=row,
             num_src_nodes=num_src_nodes,
@@ -117,7 +117,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         num_edge_types: Optional[int] = None,
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> ops_torch.HeteroCSC:
+    ) -> HeteroCSC:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
         Supports both bipartite and non-bipartite graphs.
@@ -135,9 +135,9 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
             bipartite (bool): If set to :obj:`True`, will create the bipartite
                 structure in cugraph-ops. (default: :obj:`False`)
             max_num_neighbors (int, optional): The maximum number of neighbors
-                of a target node. It is only effective when operating in a
-                bipartite graph. When not given, will be computed on-the-fly,
-                leading to slightly worse performance. (default: :obj:`None`)
+                of a destination node. When enabled, it allows models to use
+                the message-flow-graph primitives in cugraph-ops.
+                (default: :obj:`None`)
         """
         if num_edge_types is None:
             num_edge_types = int(edge_type.max()) + 1
@@ -148,7 +148,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         row, colptr, num_src_nodes = csc
         edge_type = edge_type.int()
 
-        return ops_torch.HeteroCSC(
+        return HeteroCSC(
             offsets=colptr,
             indices=row,
             edge_types=edge_type,

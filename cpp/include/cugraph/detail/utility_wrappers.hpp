@@ -37,8 +37,8 @@ namespace detail {
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
  * @param[in]   size         number of elements in array
- * @param[in]   min_value    minimum value
- * @param[in]   max_value    maximum value
+ * @param[in]   min_value    minimum value (inclusive)
+ * @param[in]   max_value    maximum value (exclusive)
  * @param[in]   rng_state    The RngState instance holding pseudo-random number generator state.
  *
  */

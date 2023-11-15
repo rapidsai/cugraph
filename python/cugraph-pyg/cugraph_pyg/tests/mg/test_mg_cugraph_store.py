@@ -117,8 +117,8 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
             G[et][1] = cudf.Series(G[et][1])
     elif edge_index_type == "dask-cudf":
         for et in list(G.keys()):
-            G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=2)
-            G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=2)
+            G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=1)
+            G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=1)
 
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -215,13 +215,13 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    graph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
         {
-            "sources": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
-            "destinations": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
+            "majors": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
+            "minors": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
             "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 3, 3, 3], dtype="int32"),
             "edge_type": cudf.Series([0, 0, 0, 2, 1, 2, 0, 1, 2, 2], dtype="int32"),
         }

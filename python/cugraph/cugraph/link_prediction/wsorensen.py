@@ -11,13 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
-from cugraph.link_prediction import jaccard_wrapper
+from cugraph.link_prediction import sorensen
 import cudf
-from cugraph.utilities import renumber_vertex_pair
+import warnings
+
+from cugraph.structure import Graph
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in type annotations is specified
+# using a string literal to avoid depending on and importing networkx.
+# Instead, networkx is imported optionally, which may cause a problem
+# for a type checker if run in an environment where networkx is not installed.
+networkx = import_optional("networkx")
 
 
-def sorensen_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
+def sorensen_w(
+    input_graph: Graph,
+    weights: cudf.DataFrame = None,  # deprecated
+    vertex_pair: cudf.DataFrame = None,
+    do_expensive_check: bool = False,  # deprecated
+):
     """
     Compute the weighted Sorensen similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -51,9 +64,13 @@ def sorensen_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
         vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
-    do_expensive_check: bool (default=True)
-        When set to True, check if the vertices in the graph are (re)numbered
-        from 0 to V-1 where V is the total number of vertices.
+    do_expensive_check : bool, optional (default=False)
+        Deprecated.
+        This option added a check to ensure integer vertex IDs are sequential
+        values from 0 to V-1. That check is now redundant because cugraph
+        unconditionally renumbers and un-renumbers integer vertex IDs for
+        optimal performance, therefore this option is deprecated and will be
+        removed in a future version.
 
     Returns
     -------
@@ -93,44 +110,9 @@ def sorensen_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     >>> df = cugraph.sorensen_w(G, weights)
 
     """
-    if do_expensive_check:
-        if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
-            max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
-            if not expected_nodes.equals(nodes):
-                raise ValueError("Unrenumbered vertices are not supported.")
-
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
-
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is not None:
-        raise ValueError("vertex_pair must be a cudf dataframe")
-
-    if input_graph.renumbered:
-        vertex_size = input_graph.vertex_column_size()
-        if vertex_size == 1:
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", "vertex")
-        else:
-            cols = weights.columns[:vertex_size].to_list()
-            weights = input_graph.add_internal_vertex_id(weights, "vertex", cols)
-    jaccard_weights = weights["weight"]
-    df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
-    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
-    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
-
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "first")
-        df = input_graph.unrenumber(df, "second")
-
-    return df
+    warning_msg = (
+        "sorensen_w is deprecated. To compute weighted sorensen, please use "
+        "sorensen(input_graph, vertex_pair=False, use_weight=True)"
+    )
+    warnings.warn(warning_msg, FutureWarning)
+    return sorensen(input_graph, vertex_pair, use_weight=True)

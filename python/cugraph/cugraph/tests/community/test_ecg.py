@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from pathlib import PurePath
 
 import pytest
 import networkx as nx
@@ -32,12 +31,12 @@ def cugraph_call(G, min_weight, ensemble_size):
     return score, num_parts
 
 
-def golden_call(graph_file):
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "dolphins.csv":
+def golden_call(filename):
+    if filename == "dolphins":
         return 0.4962422251701355
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv":
+    if filename == "karate":
         return 0.38428664207458496
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv":
+    if filename == "netscience":
         return 0.9279554486274719
 
 
@@ -49,16 +48,14 @@ ENSEMBLE_SIZES = [16, 32]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
-def test_ecg_clustering(graph_file, min_weight, ensemble_size):
+def test_ecg_clustering(dataset, min_weight, ensemble_size):
     gc.collect()
 
     # Read in the graph and get a cugraph object
-
-    G = graph_file.get_graph()
-    dataset_path = graph_file.get_path()
+    G = dataset.get_graph()
     # read_weights_in_sp=False => value column dtype is float64
     G.edgelist.edgelist_df["weights"] = G.edgelist.edgelist_df["weights"].astype(
         "float64"
@@ -66,7 +63,8 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
 
     # Get the modularity score for partitioning versus random assignment
     cu_score, num_parts = cugraph_call(G, min_weight, ensemble_size)
-    golden_score = golden_call(dataset_path)
+    filename = dataset.metadata["name"]
+    golden_score = golden_call(filename)
 
     # Assert that the partitioning has better modularity than the random
     # assignment
@@ -74,13 +72,13 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
-def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
+def test_ecg_clustering_nx(dataset, min_weight, ensemble_size):
 
     gc.collect()
-    dataset_path = graph_file.get_path()
+    dataset_path = dataset.get_path()
     # Read in the graph and get a NetworkX graph
     M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(

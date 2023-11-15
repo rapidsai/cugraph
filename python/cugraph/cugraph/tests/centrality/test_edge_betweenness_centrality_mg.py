@@ -179,7 +179,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.mg
-def test_dask_edge_betweenness_centrality(
+def test_dask_mg_edge_betweenness_centrality(
     dask_client, benchmark, input_expected_output
 ):
     if input_expected_output is not None:

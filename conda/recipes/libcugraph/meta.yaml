@@ -118,6 +118,7 @@ outputs:
         - ucx-proc=*=gpu
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph library
@@ -146,6 +147,7 @@ outputs:
         - librmm ={{ minor_version }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph_etl library
@@ -175,6 +177,7 @@ outputs:
         - gtest {{ gtest_version }}
     about:
       home: https://rapids.ai/
+      dev_url: https://github.com/rapidsai/cugraph
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph test & benchmark executables

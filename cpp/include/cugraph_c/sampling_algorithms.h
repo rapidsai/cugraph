@@ -206,6 +206,21 @@ typedef enum cugraph_prior_sources_behavior_t {
 } cugraph_prior_sources_behavior_t;
 
 /**
+ * @brief Selects the type of compression to use for the output samples.
+ */
+typedef enum cugraph_compression_type_t {
+  COO = 0, /** Outputs in COO format.  Default. */
+  CSR,     /** Compresses in CSR format.  This means the row (src) column
+               is compressed into a row pointer. */
+  CSC,     /** Compresses in CSC format.  This means the col (dst) column
+               is compressed into a column pointer. */
+  DCSR,    /** Compresses in DCSR format.  This outputs an additional index
+              that avoids empty entries in the row pointer. */
+  DCSC     /** Compresses in DCSC format.  This outputs an additional index
+               that avoid empty entries in the col pointer. */
+} cugraph_compression_type_t;
+
+/**
  * @brief   Create sampling options object
  *
  * All sampling options set to FALSE
@@ -226,6 +241,14 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
 void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
 
 /**
+ * @brief   Set whether to compress per-hop (True) or globally (False)
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options, bool_t value);
+
+/**
  * @brief   Set flag to sample with_replacement
  *
  * @param options - opaque pointer to the sampling options
@@ -240,6 +263,15 @@ void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, 
  * @param value - Boolean value to assign to the option
  */
 void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @brief   Set compression type
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Enum defining the compresion type
+ */
+void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
+                                           cugraph_compression_type_t value);
 
 /**
  * @brief   Set prior sources behavior
@@ -264,62 +296,6 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
  * @param [in]   options   Opaque pointer to sampling object
  */
 void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
-
-/**
- * @brief     Uniform Neighborhood Sampling
- * @deprecated This call should be replaced with cugraph_uniform_neighbor_sample
- *
- * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
- * start vertex can be associated with a label, allowing the caller to specify multiple batches
- * of sampling requests in the same function call - which should improve GPU utilization.
- *
- * If label is NULL then all start vertices will be considered part of the same batch and the
- * return value will not have a label column.
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_labels  Device array of start vertex labels for the sampling.  The
- * labels associated with each start vertex will be included in the output associated with results
- * that were derived from that start vertex.  We only support label of type INT32. If label is
- * NULL, the return data will not be labeled.
- * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
- * @p label_to_comm_rank is not specified this parameter is ignored.  If specified, label_list
- * must be sorted in ascending order.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output.  If not specifed the data is not organized in
- * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
- *                           We only support fanout values of type INT32
- * @param [in/out] rng_state State of the random number generator, updated with each call
- * @param [in]  with_replacement
- *                           Boolean value.  If true selection of edges is done with
- *                           replacement.  If false selection is done without replacement.
- * @param [in]  return_hops  Boolean value.  If true include the hop number in the result,
- *                           If false the hop number will not be included in result.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-  const cugraph_type_erased_device_array_view_t* label_list,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_rng_state_t* rng_state,
-  bool_t with_replacement,
-  bool_t return_hops,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
 
 /**
  * @brief     Uniform Neighborhood Sampling
@@ -374,6 +350,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_result_get_majors
  * @brief     Get the source vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -383,12 +360,40 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
   const cugraph_sample_result_t* result);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_result_get_minors
  * @brief     Get the destination vertices from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the destination vertices in device memory
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the major vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the major vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the minor vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the minor vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the major offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the major offsets in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -437,6 +442,15 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
+ * @brief     Get the label-hop offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the label-hop offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
  * @brief     Get the index from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -446,6 +460,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
+ * @deprecated This call should be replaced with cugraph_sample_get_get_label_hop_offsets
  * @brief     Get the result offsets from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm

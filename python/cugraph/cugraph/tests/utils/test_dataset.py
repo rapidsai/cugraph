@@ -328,6 +328,16 @@ def test_is_multigraph(dataset):
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
 
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_object_getters(dataset):
+    assert dataset.is_directed() == dataset.metadata["is_directed"]
+    assert dataset.is_multigraph() == dataset.metadata["is_multigraph"]
+    assert dataset.is_symmetric() == dataset.metadata["is_symmetric"]
+    assert dataset.number_of_nodes() == dataset.metadata["number_of_nodes"]
+    assert dataset.number_of_vertices() == dataset.metadata["number_of_nodes"]
+    assert dataset.number_of_edges() == dataset.metadata["number_of_edges"]
+
+
 #
 # Test experimental for DeprecationWarnings
 #

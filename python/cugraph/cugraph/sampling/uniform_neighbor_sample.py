@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
-from pylibcugraph.utilities.api_tools import deprecated_warning_wrapper
+
+from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 
 import numpy
 
@@ -55,150 +56,24 @@ def ensure_valid_dtype(input_graph, start_list):
     return start_list
 
 
-def _uniform_neighbor_sample_legacy(
-    G: Graph,
-    start_list: Sequence,
-    fanout_vals: List[int],
-    with_replacement: bool = True,
-    with_edge_properties: bool = False,
-    batch_id_list: Sequence = None,
-    random_state: int = None,
-    return_offsets: bool = False,
-    return_hops: bool = True,
-) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
-
-    warnings.warn(
-        "The batch_id_list parameter is deprecated. "
-        "Consider passing a DataFrame where the last column "
-        "is the batch ids and setting with_batch_ids=True"
-    )
-
-    if isinstance(start_list, int):
-        start_list = [start_list]
-
-    if isinstance(start_list, list):
-        start_list = cudf.Series(
-            start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
-        )
-
-    if with_edge_properties and batch_id_list is None:
-        batch_id_list = cp.zeros(len(start_list), dtype="int32")
-
-    # fanout_vals must be a host array!
-    # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
-    if isinstance(fanout_vals, list):
-        fanout_vals = numpy.asarray(fanout_vals, dtype="int32")
-    else:
-        raise TypeError("fanout_vals must be a list, " f"got: {type(fanout_vals)}")
-
-    if "weights" in G.edgelist.edgelist_df:
-        weight_t = G.edgelist.edgelist_df["weights"].dtype
-    else:
-        weight_t = "float32"
-
-    start_list = ensure_valid_dtype(G, start_list)
-
-    if G.renumbered is True:
-        if isinstance(start_list, cudf.DataFrame):
-            start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
-        else:
-            start_list = G.lookup_internal_vertex_id(start_list)
-
-    sampling_result = pylibcugraph_uniform_neighbor_sample(
-        resource_handle=ResourceHandle(),
-        input_graph=G._plc_graph,
-        start_list=start_list,
-        h_fan_out=fanout_vals,
-        with_replacement=with_replacement,
-        do_expensive_check=False,
-        with_edge_properties=with_edge_properties,
-        batch_id_list=batch_id_list,
-        return_hops=return_hops,
-        random_state=random_state,
-    )
-
-    df = cudf.DataFrame()
-
-    if with_edge_properties:
-        (
-            sources,
-            destinations,
-            weights,
-            edge_ids,
-            edge_types,
-            batch_ids,
-            offsets,
-            hop_ids,
-        ) = sampling_result
-
-        df["sources"] = sources
-        df["destinations"] = destinations
-        df["weight"] = weights
-        df["edge_id"] = edge_ids
-        df["edge_type"] = edge_types
-        df["hop_id"] = hop_ids
-
-        if return_offsets:
-            offsets_df = cudf.DataFrame(
-                {
-                    "batch_id": batch_ids,
-                    "offsets": offsets[:-1],
-                }
-            )
-
-        else:
-            if len(batch_ids) > 0:
-                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(offsets))
-                batch_ids.reset_index(drop=True, inplace=True)
-
-            df["batch_id"] = batch_ids
-
-    else:
-        sources, destinations, indices = sampling_result
-
-        df["sources"] = sources
-        df["destinations"] = destinations
-
-        if indices is None:
-            df["indices"] = None
-        else:
-            df["indices"] = indices
-            if weight_t == "int32":
-                df["indices"] = indices.astype("int32")
-            elif weight_t == "int64":
-                df["indices"] = indices.astype("int64")
-            else:
-                df["indices"] = indices
-
-    if G.renumbered:
-        df = G.unrenumber(df, "sources", preserve_order=True)
-        df = G.unrenumber(df, "destinations", preserve_order=True)
-
-    if return_offsets:
-        return df, offsets_df
-
-    return df
-
-
-uniform_neighbor_sample_legacy = deprecated_warning_wrapper(
-    _uniform_neighbor_sample_legacy
-)
-
-
 def uniform_neighbor_sample(
     G: Graph,
     start_list: Sequence,
     fanout_vals: List[int],
+    *,
     with_replacement: bool = True,
-    with_edge_properties: bool = False,
-    batch_id_list: Sequence = None,  # deprecated
+    with_edge_properties: bool = False,  # deprecated
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
     return_hops: bool = True,
+    include_hop_column: bool = True,  # deprecated
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
+    use_legacy_names: bool = True,  # deprecated
+    compress_per_hop: bool = False,
+    compression: str = "COO",
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
         Does neighborhood sampling, which samples nodes from a graph based on the
@@ -220,18 +95,14 @@ def uniform_neighbor_sample(
         with_replacement: bool, optional (default=True)
             Flag to specify if the random sampling is done with replacement
 
-        with_edge_properties: bool, optional (default=False)
-            Flag to specify whether to return edge properties (weight, edge id,
-            edge type, batch id, hop id) with the sampled edges.
+    with_edge_properties: bool, optional (default=False)
+        Deprecated.
+        Flag to specify whether to return edge properties (weight, edge id,
+        edge type, batch id, hop id) with the sampled edges.
 
-        batch_id_list: list (int32)
-            Deprecated.
-            List of batch ids that will be returned with the sampled edges if
-            with_edge_properties is set to True.
-
-        with_batch_ids: bool, optional (default=False)
-            Flag to specify whether batch ids are present in the start_list
-            Assumes they are the last column in the start_list dataframe
+    with_batch_ids: bool, optional (default=False)
+        Flag to specify whether batch ids are present in the start_list
+        Assumes they are the last column in the start_list dataframe
 
         random_state: int, optional
             Random seed to use when making sampling calls.
@@ -246,6 +117,12 @@ def uniform_neighbor_sample(
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.
         Defaults to True.
+
+    include_hop_column: bool, optional (default=True)
+        Deprecated.  Defaults to True.
+        If True, will include the hop column even if
+        return_offsets is True.  This option will
+        be removed in release 23.12.
 
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
@@ -264,6 +141,21 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
+
+    use_legacy_names: bool, optional (default=True)
+        Whether to use the legacy column names (sources, destinations).
+        If True, will use "sources" and "destinations" as the column names.
+        If False, will use "majors" and "minors" as the column names.
+        Deprecated.  Will be removed in release 23.12 in favor of always
+        using the new names "majors" and "minors".
+
+    compress_per_hop: bool, optional (default=False)
+        Whether to compress globally (default), or to produce a separate
+        compressed edgelist per hop.
+
+    compression: str, optional (default=COO)
+        Sets the compression type for the output minibatches.
+        Valid options are COO (default), CSR, CSC, DCSR, and DCSC.
 
     Returns
     -------
@@ -335,29 +227,62 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
-    if batch_id_list is not None:
-        if prior_sources_behavior or deduplicate_sources:
-            raise ValueError(
-                "prior_sources_behavior and deduplicate_sources"
-                " are not supported with batch_id_list."
-                " Consider using with_batch_ids instead."
-            )
-        if renumber:
-            raise ValueError(
-                "renumber is not supported with batch_id_list."
-                " Consider using with_batch_ids instead."
-            )
-        return uniform_neighbor_sample_legacy(
-            G,
-            start_list,
-            fanout_vals,
-            with_replacement=with_replacement,
-            with_edge_properties=with_edge_properties,
-            batch_id_list=batch_id_list,
-            random_state=random_state,
-            return_offsets=return_offsets,
-            return_hops=return_hops,
+    if use_legacy_names:
+        major_col_name = "sources"
+        minor_col_name = "destinations"
+        warning_msg = (
+            "The legacy column names (sources, destinations)"
+            " will no longer be supported for uniform_neighbor_sample"
+            " in release 23.12.  The use_legacy_names=False option will"
+            " become the only option, and (majors, minors) will be the"
+            " only supported column names."
         )
+        warnings.warn(warning_msg, FutureWarning)
+    else:
+        major_col_name = "majors"
+        minor_col_name = "minors"
+
+    if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
+        raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
+
+    if (
+        (compression != "COO")
+        and (not compress_per_hop)
+        and prior_sources_behavior != "exclude"
+    ):
+        raise ValueError(
+            "hop-agnostic compression is only supported with"
+            " the exclude prior sources behavior due to limitations "
+            "of the libcugraph C++ API"
+        )
+
+    if compress_per_hop and prior_sources_behavior != "carryover":
+        raise ValueError(
+            "Compressing the edgelist per hop is only supported "
+            "with the carryover prior sources behavior due to limitations"
+            " of the libcugraph C++ API"
+        )
+
+    if include_hop_column:
+        warning_msg = (
+            "The include_hop_column flag is deprecated and will be"
+            " removed in the next release in favor of always "
+            "excluding the hop column when return_offsets is True"
+        )
+        warnings.warn(warning_msg, FutureWarning)
+
+        if compression != "COO":
+            raise ValueError(
+                "Including the hop id column is only supported with COO compression."
+            )
+
+    if with_edge_properties:
+        warning_msg = (
+            "The with_edge_properties flag is deprecated"
+            " and will be removed in the next release in favor"
+            " of returning all properties in the graph"
+        )
+        warnings.warn(warning_msg, FutureWarning)
 
     if isinstance(start_list, int):
         start_list = [start_list]
@@ -375,12 +300,17 @@ def uniform_neighbor_sample(
             cp.zeros(len(start_list), dtype="int32")
         )
 
-    # fanout_vals must be a host array!
-    # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
-    if isinstance(fanout_vals, list):
+    # fanout_vals must be passed to pylibcugraph as a host array
+    if isinstance(fanout_vals, numpy.ndarray):
+        fanout_vals = fanout_vals.astype("int32")
+    elif isinstance(fanout_vals, list):
         fanout_vals = numpy.asarray(fanout_vals, dtype="int32")
+    elif isinstance(fanout_vals, cp.ndarray):
+        fanout_vals = fanout_vals.get().astype("int32")
+    elif isinstance(fanout_vals, cudf.Series):
+        fanout_vals = fanout_vals.values_host.astype("int32")
     else:
-        raise TypeError("fanout_vals must be a list, " f"got: {type(fanout_vals)}")
+        raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
 
     if "weights" in G.edgelist.edgelist_df:
         weight_t = G.edgelist.edgelist_df["weights"].dtype
@@ -409,7 +339,7 @@ def uniform_neighbor_sample(
                 start_list = G.lookup_internal_vertex_id(start_list, columns)
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
-    sampling_result = pylibcugraph_uniform_neighbor_sample(
+    sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_list=start_list[start_col_name],
@@ -425,104 +355,27 @@ def uniform_neighbor_sample(
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
+        compression=compression,
+        compress_per_hop=compress_per_hop,
+        return_dict=True,
     )
 
-    df = cudf.DataFrame()
-
-    if with_edge_properties:
-        # TODO use a dictionary at PLC w/o breaking users
-        if renumber:
-            (
-                sources,
-                destinations,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                offsets,
-                hop_ids,
-                renumber_map,
-                renumber_map_offsets,
-            ) = sampling_result
-        else:
-            (
-                sources,
-                destinations,
-                weights,
-                edge_ids,
-                edge_types,
-                batch_ids,
-                offsets,
-                hop_ids,
-            ) = sampling_result
-
-        df["sources"] = sources
-        df["destinations"] = destinations
-        df["weight"] = weights
-        df["edge_id"] = edge_ids
-        df["edge_type"] = edge_types
-        df["hop_id"] = hop_ids
-
-        if renumber:
-            renumber_df = cudf.DataFrame(
-                {
-                    "map": renumber_map,
-                }
-            )
-
-            if not return_offsets:
-                batch_ids_r = cudf.Series(batch_ids).repeat(
-                    cp.diff(renumber_map_offsets)
-                )
-                batch_ids_r.reset_index(drop=True, inplace=True)
-                renumber_df["batch_id"] = batch_ids_r
-
-        if return_offsets:
-            offsets_df = cudf.DataFrame(
-                {
-                    "batch_id": batch_ids,
-                    "offsets": offsets[:-1],
-                }
-            )
-
-            if renumber:
-                offsets_df["renumber_map_offsets"] = renumber_map_offsets[:-1]
-
-        else:
-            if len(batch_ids) > 0:
-                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(offsets))
-                batch_ids.reset_index(drop=True, inplace=True)
-
-            df["batch_id"] = batch_ids
-
-    else:
-        sources, destinations, indices = sampling_result
-
-        df["sources"] = sources
-        df["destinations"] = destinations
-
-        if indices is None:
-            df["indices"] = None
-        else:
-            df["indices"] = indices
-            if weight_t == "int32":
-                df["indices"] = indices.astype("int32")
-            elif weight_t == "int64":
-                df["indices"] = indices.astype("int64")
-            else:
-                df["indices"] = indices
+    dfs = sampling_results_from_cupy_array_dict(
+        sampling_result_array_dict,
+        weight_t,
+        len(fanout_vals),
+        with_edge_properties=with_edge_properties,
+        return_offsets=return_offsets,
+        renumber=renumber,
+        use_legacy_names=use_legacy_names,
+        include_hop_column=include_hop_column,
+    )
 
     if G.renumbered and not renumber:
-        df = G.unrenumber(df, "sources", preserve_order=True)
-        df = G.unrenumber(df, "destinations", preserve_order=True)
+        dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
+        dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
 
-    if return_offsets:
-        if renumber:
-            return df, offsets_df, renumber_df
-        else:
-            return df, offsets_df
+    if len(dfs) > 1:
+        return dfs
 
-    if renumber:
-        return df, renumber_df
-
-    return df
+    return dfs[0]

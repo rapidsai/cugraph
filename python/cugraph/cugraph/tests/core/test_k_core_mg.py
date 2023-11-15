@@ -137,7 +137,7 @@ def test_sg_k_core(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_k_core(dask_client, benchmark, input_expected_output):
+def test_dask_mg_k_core(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     core_number = input_expected_output["core_number"]
@@ -159,7 +159,7 @@ def test_dask_k_core(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_k_core_invalid_input(dask_client):
+def test_dask_mg_k_core_invalid_input(dask_client):
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

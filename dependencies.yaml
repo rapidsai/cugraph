@@ -11,15 +11,23 @@ files:
       - cpp_build
       - cudatoolkit
       - docs
+      - python_build_wheel
       - python_build_cythonize
+      - depends_on_rmm
+      - depends_on_cudf
+      - depends_on_dask_cudf
+      - depends_on_pylibraft
+      - depends_on_raft_dask
+      - depends_on_cupy
       - python_run_cugraph
-      - python_run_pylibcugraph
+      - python_run_nx_cugraph
       - python_run_cugraph_dgl
       - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
+      - test_python_nx_cugraph
   checks:
     output: none
     includes:
@@ -48,6 +56,7 @@ files:
     output: none
     includes:
       - cudatoolkit
+      - depends_on_cudf
       - py_version
       - test_python_common
       - test_python_cugraph
@@ -60,14 +69,22 @@ files:
     includes:
       - common_build
       - python_build_wheel
+      - depends_on_rmm
+      - depends_on_pylibraft
+      - depends_on_pylibcugraph
       - python_build_cythonize
-      - python_build_cugraph
   py_run_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
     extras:
       table: project
     includes:
+      - depends_on_rmm
+      - depends_on_cudf
+      - depends_on_dask_cudf
+      - depends_on_raft_dask
+      - depends_on_pylibcugraph
+      - depends_on_cupy
       - python_run_cugraph
   py_test_cugraph:
     output: pyproject
@@ -86,6 +103,8 @@ files:
     includes:
       - common_build
       - python_build_wheel
+      - depends_on_rmm
+      - depends_on_pylibraft
       - python_build_cythonize
   py_run_pylibcugraph:
     output: pyproject
@@ -93,7 +112,8 @@ files:
     extras:
       table: project
     includes:
-      - python_run_pylibcugraph
+      - depends_on_rmm
+      - depends_on_pylibraft
   py_test_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -101,8 +121,34 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
+      - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
+  py_build_nx_cugraph:
+    output: pyproject
+    pyproject_dir: python/nx-cugraph
+    extras:
+      table: build-system
+    includes:
+      - python_build_wheel
+  py_run_nx_cugraph:
+    output: pyproject
+    pyproject_dir: python/nx-cugraph
+    extras:
+      table: project
+    includes:
+      - depends_on_pylibcugraph
+      - depends_on_cupy
+      - python_run_nx_cugraph
+  py_test_nx_cugraph:
+    output: pyproject
+    pyproject_dir: python/nx-cugraph
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
+      - test_python_nx_cugraph
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -158,6 +204,10 @@ files:
     extras:
       table: project
     includes:
+      - depends_on_rmm
+      - depends_on_cudf
+      - depends_on_dask_cudf
+      - depends_on_cupy
       - python_run_cugraph_service_server
   py_test_cugraph_service_server:
     output: pyproject
@@ -166,9 +216,6 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
-      # TODO: I think that the contents of the server's pyproject.toml
-      # dependencies were just copied from cugraph, so I'm not sure if this
-      # list is really minimal or if it is a superset.
       - test_python_common
       - test_python_cugraph
   cugraph_dgl_dev:
@@ -177,12 +224,24 @@ files:
     output: conda
     conda_dir: python/cugraph-dgl/conda
     includes:
+      - checks
       - cugraph_dgl_dev
+      - test_python_common
+  cugraph_pyg_dev:
+    matrix:
+      cuda: ["11.8"]
+    output: conda
+    conda_dir: python/cugraph-pyg/conda
+    includes:
+      - checks
+      - cugraph_pyg_dev
+      - test_python_common
 channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
   - pytorch
+  - pyg
   - dglteam/label/cu118
   - conda-forge
   - nvidia
@@ -234,10 +293,10 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
-          - libcugraphops==23.8.*
-          - libraft-headers==23.8.*
-          - libraft==23.8.*
-          - librmm==23.8.*
+          - libcugraphops==23.10.*
+          - libraft-headers==23.10.*
+          - libraft==23.10.*
+          - librmm==23.10.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -282,7 +341,7 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx<6
           - sphinxcontrib-websupport
-          - pylibcugraphops==23.8.*
+          - pylibcugraphops==23.10.*
   py_version:
     specific:
       - output_types: [conda]
@@ -300,53 +359,44 @@ dependencies:
               - python>=3.9,<3.11
   python_build_wheel:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
+          - setuptools>=61.0.0
           - wheel
-          - setuptools
   python_build_cythonize:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
-          - cython>=0.29,<0.30
-          - &pylibraft pylibraft==23.8.*
-          - &rmm rmm==23.8.*
+          - cython>=3.0.0
           - scikit-build>=0.13.1
-  python_build_cugraph:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-          - pylibcugraph==23.8.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &cudf cudf==23.8.*
-          - &dask dask==2023.7.1
-          - &distributed distributed==2023.7.1
-          - &dask_cuda dask-cuda==23.8.*
-          - &dask_cudf dask-cudf==23.8.*
+          - &dask dask==2023.9.2
+          - &distributed distributed==2023.9.2
+          - &dask_cuda dask-cuda==23.10.*
           - &numba numba>=0.57
-          - raft-dask==23.8.*
-          - *rmm
-          - &ucx_py ucx-py==0.33.*
+          - &ucx_py ucx-py==0.34.*
       - output_types: conda
         packages:
-          - &cupy cupy>=12.0.0
-          - &dask-core dask-core==2023.7.1
-          - libcudf==23.8.*
+          - aiohttp
+          - &dask-core_conda dask-core==2023.9.2
+          - fsspec>=0.6.0
+          - libcudf==23.10.*
+          - requests
           - nccl>=2.9.9
           - ucx-proc=*=gpu
       - output_types: pyproject
         packages:
-          - &cupy_pip cupy-cuda11x>=12.0.0
-          - pylibcugraph==23.8.*
-  python_run_pylibcugraph:
+            # cudf uses fsspec but is protocol independent. cugraph
+            # dataset APIs require [http] extras for use with cudf.
+          - fsspec[http]>=0.6.0
+  python_run_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - *pylibraft
-          - *rmm
+          - networkx>=3.0
   python_run_cugraph_dgl:
     common:
       - output_types: [conda, pyproject]
@@ -355,7 +405,7 @@ dependencies:
           - &numpy numpy>=1.21
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==23.8.*
+          - &cugraph cugraph==23.10.*
   python_run_cugraph_pyg:
     common:
       - output_types: [conda, pyproject]
@@ -374,25 +424,20 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - *cudf
           - *dask
           - *dask_cuda
-          - *dask_cudf
           - *distributed
           - *numba
           - *numpy
-          - *rmm
           - *thrift
           - *ucx_py
       - output_types: conda
         packages:
-          - *cupy
-          - *dask-core
+          - *dask-core_conda
       - output_types: pyproject
         packages:
-          - *cupy_pip
           - *cugraph
-          - cugraph-service-client==23.8.*
+          - cugraph-service-client==23.10.*
   doc:
     common:
       - output_types: [conda]
@@ -406,7 +451,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-          - pylibcugraphops==23.8.*
+          - pylibcugraphops==23.10.*
   test_cpp:
     common:
       - output_types: conda
@@ -422,8 +467,6 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - networkx>=2.5.1
-          - *numpy
           - pandas
           - pytest
           - pytest-benchmark
@@ -434,27 +477,226 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - aiohttp
-            # cudf will use fsspec but is protocol independent. cugraph tests
-            # specifically require http for the test files it asks cudf to read.
-          - fsspec[http]>=0.6.0
+          - networkx>=2.5.1
+          - *numpy
           - python-louvain
-          - requests
           - scikit-learn>=0.23.1
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - *cudf
+          - *numpy
+  test_python_nx_cugraph:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - packaging>=21
+            # not needed by nx-cugraph tests, but is required for running networkx tests
+          - pytest-mpl
   cugraph_dgl_dev:
     common:
       - output_types: [conda]
         packages:
-          - cugraph==23.8.*
-          - pylibcugraphops==23.8.*
+          - cugraph==23.10.*
+          - pylibcugraphops==23.10.*
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - dgl>=1.1.0.cu*
-          - setuptools
-          - pre-commit
-          - pytest
+  cugraph_pyg_dev:
+    common:
+      - output_types: [conda]
+        packages:
+          - cugraph==23.10.*
+          - pylibcugraphops==23.10.*
+          - pytorch==2.0
+          - pytorch-cuda==11.8
+          - pyg=2.3.1=*torch_2.0.0*cu118*
+
+  depends_on_rmm:
+    common:
+      - output_types: conda
+        packages:
+          - &rmm_conda rmm==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &rmm_packages_pip_cu12
+              - rmm-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *rmm_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *rmm_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &rmm_packages_pip_cu11
+              - rmm-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *rmm_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *rmm_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *rmm_packages_pip_cu11}
+          - {matrix: null, packages: [*rmm_conda]}
+
+  depends_on_cudf:
+    common:
+      - output_types: conda
+        packages:
+          - &cudf_conda cudf==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &cudf_packages_pip_cu12
+              - cudf-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *cudf_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *cudf_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &cudf_packages_pip_cu11
+              - cudf-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *cudf_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *cudf_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *cudf_packages_pip_cu11}
+          - {matrix: null, packages: [*cudf_conda]}
+
+  depends_on_dask_cudf:
+    common:
+      - output_types: conda
+        packages:
+          - &dask_cudf_conda dask-cudf==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &dask_cudf_packages_pip_cu12
+              - dask-cudf-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *dask_cudf_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *dask_cudf_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &dask_cudf_packages_pip_cu11
+              - dask-cudf-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *dask_cudf_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *dask_cudf_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *dask_cudf_packages_pip_cu11}
+          - {matrix: null, packages: [*dask_cudf_conda]}
+
+  depends_on_pylibraft:
+    common:
+      - output_types: conda
+        packages:
+          - &pylibraft_conda pylibraft==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &pylibraft_packages_pip_cu12
+              - pylibraft-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *pylibraft_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *pylibraft_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &pylibraft_packages_pip_cu11
+              - pylibraft-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *pylibraft_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *pylibraft_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *pylibraft_packages_pip_cu11}
+          - {matrix: null, packages: [*pylibraft_conda]}
+
+  depends_on_raft_dask:
+    common:
+      - output_types: conda
+        packages:
+          - &raft_dask_conda raft-dask==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &raft_dask_packages_pip_cu12
+              - raft-dask-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *raft_dask_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *raft_dask_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &raft_dask_packages_pip_cu11
+              - raft-dask-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *raft_dask_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *raft_dask_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *raft_dask_packages_pip_cu11}
+          - {matrix: null, packages: [*raft_dask_conda]}
+
+  depends_on_pylibcugraph:
+    common:
+      - output_types: conda
+        packages:
+          - &pylibcugraph_conda pylibcugraph==23.10.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.2"}
+            packages: &pylibcugraph_packages_pip_cu12
+              - pylibcugraph-cu12==23.10.*
+          - {matrix: {cuda: "12.1"}, packages: *pylibcugraph_packages_pip_cu12}
+          - {matrix: {cuda: "12.0"}, packages: *pylibcugraph_packages_pip_cu12}
+          - matrix: {cuda: "11.8"}
+            packages: &pylibcugraph_packages_pip_cu11
+              - pylibcugraph-cu11==23.10.*
+          - {matrix: {cuda: "11.5"}, packages: *pylibcugraph_packages_pip_cu11}
+          - {matrix: {cuda: "11.4"}, packages: *pylibcugraph_packages_pip_cu11}
+          - {matrix: {cuda: "11.2"}, packages: *pylibcugraph_packages_pip_cu11}
+          - {matrix: null, packages: [*pylibcugraph_conda]}
+
+  depends_on_cupy:
+    common:
+      - output_types: conda
+        packages:
+          - cupy>=12.0.0
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          # All CUDA 12 + x86_64 versions
+          - matrix: {cuda: "12.2", arch: x86_64}
+            packages: &cupy_packages_cu12_x86_64
+              - cupy-cuda12x>=12.0.0
+          - {matrix: {cuda: "12.1", arch: x86_64}, packages: *cupy_packages_cu12_x86_64}
+          - {matrix: {cuda: "12.0", arch: x86_64}, packages: *cupy_packages_cu12_x86_64}
+
+          # All CUDA 12 + aarch64 versions
+          - matrix: {cuda: "12.2", arch: aarch64}
+            packages: &cupy_packages_cu12_aarch64
+              - cupy-cuda12x -f https://pip.cupy.dev/aarch64 # TODO: Verify that this works.
+          - {matrix: {cuda: "12.1", arch: aarch64}, packages: *cupy_packages_cu12_aarch64}
+          - {matrix: {cuda: "12.0", arch: aarch64}, packages: *cupy_packages_cu12_aarch64}
+
+          # All CUDA 11 + x86_64 versions
+          - matrix: {cuda: "11.8", arch: x86_64}
+            packages: &cupy_packages_cu11_x86_64
+              - cupy-cuda11x>=12.0.0
+          - {matrix: {cuda: "11.5", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
+          - {matrix: {cuda: "11.4", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
+          - {matrix: {cuda: "11.2", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
+
+          # All CUDA 11 + aarch64 versions
+          - matrix: {cuda: "11.8", arch: aarch64}
+            packages: &cupy_packages_cu11_aarch64
+              - cupy-cuda11x -f https://pip.cupy.dev/aarch64 # TODO: Verify that this works.
+          - {matrix: {cuda: "11.5", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
+          - {matrix: {cuda: "11.4", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
+          - {matrix: {cuda: "11.2", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
+          - {matrix: null, packages: [cupy-cuda11x>=12.0.0]}

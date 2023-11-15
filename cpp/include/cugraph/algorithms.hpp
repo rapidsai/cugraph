@@ -430,34 +430,39 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
- * @brief     Compute k truss for a graph
+ * @brief     Compute k truss for a graph  ** temporary
  *
  * K Truss is the maximal subgraph of a graph which contains at least three
  * vertices where every edge is incident to at least k-2 triangles.
  *
- * Note that current implementation does not support a weighted graph.
+ * This version is a temporary solution to clean up python integration through the C API.
  *
- * @throws                           cugraph::logic_error with a custom message when an error
+ * This version is only supported SG.
+ *
+ * @throws                  cugraph::logic_error with a custom message when an error
  * occurs.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam vertex_t         Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam weight_t         Type of edge weights. Supported values : float or double.
  *
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a COO
- * @param[in] k                      The order of the truss
- * @param[in] mr                     Memory resource used to allocate the returned graph
- * @return                           Unique pointer to K Truss subgraph in COO format
- *
+ * @param[in] handle        Library handle (RAFT).
+ * @param[in] src           Source vertices from COO
+ * @param[in] dst           Destination vertices from COO
+ * @param[in] wgt           Optional edge weights from COO
+ * @param[in] k             The order of the truss
+ * @return                  Tuple containing extracted src, dst and optional weights for the
+ * subgraph
  */
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  legacy::GraphCOOView<VT, ET, WT> const& graph,
-  int k,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<vertex_t> src,
+                 raft::device_span<vertex_t> dst,
+                 std::optional<raft::device_span<weight_t>> wgt,
+                 size_t number_of_vertices,
+                 int k);
 
 // FIXME: Internally distances is of int (signed 32-bit) data type, but current
 // template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
@@ -589,6 +594,8 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param[in]  graph                 input graph object
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold             (optional) threshold for convergence at each level (default
+ * 1e-7)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
@@ -607,6 +614,7 @@ std::pair<size_t, weight_t> louvain(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
   size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -652,6 +660,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});
 
 /**

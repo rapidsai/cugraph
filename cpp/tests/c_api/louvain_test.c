@@ -33,6 +33,7 @@ int generic_louvain_test(vertex_t* h_src,
                          size_t num_vertices,
                          size_t num_edges,
                          size_t max_level,
+                         double threshold,
                          double resolution,
                          bool_t store_transposed)
 {
@@ -60,7 +61,7 @@ int generic_louvain_test(vertex_t* h_src,
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code =
-    cugraph_louvain(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
+    cugraph_louvain(p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_louvain failed.");
@@ -108,6 +109,7 @@ int test_louvain()
   size_t num_edges    = 16;
   size_t num_vertices = 6;
   size_t max_level    = 10;
+  weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
@@ -126,6 +128,7 @@ int test_louvain()
                               num_vertices,
                               num_edges,
                               max_level,
+                              threshold,
                               resolution,
                               FALSE);
 }
@@ -135,6 +138,7 @@ int test_louvain_no_weight()
   size_t num_edges    = 16;
   size_t num_vertices = 6;
   size_t max_level    = 10;
+  weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
@@ -151,6 +155,7 @@ int test_louvain_no_weight()
                               num_vertices,
                               num_edges,
                               max_level,
+                              threshold,
                               resolution,
                               FALSE);
 }

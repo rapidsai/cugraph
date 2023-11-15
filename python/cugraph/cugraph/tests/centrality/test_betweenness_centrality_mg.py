@@ -159,7 +159,7 @@ def input_expected_output(input_combo):
 
 
 @pytest.mark.mg
-def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_output):
+def test_dask_mg_betweenness_centrality(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     k = input_expected_output["k"]

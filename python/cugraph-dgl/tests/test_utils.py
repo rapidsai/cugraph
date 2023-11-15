@@ -20,11 +20,14 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     _split_tensor,
     _get_tensor_d_from_sampled_df,
     create_homogeneous_sampled_graphs_from_dataframe,
+    _get_source_destination_range,
+    _create_homogeneous_cugraph_dgl_nn_sparse_graph,
 )
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
+cugraph_dgl = import_optional("cugraph_dgl")
 
 
 def test_casting_empty_array():
@@ -140,3 +143,36 @@ def test_create_homogeneous_sampled_graphs_from_dataframe():
         de, dd = d_block.edges()
         assert torch.equal(ce, de)
         assert torch.equal(cd, dd)
+
+
+def test_get_source_destination_range():
+    df = get_dummy_sampled_df()
+    output_d = _get_source_destination_range(df)
+
+    expected_output = {
+        (0, 0): {"sources_range": 0, "destinations_range": 1},
+        (0, 1): {"sources_range": 1, "destinations_range": 2},
+        (1, 0): {"sources_range": 0, "destinations_range": 1},
+        (1, 1): {"sources_range": 1, "destinations_range": 2},
+        (2, 0): {"sources_range": 0, "destinations_range": 2},
+        (2, 1): {"sources_range": 2, "destinations_range": 1},
+    }
+
+    assert output_d == expected_output
+
+
+def test__create_homogeneous_cugraph_dgl_nn_sparse_graph():
+    tensor_d = {
+        "sources_range": 1,
+        "destinations_range": 2,
+        "sources": torch.as_tensor([0, 0, 1, 1], dtype=torch.int64, device="cuda"),
+        "destinations": torch.as_tensor([0, 0, 1, 2], dtype=torch.int64, device="cuda"),
+    }
+
+    seednodes_range = 10
+    sparse_graph = _create_homogeneous_cugraph_dgl_nn_sparse_graph(
+        tensor_d, seednodes_range
+    )
+    assert sparse_graph.num_src_nodes() == 2
+    assert sparse_graph.num_dst_nodes() == seednodes_range + 1
+    assert isinstance(sparse_graph, cugraph_dgl.nn.SparseGraph)

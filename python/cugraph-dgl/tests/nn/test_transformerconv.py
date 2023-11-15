@@ -13,16 +13,14 @@
 
 import pytest
 
-try:
-    from cugraph_dgl.nn import TransformerConv
-except ModuleNotFoundError:
-    pytest.skip("cugraph_dgl not available", allow_module_level=True)
-
-from cugraph.utilities.utils import import_optional
+from cugraph_dgl.nn.conv.base import SparseGraph
+from cugraph_dgl.nn import TransformerConv
 from .common import create_graph1
 
-torch = import_optional("torch")
-dgl = import_optional("dgl")
+dgl = pytest.importorskip("dgl", reason="DGL not available")
+torch = pytest.importorskip("torch", reason="PyTorch not available")
+
+ATOL = 1e-6
 
 
 @pytest.mark.parametrize("beta", [False, True])
@@ -32,9 +30,18 @@ dgl = import_optional("dgl")
 @pytest.mark.parametrize("num_heads", [1, 2, 3, 4])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("use_edge_feats", [False, True])
-def test_TransformerConv(
-    beta, bipartite_node_feats, concat, idtype_int, num_heads, to_block, use_edge_feats
+@pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
+def test_transformerconv(
+    beta,
+    bipartite_node_feats,
+    concat,
+    idtype_int,
+    num_heads,
+    to_block,
+    use_edge_feats,
+    sparse_format,
 ):
+    torch.manual_seed(12345)
     device = "cuda"
     g = create_graph1().to(device)
 
@@ -43,6 +50,15 @@ def test_TransformerConv(
 
     if to_block:
         g = dgl.to_block(g)
+
+    size = (g.num_src_nodes(), g.num_dst_nodes())
+    if sparse_format == "coo":
+        sg = SparseGraph(
+            size=size, src_ids=g.edges()[0], dst_ids=g.edges()[1], formats="csc"
+        )
+    elif sparse_format == "csc":
+        offsets, indices, _ = g.adj_tensors("csc")
+        sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets, formats="csc")
 
     if bipartite_node_feats:
         in_node_feats = (5, 3)
@@ -71,6 +87,10 @@ def test_TransformerConv(
         edge_feats=edge_feats,
     ).to(device)
 
-    out = conv(g, nfeat, efeat)
+    if sparse_format is not None:
+        out = conv(sg, nfeat, efeat)
+    else:
+        out = conv(g, nfeat, efeat)
+
     grad_out = torch.rand_like(out)
     out.backward(grad_out)

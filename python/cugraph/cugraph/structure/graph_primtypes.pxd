@@ -154,22 +154,9 @@ ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
 ctypedef GraphCSRView[int,int,float] GraphCSRViewFloat
 ctypedef GraphCSRView[int,int,double] GraphCSRViewDouble
 
-ctypedef fused GraphCOOViewType:
-    GraphCOOViewFloat
-    GraphCOOViewDouble
-
-ctypedef fused GraphCSRViewType:
-    GraphCSRViewFloat
-    GraphCSRViewDouble
-
-ctypedef fused GraphViewType:
-    GraphCOOViewFloat
-    GraphCOOViewDouble
-    GraphCSRViewFloat
-    GraphCSRViewDouble
-
 cdef move_device_buffer_to_column(unique_ptr[device_buffer] device_buffer_unique_ptr, dtype)
 cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name)
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
-cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)
+cdef GraphCOOViewFloat get_coo_float_graph_view(input_graph, bool weighted=*)
+cdef GraphCOOViewDouble get_coo_double_graph_view(input_graph, bool weighted=*)

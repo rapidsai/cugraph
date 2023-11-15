@@ -32,6 +32,20 @@ import time
 
 
 class EXPERIMENTAL__BulkSampler:
+    """
+    Performs sampling based on input seeds grouped into batches by
+    a batch id.  Writes the output minibatches to parquet, with
+    partition sizes specified by the user.  Allows controlling the
+    number of input seeds per sampling function call.  Supports
+    basic logging.
+
+    Batches in each partition that are empty are discarded, and the remaining non-empty
+    batches are renumbered to be contiguous starting from the first
+    batch id in the partition.
+    This means that the output batch ids may not match the input batch ids.
+    See GitHub issue #3794 for more details.
+    """
+
     start_col_name = "_START_"
     batch_col_name = "_BATCH_"
 
@@ -255,6 +269,7 @@ class EXPERIMENTAL__BulkSampler:
             with_edge_properties=True,
             return_offsets=True,
             renumber=self.__renumber,
+            # use_legacy_names=False,
         )
 
         if self.__renumber:

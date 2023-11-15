@@ -89,7 +89,7 @@ def setup_function():
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
-def test_dask_pagerank(
+def test_dask_mg_pagerank(
     dask_client,
     personalization_perc,
     directed,
@@ -215,7 +215,7 @@ def test_pagerank_invalid_personalization_dtype(dask_client):
 
 
 @pytest.mark.mg
-def test_dask_pagerank_transposed_false(dask_client):
+def test_dask_mg_pagerank_transposed_false(dask_client):
     dg = create_distributed_karate_graph(store_transposed=False)
 
     warning_msg = (

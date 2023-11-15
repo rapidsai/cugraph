@@ -98,6 +98,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t max_level,
+            double threshold,
             double resolution,
             bool_t do_expensive_check,
             cugraph_hierarchical_clustering_result_t** result,
@@ -252,3 +253,13 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_error_t** error
         )
 
+    ###########################################################################
+    # K truss
+    cdef cugraph_error_code_t \
+        cugraph_k_truss_subgraph(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t k,
+            bool_t do_expensive_check,
+            cugraph_induced_subgraph_result_t** result,
+            cugraph_error_t** error)

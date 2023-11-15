@@ -136,7 +136,9 @@ class simpleGraphImpl:
             warning_msg = (
                 "The parameter 'legacy_renum_only' is deprecated and will be removed."
             )
-            warnings.warn(warning_msg, DeprecationWarning)
+            warnings.warn(
+                warning_msg,
+            )
 
         # Verify column names present in input DataFrame
         s_col = source

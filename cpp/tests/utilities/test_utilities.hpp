@@ -547,7 +547,7 @@ mg_vertex_property_values_to_sg_vertex_property_values(
   std::optional<raft::device_span<vertex_t const>>
     sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
   std::optional<raft::device_span<vertex_t const>>
-    mg_vertices,      // std::nullopt if the entire local vertex partition range is assumed
+    mg_vertices,  // std::nullopt if the entire local vertex partition range is assumed
   raft::device_span<value_t const> mg_values);
 
 template <typename type_t>

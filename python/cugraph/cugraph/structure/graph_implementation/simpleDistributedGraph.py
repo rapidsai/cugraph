@@ -11,36 +11,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_primtypes_wrapper import Direction
-from cugraph.structure.number_map import NumberMap
-from cugraph.structure.symmetrize import symmetrize
-import cudf
+import gc
+from typing import Union
 import warnings
-import dask_cudf
+
+import cudf
 import cupy as cp
 import dask
-from typing import Union
+import dask_cudf
+from dask import delayed
+from dask.distributed import wait, default_client
 import numpy as np
-import gc
 from pylibcugraph import (
     MGGraph,
     ResourceHandle,
     GraphProperties,
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices,
 )
 
-from dask.distributed import wait, default_client
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.graph_primtypes_wrapper import Direction
+from cugraph.structure.number_map import NumberMap
+from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
 )
-from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import (
-    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
-    select_random_vertices as pylibcugraph_select_random_vertices,
-)
+from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
-from dask import delayed
 
 
 class simpleDistributedGraphImpl:
@@ -182,6 +181,7 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
+        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -318,7 +318,6 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         ddf = get_persisted_df_worker_map(ddf, _client)
@@ -334,7 +333,7 @@ class simpleDistributedGraphImpl:
             )
             for w, edata in ddf.items()
         }
-        del ddf
+        # FIXME: For now, don't delete the copied dataframe to avoid crash
         self._plc_graph = {
             w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
             for w, delayed_task in delayed_tasks_d.items()
@@ -784,6 +783,15 @@ class simpleDistributedGraphImpl:
                 the second vertex id of a pair, if an external vertex id
                 is defined by only one column
         """
+        _client = default_client()
+
+        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
+            return pylibcugraph_get_two_hop_neighbors(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                start_vertices=start_vertices,
+                do_expensive_check=False,
+            )
 
         if isinstance(start_vertices, int):
             start_vertices = [start_vertices]
@@ -805,20 +813,13 @@ class simpleDistributedGraphImpl:
                 )
                 start_vertices = start_vertices.astype(start_vertices_type)
 
-            start_vertices = get_distributed_data(start_vertices)
-            wait(start_vertices)
-            start_vertices = start_vertices.worker_to_parts
-
-        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
-            return pylibcugraph_get_two_hop_neighbors(
-                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-                graph=mg_graph_x,
-                start_vertices=start_vertices,
-                do_expensive_check=False,
+            n_workers = get_n_workers()
+            start_vertices = start_vertices.repartition(npartitions=n_workers)
+            start_vertices = persist_dask_df_equal_parts_per_worker(
+                start_vertices, _client
             )
+            start_vertices = get_persisted_df_worker_map(start_vertices, _client)
 
-        _client = default_client()
-        if start_vertices is not None:
             result = [
                 _client.submit(
                     _call_plc_two_hop_neighbors,
@@ -828,7 +829,7 @@ class simpleDistributedGraphImpl:
                     workers=[w],
                     allow_other_workers=False,
                 )
-                for w in Comms.get_workers()
+                for w in start_vertices.keys()
             ]
         else:
             result = [
@@ -855,7 +856,6 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
-        _client = default_client()
         cudf_result = [
             _client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
         ]
@@ -1192,7 +1192,5 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     if len_df == 0:
         return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
-    gc.collect()
+    # FIXME: For now, don't delete the copied dataframe to avoid cras
     return output_col

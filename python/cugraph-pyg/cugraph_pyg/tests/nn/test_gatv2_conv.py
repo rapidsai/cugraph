@@ -13,30 +13,24 @@
 
 import pytest
 
-try:
-    from torch_geometric.nn import GATv2Conv
-except ModuleNotFoundError:
-    pytest.skip("PyG not available", allow_module_level=True)
-
-from cugraph.utilities.utils import import_optional
 from cugraph_pyg.nn import GATv2Conv as CuGraphGATv2Conv
 
-torch = import_optional("torch")
+ATOL = 1e-6
 
 
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 @pytest.mark.parametrize("use_edge_attr", [True, False])
-def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr):
-    atol = 1e-6
-    edge_index = torch.tensor(
-        [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-        ],
-    ).cuda()
-    size = (10, 10)
+@pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr, graph, request):
+    pytest.importorskip("torch_geometric", reason="PyG not available")
+    import torch
+    from torch_geometric.nn import GATv2Conv
+
+    torch.manual_seed(12345)
+    edge_index, size = request.getfixturevalue(graph)
+    edge_index = edge_index.cuda()
 
     if bipartite:
         in_channels = (5, 3)
@@ -70,26 +64,24 @@ def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr):
     with torch.no_grad():
         conv2.lin_src.weight.data = conv1.lin_l.weight.data.detach().clone()
         conv2.lin_dst.weight.data = conv1.lin_r.weight.data.detach().clone()
-
         conv2.att.data = conv1.att.data.flatten().detach().clone()
-
         if use_edge_attr:
             conv2.lin_edge.weight.data = conv1.lin_edge.weight.data.detach().clone()
 
     out1 = conv1(x, edge_index, edge_attr=edge_attr)
     out2 = conv2(x, csc, edge_attr=edge_attr_perm)
-    assert torch.allclose(out1, out2, atol=atol)
+    assert torch.allclose(out1, out2, atol=ATOL)
 
     grad_output = torch.rand_like(out1)
     out1.backward(grad_output)
     out2.backward(grad_output)
 
-    assert torch.allclose(conv1.lin_l.weight.grad, conv2.lin_src.weight.grad, atol=atol)
-    assert torch.allclose(conv1.lin_r.weight.grad, conv2.lin_dst.weight.grad, atol=atol)
+    assert torch.allclose(conv1.lin_l.weight.grad, conv2.lin_src.weight.grad, atol=ATOL)
+    assert torch.allclose(conv1.lin_r.weight.grad, conv2.lin_dst.weight.grad, atol=ATOL)
 
-    assert torch.allclose(conv1.att.grad.flatten(), conv2.att.grad, atol=atol)
+    assert torch.allclose(conv1.att.grad.flatten(), conv2.att.grad, atol=ATOL)
 
     if use_edge_attr:
         assert torch.allclose(
-            conv1.lin_edge.weight.grad, conv2.lin_edge.weight.grad, atol=atol
+            conv1.lin_edge.weight.grad, conv2.lin_edge.weight.grad, atol=ATOL
         )

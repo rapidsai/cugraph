@@ -39,14 +39,16 @@ warnings.filterwarnings("ignore")
 
 
 def set_allocators():
+    import rmm
     import cudf
     import cupy
-    import rmm
+    from rmm.allocators.torch import rmm_torch_allocator
+    from rmm.allocators.cupy import rmm_cupy_allocator
 
     mr = rmm.mr.CudaAsyncMemoryResource()
     rmm.mr.set_current_device_resource(mr)
-    torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
-    cupy.cuda.set_allocator(rmm.allocators.cupy.rmm_cupy_allocator)
+    torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+    cupy.cuda.set_allocator(rmm_cupy_allocator)
     cudf.set_option("spill", True)
 
 

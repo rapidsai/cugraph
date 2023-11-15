@@ -47,20 +47,18 @@ def create_dgl_mfgs(g, seed_nodes, fanout):
     return sampler.sample_blocks(g, seed_nodes)
 
 
-def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
+def create_cugraph_dgl_homogenous_mfgs(dgl_blocks, return_type):
     df_ls = []
     unique_vertices_ls = []
-    for hop_id, fanout in enumerate(reversed(fanout)):
-        frontier = g.sample_neighbors(seed_nodes, fanout)
-        # Set include_dst_in_src to match cugraph behavior
-        block = dgl.to_block(frontier, seed_nodes, include_dst_in_src=False)
-        block.edata[dgl.EID] = frontier.edata[dgl.EID]
-        seed_nodes = block.srcdata[dgl.NID]
+    for hop_id, block in enumerate(reversed(dgl_blocks)):
         block = block.to("cpu")
         src, dst, eid = block.edges("all")
         eid = block.edata[dgl.EID][eid]
+
+        og_src = block.srcdata[dgl.NID][src]
+        og_dst = block.dstdata[dgl.NID][dst]
         unique_vertices = pd.concat(
-            [pd.Series(dst.numpy()), pd.Series(src.numpy())]
+            [pd.Series(og_dst.numpy()), pd.Series(og_src.numpy())]
         ).drop_duplicates(keep="first")
         unique_vertices_ls.append(unique_vertices)
         df = cudf.DataFrame(
@@ -84,23 +82,24 @@ def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
     # Have to reindex cause map_ser can be of larger length than df
     df = df.reindex(df.index.union(map_ser.index))
     df["map"] = map_ser
-    return create_homogeneous_sampled_graphs_from_dataframe(df)[0]
+    return create_homogeneous_sampled_graphs_from_dataframe(
+        df, return_type=return_type
+    )[0]
 
 
+@pytest.mark.parametrize("return_type", ["dgl.Block", "cugraph_dgl.nn.SparseGraph"])
 @pytest.mark.parametrize("seed_node", [3, 4, 5])
-def test_homogeneous_sampled_graphs_from_dataframe(seed_node):
+def test_homogeneous_sampled_graphs_from_dataframe(return_type, seed_node):
     g = dgl.graph(([0, 1, 2, 3, 4], [1, 2, 3, 4, 5]))
     fanout = [1, 1, 1]
     seed_node = torch.as_tensor([seed_node])
 
-    dgl_seed_nodes, dgl_output_nodes, dgl_mfgs = create_cugraph_dgl_homogenous_mfgs(
-        g, seed_node, fanout
-    )
+    dgl_seed_nodes, dgl_output_nodes, dgl_mfgs = create_dgl_mfgs(g, seed_node, fanout)
     (
         cugraph_seed_nodes,
         cugraph_output_nodes,
         cugraph_mfgs,
-    ) = create_cugraph_dgl_homogenous_mfgs(g, seed_node, fanout)
+    ) = create_cugraph_dgl_homogenous_mfgs(dgl_mfgs, return_type=return_type)
 
     np.testing.assert_equal(
         cugraph_seed_nodes.cpu().numpy().copy().sort(),
@@ -112,7 +111,18 @@ def test_homogeneous_sampled_graphs_from_dataframe(seed_node):
         cugraph_output_nodes.cpu().numpy().copy().sort(),
     )
 
-    for dgl_block, cugraph_dgl_block in zip(dgl_mfgs, cugraph_mfgs):
-        dgl_df = get_edge_df_from_homogenous_block(dgl_block)
-        cugraph_dgl_df = get_edge_df_from_homogenous_block(cugraph_dgl_block)
-        pd.testing.assert_frame_equal(dgl_df, cugraph_dgl_df)
+    if return_type == "dgl.Block":
+        for dgl_block, cugraph_dgl_block in zip(dgl_mfgs, cugraph_mfgs):
+            dgl_df = get_edge_df_from_homogenous_block(dgl_block)
+            cugraph_dgl_df = get_edge_df_from_homogenous_block(cugraph_dgl_block)
+            pd.testing.assert_frame_equal(dgl_df, cugraph_dgl_df)
+    else:
+        for dgl_block, cugraph_dgl_graph in zip(dgl_mfgs, cugraph_mfgs):
+            # Can not verify edge ids as they are not
+            # preserved in cugraph_dgl.nn.SparseGraph
+            assert dgl_block.num_src_nodes() == cugraph_dgl_graph.num_src_nodes()
+            assert dgl_block.num_dst_nodes() == cugraph_dgl_graph.num_dst_nodes()
+            dgl_offsets, dgl_indices, _ = dgl_block.adj_tensors("csc")
+            cugraph_offsets, cugraph_indices, _ = cugraph_dgl_graph.csc()
+            assert torch.equal(dgl_offsets.to("cpu"), cugraph_offsets.to("cpu"))
+            assert torch.equal(dgl_indices.to("cpu"), cugraph_indices.to("cpu"))

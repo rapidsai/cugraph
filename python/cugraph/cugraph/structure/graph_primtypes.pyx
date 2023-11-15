@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,28 +101,7 @@ cdef csr_to_series(GraphCSRPtrType graph):
     return (csr_offsets, csr_indices, csr_weights)
 
 
-cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphCSRViewType* dummy=NULL):
-    if not input_graph.adjlist:
-        input_graph.view_adj_list()
-
-    cdef uintptr_t c_off = input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_ind = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t>NULL
-
-    if input_graph.adjlist.weights is not None and weighted:
-        c_weights = input_graph.adjlist.weights.__cuda_array_interface__['data'][0]
-
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges(directed_edges=True)
-    cdef GraphCSRViewType in_graph
-    if GraphCSRViewType is GraphCSRViewFloat:
-        in_graph = GraphCSRViewFloat(<int*>c_off, <int*>c_ind, <float*>c_weights, num_verts, num_edges)
-    elif GraphCSRViewType is GraphCSRViewDouble:
-        in_graph = GraphCSRViewDouble(<int*>c_off, <int*>c_ind, <double*>c_weights, num_verts, num_edges)
-    return in_graph
-
-
-cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphCOOViewType* dummy=NULL):
+cdef GraphCOOViewFloat get_coo_float_graph_view(input_graph, bool weighted=True):
     # FIXME: this function assumes columns named "src" and "dst" and can only
     # be used for SG graphs due to that assumption.
     if not input_graph.edgelist:
@@ -139,20 +118,24 @@ cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphC
     if input_graph.edgelist.weights and weighted:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCOOViewType in_graph
-    if GraphCOOViewType is GraphCOOViewFloat:
-        in_graph = GraphCOOViewFloat(<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
-    elif GraphCOOViewType is GraphCOOViewDouble:
-        in_graph = GraphCOOViewDouble(<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
-    return in_graph
+    return GraphCOOViewFloat(<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
 
 
-cdef GraphViewType get_graph_view(input_graph, bool weighted = True, GraphViewType* dummy=NULL):
-    if GraphViewType is GraphCOOViewFloat:
-        return get_coo_graph_view[GraphCOOViewFloat](input_graph, weighted, dummy)
-    elif GraphViewType is GraphCOOViewDouble:
-        return get_coo_graph_view[GraphCOOViewDouble](input_graph, weighted, dummy)
-    elif GraphViewType is GraphCSRViewFloat:
-        return get_csr_graph_view[GraphCSRViewFloat](input_graph, weighted, dummy)
-    elif GraphViewType is GraphCSRViewDouble:
-        return get_csr_graph_view[GraphCSRViewDouble](input_graph, weighted, dummy)
+cdef GraphCOOViewDouble get_coo_double_graph_view(input_graph, bool weighted=True):
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
+    if not input_graph.edgelist:
+        input_graph.view_edge_list()
+
+    num_edges = input_graph.number_of_edges(directed_edges=True)
+    num_verts = input_graph.number_of_vertices()
+
+    cdef uintptr_t c_src = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = <uintptr_t>NULL
+
+    # FIXME explicit check for None fails, different behavior than get_csr_graph_view
+    if input_graph.edgelist.weights and weighted:
+        c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
+
+    return GraphCOOViewDouble(<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)

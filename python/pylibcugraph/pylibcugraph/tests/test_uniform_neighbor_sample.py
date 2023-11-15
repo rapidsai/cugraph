@@ -266,7 +266,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
 
 def test_sample_result():
     """
-    Ensure the SampleResult class returns zero-opy cupy arrays and properly
+    Ensure the SampleResult class returns zero-copy cupy arrays and properly
     frees device memory when all references to it are gone and it's garbage
     collected.
     """
@@ -303,6 +303,8 @@ def test_sample_result():
     assert isinstance(sources, cp.ndarray)
     assert isinstance(destinations, cp.ndarray)
     assert isinstance(indices, cp.ndarray)
+
+    print("sources:", destinations)
 
     # Delete the SampleResult instance. This *should not* free the device
     # memory yet since the variables sources, destinations, and indices are

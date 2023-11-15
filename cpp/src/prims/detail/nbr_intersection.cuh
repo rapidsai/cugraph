@@ -1023,7 +1023,7 @@ nbr_intersection(raft::handle_t const& handle,
                                (*major_nbr_offsets).begin() + 1);
       }
 
-      std::tie(*major_nbr_indices, std::ignore) = shuffle_values(
+      std::tie(major_nbr_indices, std::ignore) = shuffle_values(
         major_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
 
       if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {

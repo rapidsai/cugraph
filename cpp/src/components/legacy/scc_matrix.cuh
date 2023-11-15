@@ -68,7 +68,7 @@ struct SCC_Data {
   SCC_Data(size_t nrows,
            const IndexT* p_d_r_o,  // row_offsets
            const IndexT* p_d_c_i)
-    :                              // column indices
+    :  // column indices
       nrows_(nrows),
       p_d_r_o_(p_d_r_o),
       p_d_c_i_(p_d_c_i),

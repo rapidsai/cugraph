@@ -20,8 +20,19 @@ import scipy
 import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
-from cugraph.experimental import overlap as exp_overlap
-from cudf.testing import assert_series_equal, assert_frame_equal
+from cudf.testing import assert_series_equal
+from cudf.testing.testing import assert_frame_equal
+
+SRC_COL = "0"
+DST_COL = "1"
+VERTEX_PAIR_FIRST_COL = "first"
+VERTEX_PAIR_SECOND_COL = "second"
+OVERLAP_COEFF_COL = "overlap_coeff"
+EDGE_ATT_COL = "weight"
+MULTI_COL_SRC_0_COL = "src_0"
+MULTI_COL_DST_0_COL = "dst_0"
+MULTI_COL_SRC_1_COL = "src_1"
+MULTI_COL_DST_1_COL = "dst_1"
 
 
 # =============================================================================
@@ -35,7 +46,6 @@ def setup_function():
 # Helper functions
 # =============================================================================
 def compare_overlap(cu_coeff, cpu_coeff):
-
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
         if np.isnan(cpu_coeff[i]):
@@ -47,21 +57,21 @@ def compare_overlap(cu_coeff, cpu_coeff):
             assert diff < 1.0e-6
 
 
-def cugraph_call(benchmark_callable, graph_file, pairs, edgevals=False):
+def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
     # Device data
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=False), ignore_weights=not edgevals
+        create_using=cugraph.Graph(directed=False), ignore_weights=not use_weight
     )
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
-    df = df.sort_values(by=["first", "second"]).reset_index(drop=True)
-    if not edgevals:
-        # experimental overlap currently only supports unweighted graphs
-        df_exp = exp_overlap(G, pairs)
-        df_exp = df_exp.sort_values(by=["first", "second"]).reset_index(drop=True)
-        assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+    df = df.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
+        drop=True
+    )
+    if use_weight:
+        res_w_overlap = cugraph.overlap_w(G, vertex_pair=pairs)
+        assert_frame_equal(res_w_overlap, df, check_dtype=False, check_like=True)
 
-    return df["overlap_coeff"].to_numpy()
+    return df[OVERLAP_COEFF_COL].to_numpy()
 
 
 def intersection(a, b, M):
@@ -120,8 +130,10 @@ def read_csv(request):
     dataset_path = graph_file.get_path()
     Mnx = utils.read_csv_for_nx(dataset_path)
 
-    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    N = max(max(Mnx[SRC_COL]), max(Mnx[DST_COL])) + 1
+    M = scipy.sparse.csr_matrix(
+        (Mnx.weight, (Mnx[SRC_COL], Mnx[DST_COL])), shape=(N, N)
+    )
 
     return M, graph_file
 
@@ -135,7 +147,7 @@ def extract_two_hop(read_csv):
     G = graph_file.get_graph(ignore_weights=True)
     pairs = (
         G.get_two_hop_neighbors()
-        .sort_values(["first", "second"])
+        .sort_values([VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL])
         .reset_index(drop=True)
     )
 
@@ -144,93 +156,91 @@ def extract_two_hop(read_csv):
 
 # Test
 @pytest.mark.sg
-def test_overlap(gpubenchmark, read_csv, extract_two_hop):
-
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_overlap(gpubenchmark, read_csv, extract_two_hop, use_weight):
     M, graph_file = read_csv
     pairs = extract_two_hop
 
-    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs)
-    cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
-
-    compare_overlap(cu_coeff, cpu_coeff)
-
-
-# Test
-@pytest.mark.sg
-def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
-
-    M, graph_file = read_csv
-    pairs = extract_two_hop
-
-    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs, edgevals=True)
-    cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
+    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs, use_weight=use_weight)
+    cpu_coeff = cpu_call(M, pairs[VERTEX_PAIR_FIRST_COL], pairs[VERTEX_PAIR_SECOND_COL])
 
     compare_overlap(cu_coeff, cpu_coeff)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_overlap_multi_column(graph_file):
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_directed_graph_check(graph_file, use_weight):
+    M = utils.read_csv_for_nx(graph_file.get_path())
+    cu_M = cudf.DataFrame()
+    cu_M[SRC_COL] = cudf.Series(M[SRC_COL])
+    cu_M[DST_COL] = cudf.Series(M[DST_COL])
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
+
+    G1 = cugraph.Graph(directed=True)
+    weight = EDGE_ATT_COL if use_weight else None
+    G1.from_cudf_edgelist(cu_M, source=SRC_COL, destination=DST_COL, weight=weight)
+
+    vertex_pair = cu_M[[SRC_COL, DST_COL]]
+
+    vertex_pair = vertex_pair[:5]
+    with pytest.raises(ValueError):
+        cugraph.overlap(G1, vertex_pair, use_weight)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
+@pytest.mark.parametrize("use_weight", [False, True])
+def test_overlap_multi_column(graph_file, use_weight):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
-    cu_M["src_0"] = cudf.Series(M["0"])
-    cu_M["dst_0"] = cudf.Series(M["1"])
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M[MULTI_COL_SRC_0_COL] = cudf.Series(M[SRC_COL])
+    cu_M[MULTI_COL_DST_0_COL] = cudf.Series(M[DST_COL])
+    cu_M[MULTI_COL_SRC_1_COL] = cu_M[MULTI_COL_SRC_0_COL] + 1000
+    cu_M[MULTI_COL_DST_1_COL] = cu_M[MULTI_COL_DST_0_COL] + 1000
+    if use_weight:
+        cu_M[EDGE_ATT_COL] = cudf.Series(M[EDGE_ATT_COL])
+
     G1 = cugraph.Graph()
+    weight = EDGE_ATT_COL if use_weight else None
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        cu_M,
+        source=[MULTI_COL_SRC_0_COL, MULTI_COL_SRC_1_COL],
+        destination=[MULTI_COL_DST_0_COL, MULTI_COL_DST_1_COL],
+        weight=weight,
     )
 
-    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = cu_M[
+        [
+            MULTI_COL_SRC_0_COL,
+            MULTI_COL_SRC_1_COL,
+            MULTI_COL_DST_0_COL,
+            MULTI_COL_DST_1_COL,
+        ]
+    ]
     vertex_pair = vertex_pair[:5]
 
-    df_res = cugraph.overlap(G1, vertex_pair)
-    df_plc_exp = exp_overlap(G1, vertex_pair)
-
-    df_plc_exp = df_plc_exp.rename(
-        columns={
-            "0_src": "0_source",
-            "0_dst": "0_destination",
-            "1_src": "1_source",
-            "1_dst": "1_destination",
-        }
-    )
-    overlap_res = df_res["overlap_coeff"].sort_values().reset_index(drop=True)
-    overlap_plc_exp = df_plc_exp["overlap_coeff"].sort_values().reset_index(drop=True)
-    assert_series_equal(overlap_res, overlap_plc_exp)
-
+    df_multi_col_res = cugraph.overlap(G1, vertex_pair, use_weight=use_weight)
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
-    df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
+    G2.from_cudf_edgelist(
+        cu_M, source=MULTI_COL_SRC_0_COL, destination=MULTI_COL_DST_0_COL, weight=weight
+    )
+    df_single_col_res = cugraph.overlap(
+        G2, vertex_pair[[MULTI_COL_SRC_0_COL, MULTI_COL_DST_0_COL]]
+    )
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_first").reset_index()
-    expected = df_exp.sort_values("first").reset_index()
-    assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
+    actual = df_multi_col_res.sort_values("0_src").reset_index()
+    expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
+    assert_series_equal(actual[OVERLAP_COEFF_COL], expected[OVERLAP_COEFF_COL])
 
 
 @pytest.mark.sg
-def test_weighted_exp_overlap():
+def test_weighted_overlap():
     karate = UNDIRECTED_DATASETS[0]
-    G = karate.get_graph()
-    with pytest.raises(ValueError):
-        exp_overlap(G)
-
     G = karate.get_graph(ignore_weights=True)
-    use_weight = True
     with pytest.raises(ValueError):
-        exp_overlap(G, use_weight=use_weight)
-
-
-@pytest.mark.sg
-def test_invalid_datasets_overlap():
-    karate = UNDIRECTED_DATASETS[0]
-    df = karate.get_edgelist()
-    df = df.add(1)
-    G = cugraph.Graph(directed=False)
-    G.from_cudf_edgelist(df, source="src", destination="dst")
-    with pytest.raises(ValueError):
-        cugraph.overlap(G)
+        cugraph.overlap(G, use_weight=True)

@@ -116,6 +116,7 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 * ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
 * CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
 * Memgraph - In-memory Graph database - https://memgraph.com/
+* PyGraphistry - free and open-source GPU graph ETL, AI, and visualization, including native RAPIDS & cuGraph support - http://github.com/graphistry/pygraphistry
 * ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
 
 (please post an issue if you have a project to add to this list)

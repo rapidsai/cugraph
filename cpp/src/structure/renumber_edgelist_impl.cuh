@@ -86,7 +86,7 @@ struct find_unused_id_t {
     for (size_t i = worker_id; i < sorted_local_vertices.size() + size_t{1}; i += num_workers) {
       auto start = (i == size_t{0}) ? std::numeric_limits<vertex_t>::lowest()
                                     : sorted_local_vertices[i - size_t{1}];
-      if (start != std::numeric_limits<vertex_t>::max()) { ++start; };            // now inclusive
+      if (start != std::numeric_limits<vertex_t>::max()) { ++start; };  // now inclusive
       auto end = (i == sorted_local_vertices.size()) ? std::numeric_limits<vertex_t>::max()
                                                      : sorted_local_vertices[i];  // exclusive
       for (vertex_t v = start; v < end; ++v) {

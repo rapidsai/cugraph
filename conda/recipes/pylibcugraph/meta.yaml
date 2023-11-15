@@ -54,7 +54,7 @@ requirements:
     {% if cuda_major == "11" %}
     - cudatoolkit
     {% endif %}
-    - cython >=0.29,<0.30
+    - cython >=3.0.0
     - libcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
     - python
@@ -76,6 +76,7 @@ tests:
 
 about:
   home: https://rapids.ai/
+  dev_url: https://github.com/rapidsai/cugraph
   license: Apache-2.0
   license_file: ../../../LICENSE
   summary: pylibcugraph library

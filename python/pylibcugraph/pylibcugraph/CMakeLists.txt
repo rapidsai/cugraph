@@ -35,6 +35,7 @@ set(cython_sources
     hits.pyx
     induced_subgraph.pyx
     k_core.pyx
+    k_truss_subgraph.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx

@@ -1,0 +1,23 @@
+name: dining_prefs
+file_type: .csv
+description:  Classic social networking dataset describes dining preferences for a dormitory in New York state.
+author: J.L. Moreno
+refs:
+  J. L. Moreno (1960). The Sociometry Reader. The Free Press, Glencoe, Illinois, pg.35
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - string
+  - string
+  - int
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 42
+number_of_nodes: 26
+url:  https://data.rapids.ai/cugraph/datasets/dining_prefs.csv

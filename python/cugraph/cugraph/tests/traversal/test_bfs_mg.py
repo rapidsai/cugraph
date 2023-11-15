@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import gc
+import random
 
 import pytest
 
@@ -38,7 +39,7 @@ IS_DIRECTED = [True, False]
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_bfs(dask_client, directed):
+def test_dask_mg_bfs(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
 
@@ -61,7 +62,9 @@ def test_dask_bfs(dask_client, directed):
         return cudf.concat([df, temp_df])
 
     meta = ddf._meta
-    ddf = ddf.map_partitions(modify_dataset, meta=meta)
+    ddf = ddf.map_partitions(
+        modify_dataset, meta=meta, token="custom-" + str(random.random())
+    )
 
     df = cudf.read_csv(
         input_data_path,
@@ -102,7 +105,7 @@ def test_dask_bfs(dask_client, directed):
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_bfs_invalid_start(dask_client, directed):
+def test_dask_mg_bfs_invalid_start(dask_client, directed):
     source_vertex = 10
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
 
@@ -138,7 +141,7 @@ def test_dask_bfs_invalid_start(dask_client, directed):
 # )
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
+def test_dask_mg_bfs_multi_column_depthlimit(dask_client, directed):
     gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()

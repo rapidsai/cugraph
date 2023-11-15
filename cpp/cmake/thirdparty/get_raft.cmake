@@ -30,16 +30,19 @@ function(find_and_configure_raft)
       set(CPM_DOWNLOAD_raft ON)
     endif()
 
-    set(BUILD_RAFT_SHARED ON)
-    if(PKG_USE_RAFT_STATIC)
-      set(BUILD_RAFT_SHARED OFF)
+    if(PKG_COMPILE_RAFT_LIB)
+      if(NOT PKG_USE_RAFT_STATIC)
+        string(APPEND RAFT_COMPONENTS " compiled")
+      else()
+        string(APPEND RAFT_COMPONENTS " compiled_static")
+      endif()
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
-      COMPONENTS compiled
+      COMPONENTS ${RAFT_COMPONENTS}
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
@@ -49,7 +52,6 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_LIBRARY ${PKG_COMPILE_RAFT_LIB}"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
-                "BUILD_SHARED_LIBS ${BUILD_RAFT_SHARED}"
     )
 
     if(raft_ADDED)

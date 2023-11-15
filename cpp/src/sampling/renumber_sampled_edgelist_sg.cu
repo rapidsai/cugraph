@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <cugraph/graph_functions.hpp>
+#include <cugraph/sampling_functions.hpp>
 
 #include "renumber_sampled_edgelist_impl.cuh"
 
+// FIXME: deprecated, to be deleted
 namespace cugraph {
 
 template std::tuple<rmm::device_uvector<int32_t>,
