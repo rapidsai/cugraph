@@ -20,11 +20,8 @@ dependencies:
 - cupy>=12.0.0
 - cxx-compiler
 - cython>=3.0.0
-- dask-core==2023.9.2
 - dask-cuda==23.12.*
 - dask-cudf==23.12.*
-- dask>=2023.7.1
-- distributed>=2023.7.1
 - doxygen
 - fsspec>=0.6.0
 - gcc_linux-64=11.*
@@ -62,6 +59,7 @@ dependencies:
 - pytest-xdist
 - python-louvain
 - raft-dask==23.12.*
+- rapids-dask-dependency==23.12.*
 - recommonmark
 - requests
 - rmm==23.12.*

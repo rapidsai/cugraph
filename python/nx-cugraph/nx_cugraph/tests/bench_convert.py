@@ -39,6 +39,8 @@ except ModuleNotFoundError:
 
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
+CREATE_USING = [nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph]
+
 
 def _bench_helper(gpubenchmark, N, attr_kind, create_using, method):
     G = method(N, create_using=create_using)
@@ -103,7 +105,7 @@ def _bench_helper_scipy(gpubenchmark, N, attr_kind, create_using, method, fmt):
         None,
     ],
 )
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 def bench_cycle_graph(gpubenchmark, N, attr_kind, create_using):
     _bench_helper(gpubenchmark, N, attr_kind, create_using, nx.cycle_graph)
 
@@ -111,7 +113,7 @@ def bench_cycle_graph(gpubenchmark, N, attr_kind, create_using):
 @pytest.mark.skipif("not cugraph")
 @pytest.mark.parametrize("N", [1, 10**6])
 @pytest.mark.parametrize("attr_kind", ["full", None])
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 @pytest.mark.parametrize("do_renumber", [True, False])
 def bench_cycle_graph_cugraph(gpubenchmark, N, attr_kind, create_using, do_renumber):
     if N == 1 and not do_renumber:
@@ -124,7 +126,7 @@ def bench_cycle_graph_cugraph(gpubenchmark, N, attr_kind, create_using, do_renum
 @pytest.mark.skipif("not scipy")
 @pytest.mark.parametrize("N", [1, 10**6])
 @pytest.mark.parametrize("attr_kind", ["full", None])
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 @pytest.mark.parametrize("fmt", ["coo", "csr"])
 def bench_cycle_graph_scipy(gpubenchmark, N, attr_kind, create_using, fmt):
     _bench_helper_scipy(gpubenchmark, N, attr_kind, create_using, nx.cycle_graph, fmt)
@@ -143,14 +145,14 @@ def bench_cycle_graph_scipy(gpubenchmark, N, attr_kind, create_using, fmt):
         None,
     ],
 )
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 def bench_complete_graph_edgedata(gpubenchmark, N, attr_kind, create_using):
     _bench_helper(gpubenchmark, N, attr_kind, create_using, nx.complete_graph)
 
 
 @pytest.mark.parametrize("N", [3000])
 @pytest.mark.parametrize("attr_kind", [None])
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 def bench_complete_graph_noedgedata(gpubenchmark, N, attr_kind, create_using):
     _bench_helper(gpubenchmark, N, attr_kind, create_using, nx.complete_graph)
 
@@ -158,7 +160,7 @@ def bench_complete_graph_noedgedata(gpubenchmark, N, attr_kind, create_using):
 @pytest.mark.skipif("not cugraph")
 @pytest.mark.parametrize("N", [1, 1500])
 @pytest.mark.parametrize("attr_kind", ["full", None])
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 @pytest.mark.parametrize("do_renumber", [True, False])
 def bench_complete_graph_cugraph(gpubenchmark, N, attr_kind, create_using, do_renumber):
     if N == 1 and not do_renumber:
@@ -171,7 +173,7 @@ def bench_complete_graph_cugraph(gpubenchmark, N, attr_kind, create_using, do_re
 @pytest.mark.skipif("not scipy")
 @pytest.mark.parametrize("N", [1, 1500])
 @pytest.mark.parametrize("attr_kind", ["full", None])
-@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize("create_using", CREATE_USING)
 @pytest.mark.parametrize("fmt", ["coo", "csr"])
 def bench_complete_graph_scipy(gpubenchmark, N, attr_kind, create_using, fmt):
     _bench_helper_scipy(

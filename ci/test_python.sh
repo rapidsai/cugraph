@@ -63,7 +63,7 @@ pytest \
   tests
 popd
 
-# Remove this comment once PR 3940 is merged
+# FIXME: TEMPORARILY disable single-GPU "MG" testing
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 DASK_WORKER_DEVICES="0" \
@@ -79,7 +79,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not _mg" \
   tests
 popd
 

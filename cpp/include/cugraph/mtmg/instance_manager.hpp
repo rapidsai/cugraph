@@ -18,7 +18,7 @@
 
 #include <cugraph/mtmg/handle.hpp>
 
-#include <nccl.h>
+#include <raft/comms/std_comms.hpp>
 
 #include <vector>
 
@@ -37,14 +37,25 @@ class instance_manager_t {
    */
   instance_manager_t(std::vector<std::unique_ptr<raft::handle_t>>&& handles,
                      std::vector<std::unique_ptr<ncclComm_t>>&& nccl_comms,
-                     std::vector<rmm::cuda_device_id>&& device_ids,
-                     int local_gpu_count)
+                     std::vector<rmm::cuda_device_id>&& device_ids)
     : thread_counter_{0},
       raft_handle_{std::move(handles)},
       nccl_comms_{std::move(nccl_comms)},
-      device_ids_{std::move(device_ids)},
-      local_gpu_count_{local_gpu_count}
+      device_ids_{std::move(device_ids)}
   {
+  }
+
+  ~instance_manager_t()
+  {
+    int current_device{};
+    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
+
+    for (size_t i = 0; i < nccl_comms_.size(); ++i) {
+      RAFT_CUDA_TRY(cudaSetDevice(device_ids_[i].value()));
+      RAFT_NCCL_TRY(ncclCommDestroy(*nccl_comms_[i]));
+    }
+
+    RAFT_CUDA_TRY(cudaSetDevice(current_device));
   }
 
   /**
@@ -54,18 +65,18 @@ class instance_manager_t {
    * the request.  Threads will be assigned to GPUs in a round-robin fashion to
    * spread requesting threads around the GPU resources.
    *
-   * This function will be CPU thread-safe.
+   * This function is CPU thread-safe.
    *
    * @return a handle for this thread.
    */
   handle_t get_handle()
   {
-    int local_id = thread_counter_++;
+    int local_id  = thread_counter_++;
+    int gpu_id    = local_id % raft_handle_.size();
+    int thread_id = local_id / raft_handle_.size();
 
-    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[local_id % raft_handle_.size()].value()));
-    return handle_t(*raft_handle_[local_id % raft_handle_.size()],
-                    local_id / raft_handle_.size(),
-                    static_cast<size_t>(local_id % raft_handle_.size()));
+    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[gpu_id].value()));
+    return handle_t(*raft_handle_[gpu_id], thread_id, static_cast<size_t>(gpu_id));
   }
 
   /**
@@ -79,7 +90,7 @@ class instance_manager_t {
   /**
    * @brief Number of local GPUs in the instance
    */
-  int get_local_gpu_count() { return local_gpu_count_; }
+  int get_local_gpu_count() { return static_cast<int>(raft_handle_.size()); }
 
  private:
   // FIXME: Should this be an std::map<> where the key is the rank?
@@ -87,9 +98,11 @@ class instance_manager_t {
   //        (or no) GPUs, so mapping rank to a handle might be a challenge
   //
   std::vector<std::unique_ptr<raft::handle_t>> raft_handle_{};
+
+  // FIXME: Explore what RAFT changes might be desired to allow the ncclComm_t
+  //        to be managed by RAFT instead of cugraph::mtmg
   std::vector<std::unique_ptr<ncclComm_t>> nccl_comms_{};
   std::vector<rmm::cuda_device_id> device_ids_{};
-  int local_gpu_count_{};
 
   std::atomic<int> thread_counter_{0};
 };

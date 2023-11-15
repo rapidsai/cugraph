@@ -61,4 +61,4 @@ def start_server_blocking(
     server.serve()  # blocks until Ctrl-C (kill -2)
 
 
-__version__ = "23.12.00"
+from cugraph_service_server._version import __git_commit__, __version__
