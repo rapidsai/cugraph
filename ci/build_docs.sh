@@ -30,7 +30,8 @@ rapids-mamba-retry install \
   cugraph-service-server \
   cugraph-service-client \
   libcugraph_etl \
-  pylibcugraphops
+  pylibcugraphops \
+  pylibwholegraph
 
 # This command installs `cugraph-dgl` without its dependencies
 # since this package can currently only run in `11.6` CTK environments
