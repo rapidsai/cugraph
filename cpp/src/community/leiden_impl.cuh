@@ -108,7 +108,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   rmm::device_uvector<vertex_t> louvain_of_refined_graph(0, handle.get_stream());  // #V
 
-  while (dendrogram->num_levels() < max_level) {
+  while (dendrogram->num_levels() < 2 * max_level + 1) {
     //
     //  Initialize every cluster to reference each vertex to itself
     //
@@ -477,7 +477,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           (*cluster_assignment).data(),
           (*cluster_assignment).size(),
           false);
-
+        // louvain assignment of aggregated graph which is necessary to flatten dendrogram
         dendrogram->add_level(current_graph_view.local_vertex_partition_range_first(),
                               current_graph_view.local_vertex_partition_range_size(),
                               handle.get_stream());
