@@ -70,4 +70,7 @@ mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
 mv _text/* "${RAPIDS_DOCS_DIR}/cugraph/txt"
 popd
 
+# cleanup
+rm -r "${RAPIDS_DOCS_DIR}/libcugraph/_xml"
+
 rapids-upload-docs
