@@ -371,20 +371,11 @@ class EXPERIMENTAL__CuGraphStore:
     def __dask_array_from_numpy(
         self, array: np.ndarray, client: distributed.client.Client, npartitions: int
     ):
-        split_array = np.array_split(array, npartitions)
-        shapes = [n.shape for n in split_array]
-        scattered_array = client.scatter(split_array)
-        del split_array
-
-        dask_array = dar.concatenate(
-            [
-                dar.from_delayed(s, shape=shapes[i], dtype=array.dtype)
-                for i, s in enumerate(scattered_array)
-            ]
+        return dar.from_array(
+            array,
+            meta=np.array([], dtype=array.dtype),
+            chunks=max(1, len(array) // npartitions),
         )
-        del scattered_array
-
-        return dask_array
 
     def __construct_graph(
         self,
