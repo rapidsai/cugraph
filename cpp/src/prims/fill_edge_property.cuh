@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/edge_property.hpp>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -23,6 +24,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
 
 #include <cstddef>
 
