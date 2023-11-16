@@ -22,13 +22,9 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
-REPO="rmm"
-PR_NUMBER="1095"
-COMMIT=$(git ls-remote https://github.com/rapidsai/${REPO}.git refs/heads/pull-request/${PR_NUMBER} | cut -c1-7)
-RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
-PYTHON_MINOR_VERSION=$(python --version | sed -E 's/Python [0-9]+\.([0-9]+)\.[0-9]+/\1/g')
-LIBRMM_CHANNEL=$(rapids-get-artifact ci/${REPO}/pull-request/${PR_NUMBER}/${COMMIT}/rmm_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-RMM_CHANNEL=$(rapids-get-artifact ci/${REPO}/pull-request/${PR_NUMBER}/${COMMIT}/rmm_conda_python_cuda${RAPIDS_CUDA_MAJOR}_3${PYTHON_MINOR_VERSION}_$(arch).tar.gz)
+LIBRMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1095 cpp)
+LIBCUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14365 cpp)
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 cpp)
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
@@ -41,6 +37,10 @@ rapids-mamba-retry install \
   --channel "${PYTHON_CHANNEL}" \
   --channel "${LIBRMM_CHANNEL}" \
   --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   libcugraph \
   pylibcugraph \
   cugraph \
@@ -162,6 +162,12 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel pytorch-nightly \
       --channel dglteam/label/cu118 \
       --channel nvidia \
+      --channel "${LIBRMM_CHANNEL}" \
+      --channel "${RMM_CHANNEL}" \
+      --channel "${LIBCUDF_CHANNEL}" \
+      --channel "${CUDF_CHANNEL}" \
+      --channel "${LIBRAFT_CHANNEL}" \
+      --channel "${RAFT_CHANNEL}" \
       libcugraph \
       pylibcugraph \
       pylibcugraphops \
@@ -213,6 +219,12 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel pyg \
       --channel pytorch \
       --channel nvidia \
+      --channel "${LIBRMM_CHANNEL}" \
+      --channel "${RMM_CHANNEL}" \
+      --channel "${LIBCUDF_CHANNEL}" \
+      --channel "${CUDF_CHANNEL}" \
+      --channel "${LIBRAFT_CHANNEL}" \
+      --channel "${RAFT_CHANNEL}" \
       'pyg=2.3' \
       'pytorch=2.0.0' \
       'pytorch-cuda=11.8'
@@ -225,6 +237,10 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel "${LIBRMM_CHANNEL}" \
       --channel "${RMM_CHANNEL}" \
+      --channel "${LIBCUDF_CHANNEL}" \
+      --channel "${CUDF_CHANNEL}" \
+      --channel "${LIBRAFT_CHANNEL}" \
+      --channel "${RAFT_CHANNEL}" \
       libcugraph \
       pylibcugraph \
       pylibcugraphops \

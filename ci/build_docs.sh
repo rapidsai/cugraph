@@ -20,9 +20,19 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
+LIBRMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1095 cpp)
+LIBCUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14365 cpp)
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 cpp)
+
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   libcugraph \
   pylibcugraph \
   cugraph \

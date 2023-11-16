@@ -11,14 +11,10 @@ rapids-print-env
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 
-REPO="rmm"
-PR_NUMBER="1095"
-COMMIT=$(git ls-remote https://github.com/rapidsai/${REPO}.git refs/heads/pull-request/${PR_NUMBER} | cut -c1-7)
-RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
-PYTHON_MINOR_VERSION=$(python --version | sed -E 's/Python [0-9]+\.([0-9]+)\.[0-9]+/\1/g')
-LIBRMM_CHANNEL=$(rapids-get-artifact ci/${REPO}/pull-request/${PR_NUMBER}/${COMMIT}/rmm_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-RMM_CHANNEL=$(rapids-get-artifact ci/${REPO}/pull-request/${PR_NUMBER}/${COMMIT}/rmm_conda_python_cuda${RAPIDS_CUDA_MAJOR}_3${PYTHON_MINOR_VERSION}_$(arch).tar.gz)
-
+LIBRMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1095 cpp)
+LIBCUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14365 cpp)
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 cpp)
+RAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 python)
 
 version=$(rapids-generate-version)
 git_commit=$(git rev-parse HEAD)
@@ -40,6 +36,10 @@ rapids-conda-retry mambabuild \
   --channel "${CPP_CHANNEL}" \
   --channel "${LIBRMM_CHANNEL}" \
   --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   conda/recipes/pylibcugraph
 
 rapids-conda-retry mambabuild \
@@ -48,6 +48,10 @@ rapids-conda-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   --channel "${LIBRMM_CHANNEL}" \
   --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   conda/recipes/cugraph
 
 # NOTE: nothing in nx-cugraph is CUDA-specific, but it is built on each CUDA
@@ -60,6 +64,10 @@ rapids-conda-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   --channel "${LIBRMM_CHANNEL}" \
   --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   conda/recipes/nx-cugraph
 
 # NOTE: nothing in the cugraph-service packages are CUDA-specific, but they are
@@ -76,6 +84,10 @@ rapids-conda-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   --channel "${LIBRMM_CHANNEL}" \
   --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   conda/recipes/cugraph-service
 
 RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
@@ -91,6 +103,10 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --channel pytorch-nightly \
     --channel "${LIBRMM_CHANNEL}" \
     --channel "${RMM_CHANNEL}" \
+    --channel "${LIBCUDF_CHANNEL}" \
+    --channel "${CUDF_CHANNEL}" \
+    --channel "${LIBRAFT_CHANNEL}" \
+    --channel "${RAFT_CHANNEL}" \
     conda/recipes/cugraph-pyg
 
   # Only CUDA 11 is supported right now due to PyTorch requirement.
@@ -103,6 +119,10 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --channel pytorch-nightly \
     --channel "${LIBRMM_CHANNEL}" \
     --channel "${RMM_CHANNEL}" \
+    --channel "${LIBCUDF_CHANNEL}" \
+    --channel "${CUDF_CHANNEL}" \
+    --channel "${LIBRAFT_CHANNEL}" \
+    --channel "${RAFT_CHANNEL}" \
     conda/recipes/cugraph-dgl
 fi
 
