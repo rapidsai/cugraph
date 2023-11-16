@@ -230,7 +230,7 @@ if __name__ == "__main__":
         ]
     )
     # Generating ALL results files
-    results_dir_path = default_resultset_download_dir.get_download_dir()
+    results_dir_path = default_resultset_download_dir.path
     if not results_dir_path.exists():
         results_dir_path.mkdir(parents=True, exist_ok=True)
 
