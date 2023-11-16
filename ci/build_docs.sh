@@ -21,8 +21,11 @@ CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
 LIBRMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1095 cpp)
+RMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1095 python)
 LIBCUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14365 cpp)
+CUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14365 python)
 LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 cpp)
+RAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 1964 python)
 
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \

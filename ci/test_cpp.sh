@@ -32,11 +32,8 @@ rapids-print-env
 rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
     --channel "${LIBRMM_CHANNEL}" \
-    --channel "${RMM_CHANNEL}" \
     --channel "${LIBCUDF_CHANNEL}" \
-    --channel "${CUDF_CHANNEL}" \
     --channel "${LIBRAFT_CHANNEL}" \
-    --channel "${RAFT_CHANNEL}" \
     libcugraph libcugraph_etl libcugraph-tests
 
 rapids-logger "Check GPU usage"

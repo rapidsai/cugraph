@@ -19,7 +19,8 @@ rapids-logger "Begin cpp build"
 
 RAPIDS_PACKAGE_VERSION=${version} rapids-conda-retry mambabuild \
   --channel "${LIBRMM_CHANNEL}" \
-  --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
   conda/recipes/libcugraph
 
 rapids-upload-conda-to-s3 cpp
