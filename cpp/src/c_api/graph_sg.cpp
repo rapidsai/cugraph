@@ -40,6 +40,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   bool_t renumber_;
+  bool_t drop_self_loops_;
+  bool_t drop_multi_edges_;
   bool_t do_expensive_check_;
   cugraph_data_type_id_t edge_type_;
   cugraph::c_api::cugraph_graph_t* result_{};
@@ -53,6 +55,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids,
                        bool_t renumber,
+                       bool_t drop_self_loops,
+                       bool_t drop_multi_edges,
                        bool_t do_expensive_check,
                        cugraph_data_type_id_t edge_type)
     : abstract_functor(),
@@ -65,6 +69,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       edge_ids_(edge_ids),
       edge_type_ids_(edge_type_ids),
       renumber_(renumber),
+      drop_self_loops_(drop_self_loops),
+      drop_multi_edges_(drop_multi_edges),
       do_expensive_check_(do_expensive_check),
       edge_type_(edge_type)
   {
@@ -174,6 +180,40 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       auto edge_types = new cugraph::edge_property_t<
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
+
+      if (drop_multi_edges_) {
+        std::cout << "calling drop_multi_edges" << std::endl;
+        raft::print_device_vector(
+          "  edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+        raft::print_device_vector(
+          "  edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::sort_and_remove_multi_edges(handle_,
+                                               std::move(edgelist_srcs),
+                                               std::move(edgelist_dsts),
+                                               std::move(edgelist_weights),
+                                               std::move(edgelist_edge_ids),
+                                               std::move(edgelist_edge_types));
+
+        std::cout << "after drop_multi_edges" << std::endl;
+        raft::print_device_vector(
+          "  edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+        raft::print_device_vector(
+          "  edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      }
+
+      if (drop_self_loops_) {
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::remove_self_loops(handle_,
+                                     std::move(edgelist_srcs),
+                                     std::move(edgelist_dsts),
+                                     std::move(edgelist_weights),
+                                     std::move(edgelist_edge_ids),
+                                     std::move(edgelist_edge_types));
+      }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
@@ -484,6 +524,8 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -561,6 +603,9 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   cugraph_data_type_id_t edge_type_id_type = cugraph_data_type_id_t::INT32;
   if (edge_type_ids != nullptr) { edge_type_id_type = p_edge_type_ids->type_; }
 
+  std::cout << "  constructing create_graph_functor, drop_multi_edges = "
+            << (drop_multi_edges ? "TRUE" : "FALSE") << std::endl;
+
   ::create_graph_functor functor(*p_handle->handle_,
                                  properties,
                                  p_vertices,
@@ -570,6 +615,8 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
                                  p_edge_ids,
                                  p_edge_type_ids,
                                  renumber,
+                                 drop_self_loops,
+                                 drop_multi_edges,
                                  do_expensive_check,
                                  edge_type);
 
@@ -620,12 +667,14 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                                  edge_type_ids,
                                  store_transposed,
                                  renumber,
+                                 FALSE,
+                                 FALSE,
                                  do_expensive_check,
                                  graph,
                                  error);
 }
 
-cugraph_error_code_t cugraph_sg_graph_create_from_csr(
+cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_view_t* offsets,
@@ -720,6 +769,34 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   }
 
   return CUGRAPH_SUCCESS;
+}
+
+cugraph_error_code_t cugraph_sg_graph_create_from_csr(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* offsets,
+  const cugraph_type_erased_device_array_view_t* indices,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_type_ids,
+  bool_t store_transposed,
+  bool_t renumber,
+  bool_t do_expensive_check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error)
+{
+  return cugraph_graph_create_sg_from_csr(handle,
+                                          properties,
+                                          offsets,
+                                          indices,
+                                          weights,
+                                          edge_ids,
+                                          edge_type_ids,
+                                          store_transposed,
+                                          renumber,
+                                          do_expensive_check,
+                                          graph,
+                                          error);
 }
 
 extern "C" void cugraph_graph_free(cugraph_graph_t* ptr_graph)

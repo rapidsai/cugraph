@@ -69,7 +69,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_type_ids_;
   size_t num_arrays_;
   bool_t renumber_;
-  bool_t check_;
+  bool_t drop_self_loops_;
+  bool_t drop_multi_edges_;
+  bool_t do_expensive_check_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
   create_graph_functor(
@@ -87,7 +89,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
     size_t num_arrays,
     bool_t renumber,
-    bool_t check)
+    bool_t drop_self_loops,
+    bool_t drop_multi_edges,
+    bool_t do_expensive_check)
     : abstract_functor(),
       properties_(properties),
       vertex_type_(vertex_type),
@@ -103,7 +107,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       edge_type_ids_(edge_type_ids),
       num_arrays_(num_arrays),
       renumber_(renumber),
-      check_(check)
+      drop_self_loops_(drop_self_loops),
+      drop_multi_edges_(drop_multi_edges),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -192,6 +198,28 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
 
+      if (drop_multi_edges_) {
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::sort_and_remove_multi_edges(handle_,
+                                               std::move(edgelist_srcs),
+                                               std::move(edgelist_dsts),
+                                               std::move(edgelist_weights),
+                                               std::move(edgelist_edge_ids),
+                                               std::move(edgelist_edge_types));
+      }
+
+      if (drop_self_loops_) {
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::remove_self_loops(handle_,
+                                     std::move(edgelist_srcs),
+                                     std::move(edgelist_dsts),
+                                     std::move(edgelist_weights),
+                                     std::move(edgelist_edge_ids),
+                                     std::move(edgelist_edge_types));
+      }
+
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
@@ -209,7 +237,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           std::move(edgelist_edge_types),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
-          check_);
+          do_expensive_check_);
 
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
@@ -256,7 +284,9 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
   bool_t store_transposed,
   size_t num_arrays,
-  bool_t check,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
 {
@@ -432,7 +462,9 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                p_edge_type_ids,
                                num_arrays,
                                bool_t::TRUE,
-                               check);
+                               drop_self_loops,
+                               drop_multi_edges,
+                               do_expensive_check);
 
   try {
     cugraph::c_api::vertex_dispatcher(
@@ -462,7 +494,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   cugraph_type_erased_device_array_view_t const* edge_type_ids,
   bool_t store_transposed,
   size_t num_edges,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
 {
@@ -476,7 +508,9 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                                  &edge_type_ids,
                                  store_transposed,
                                  1,
-                                 check,
+                                 FALSE,
+                                 FALSE,
+                                 do_expensive_check,
                                  graph,
                                  error);
 }

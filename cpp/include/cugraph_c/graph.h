@@ -52,8 +52,9 @@ typedef struct {
                                argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
+ *    If false, do not renumber.  Renumbering enables some significant optimizations within
+ *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
+ *    the vertices are not sequential integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -94,8 +95,15 @@ cugraph_error_code_t cugraph_sg_graph_create(
                                argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
+ *    If false, do not renumber.  Renumbering enables some significant optimizations within
+ *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
+ *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  drop_self_loops  If true, drop any self loops that exist in the provided edge list.
+ * @param [in]  drop_multi_edges If true, drop any multi edges that exist in the provided edge list.
+ *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
+ *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
+ weights,
+ *    or take the maximum weight), the caller should do that on not rely on this flag.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -115,6 +123,8 @@ cugraph_error_code_t cugraph_graph_create_sg(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -136,8 +146,9 @@ cugraph_error_code_t cugraph_graph_create_sg(
                                argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
+ *    If false, do not renumber.  Renumbering enables some significant optimizations within
+ *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
+ *    the vertices are not sequential integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -175,8 +186,9 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
                                argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
+ *    If false, do not renumber.  Renumbering enables some significant optimizations within
+ *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
+ *    the vertices are not sequential integer values from 0 to num_vertices.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -198,22 +210,6 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
-
-/**
- * @brief     Destroy an graph
- *
- * @param [in]  graph  A pointer to the graph object to destroy
- */
-void cugraph_graph_free(cugraph_graph_t* graph);
-
-/**
- * @brief     Destroy an SG graph
- *
- * @deprecated  This API will be deleted, use cugraph_graph_free instead
- *
- * @param [in]  graph  A pointer to the graph object to destroy
- */
-void cugraph_sg_graph_free(cugraph_graph_t* graph);
 
 /**
  * @brief     Construct an MG graph
@@ -287,6 +283,11 @@ cugraph_error_code_t cugraph_mg_graph_create(
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  num_arrays      The number of arrays specified in @p vertices, @p src, @p dst, @p
  *                              weights, @p edge_ids and @p edge_type_ids
+ * @param [in]  drop_self_loops  If true, drop any self loops that exist in the provided edge list.
+ * @param [in]  drop_multi_edges If true, drop any multi edges that exist in the provided edge list.
+ *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
+ *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
+ * weights, or take the maximum weight), the caller should do that on not rely on this flag.
  * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph           A pointer to the graph object
@@ -305,9 +306,27 @@ cugraph_error_code_t cugraph_graph_create_mg(
   cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
   bool_t store_transposed,
   size_t num_arrays,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
+
+/**
+ * @brief     Destroy an graph
+ *
+ * @param [in]  graph  A pointer to the graph object to destroy
+ */
+void cugraph_graph_free(cugraph_graph_t* graph);
+
+/**
+ * @brief     Destroy an SG graph
+ *
+ * @deprecated  This API will be deleted, use cugraph_graph_free instead
+ *
+ * @param [in]  graph  A pointer to the graph object to destroy
+ */
+void cugraph_sg_graph_free(cugraph_graph_t* graph);
 
 /**
  * @brief     Destroy an MG graph
