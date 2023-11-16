@@ -43,7 +43,7 @@ _test_data = {
         "resolution": 1.0,
         "input_type": "COO",
         "expected_output": {
-            "partition": [1, 0, 1, 2, 2, 2],
+            "partition": [0, 0, 0, 1, 1, 1],
             "modularity_score": 0.215969,
         },
     },
@@ -85,8 +85,8 @@ _test_data = {
         "input_type": "CSR",
         "expected_output": {
             # fmt: off
-            "partition": [6, 6, 3, 3, 1, 5, 5, 3, 0, 3, 1, 6, 3, 3, 4, 4, 5, 6, 4, 6, 4,
-                          6, 4, 4, 2, 2, 4, 4, 2, 4, 0, 2, 4, 4],
+            "partition": [1, 1, 1, 1, 0, 0, 0, 1, 3, 3, 0, 1, 1, 1, 3, 3, 0, 1, 3, 1, 3,
+                          1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3],
             # fmt: on
             "modularity_score": 0.41880345,
         },
@@ -138,7 +138,7 @@ def input_and_expected_output(request):
         # Create graph from csr
         offsets = src_or_offset_array
         indices = dst_or_index_array
-        G.from_cudf_adjlist(offsets, indices, weight)
+        G.from_cudf_adjlist(offsets, indices, weight, renumber=False)
 
     parts, mod = cugraph.leiden(G, max_level, resolution)
 
@@ -233,5 +233,6 @@ def test_leiden_golden_results(input_and_expected_output):
 
     assert abs(expected_mod - result_mod) < 0.0001
 
-    # FIMXE: Add indirect comparision of cluster assignments to expected cluster
-    # assignments.
+    assert_series_equal(
+        expected_partition, result_partition, check_dtype=False, check_names=False
+    )
