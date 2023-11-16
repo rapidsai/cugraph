@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 from collections import defaultdict
 
 from cugraph.utilities.utils import import_optional
@@ -65,7 +65,7 @@ class HeteroGATConv(BaseConv):
 
     def __init__(
         self,
-        in_channels: int | dict[str, int],
+        in_channels: Union[int, dict[str, int]],
         out_channels: int,
         node_types: list[str],
         edge_types: list[tuple[str, str, str]],
@@ -137,13 +137,32 @@ class HeteroGATConv(BaseConv):
         self.reset_parameters()
 
     def split_tensors(
-        self, x_dict: torch.Tensor, dim: int
+        self, x_fused_dict: dict[str, torch.Tensor], dim: int
     ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
-        """Split fused tensors into chunks based on edge types."""
+        """Split fused tensors into chunks based on edge types.
+
+        Parameters
+        ----------
+        x_fused_dict : dict[str, torch.Tensor]
+            A dictionary to hold node feature for each node type. The key is
+            node type; the value is a fused tensor that account for all
+            relations for that node type.
+
+        dim : int
+            Dimension along which to split the fused tensor.
+
+        Returns
+        -------
+        x_src_dict : dict[str, torch.Tensor]
+            A dictionary to hold source node feature for each relation graph.
+
+        x_dst_dict : dict[str, torch.Tensor]
+            A dictionary to hold destination node feature for each relation graph.
+        """
         x_src_dict = dict.fromkeys(self.edge_types_str)
         x_dst_dict = dict.fromkeys(self.edge_types_str)
 
-        for ntype, t in x_dict.items():
+        for ntype, t in x_fused_dict.items():
             n_src_rel = len(self.relations_per_ntype[ntype][0])
             n_dst_rel = len(self.relations_per_ntype[ntype][1])
             n_rel = n_src_rel + n_dst_rel
@@ -153,9 +172,9 @@ class HeteroGATConv(BaseConv):
                 x_src_dict[src_rel] = t_list[i]
 
             for i, dst_rel in enumerate(self.relations_per_ntype[ntype][1]):
-                src_type, _, dst_type = dst_rel.split("__")
-                if src_type != dst_type:
-                    x_dst_dict[dst_rel] = t_list[i + n_src_rel]
+                # src_type, _, dst_type = dst_rel.split("__")
+                # if src_type != dst_type:
+                x_dst_dict[dst_rel] = t_list[i + n_src_rel]
 
         return x_src_dict, x_dst_dict
 
@@ -165,7 +184,7 @@ class HeteroGATConv(BaseConv):
 
         w_src, w_dst = self.split_tensors(self.lin_weights, dim=0)
 
-        for i, edge_type in enumerate(self.edge_types):
+        for _, edge_type in enumerate(self.edge_types):
             src_type, _, dst_type = edge_type
             etype_str = "__".join(edge_type)
             # lin_src
@@ -184,7 +203,11 @@ class HeteroGATConv(BaseConv):
             if self.bias is not None:
                 torch_geometric.nn.inits.zeros(self.bias[etype_str])
 
-    def forward(self, x_dict: dict, edge_index_dict: dict) -> dict[str, torch.Tensor]:
+    def forward(
+        self,
+        x_dict: dict[str, torch.Tensor],
+        edge_index_dict: dict[tuple[str, str, str], torch.Tensor],
+    ) -> dict[str, torch.Tensor]:
         feat_dict = dict.fromkeys(x_dict.keys())
 
         for ntype, x in x_dict.items():
