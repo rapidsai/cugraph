@@ -362,32 +362,3 @@ def test_object_getters(dataset):
     assert dataset.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert dataset.number_of_vertices() == dataset.metadata["number_of_nodes"]
     assert dataset.number_of_edges() == dataset.metadata["number_of_edges"]
-
-
-#
-# Test experimental for DeprecationWarnings
-#
-def test_experimental_dataset_import(setup_deprecation_warning_tests):
-    with pytest.deprecated_call():
-        from cugraph.experimental.datasets import karate
-
-        # unload() is called to pass flake8
-        karate.unload()
-
-
-def test_experimental_method_warnings(setup_deprecation_warning_tests):
-    from cugraph.experimental.datasets import (
-        load_all,
-        set_download_dir,
-        get_download_dir,
-    )
-
-    warnings.filterwarnings("default")
-    tmpd = TemporaryDirectory()
-
-    with pytest.deprecated_call():
-        set_download_dir(tmpd.name)
-        get_download_dir()
-        load_all()
-
-    tmpd.cleanup()

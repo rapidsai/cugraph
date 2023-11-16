@@ -30,15 +30,11 @@ def test_load_resultset():
     with TemporaryDirectory() as tmpd:
 
         set_download_dir(Path(tmpd))
-        default_resultset_download_dir.set_download_dir(
-            Path(tmpd) / "tests" / "resultsets"
-        )
-        default_resultset_download_dir.get_download_dir().mkdir(
-            parents=True, exist_ok=True
-        )
+        default_resultset_download_dir.path = Path(tmpd) / "tests" / "resultsets"
+        default_resultset_download_dir.path.mkdir(parents=True, exist_ok=True)
 
         datasets_download_dir = get_download_dir()
-        resultsets_download_dir = default_resultset_download_dir.get_download_dir()
+        resultsets_download_dir = default_resultset_download_dir.path
         assert "tests" in os.listdir(datasets_download_dir)
         assert "resultsets.tar.gz" not in os.listdir(datasets_download_dir / "tests")
         assert "traversal_mappings.csv" not in os.listdir(resultsets_download_dir)
@@ -57,14 +53,10 @@ def test_verify_resultset_load():
     # corresponding mapping file.
     with TemporaryDirectory() as tmpd:
         set_download_dir(Path(tmpd))
-        default_resultset_download_dir.set_download_dir(
-            Path(tmpd) / "tests" / "resultsets"
-        )
-        default_resultset_download_dir.get_download_dir().mkdir(
-            parents=True, exist_ok=True
-        )
+        default_resultset_download_dir.path = Path(tmpd) / "tests" / "resultsets"
+        default_resultset_download_dir.path.mkdir(parents=True, exist_ok=True)
 
-        resultsets_download_dir = default_resultset_download_dir.get_download_dir()
+        resultsets_download_dir = default_resultset_download_dir.path
 
         load_resultset(
             "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"

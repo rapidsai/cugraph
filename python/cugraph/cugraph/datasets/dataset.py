@@ -20,67 +20,36 @@ from cugraph.structure.graph_classes import Graph
 
 class DefaultDownloadDir:
     """
-    Maintains the path to the download directory used by Dataset instances.
+    Maintains a path to be used as a default download directory.
+
+    All DefaultDownloadDir instances are based on RAPIDS_DATASET_ROOT_DIR if
+    set, or _default_base_dir if not set.
+
     Instances of this class are typically shared by several Dataset instances
     in order to allow for the download directory to be defined and updated by
     a single object.
     """
+    _default_base_dir = Path.home() / ".cugraph/datasets"
 
-    def __init__(self, path_modifier=None):
-        if path_modifier:
-            self._path = (
-                Path(
-                    os.environ.get(
-                        "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
-                    )
-                )
-                / path_modifier
-            )
-        else:
-            self._path = Path(
-                os.environ.get(
-                    "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
-                )
-            )
+    def __init__(self, *, subdir=""):
+        """
+        subdir can be specified to provide a specialized dir under the base dir.
+        """
+        self._subdir = Path(subdir)
+        self.reset()
 
     @property
     def path(self):
-        """
-        If `path` is not set, set it to the environment variable
-        RAPIDS_DATASET_ROOT_DIR. If the variable is not set, default to the
-        user's home directory.
-        """
-        if self._path is None:
-            self._path = Path(
-                os.environ.get(
-                    "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
-                )
-            )
-        return self._path
+        return self._path.absolute()
 
     @path.setter
     def path(self, new):
         self._path = Path(new)
 
-    def clear(self):
-        self._path = None
-
-    def set_download_dir(self, path):
-        """
-        Set the download location for datasets
-
-        Parameters
-        ----------
-        path : String
-            Location used to store datafiles
-        """
-        if path is None:
-            self.clear()
-        else:
-            self._path = path
-
-    def get_download_dir(self):
-        return self._path.absolute()
+    def reset(self):
+        self._basedir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                            self._default_base_dir))
+        self._path = self._basedir / self._subdir
 
 
 default_download_dir = DefaultDownloadDir()
@@ -98,7 +67,6 @@ class Dataset:
         information on the name, type, url link, data loading format, graph
         properties
     """
-
     def __init__(
         self,
         metadata_yaml_file=None,
@@ -188,9 +156,9 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, create_using=cudf):
+    def get_edgelist(self, download=False, reader=cudf.read_csv):
         """
-        Return an Edgelist
+        Return a DataFrame that represents a graph edgelist.
 
         Parameters
         ----------
@@ -198,9 +166,10 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        create_using : module (default=cudf)
-            Specify which module to use when reading the dataset. This module
-            must have a read_csv function.
+        reader : callable (default=cudf.read_csv)
+            A callable to use to read the dataset. The callable must be
+            compatible with the pandas/cudf read_csv() function and return a
+            compatible DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -216,15 +185,7 @@ class Dataset:
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            if create_using is None:
-                reader = cudf
-            elif str(type(create_using)) != "<class 'module'>":
-                raise RuntimeError("create_using must be a module.")
-            elif create_using.__name__ == "cudf" or "pandas":
-                reader = create_using
-            else:
-                raise NotImplementedError()
-            self._edgelist = reader.read_csv(
+            self._edgelist = reader(
                 full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
@@ -383,10 +344,10 @@ def set_download_dir(path):
         Location used to store datafiles
     """
     if path is None:
-        default_download_dir.clear()
+        default_download_dir.reset()
     else:
         default_download_dir.path = path
 
 
 def get_download_dir():
-    return default_download_dir.path.absolute()
+    return default_download_dir.path
