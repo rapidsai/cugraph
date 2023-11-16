@@ -29,6 +29,7 @@ class DefaultDownloadDir:
     in order to allow for the download directory to be defined and updated by
     a single object.
     """
+
     _default_base_dir = Path.home() / ".cugraph/datasets"
 
     def __init__(self, *, subdir=""):
@@ -47,8 +48,9 @@ class DefaultDownloadDir:
         self._path = Path(new)
 
     def reset(self):
-        self._basedir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
-                                            self._default_base_dir))
+        self._basedir = Path(
+            os.environ.get("RAPIDS_DATASET_ROOT_DIR", self._default_base_dir)
+        )
         self._path = self._basedir / self._subdir
 
 
@@ -67,6 +69,7 @@ class Dataset:
         information on the name, type, url link, data loading format, graph
         properties
     """
+
     def __init__(
         self,
         metadata_yaml_file=None,
