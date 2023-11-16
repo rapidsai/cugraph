@@ -135,7 +135,5 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
         sccache -z;
-        python -m pip install -U pip;
-        rapids-make-${PYTHON_PACKAGE_MANAGER}-env || true;
         build-all --verbose -j$(nproc --ignore=1);
         sccache -s;
