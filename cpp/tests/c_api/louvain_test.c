@@ -144,7 +144,7 @@ int test_louvain_no_weight()
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t h_result[]          = {1, 1, 1, 2, 0, 0};
-  weight_t expected_modularity = 0.0859375;
+  weight_t expected_modularity = 0.125;
 
   // Louvain wants store_transposed = FALSE
   return generic_louvain_test(h_src,

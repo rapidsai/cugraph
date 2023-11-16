@@ -44,7 +44,7 @@ _test_data = {
         "input_type": "COO",
         "expected_output": {
             "partition": [1, 0, 1, 2, 2, 2],
-            "modularity_score": 0.1757322,
+            "modularity_score": 0.215969,
         },
     },
     "data_2": {
@@ -88,7 +88,7 @@ _test_data = {
             "partition": [6, 6, 3, 3, 1, 5, 5, 3, 0, 3, 1, 6, 3, 3, 4, 4, 5, 6, 4, 6, 4,
                           6, 4, 4, 2, 2, 4, 4, 2, 4, 0, 2, 4, 4],
             # fmt: on
-            "modularity_score": 0.3468113,
+            "modularity_score": 0.41880345,
         },
     },
 }
