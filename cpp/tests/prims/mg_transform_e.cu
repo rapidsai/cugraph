@@ -52,6 +52,7 @@
 
 struct Prims_Usecase {
   bool use_edgelist{false};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -99,6 +100,34 @@ class Tests_MGTransformE
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      cugraph::edge_src_property_t<decltype(mg_graph_view), vertex_t> edge_src_renumber_map(
+        *handle_, mg_graph_view);
+      cugraph::edge_dst_property_t<decltype(mg_graph_view), vertex_t> edge_dst_renumber_map(
+        *handle_, mg_graph_view);
+      cugraph::update_edge_src_property(
+        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_src_renumber_map);
+      cugraph::update_edge_dst_property(
+        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_dst_renumber_map);
+
+      edge_mask = cugraph::edge_property_t<decltype(mg_graph_view), bool>(*handle_, mg_graph_view);
+
+      cugraph::transform_e(
+        *handle_,
+        mg_graph_view,
+        edge_src_renumber_map.view(),
+        edge_dst_renumber_map.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+          return ((src_property % 2 == 0) && (dst_property % 2 == 0))
+                   ? false
+                   : true;  // mask out the edges with even unrenumbered src & dst vertex IDs
+        },
+        (*edge_mask).mutable_view());
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG transform_e
 
@@ -439,7 +468,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGTransformE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
+    ::testing::Values(Prims_Usecase{false, false, true},
+                      Prims_Usecase{false, true, true},
+                      Prims_Usecase{true, false, true},
+                      Prims_Usecase{true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -447,8 +479,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGTransformE_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
-                                                              Prims_Usecase{true, true}),
+                         ::testing::Combine(::testing::Values(Prims_Usecase{false, false, true},
+                                                              Prims_Usecase{false, true, true},
+                                                              Prims_Usecase{true, false, true},
+                                                              Prims_Usecase{true, true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -460,7 +494,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
+    ::testing::Values(Prims_Usecase{false, false, false},
+                      Prims_Usecase{false, true, false},
+                      Prims_Usecase{true, false, false},
+                      Prims_Usecase{true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
