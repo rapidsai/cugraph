@@ -131,7 +131,6 @@ class simpleDistributedGraphImpl:
             edge_id_array=edge_ids,
             edge_type_array=edge_types,
             store_transposed=store_transposed,
-            num_edges=num_edges,
             do_expensive_check=False,
         )
 
