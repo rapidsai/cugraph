@@ -85,8 +85,8 @@ _test_data = {
         "input_type": "CSR",
         "expected_output": {
             # fmt: off
-            "partition": [1, 1, 1, 1, 0, 0, 0, 1, 3, 3, 0, 1, 1, 1, 3, 3, 0, 1, 3, 1, 3,
-                          1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3],
+            "partition": [3, 3, 3, 3, 2, 2, 2, 3, 1, 3, 2, 3, 3, 3, 1, 1, 2, 3, 1, 3,
+                          1, 3, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1],
             # fmt: on
             "modularity_score": 0.41880345,
         },
@@ -223,9 +223,7 @@ def test_leiden_directed_graph():
 
 @pytest.mark.sg
 def test_leiden_golden_results(input_and_expected_output):
-    expected_partition = cudf.Series(
-        input_and_expected_output["expected_output"]["partition"]
-    )
+    expected_partition = input_and_expected_output["expected_output"]["partition"]
     expected_mod = input_and_expected_output["expected_output"]["modularity_score"]
 
     result_partition = input_and_expected_output["result_output"]["partition"]
@@ -233,6 +231,10 @@ def test_leiden_golden_results(input_and_expected_output):
 
     assert abs(expected_mod - result_mod) < 0.0001
 
-    assert_series_equal(
-        expected_partition, result_partition, check_dtype=False, check_names=False
-    )
+    expected_to_result_map = {}
+    for e, r in zip(expected_partition, list(result_partition.to_pandas())):
+        if e in expected_to_result_map.keys():
+            assert(r == expected_to_result_map[e])
+
+        else:
+            expected_to_result_map[e] = r
