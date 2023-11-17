@@ -973,4 +973,69 @@ renumber_sampled_edgelist(
     label_offsets,
   bool do_expensive_check = false);
 
+/**
+ * @brief Remove self loops from an edge list
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t    Type of edge weight. Currently float and double are supported.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs  List of source vertex ids
+ * @param edgelist_dsts  List of destination vertex ids
+ * @param edgelist_weights  Optional list of edge weights
+ * @param edgelist_edge_ids  Optional list of edge ids
+ * @param edgelist_edge_types  Optional list of edge types
+ * @return Tuple of vectors storing edge sources, destinations, optional weights,
+ *    optional edge ids, optional edge types.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>>
+remove_self_loops(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                  std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+
+/**
+ * @brief Sort the edges and remove all but one edge when a multi-edge exists
+ *
+ * In an MG context it is assumed that edges have been shuffled to the proper GPU,
+ * in which case any multi-edges will be on the same GPU.
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t    Type of edge weight. Currently float and double are supported.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs  List of source vertex ids
+ * @param edgelist_dsts  List of destination vertex ids
+ * @param edgelist_weights  Optional list of edge weights
+ * @param edgelist_edge_ids  Optional list of edge ids
+ * @param edgelist_edge_types  Optional list of edge types
+ * @return Tuple of vectors storing edge sources, destinations, optional weights,
+ *    optional edge ids, optional edge types.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>>
+sort_and_remove_multi_edges(raft::handle_t const& handle,
+                            rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                            rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                            std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                            std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+
 }  // namespace cugraph
