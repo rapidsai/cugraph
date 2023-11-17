@@ -361,7 +361,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: all weight types must match",
                  *error);
-    
   }
 
   size_t num_edges = cugraph::host_scalar_allreduce(p_handle->handle_->get_comms(),
