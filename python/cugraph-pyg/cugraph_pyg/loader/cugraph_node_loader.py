@@ -214,26 +214,28 @@ class EXPERIMENTAL__BulkSampleLoader:
         input_nodes, remainder = cupy.array_split(input_nodes, [stop])
 
         # Split into batches
-        input_nodes = cupy.split(input_nodes, len(input_nodes) // batch_size)
+        input_nodes = cupy.split(input_nodes, max(len(input_nodes) // batch_size, 1))
 
         if not drop_last:
             input_nodes.append(remainder)
 
         self.__num_batches = 0
         for batch_num, batch_i in enumerate(input_nodes):
-            self.__num_batches += 1
-            bulk_sampler.add_batches(
-                cudf.DataFrame(
-                    {
-                        "start": batch_i,
-                        "batch": cupy.full(
-                            len(batch_i), batch_num + starting_batch_id, dtype="int32"
-                        ),
-                    }
-                ),
-                start_col_name="start",
-                batch_col_name="batch",
-            )
+            batch_len = len(batch_i)
+            if batch_len > 0:
+                self.__num_batches += 1
+                bulk_sampler.add_batches(
+                    cudf.DataFrame(
+                        {
+                            "start": batch_i,
+                            "batch": cupy.full(
+                                batch_len, batch_num + starting_batch_id, dtype="int32"
+                            ),
+                        }
+                    ),
+                    start_col_name="start",
+                    batch_col_name="batch",
+                )
 
         bulk_sampler.flush()
         self.__input_files = iter(
