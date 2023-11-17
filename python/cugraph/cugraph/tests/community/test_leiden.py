@@ -23,7 +23,6 @@ from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
 
-
 # =============================================================================
 # Test data
 # =============================================================================
