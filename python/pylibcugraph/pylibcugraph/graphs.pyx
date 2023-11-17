@@ -150,8 +150,7 @@ cdef class SGGraph(_GPUGraph):
                   input_array_format="COO",
                   drop_self_loops=False,
                   drop_multi_edges=False):
-        
-        print("entering", flush=True)
+
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -204,7 +203,6 @@ cdef class SGGraph(_GPUGraph):
             )
 
         if input_array_format == "COO":
-            print("calling SG graph create", flush=True)
             error_code = cugraph_graph_create_sg(
                 resource_handle.c_resource_handle_ptr,
                 &(graph_properties.c_graph_properties),
@@ -223,7 +221,6 @@ cdef class SGGraph(_GPUGraph):
                 &error_ptr)
             assert_success(error_code, error_ptr,
                        "cugraph_graph_create_sg()")
-            print("Done calling SG graph create", flush=True)
 
         elif input_array_format == "CSR":
             error_code = cugraph_sg_graph_create_from_csr(
@@ -342,18 +339,11 @@ cdef class MGGraph(_GPUGraph):
                   drop_self_loops=False,
                   drop_multi_edges=False):
 
-        print("entering mg", flush=True)
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
                             f"{type(store_transposed)}")
-        """
-        if not(isinstance(num_edges, (int))):
-            raise TypeError("expected int for num_edges, got "
-                            f"{type(num_edges)}")
-        if num_edges < 0:
-            raise TypeError("num_edges must be > 0")
-        """
+
         if not(isinstance(do_expensive_check, (int, bool))):
             raise TypeError("expected int or bool for do_expensive_check, got "
                             f"{type(do_expensive_check)}")
@@ -458,8 +448,6 @@ cdef class MGGraph(_GPUGraph):
         if edge_type_array:
             self.edge_type_view_ptr_ptr -= num_arrays
 
-        #num_arrays = 1
-        print("calling MG graph create", flush=True)
         error_code = cugraph_graph_create_mg(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
@@ -477,7 +465,6 @@ cdef class MGGraph(_GPUGraph):
             &(self.c_graph_ptr),
             &error_ptr)
 
-        print("Done calling MG graph create", flush=True)
         assert_success(error_code, error_ptr,
                        "cugraph_mg_graph_create()")
 
@@ -493,24 +480,3 @@ cdef class MGGraph(_GPUGraph):
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
             cugraph_mg_graph_free(self.c_graph_ptr)
-
-
-
-
-"""
-    cdef cugraph_error_code_t \
-        cugraph_graph_create_sg_from_csr(
-            const cugraph_resource_handle_t* handle,
-            const cugraph_graph_properties_t* properties,
-            const cugraph_type_erased_device_array_view_t* offsets,
-            const cugraph_type_erased_device_array_view_t* indices,
-            const cugraph_type_erased_device_array_view_t* weights,
-            const cugraph_type_erased_device_array_view_t* edge_ids,
-            const cugraph_type_erased_device_array_view_t* edge_type_ids,
-            bool_t store_transposed,
-            bool_t renumber,
-            bool_t check,
-            cugraph_graph_t** graph,
-            cugraph_error_t** error
-        )
-"""
