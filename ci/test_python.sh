@@ -33,7 +33,7 @@ rapids-mamba-retry install \
   --channel "${PYTHON_CHANNEL}" \
   libcugraph \
   pylibcugraph \
-  file:/"${PYTHON_CHANNEL}"::cugraph \
+       cugraph \
   nx-cugraph \
   cugraph-service-server \
   cugraph-service-client
