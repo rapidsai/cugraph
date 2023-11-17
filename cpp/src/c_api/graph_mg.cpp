@@ -324,7 +324,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   //
   cugraph_data_type_id_t vertex_type{cugraph_data_type_id_t::NTYPES};
   cugraph_data_type_id_t weight_type{cugraph_data_type_id_t::NTYPES};
-
   for (size_t i = 0; i < num_arrays; ++i) {
     CAPI_EXPECTS(p_src[i]->size_ == p_dst[i]->size_,
                  CUGRAPH_INVALID_INPUT,
@@ -335,7 +334,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src type != dst type.",
                  *error);
-
     CAPI_EXPECTS((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src type != vertices type.",
@@ -359,10 +357,11 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  "Invalid input arguments: all vertex types must match",
                  *error);
 
-    CAPI_EXPECTS(p_weights[i]->type_ == weight_type,
+    CAPI_EXPECTS((weights == nullptr) || (p_weights[i]->type_ == weight_type),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: all weight types must match",
                  *error);
+    
   }
 
   size_t num_edges = cugraph::host_scalar_allreduce(p_handle->handle_->get_comms(),
