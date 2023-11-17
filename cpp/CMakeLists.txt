@@ -155,6 +155,7 @@ rapids_cpm_init()
 
 # Need to make sure rmm is found before cuco so that rmm patches the libcudacxx
 # directory to be found by cuco.
+include(${rapids-cmake-dir}/cpm/rmm.cmake)
 rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
                INSTALL_EXPORT_SET  cugraph-exports)
 # Putting this before raft to override RAFT from pulling them in.
