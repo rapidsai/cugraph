@@ -157,6 +157,24 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_error_t** error
         )
     
+    cdef cugraph_error_code_t \
+        cugraph_graph_create_mg(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_properties_t* properties,
+            const cugraph_type_erased_device_array_view_t* const* vertices,
+            const cugraph_type_erased_device_array_view_t* const* src,
+            const cugraph_type_erased_device_array_view_t* const* dst,
+            const cugraph_type_erased_device_array_view_t* const* weights,
+            const cugraph_type_erased_device_array_view_t* const* edge_ids,
+            const cugraph_type_erased_device_array_view_t* const* edge_type_ids,
+            bool_t store_transposed,
+            size_t num_arrays,
+            bool_t drop_self_loops,
+            bool_t drop_multi_edges,
+            bool_t do_expensive_check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error)
+    
     cdef void \
         cugraph_mg_graph_free(
             cugraph_graph_t* graph

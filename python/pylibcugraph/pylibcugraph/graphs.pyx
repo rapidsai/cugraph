@@ -26,6 +26,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_sg_graph_create,
     cugraph_graph_create_sg,
     cugraph_mg_graph_create,
+    cugraph_graph_create_mg,
     cugraph_sg_graph_create_from_csr, #FIXME: Remove this once
     # 'cugraph_graph_create_sg_from_csr' is exposed
     cugraph_graph_create_sg_from_csr,
@@ -178,11 +179,11 @@ cdef class SGGraph(_GPUGraph):
                 vertices_array
             )
 
-        self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        self.weights_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
 
-        self.edge_id_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        self.edge_id_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
             )
         
@@ -198,8 +199,8 @@ cdef class SGGraph(_GPUGraph):
                 vertices_view_ptr,
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                self.weights_view_ptr[0],
+                self.edge_id_view_ptr[0],
                 edge_type_view_ptr,
                 store_transposed,
                 renumber,
@@ -215,8 +216,8 @@ cdef class SGGraph(_GPUGraph):
                 &(graph_properties.c_graph_properties),
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                self.weights_view_ptr[0],
+                self.edge_id_view_ptr[0],
                 edge_type_view_ptr,
                 store_transposed,
                 renumber,
@@ -234,9 +235,11 @@ cdef class SGGraph(_GPUGraph):
 
         cugraph_type_erased_device_array_view_free(srcs_or_offsets_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_or_indices_view_ptr)
-        cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
+        cugraph_type_erased_device_array_view_free(self.weights_view_ptr[0])
+        if self.weights_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(self.weights_view_ptr[0])
         if self.edge_id_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr)
+            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr[0])
         if edge_type_view_ptr is not NULL:
             cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
 
@@ -270,6 +273,9 @@ cdef class MGGraph(_GPUGraph):
         each directed edge. The order of the array corresponds to the ordering
         of the src_array, where the ith item in src_array and the ith item in
         dst_array define the ith edge of the graph.
+    
+    vertices_array : device array type
+        Device array containing the isolated vertices of the graph.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
@@ -303,6 +309,7 @@ cdef class MGGraph(_GPUGraph):
                   GraphProperties graph_properties,
                   src_array,
                   dst_array,
+                  vertices_array,
                   weight_array=None,
                   store_transposed=False,
                   num_edges=-1,
@@ -325,6 +332,7 @@ cdef class MGGraph(_GPUGraph):
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array", True)
+        assert_CAI_type(vertices_array, "vertices_array", True)
 
         assert_CAI_type(edge_id_array, "edge_id_array", True)
         if edge_id_array is not None and len(edge_id_array) != len(src_array):
@@ -339,51 +347,84 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
+        # FIXME: Assert that the 'vertices', 'src', 'dst', 'weights', 'edge_ids'
+        # and 'edge_type_ids' are of size 'num_arrays'.
+
+        #cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr[0] = \
+        #    create_cugraph_type_erased_device_array_view_from_py_obj(
+        #        src_array
+        #    )
+
+        cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr = NULL
+        srcs_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
                 src_array
             )
-        cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
+
+        """
+         cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr[0] = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 dst_array
             )
-        self.weights_view_ptr = \
+        """
+
+        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr = NULL
+        dsts_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
+                dst_array
+            )
+        
+
+        cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr = NULL
+        vertices_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertices_array
+            )
+
+        self.weights_view_ptr[0] = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
-        self.edge_id_view_ptr = \
+        self.edge_id_view_ptr[0] = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
             )
-        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
+        #cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr[0] = \
+        #    create_cugraph_type_erased_device_array_view_from_py_obj(
+        #        edge_type_array
+        #    )
+
+        cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr = NULL
+        edge_type_view_ptr[0] = create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_type_array
             )
 
-        error_code = cugraph_mg_graph_create(
+        num_arrays = 1
+        error_code = cugraph_graph_create_mg(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
             srcs_view_ptr,
             dsts_view_ptr,
+            vertices_view_ptr,
             self.weights_view_ptr,
             self.edge_id_view_ptr,
             edge_type_view_ptr,
             store_transposed,
-            num_edges,
+            num_arrays,
             do_expensive_check,
+            do_expensive_check, # FIXME: hardcoded
+            do_expensive_check, # FIXME: hardcoded
             &(self.c_graph_ptr),
             &error_ptr)
 
         assert_success(error_code, error_ptr,
                        "cugraph_mg_graph_create()")
 
-        cugraph_type_erased_device_array_view_free(srcs_view_ptr)
-        cugraph_type_erased_device_array_view_free(dsts_view_ptr)
-        cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
+        cugraph_type_erased_device_array_view_free(srcs_view_ptr[0])
+        cugraph_type_erased_device_array_view_free(dsts_view_ptr[0])
+        if self.weights_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(self.weights_view_ptr[0])
         if self.edge_id_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr)
+            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr[0])
         if edge_type_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
+            cugraph_type_erased_device_array_view_free(edge_type_view_ptr[0])
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
