@@ -103,29 +103,8 @@ class Tests_MGTransformE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      cugraph::edge_src_property_t<decltype(mg_graph_view), vertex_t> edge_src_renumber_map(
-        *handle_, mg_graph_view);
-      cugraph::edge_dst_property_t<decltype(mg_graph_view), vertex_t> edge_dst_renumber_map(
-        *handle_, mg_graph_view);
-      cugraph::update_edge_src_property(
-        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_src_renumber_map);
-      cugraph::update_edge_dst_property(
-        *handle_, mg_graph_view, (*mg_renumber_map).begin(), edge_dst_renumber_map);
-
-      edge_mask = cugraph::edge_property_t<decltype(mg_graph_view), bool>(*handle_, mg_graph_view);
-
-      cugraph::transform_e(
-        *handle_,
-        mg_graph_view,
-        edge_src_renumber_map.view(),
-        edge_dst_renumber_map.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
-          return ((src_property % 2 == 0) && (dst_property % 2 == 0))
-                   ? false
-                   : true;  // mask out the edges with even unrenumbered src & dst vertex IDs
-        },
-        (*edge_mask).mutable_view());
+      edge_mask =
+        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
