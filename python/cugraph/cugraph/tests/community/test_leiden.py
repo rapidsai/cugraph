@@ -22,7 +22,6 @@ import cudf
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
-from cudf.testing.testing import assert_series_equal
 
 
 # =============================================================================
