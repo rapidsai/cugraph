@@ -15,6 +15,7 @@ import pytest
 
 from cugraph_pyg.nn import HeteroGATConv as CuGraphHeteroGATConv
 from cugraph.utilities.utils import import_optional, MissingModule
+from utils import convert_edge_type_key
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -68,15 +69,16 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     with torch.no_grad():
         for etype_str in conv2.edge_types_str:
             src_t, _, dst_t = etype_str.split("__")
-            w_src[etype_str][:, :] = conv1.convs[etype_str].lin_src.weight[:, :]
+            pyg_etype_str = convert_edge_type_key(etype_str)
+            w_src[etype_str][:, :] = conv1.convs[pyg_etype_str].lin_src.weight[:, :]
             if w_dst[etype_str] is not None:
-                w_dst[etype_str][:, :] = conv1.convs[etype_str].lin_dst.weight[:, :]
+                w_dst[etype_str][:, :] = conv1.convs[pyg_etype_str].lin_dst.weight[:, :]
 
             conv2.attn_weights[etype_str][: heads * out_channels] = conv1.convs[
-                etype_str
+                pyg_etype_str
             ].att_src.data.flatten()
             conv2.attn_weights[etype_str][heads * out_channels :] = conv1.convs[
-                etype_str
+                pyg_etype_str
             ].att_dst.data.flatten()
 
     out1 = conv1(data.x_dict, data.edge_index_dict)
@@ -97,13 +99,14 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     # check gradient w.r.t attention weights
     out_dim = heads * out_channels
     for etype_str in conv2.edge_types_str:
+        pyg_etype_str = convert_edge_type_key(etype_str)
         assert torch.allclose(
-            conv1.convs[etype_str].att_src.grad.flatten(),
+            conv1.convs[pyg_etype_str].att_src.grad.flatten(),
             conv2.attn_weights[etype_str].grad[:out_dim],
             atol=ATOL,
         )
         assert torch.allclose(
-            conv1.convs[etype_str].att_dst.grad.flatten(),
+            conv1.convs[pyg_etype_str].att_dst.grad.flatten(),
             conv2.attn_weights[etype_str].grad[out_dim:],
             atol=ATOL,
         )
@@ -113,8 +116,10 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     for node_t, (rels_as_src, rels_as_dst) in conv2.relations_per_ntype.items():
         grad_list = []
         for rel_t in rels_as_src:
+            rel_t = convert_edge_type_key(rel_t)
             grad_list.append(conv1.convs[rel_t].lin_src.weight.grad.clone())
         for rel_t in rels_as_dst:
+            rel_t = convert_edge_type_key(rel_t)
             grad_list.append(conv1.convs[rel_t].lin_dst.weight.grad.clone())
         assert len(grad_list) > 0
         grad_lin_weights_ref[node_t] = torch.vstack(grad_list)
