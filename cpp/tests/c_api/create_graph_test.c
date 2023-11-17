@@ -732,16 +732,31 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 11;
+  size_t num_edges    = 66;
   size_t num_vertices = 7;
   double alpha = 0.95;
   double epsilon = 0.0001;
   size_t max_iterations = 20;
 
   vertex_t h_vertices[] = { 0, 1, 2, 3, 4, 5, 6 };
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
+  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f};
   weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
 
   cugraph_resource_handle_t* handle = NULL;

@@ -15,9 +15,12 @@
  */
 #pragma once
 
+#include <structure/detail/structure_utils.cuh>
+
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
@@ -27,97 +30,6 @@
 #include <optional>
 
 namespace cugraph {
-
-namespace detail {
-
-template <typename vertex_t>
-void remove_self_loops(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>& edgelist_srcs /* [INOUT] */,
-                       rmm::device_uvector<vertex_t>& edgelist_dsts /* [INOUT] */)
-{
-  auto edge_first =
-    thrust::make_zip_iterator(thrust::make_tuple(edgelist_srcs.begin(), edgelist_dsts.begin()));
-  edgelist_srcs.resize(
-    thrust::distance(
-      edge_first,
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + edgelist_srcs.size(),
-                        [] __device__(auto e) { return thrust::get<0>(e) == thrust::get<1>(e); })),
-    handle.get_stream());
-  edgelist_dsts.resize(edgelist_srcs.size(), handle.get_stream());
-}
-
-template <typename vertex_t, typename A>
-void remove_self_loops(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>& edgelist_srcs /* [INOUT] */,
-                       rmm::device_uvector<vertex_t>& edgelist_dsts /* [INOUT] */,
-                       rmm::device_uvector<A>& edgelist_a /* [INOUT] */)
-{
-  auto edge_first = thrust::make_zip_iterator(
-    thrust::make_tuple(edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_a.begin()));
-  edgelist_srcs.resize(
-    thrust::distance(
-      edge_first,
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + edgelist_srcs.size(),
-                        [] __device__(auto e) { return thrust::get<0>(e) == thrust::get<1>(e); })),
-    handle.get_stream());
-  edgelist_dsts.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_a.resize(edgelist_srcs.size(), handle.get_stream());
-}
-
-template <typename vertex_t, typename A, typename B>
-void remove_self_loops(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>& edgelist_srcs /* [INOUT] */,
-                       rmm::device_uvector<vertex_t>& edgelist_dsts /* [INOUT] */,
-                       rmm::device_uvector<A>& edgelist_a /* [INOUT] */,
-                       rmm::device_uvector<B>& edgelist_b /* [INOUT] */)
-{
-  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-    edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_a.begin(), edgelist_b.begin()));
-  edgelist_srcs.resize(
-    thrust::distance(
-      edge_first,
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + edgelist_srcs.size(),
-                        [] __device__(auto e) { return thrust::get<0>(e) == thrust::get<1>(e); })),
-    handle.get_stream());
-  edgelist_dsts.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_a.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_b.resize(edgelist_srcs.size(), handle.get_stream());
-}
-
-template <typename vertex_t, typename A, typename B, typename C>
-void remove_self_loops(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>& edgelist_srcs /* [INOUT] */,
-                       rmm::device_uvector<vertex_t>& edgelist_dsts /* [INOUT] */,
-                       rmm::device_uvector<A>& edgelist_a /* [INOUT] */,
-                       rmm::device_uvector<B>& edgelist_b /* [INOUT] */,
-                       rmm::device_uvector<C>& edgelist_c /* [INOUT] */)
-{
-  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(edgelist_srcs.begin(),
-                                                                 edgelist_dsts.begin(),
-                                                                 edgelist_a.begin(),
-                                                                 edgelist_b.begin(),
-                                                                 edgelist_c.begin()));
-  edgelist_srcs.resize(
-    thrust::distance(
-      edge_first,
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + edgelist_srcs.size(),
-                        [] __device__(auto e) { return thrust::get<0>(e) == thrust::get<1>(e); })),
-    handle.get_stream());
-  edgelist_dsts.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_a.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_b.resize(edgelist_srcs.size(), handle.get_stream());
-  edgelist_c.resize(edgelist_srcs.size(), handle.get_stream());
-}
-
-}  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -132,42 +44,31 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types)
 {
-  if (edgelist_weights) {
-    if (edgelist_edge_ids) {
-      if (edgelist_edge_types) {
-        detail::remove_self_loops(handle,
-                                  edgelist_srcs,
-                                  edgelist_dsts,
-                                  *edgelist_weights,
-                                  *edgelist_edge_ids,
-                                  *edgelist_edge_types);
-      } else {
-        detail::remove_self_loops(
-          handle, edgelist_srcs, edgelist_dsts, *edgelist_weights, *edgelist_edge_ids);
-      }
-    } else {
-      if (edgelist_edge_types) {
-        detail::remove_self_loops(
-          handle, edgelist_srcs, edgelist_dsts, *edgelist_weights, *edgelist_edge_types);
-      } else {
-        detail::remove_self_loops(handle, edgelist_srcs, edgelist_dsts, *edgelist_weights);
-      }
-    }
-  } else {
-    if (edgelist_edge_ids) {
-      if (edgelist_edge_types) {
-        detail::remove_self_loops(
-          handle, edgelist_srcs, edgelist_dsts, *edgelist_edge_ids, *edgelist_edge_types);
-      } else {
-        detail::remove_self_loops(handle, edgelist_srcs, edgelist_dsts, *edgelist_edge_ids);
-      }
-    } else {
-      if (edgelist_edge_types) {
-        detail::remove_self_loops(handle, edgelist_srcs, edgelist_dsts, *edgelist_edge_types);
-      } else {
-        detail::remove_self_loops(handle, edgelist_srcs, edgelist_dsts);
-      }
-    }
+  auto [remove_count, remove_flags] = detail::mark_edges_for_removal(
+    handle,
+    raft::device_span<vertex_t const>{edgelist_srcs.data(), edgelist_srcs.size()},
+    raft::device_span<vertex_t const>{edgelist_dsts.data(), edgelist_dsts.size()},
+    [d_srcs = edgelist_srcs.data(), d_dsts = edgelist_dsts.data()] __device__(size_t i) {
+      return d_srcs[i] == d_dsts[i];
+    });
+
+  if (remove_count > 0) {
+    edgelist_srcs =
+      detail::remove_flagged_elements(handle, std::move(edgelist_srcs), remove_flags, remove_count);
+    edgelist_dsts =
+      detail::remove_flagged_elements(handle, std::move(edgelist_dsts), remove_flags, remove_count);
+
+    if (edgelist_weights)
+      edgelist_weights = detail::remove_flagged_elements(
+        handle, std::move(*edgelist_weights), remove_flags, remove_count);
+
+    if (edgelist_edge_ids)
+      edgelist_edge_ids = detail::remove_flagged_elements(
+        handle, std::move(*edgelist_edge_ids), remove_flags, remove_count);
+
+    if (edgelist_edge_types)
+      edgelist_edge_types = detail::remove_flagged_elements(
+        handle, std::move(*edgelist_edge_types), remove_flags, remove_count);
   }
 
   return std::make_tuple(std::move(edgelist_srcs),

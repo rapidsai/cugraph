@@ -181,29 +181,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
 
-      if (drop_multi_edges_) {
-        std::cout << "calling drop_multi_edges" << std::endl;
-        raft::print_device_vector(
-          "  edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-        raft::print_device_vector(
-          "  edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
-          cugraph::sort_and_remove_multi_edges(handle_,
-                                               std::move(edgelist_srcs),
-                                               std::move(edgelist_dsts),
-                                               std::move(edgelist_weights),
-                                               std::move(edgelist_edge_ids),
-                                               std::move(edgelist_edge_types));
-
-        std::cout << "after drop_multi_edges" << std::endl;
-        raft::print_device_vector(
-          "  edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-        raft::print_device_vector(
-          "  edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-      }
-
       if (drop_self_loops_) {
         std::tie(
           edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
@@ -213,6 +190,17 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                      std::move(edgelist_weights),
                                      std::move(edgelist_edge_ids),
                                      std::move(edgelist_edge_types));
+      }
+
+      if (drop_multi_edges_) {
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::sort_and_remove_multi_edges(handle_,
+                                               std::move(edgelist_srcs),
+                                               std::move(edgelist_dsts),
+                                               std::move(edgelist_weights),
+                                               std::move(edgelist_edge_ids),
+                                               std::move(edgelist_edge_types));
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -602,9 +590,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
 
   cugraph_data_type_id_t edge_type_id_type = cugraph_data_type_id_t::INT32;
   if (edge_type_ids != nullptr) { edge_type_id_type = p_edge_type_ids->type_; }
-
-  std::cout << "  constructing create_graph_functor, drop_multi_edges = "
-            << (drop_multi_edges ? "TRUE" : "FALSE") << std::endl;
 
   ::create_graph_functor functor(*p_handle->handle_,
                                  properties,

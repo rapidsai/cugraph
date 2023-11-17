@@ -198,17 +198,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
 
-      if (drop_multi_edges_) {
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
-          cugraph::sort_and_remove_multi_edges(handle_,
-                                               std::move(edgelist_srcs),
-                                               std::move(edgelist_dsts),
-                                               std::move(edgelist_weights),
-                                               std::move(edgelist_edge_ids),
-                                               std::move(edgelist_edge_types));
-      }
-
       if (drop_self_loops_) {
         std::tie(
           edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
@@ -218,6 +207,17 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                      std::move(edgelist_weights),
                                      std::move(edgelist_edge_ids),
                                      std::move(edgelist_edge_types));
+      }
+
+      if (drop_multi_edges_) {
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
+          cugraph::sort_and_remove_multi_edges(handle_,
+                                               std::move(edgelist_srcs),
+                                               std::move(edgelist_dsts),
+                                               std::move(edgelist_weights),
+                                               std::move(edgelist_edge_ids),
+                                               std::move(edgelist_edge_types));
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -316,6 +316,12 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
 
   size_t local_num_edges{0};
 
+  //
+  // Determine the type of vertex, weight, edge_type_id across
+  // multiple input arrays and acros multiple GPUs.  Also compute
+  // the number of edges so we can determine what type to use for
+  // edge_t
+  //
   cugraph_data_type_id_t vertex_type{cugraph_data_type_id_t::NTYPES};
   cugraph_data_type_id_t weight_type{cugraph_data_type_id_t::NTYPES};
 
@@ -364,31 +370,37 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                                     raft::comms::op_t::SUM,
                                                     p_handle->handle_->get_stream());
 
-  // FIXME:  Need to handle the case where a GPU gets a NULL pointer but other GPUs
-  //   Get values.  Override vertex_type/weight_type/edge_id_type but don't
-  //   fail.
-
   auto vertex_types = cugraph::host_scalar_allgather(
     p_handle->handle_->get_comms(), static_cast<int>(vertex_type), p_handle->handle_->get_stream());
 
   auto weight_types = cugraph::host_scalar_allgather(
     p_handle->handle_->get_comms(), static_cast<int>(weight_type), p_handle->handle_->get_stream());
 
-  CAPI_EXPECTS(
-    std::count_if(vertex_types.begin(),
-                  vertex_types.end(),
-                  [vertex_type](auto t) { return vertex_type != static_cast<int>(t); }) == 0,
-    CUGRAPH_INVALID_INPUT,
-    "different vertex type used on different GPUs",
-    *error);
+  if (vertex_type == cugraph_data_type_id_t::NTYPES) {
+    // Only true if this GPU had no vertex arrays
+    vertex_type = static_cast<cugraph_data_type_id_t>(
+      *std::min_element(vertex_types.begin(), vertex_types.end()));
+  }
 
-  CAPI_EXPECTS(
-    std::count_if(weight_types.begin(),
-                  weight_types.end(),
-                  [weight_type](auto t) { return weight_type != static_cast<int>(t); }) == 0,
-    CUGRAPH_INVALID_INPUT,
-    "different weight type used on different GPUs",
-    *error);
+  if (weight_type == cugraph_data_type_id_t::NTYPES) {
+    // Only true if this GPU had no weight arrays
+    weight_type = static_cast<cugraph_data_type_id_t>(
+      *std::min_element(weight_types.begin(), weight_types.end()));
+  }
+
+  CAPI_EXPECTS(std::all_of(vertex_types.begin(),
+                           vertex_types.end(),
+                           [vertex_type](auto t) { return vertex_type == static_cast<int>(t); }),
+               CUGRAPH_INVALID_INPUT,
+               "different vertex type used on different GPUs",
+               *error);
+
+  CAPI_EXPECTS(std::all_of(weight_types.begin(),
+                           weight_types.end(),
+                           [weight_type](auto t) { return weight_type == static_cast<int>(t); }),
+               CUGRAPH_INVALID_INPUT,
+               "different weight type used on different GPUs",
+               *error);
 
   cugraph_data_type_id_t edge_type;
 
@@ -435,19 +447,27 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                                            static_cast<int>(edge_type_id_type),
                                                            p_handle->handle_->get_stream());
 
-  CAPI_EXPECTS(std::count_if(edge_type_id_types.begin(),
-                             edge_type_id_types.end(),
-                             [edge_type_id_type](auto t) {
-                               return edge_type_id_type != static_cast<int>(t);
-                             }) == 0,
-               CUGRAPH_INVALID_INPUT,
-               "different edge_type_id type used on different GPUs",
-               *error);
+  if (edge_type_id_type == cugraph_data_type_id_t::NTYPES) {
+    // Only true if this GPU had no edge_type_id arrays
+    edge_type_id_type = static_cast<cugraph_data_type_id_t>(
+      *std::min_element(edge_type_id_types.begin(), edge_type_id_types.end()));
+  }
+
+  CAPI_EXPECTS(
+    std::all_of(edge_type_id_types.begin(),
+                edge_type_id_types.end(),
+                [edge_type_id_type](auto t) { return edge_type_id_type == static_cast<int>(t); }),
+    CUGRAPH_INVALID_INPUT,
+    "different edge_type_id type used on different GPUs",
+    *error);
 
   if (edge_type_id_type == cugraph_data_type_id_t::NTYPES) {
     edge_type_id_type = cugraph_data_type_id_t::INT32;
   }
 
+  //
+  // Now we know enough to create the graph
+  //
   create_graph_functor functor(*p_handle->handle_,
                                properties,
                                vertex_type,
