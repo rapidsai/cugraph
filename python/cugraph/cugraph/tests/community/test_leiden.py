@@ -234,7 +234,7 @@ def test_leiden_golden_results(input_and_expected_output):
     expected_to_result_map = {}
     for e, r in zip(expected_partition, list(result_partition.to_pandas())):
         if e in expected_to_result_map.keys():
-            assert(r == expected_to_result_map[e])
+            assert r == expected_to_result_map[e]
 
         else:
             expected_to_result_map[e] = r
