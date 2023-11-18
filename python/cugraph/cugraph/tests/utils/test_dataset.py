@@ -13,8 +13,6 @@
 
 import os
 import gc
-import sys
-import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -73,22 +71,6 @@ def setup(tmpdir):
     for dataset in ALL_DATASETS:
         dataset.unload()
     gc.collect()
-
-
-@pytest.fixture()
-def setup_deprecation_warning_tests():
-    """
-    Fixture used to set warning filters to 'default' and reload
-    experimental.datasets module if it has been previously
-    imported. Tests that import this fixture are expected to
-    import cugraph.experimental.datasets
-    """
-    warnings.filterwarnings("default")
-
-    if "cugraph.experimental.datasets" in sys.modules:
-        del sys.modules["cugraph.experimental.datasets"]
-
-    yield
 
 
 ###############################################################################
