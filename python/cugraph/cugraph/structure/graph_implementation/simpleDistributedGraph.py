@@ -89,47 +89,55 @@ class simpleDistributedGraphImpl:
         src_col_name,
         dst_col_name,
         store_transposed,
-        num_edges,
     ):
 
         weights = None
         edge_ids = None
         edge_types = None
+        num_arrays = len(edata_x)
+
+        print("edata = \n", edata_x)
 
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            weights = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeWeightCol
-            )
+            #weights = edata_x[simpleDistributedGraphImpl.edgeWeightCol]
+            weights = [edata_x[i][simpleDistributedGraphImpl.edgeWeightCol] for i in range(num_arrays)]
             if weights.dtype == "int32":
-                weights = weights.astype("float32")
+                #weights = weights.astype("float32")
+                weights = [w_array.astype("float32") for w_array in weights]
             elif weights.dtype == "int64":
-                weights = weights.astype("float64")
+                #weights = weights.astype("float64")
+                weights = [w_array.astype("float64") for w_array in weights]
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            edge_ids = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeIdCol
-            )
+            #edge_ids = edata_x[simpleDistributedGraphImpl.edgeIdCol]
+            edge_ids = [edata_x[i][simpleDistributedGraphImpl.edgeIdCol] for i in range(num_arrays)]
             if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
-                edge_ids = edge_ids.astype("int64")
+                #edge_ids = edge_ids.astype("int64")
+                edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
                 warnings.warn(
-                    f"Vertex type is int64 but edge id type is {edge_ids.dtype}"
+                    f"Vertex type is int64 but edge id type is {edge_ids[0].dtype}"
                     ", automatically casting edge id type to int64. "
                     "This may cause extra memory usage.  Consider passing"
                     " a int64 list of edge ids instead."
                 )
         if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
-            edge_types = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeTypeCol
-            )
+            #edge_types = edata_x[simpleDistributedGraphImpl.edgeTypeCol]
+            edge_types = [edata_x[i][simpleDistributedGraphImpl.edgeTypeCol] for i in range(num_arrays)]
+        
+        #src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
+        #src_array.append(edata_x[i][src_col_name] for i in range(len(edata_x)))
+        #print("***src_array = \n", src_array)
+        #print("src_array =\n", edata_x[0][src_col_name])
 
         return MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
-            src_array=_get_column_from_ls_dfs(edata_x, src_col_name),
-            dst_array=_get_column_from_ls_dfs(edata_x, dst_col_name),
+            src_array=[edata_x[i][src_col_name] for i in range(num_arrays)],
+            dst_array=[edata_x[i][dst_col_name] for i in range(num_arrays)],
             weight_array=weights,
             edge_id_array=edge_ids,
             edge_type_array=edge_types,
+            num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
         )
@@ -322,10 +330,7 @@ class simpleDistributedGraphImpl:
             ddf, _client, return_type="dict"
         )
         del ddf
-        length_of_parts = get_length_of_parts(persisted_keys_d, _client)
-        num_edges = sum(
-            [item for sublist in length_of_parts.values() for item in sublist]
-        )
+
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -334,7 +339,6 @@ class simpleDistributedGraphImpl:
                 src_col_name,
                 dst_col_name,
                 store_transposed,
-                num_edges,
             )
             for w, edata in persisted_keys_d.items()
         }
