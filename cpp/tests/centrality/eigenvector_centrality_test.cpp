@@ -60,7 +60,6 @@ void eigenvector_centrality_reference(vertex_t const* src,
   size_t iter{0};
   while (true) {
     std::copy(tmp_centralities.begin(), tmp_centralities.end(), old_centralities.begin());
-    std::fill(tmp_centralities.begin(), tmp_centralities.end(), double{0});
 
     for (size_t e = 0; e < num_edges; ++e) {
       auto w = weights ? (*weights)[e] : weight_t{1.0};

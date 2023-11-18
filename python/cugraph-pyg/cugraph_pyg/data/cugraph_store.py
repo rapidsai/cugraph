@@ -210,11 +210,14 @@ class EXPERIMENTAL__CuGraphStore:
     def __init__(
         self,
         F: cugraph.gnn.FeatureStore,
-        G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
+        G: Union[
+            Dict[Tuple[str, str, str], Tuple[TensorType]],
+            Dict[Tuple[str, str, str], int],
+        ],
         num_nodes_dict: Dict[str, int],
         *,
         multi_gpu: bool = False,
-        order: str = "CSC",
+        order: str = "CSR",
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -260,11 +263,11 @@ class EXPERIMENTAL__CuGraphStore:
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
 
-        order: str (Optional ["CSR", "CSC"], default = CSC)
-            The order to use for sampling.  Should nearly always be CSC
-            unless there is a specific expectation of "reverse" sampling.
-            It is also not uncommon to use CSR order for correctness
-            testing, which some cuGraph-PyG tests do.
+        order: str (Optional ["CSR", "CSC"], default = CSR)
+            The order to use for sampling.  CSR corresponds to the
+            standard OGB dataset order that is usually used in PyG.
+            CSC order constructs the same graph as CSR, but with
+            edges in the opposite direction.
         """
 
         if None in G:
@@ -744,7 +747,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_vertex_groups_from_sample(
         self, nodes_of_interest: TensorType, is_sorted: bool = False
-    ) -> dict:
+    ) -> Dict[str, torch.Tensor]:
         """
         Given a tensor of nodes of interest, this
         method a single dictionary, noi_index.
@@ -808,7 +811,10 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_renumbered_edge_groups_from_sample(
         self, sampling_results: cudf.DataFrame, noi_index: dict
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[
+        Dict[Tuple[str, str, str], torch.Tensor],
+        Tuple[Dict[Tuple[str, str, str], torch.Tensor]],
+    ]:
         """
         Given a cudf (NOT dask_cudf) DataFrame of sampling results and a dictionary
         of non-renumbered vertex ids grouped by vertex type, this method

@@ -38,7 +38,11 @@ datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([50], "max_iter"),
-    ([1.0e-6], "tol"),
+    # FIXME:  Changed this from 1.0e-6 to 1.0e-5.  NX defaults to
+    # FLOAT64 computation, cuGraph C++ defaults to whatever the edge weight
+    # is, cugraph python defaults that to FLOAT32.  Does not converge at
+    # 1e-6 for larger graphs and FLOAT32.
+    ([1.0e-5], "tol"),
 )
 
 

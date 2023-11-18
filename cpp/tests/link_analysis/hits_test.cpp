@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,7 +176,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 
     auto graph_view         = graph.view();
     auto maximum_iterations = 500;
-    weight_t tolerance      = 1e-8;
+    weight_t tolerance      = 1e-5;
     rmm::device_uvector<weight_t> d_hubs(graph_view.local_vertex_partition_range_size(),
                                          handle.get_stream());
 
