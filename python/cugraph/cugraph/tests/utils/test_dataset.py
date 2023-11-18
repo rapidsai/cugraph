@@ -16,6 +16,7 @@ import gc
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pandas
 import pytest
 
 import cudf
@@ -147,6 +148,27 @@ def test_download(dataset):
 
     assert E is not None
     assert dataset.get_path().is_file()
+
+
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_reader(dataset):
+    # defaults to using cudf.read_csv
+    E = dataset.get_edgelist(download=True)
+
+    assert E is not None
+    assert isinstance(E, cudf.core.dataframe.DataFrame)
+    dataset.unload()
+
+    # using pandas
+    E_pd = dataset.get_edgelist(download=True, reader="pandas")
+
+    assert E_pd is not None
+    assert isinstance(E_pd, pandas.core.frame.DataFrame)
+    dataset.unload()
+
+    with pytest.raises(ValueError):
+        dataset.get_edgelist(reader="fail")
+        dataset.get_edgelist(reader=None)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)

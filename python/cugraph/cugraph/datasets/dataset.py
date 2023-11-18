@@ -14,6 +14,7 @@
 import cudf
 import yaml
 import os
+import pandas as pd
 from pathlib import Path
 from cugraph.structure.graph_classes import Graph
 
@@ -159,9 +160,9 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, reader=cudf.read_csv):
+    def get_edgelist(self, download=False, reader="cudf"):
         """
-        Return a DataFrame that represents a graph edgelist.
+        Return an Edgelist
 
         Parameters
         ----------
@@ -169,10 +170,8 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        reader : callable (default=cudf.read_csv)
-            A callable to use to read the dataset. The callable must be
-            compatible with the pandas/cudf read_csv() function and return a
-            compatible DataFrame.
+        reader : 'cudf' or 'pandas' (default='cudf')
+            The library used to read a CSV and return an edgelist DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -185,14 +184,29 @@ class Dataset:
                         " exist. Try setting download=True"
                         " to download the datafile"
                     )
+
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            self._edgelist = reader(
-                full_path,
+
+            if reader == "cudf":
+                self.__reader = cudf.read_csv
+            elif reader == "pandas":
+                self.__reader = pd.read_csv
+            else:
+                raise ValueError(
+                    "reader must be a module with a read_csv function compatible with \
+                     cudf.read_csv"
+                )
+
+            self._edgelist = self.__reader(
+                filepath_or_buffer=full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
-                dtype=self.metadata["col_types"],
+                dtype={
+                    self.metadata["col_names"][i]: self.metadata["col_types"][i]
+                    for i in range(len(self.metadata["col_types"]))
+                },
                 header=header,
             )
 

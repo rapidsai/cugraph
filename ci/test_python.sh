@@ -197,27 +197,26 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test_cugraph_pyg
     set -u
 
-    # Install pytorch
-    rapids-mamba-retry install \
-      --force-reinstall \
-      --channel pyg \
-      --channel pytorch \
-      --channel nvidia \
-      'pyg=2.3' \
-      'pytorch=2.0.0' \
-      'pytorch-cuda=11.8'
-    
-    # Install pyg dependencies (which requires pip)
-    pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
-
+    # Will automatically install built dependencies of cuGraph-PyG
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      libcugraph \
-      pylibcugraph \
-      pylibcugraphops \
-      cugraph \
-      cugraph-pyg
+      --channel pytorch \
+      --channel nvidia \
+      --channel pyg \
+      --channel rapidsai-nightly \
+      "cugraph-pyg" \
+      "pytorch>=2.0,<2.1" \
+      "pytorch-cuda=11.8"
+    
+    # Install pyg dependencies (which requires pip)
+    pip install \
+        pyg_lib \
+        torch_scatter \
+        torch_sparse \
+        torch_cluster \
+        torch_spline_conv \
+      -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
 
     rapids-print-env
 
