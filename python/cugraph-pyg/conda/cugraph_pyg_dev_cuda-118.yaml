@@ -13,13 +13,13 @@ dependencies:
 - cugraph==24.2.*
 - pandas
 - pre-commit
-- pyg=2.3.1=*torch_2.0.0*cu118*
+- pyg>=2.4.0
 - pylibcugraphops==24.2.*
 - pytest
 - pytest-benchmark
 - pytest-cov
 - pytest-xdist
 - pytorch-cuda==11.8
-- pytorch==2.0
+- pytorch>=2.0
 - scipy
 name: cugraph_pyg_dev_cuda-118
