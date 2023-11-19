@@ -1,0 +1,22 @@
+name: cit-Patents
+file_type: .csv
+description: A citation graph that includes all citations made by patents granted between 1975 and 1999, totaling 16,522,438 citations.
+author: NBER
+refs:
+  J. Leskovec, J. Kleinberg and C. Faloutsos. Graphs over Time Densification Laws, Shrinking Diameters and Possible Explanations. 
+  ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2005.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: true
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 16518948
+number_of_nodes: 3774768
+url: https://data.rapids.ai/cugraph/datasets/cit-Patents.csv
