@@ -109,11 +109,30 @@ int test_eigenvector_centrality()
     h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, epsilon, max_iterations);
 }
 
+int test_eigenvector_centrality_3971()
+{
+  size_t num_edges    = 4;
+  size_t num_vertices = 3;
+
+  vertex_t h_src[] = {0, 1, 1, 2};
+  vertex_t h_dst[] = {1, 0, 2, 1};
+  weight_t h_wgt[] = {1.0f, 1.0f, 1.0f, 1.0f};
+  weight_t h_result[] = {0.5, 0.707107, 0.5};
+
+  double epsilon        = 1e-6;
+  size_t max_iterations = 1000;
+
+  // Eigenvector centrality wants store_transposed = TRUE
+  return generic_eigenvector_centrality_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, epsilon, max_iterations);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_eigenvector_centrality);
+  result |= RUN_TEST(test_eigenvector_centrality_3971);
   return result;
 }

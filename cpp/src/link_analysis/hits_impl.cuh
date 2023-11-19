@@ -112,7 +112,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / num_vertices);
   }
-  for (size_t iter = 0; iter < max_iterations; ++iter) {
+  size_t iter{0};
+  while (true) {
     // Update current destination authorities property
     per_v_transform_reduce_incoming_e(
       handle,
@@ -162,17 +163,19 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
       [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
-    if (diff_sum < epsilon) {
-      final_iteration_count = iter;
-      std::swap(prev_hubs, curr_hubs);
-      break;
-    }
 
     update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs
     std::swap(prev_hubs, curr_hubs);
+    iter++;
+
+    if (diff_sum < epsilon) {
+      break;
+    } else if (iter >= max_iterations) {
+      CUGRAPH_FAIL("HITS failed to converge.");
+    }
   }
 
   if (normalize) {
@@ -188,7 +191,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                  hubs);
   }
 
-  return std::make_tuple(diff_sum, final_iteration_count);
+  return std::make_tuple(diff_sum, iter);
 }
 
 }  // namespace detail

@@ -1,0 +1,26 @@
+name: hollywood
+file_type: .csv
+description:
+  A graph of movie actors where vertices are actors, and two actors are
+  joined by an edge whenever they appeared in a movie together.
+author: Laboratory for Web Algorithmics (LAW)
+refs:
+  The WebGraph Framework I Compression Techniques, Paolo Boldi
+  and Sebastiano Vigna, Proc. of the Thirteenth International
+  World Wide Web Conference (WWW 2004), 2004, Manhattan, USA,
+  pp. 595--601, ACM Press.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 57515616
+number_of_nodes: 1139905
+url: https://data.rapids.ai/cugraph/datasets/hollywood.csv

@@ -40,8 +40,11 @@ for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
     sed -r -i "s/${dep}==(.*)\"/${dep}${PACKAGE_CUDA_SUFFIX}==\1${alpha_spec}\"/g" ${pyproject_file}
 done
 
-# dask-cuda doesn't get a suffix, but it does get an alpha spec.
-sed -r -i "s/dask-cuda==(.*)\"/dask-cuda==\1${alpha_spec}\"/g" ${pyproject_file}
+# dask-cuda & rapids-dask-dependency doesn't get a suffix, but it does get an alpha spec.
+for dep in dask-cuda rapids-dask-dependency; do
+    sed -r -i "s/${dep}==(.*)\"/${dep}==\1${alpha_spec}\"/g" ${pyproject_file}
+done
+
 
 if [[ $PACKAGE_CUDA_SUFFIX == "-cu12" ]]; then
     sed -i "s/cupy-cuda11x/cupy-cuda12x/g" ${pyproject_file}
