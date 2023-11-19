@@ -17,7 +17,7 @@ import dask_cudf
 
 import cugraph
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
-from cugraph.experimental import datasets
+from cugraph import datasets
 from cugraph.generators import rmat
 
 
