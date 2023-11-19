@@ -16,7 +16,7 @@ import pytest
 
 import dask_cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.datasets import DATASETS_UNDIRECTED
+from cugraph.datasets import karate, dolphins
 
 import cugraph
 import cugraph.dask as dcg
@@ -41,7 +41,7 @@ SUBSET_SIZE_OPTIONS = [4, None]
 
 
 # email_Eu_core is too expensive to test
-datasets = DATASETS_UNDIRECTED
+datasets = [karate, dolphins]
 
 
 # =============================================================================
