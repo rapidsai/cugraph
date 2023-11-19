@@ -39,3 +39,13 @@ small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
 toy_graph = Dataset(meta_path / "toy_graph.yaml")
 toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
+
+# Benchmarking datasets: be mindful of memory usage
+# 250 MB
+soc_livejournal = Dataset(meta_path / "soc-livejournal1.yaml")
+# 965 MB
+cit_patents = Dataset(meta_path / "cit-patents.yaml")
+# 1.8 GB
+europe_osm = Dataset(meta_path / "europe_osm.yaml")
+# 1.5 GB
+hollywood = Dataset(meta_path / "hollywood.yaml")
