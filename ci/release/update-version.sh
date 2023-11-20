@@ -88,6 +88,7 @@ DEPENDENCIES=(
   raft-dask
   rmm
   ucx-py
+  rapids-dask-dependency
 )
 for DEP in "${DEPENDENCIES[@]}"; do
   for FILE in dependencies.yaml conda/environments/*.yaml python/cugraph-{pyg,dgl}/conda/*.yaml; do
