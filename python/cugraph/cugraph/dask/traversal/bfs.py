@@ -16,7 +16,9 @@
 from pylibcugraph import ResourceHandle, bfs as pylibcugraph_bfs
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
@@ -159,8 +161,13 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             tmp_col_names = None
 
         start = input_graph.lookup_internal_vertex_id(start, tmp_col_names)
+        vertex_dtype = start.dtype # if the edgelist was renumbered, update
+        # the vertex type accordingly
 
-    data_start = get_distributed_data(start)
+    data_start = persist_dask_df_equal_parts_per_worker(
+            start, client, return_type="dict"
+        )
+
     do_expensive_check = False
     # FIXME: Why is 'direction_optimizing' not part of the python cugraph API
     # and why is it set to 'False' by default
@@ -171,7 +178,7 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             _call_plc_bfs,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            st[0],
+            st[0] if st else cudf.Series(dtype=vertex_dtype),
             depth_limit,
             direction_optimizing,
             return_distances,
@@ -179,7 +186,7 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             workers=[w],
             allow_other_workers=False,
         )
-        for w, st in data_start.worker_to_parts.items()
+        for w, st in data_start.items()
     ]
 
     wait(cupy_result)
