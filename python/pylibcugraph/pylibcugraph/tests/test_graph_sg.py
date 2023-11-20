@@ -85,11 +85,11 @@ def test_sg_graph(graph_data):
 
     if is_valid:
         g = SGGraph(  # noqa:F841
-            resource_handle,
-            graph_props,
-            device_srcs,
-            device_dsts,
-            device_weights,
+            resource_handle=resource_handle,
+            graph_properties=graph_props,
+            src_or_offset_array=device_srcs,
+            dst_or_index_array=device_dsts,
+            weight_array=device_weights,
             store_transposed=False,
             renumber=False,
             do_expensive_check=False,
@@ -100,11 +100,11 @@ def test_sg_graph(graph_data):
     else:
         with pytest.raises(ValueError):
             SGGraph(
-                resource_handle,
-                graph_props,
-                device_srcs,
-                device_dsts,
-                device_weights,
+                resource_handle=resource_handle,
+                graph_properties=graph_props,
+                src_or_offset_array=device_srcs,
+                dst_or_index_array=device_dsts,
+                weight_array=device_weights,
                 store_transposed=False,
                 renumber=False,
                 do_expensive_check=False,
@@ -130,7 +130,6 @@ def test_SGGraph_create_from_cudf():
         SGGraph,
     )
 
-    print("get edgelist...", end="", flush=True)
     edgelist = cudf.DataFrame(
         {
             "src": [0, 1, 2],
@@ -138,10 +137,6 @@ def test_SGGraph_create_from_cudf():
             "wgt": [0.0, 0.1, 0.2],
         }
     )
-
-    print("edgelist = ", edgelist)
-    print("done", flush=True)
-    print("create Graph...", end="", flush=True)
 
     graph_props = GraphProperties(is_multigraph=False, is_symmetric=False)
 

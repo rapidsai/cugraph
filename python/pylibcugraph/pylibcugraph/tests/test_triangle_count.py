@@ -81,11 +81,11 @@ def test_sg_triangle_count_cupy():
     start_list = None
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=False,
         renumber=True,
         do_expensive_check=False,
@@ -131,11 +131,11 @@ def test_sg_triangle_count_cudf():
     start_list = None
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=False,
         renumber=True,
         do_expensive_check=False,

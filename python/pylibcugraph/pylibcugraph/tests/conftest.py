@@ -135,11 +135,11 @@ def create_SGGraph(device_srcs, device_dsts, device_weights, transposed=False):
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
     g = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=transposed,
         renumber=False,
         do_expensive_check=False,

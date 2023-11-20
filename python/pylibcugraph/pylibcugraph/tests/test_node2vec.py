@@ -94,11 +94,11 @@ def _run_node2vec(
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     G = SGGraph(
-        resource_handle,
-        graph_props,
-        src_arr,
-        dst_arr,
-        wgt_arr,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=src_arr,
+        dst_or_index_array=dst_arr,
+        weight_array=wgt_arr,
         store_transposed=False,
         renumber=renumbered,
         do_expensive_check=True,
@@ -795,11 +795,11 @@ def test_node2vec_renumber_cupy(graph_file, renumber):
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     G = SGGraph(
-        resource_handle,
-        graph_props,
-        src_arr,
-        dst_arr,
-        wgt_arr,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=src_arr,
+        dst_or_index_array=dst_arr,
+        weight_array=wgt_arr,
         store_transposed=False,
         renumber=renumber,
         do_expensive_check=True,

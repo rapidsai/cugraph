@@ -56,11 +56,11 @@ def _generic_eigenvector_test(
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     G = SGGraph(
-        resource_handle,
-        graph_props,
-        src_arr,
-        dst_arr,
-        wgt_arr,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=src_arr,
+        dst_or_index_array=dst_arr,
+        weight_array=wgt_arr,
         store_transposed=False,
         renumber=False,
         do_expensive_check=True,
