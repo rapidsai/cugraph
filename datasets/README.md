@@ -120,9 +120,13 @@ The benchmark datasets are described below:
 | soc-twitter-2010  | 21,297,772 |   265,025,809 | No       | No       |
 
 **cit-Patents** : A citation graph that includes all citations made by patents granted between 1975 and 1999, totaling 16,522,438 citations.
+
 **soc-LiveJournal** : A graph of the LiveJournal social network.
+
 **europe_osm** : A graph of OpenStreetMap data for Europe.
+
 **hollywood** : A graph of movie actors where vertices are actors, and two actors are joined by an edge whenever they appeared in a movie together.
+
 **soc-twitter-2010** : A network of follower relationships from a snapshot of Twitter in 2010, where an edge from i to j indicates that j is a follower of i.
 
 _NOTE: the benchmark datasets were converted to a CSV format from their original format described in the reference URL below, and in doing so had edge weights and isolated vertices discarded._
