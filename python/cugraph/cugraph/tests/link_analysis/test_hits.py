@@ -68,6 +68,7 @@ def input_expected_output(input_combo):
     # elsewhere.
     dataset_path = input_combo["graph_file"].get_path()
     Gnx = utils.generate_nx_graph_from_file(dataset_path, directed=True)
+    # FIXME: temporarily disable resultset API
     nxResults = nx.hits(
         Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
     )
