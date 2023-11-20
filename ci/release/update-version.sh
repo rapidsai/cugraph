@@ -54,6 +54,9 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
+# build.sh script
+sed_runner 's/RAPIDS_VERSION=.*/RAPIDS_VERSION='${NEXT_SHORT_TAG}'/g' build.sh
+
 # Centralized version file update
 # NOTE: Any script that runs in CI will need to use gha-tool `rapids-generate-version`
 # and echo it to `VERSION` file to get an alpha spec of the current version
