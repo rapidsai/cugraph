@@ -1,0 +1,22 @@
+name: soc-LiveJournal1
+file_type: .csv
+description:  A graph of the LiveJournal social network.
+author: L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan
+refs:
+  L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in        
+  Large Social Networks Membership, Growth, and Evolution. KDD, 2006.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: true
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 68993773
+number_of_nodes: 4847571
+url: https://data.rapids.ai/cugraph/datasets/soc-LiveJournal1.csv
