@@ -38,8 +38,7 @@ srcCol = "src"
 dstCol = "dst"
 
 
-input_data = UNDIRECTED_DATASETS
-input_data.append(karate_disjoint)
+input_data = UNDIRECTED_DATASETS + [karate_disjoint]
 datasets = [pytest.param(d) for d in input_data]
 
 fixture_params = gen_fixture_params_product(

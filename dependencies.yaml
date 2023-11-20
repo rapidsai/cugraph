@@ -380,6 +380,7 @@ dependencies:
           - &dask rapids-dask-dependency==23.12.*
           - &dask_cuda dask-cuda==23.12.*
           - &numba numba>=0.57
+          - &numpy numpy>=1.21
           - &ucx_py ucx-py==0.35.*
       - output_types: conda
         packages:
@@ -399,7 +400,7 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - networkx>=3.0
-          - &numpy numpy>=1.21
+          - *numpy
   python_run_cugraph_dgl:
     common:
       - output_types: [conda, pyproject]
