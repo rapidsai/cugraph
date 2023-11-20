@@ -417,10 +417,7 @@ if hasArg docs || hasArg all; then
 
     for PROJECT in libcugraphops libwholegraph; do
         XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
-        if [ -d ${XML_DIR} ]; then
-            echo "removing ${XML_DIR} docs dir"
-            rm -r ${XML_DIR}
-        fi
+        rm -rf "${XML_DIR}"
         mkdir -p "${XML_DIR}"
         export XML_DIR_${PROJECT^^}="$XML_DIR"
 
@@ -433,15 +430,11 @@ if hasArg docs || hasArg all; then
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
 
-    if [ -d ${REPODIR}/docs/cugraph/libcugraph ]; then
-        echo "removing libcugraph docs dir"
-        rm -r ${REPODIR}/docs/cugraph/libcugraph
-    fi
     echo "making libcugraph doc dir"
+    rm -rf ${REPODIR}/docs/cugraph/libcugraph
     mkdir -p ${REPODIR}/docs/cugraph/libcugraph
 
-    mv ${REPODIR}/cpp/doxygen/xml   ${REPODIR}/docs/cugraph/libcugraph/_xml
-    mv ${REPODIR}/cpp/doxygen/html  ${REPODIR}/docs/cugraph/libcugraph/html
+    export XML_DIR_LIBCUGRAPH="${REPODIR}/cpp/doxygen/xml"
 
     cd ${REPODIR}/docs/cugraph
     make html

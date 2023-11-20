@@ -52,6 +52,7 @@ done
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
+export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
 popd
 
 rapids-logger "Build Python docs"
