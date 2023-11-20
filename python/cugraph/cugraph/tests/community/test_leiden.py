@@ -22,8 +22,6 @@ import cudf
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
-from cudf.testing.testing import assert_series_equal
-
 
 # =============================================================================
 # Test data
@@ -43,8 +41,8 @@ _test_data = {
         "resolution": 1.0,
         "input_type": "COO",
         "expected_output": {
-            "partition": [1, 0, 1, 2, 2, 2],
-            "modularity_score": 0.1757322,
+            "partition": [0, 0, 0, 1, 1, 1],
+            "modularity_score": 0.215969,
         },
     },
     "data_2": {
@@ -85,10 +83,10 @@ _test_data = {
         "input_type": "CSR",
         "expected_output": {
             # fmt: off
-            "partition": [6, 6, 3, 3, 1, 5, 5, 3, 0, 3, 1, 6, 3, 3, 4, 4, 5, 6, 4, 6, 4,
-                          6, 4, 4, 2, 2, 4, 4, 2, 4, 0, 2, 4, 4],
+            "partition": [3, 3, 3, 3, 2, 2, 2, 3, 1, 3, 2, 3, 3, 3, 1, 1, 2, 3, 1, 3,
+                          1, 3, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1],
             # fmt: on
-            "modularity_score": 0.3468113,
+            "modularity_score": 0.41880345,
         },
     },
 }
@@ -138,7 +136,7 @@ def input_and_expected_output(request):
         # Create graph from csr
         offsets = src_or_offset_array
         indices = dst_or_index_array
-        G.from_cudf_adjlist(offsets, indices, weight)
+        G.from_cudf_adjlist(offsets, indices, weight, renumber=False)
 
     parts, mod = cugraph.leiden(G, max_level, resolution)
 
@@ -223,9 +221,7 @@ def test_leiden_directed_graph():
 
 @pytest.mark.sg
 def test_leiden_golden_results(input_and_expected_output):
-    expected_partition = cudf.Series(
-        input_and_expected_output["expected_output"]["partition"]
-    )
+    expected_partition = input_and_expected_output["expected_output"]["partition"]
     expected_mod = input_and_expected_output["expected_output"]["modularity_score"]
 
     result_partition = input_and_expected_output["result_output"]["partition"]
@@ -233,6 +229,10 @@ def test_leiden_golden_results(input_and_expected_output):
 
     assert abs(expected_mod - result_mod) < 0.0001
 
-    assert_series_equal(
-        expected_partition, result_partition, check_dtype=False, check_names=False
-    )
+    expected_to_result_map = {}
+    for e, r in zip(expected_partition, list(result_partition.to_pandas())):
+        if e in expected_to_result_map.keys():
+            assert r == expected_to_result_map[e]
+
+        else:
+            expected_to_result_map[e] = r

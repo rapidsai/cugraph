@@ -74,8 +74,6 @@ void katz_centrality(
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
   if (do_expensive_check) {
-    // FIXME: should I check for betas?
-
     if (has_initial_guess) {
       auto num_negative_values =
         count_if_v(handle, pull_graph_view, katz_centralities, [] __device__(auto, auto val) {
