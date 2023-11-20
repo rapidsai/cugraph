@@ -368,9 +368,8 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-    def __dask_array_from_numpy(
-        self, array: np.ndarray, client: distributed.client.Client, npartitions: int
-    ):
+
+    def __dask_array_from_numpy(self, array: np.ndarray, npartitions: int):
         return dar.from_array(
             array,
             meta=np.array([], dtype=array.dtype),
@@ -481,13 +480,13 @@ class EXPERIMENTAL__CuGraphStore:
             nworkers = len(client.scheduler_info()["workers"])
             npartitions = nworkers * 4
 
-            src_dar = self.__dask_array_from_numpy(na_src, client, npartitions)
+            src_dar = self.__dask_array_from_numpy(na_src, npartitions)
             del na_src
 
-            dst_dar = self.__dask_array_from_numpy(na_dst, client, npartitions)
+            dst_dar = self.__dask_array_from_numpy(na_dst, npartitions)
             del na_dst
 
-            etp_dar = self.__dask_array_from_numpy(na_etp, client, npartitions)
+            etp_dar = self.__dask_array_from_numpy(na_etp, npartitions)
             del na_etp
 
             df = dd.from_dask_array(etp_dar, columns=["etp"])
