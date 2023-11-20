@@ -109,7 +109,7 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=True, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, clusters) = pylibcugraph.balanced_cut_clustering(
     ...     resource_handle, G, num_clusters=5, num_eigen_vects=2, evs_tolerance=0.00001

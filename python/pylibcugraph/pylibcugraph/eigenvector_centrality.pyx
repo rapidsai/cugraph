@@ -97,7 +97,7 @@ def eigenvector_centrality(ResourceHandle resource_handle,
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, values) = pylibcugraph.eigenvector_centrality(
                                 resource_handle, G, 1e-6, 1000, False)
