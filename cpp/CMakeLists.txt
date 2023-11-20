@@ -153,6 +153,11 @@ rapids_cpm_init()
 # lags behind.
 ###
 
+# Need to make sure rmm is found before cuco so that rmm patches the libcudacxx
+# directory to be found by cuco.
+include(${rapids-cmake-dir}/cpm/rmm.cmake)
+rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
+               INSTALL_EXPORT_SET  cugraph-exports)
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
@@ -166,7 +171,10 @@ endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
-include(cmake/thirdparty/get_ucp.cmake)
+
+if (BUILD_CUGRAPH_MTMG_TESTS)
+  include(cmake/thirdparty/get_ucp.cmake)
+endif()
 
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
