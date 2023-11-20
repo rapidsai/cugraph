@@ -498,45 +498,47 @@ void sort_adjacency_list(raft::handle_t const& handle,
   }
 }
 
-template <typename T>
-struct indirect_array_reference {
-  T const* array_;
-
-  T operator() __host__ __device__(size_t index) { return array_[index]; }
-};
-
-template <typename vertex_t, typename comparison_t>
-std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_edges_for_removal(
-  raft::handle_t const& handle,
-  raft::device_span<vertex_t const> src,
-  raft::device_span<vertex_t const> dst,
-  comparison_t comparison)
+template <typename comparison_t>
+std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t const& handle,
+                                                               size_t num_entries,
+                                                               comparison_t comparison)
 {
-  rmm::device_uvector<uint32_t> remove_flags(packed_bool_size(src.size()), handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               remove_flags.begin(),
-               remove_flags.end(),
-               cugraph::packed_bool_empty_mask());
+  rmm::device_uvector<uint32_t> marked_entries(cugraph::packed_bool_size(num_entries),
+                                               handle.get_stream());
 
-  size_t remove_count = thrust::count_if(
+  thrust::tabulate(handle.get_thrust_policy(),
+                   marked_entries.begin(),
+                   marked_entries.end(),
+                   [comparison, num_entries] __device__(size_t idx) {
+                     auto word          = cugraph::packed_bool_empty_mask();
+                     size_t start_index = idx * cugraph::packed_bools_per_word();
+                     size_t bits_in_this_word =
+                       (start_index + cugraph::packed_bools_per_word() < num_entries)
+                         ? cugraph::packed_bools_per_word()
+                         : (num_entries - start_index);
+
+                     for (size_t bit = 0; bit < bits_in_this_word; ++bit) {
+                       if (comparison(start_index + bit)) word |= cugraph::packed_bool_mask(bit);
+                     }
+
+                     return word;
+                   });
+
+  size_t bit_count = thrust::transform_reduce(
     handle.get_thrust_policy(),
-    thrust::make_counting_iterator(size_t{0}),
-    thrust::make_counting_iterator(src.size()),
-    [comparison, d_remove_flags = remove_flags.data()] __device__(size_t i) {
-      if (comparison(i)) {
-        atomicOr(d_remove_flags + cugraph::packed_bool_offset(i), cugraph::packed_bool_mask(i));
-        return true;
-      }
-      return false;
-    });
+    marked_entries.begin(),
+    marked_entries.end(),
+    [] __device__(auto word) { return __popc(word); },
+    size_t{0},
+    thrust::plus<size_t>());
 
-  return std::make_tuple(remove_count, std::move(remove_flags));
+  return std::make_tuple(bit_count, std::move(marked_entries));
 }
 
 template <typename T>
 rmm::device_uvector<T> remove_flagged_elements(raft::handle_t const& handle,
                                                rmm::device_uvector<T>&& vector,
-                                               rmm::device_uvector<uint32_t> const& remove_flags,
+                                               raft::device_span<uint32_t const> remove_flags,
                                                size_t remove_count)
 {
   rmm::device_uvector<T> result(vector.size() - remove_count, handle.get_stream());
@@ -546,14 +548,13 @@ rmm::device_uvector<T> remove_flagged_elements(raft::handle_t const& handle,
     thrust::make_counting_iterator(size_t{0}),
     thrust::make_counting_iterator(vector.size()),
     thrust::make_transform_output_iterator(result.begin(),
-                                           indirect_array_reference<T>{vector.data()}),
-    [d_remove_flags = remove_flags.data()] __device__(size_t i) {
-      return !(d_remove_flags[cugraph::packed_bool_offset(i)] & cugraph::packed_bool_mask(i));
+                                           indirection_t<size_t, T*>{vector.data()}),
+    [remove_flags] __device__(size_t i) {
+      return !(remove_flags[cugraph::packed_bool_offset(i)] & cugraph::packed_bool_mask(i));
     });
 
   return result;
 }
 
 }  // namespace detail
-
 }  // namespace cugraph
