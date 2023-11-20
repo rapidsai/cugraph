@@ -80,7 +80,6 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
 
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
 
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
   std::vector<size_t> tx_counts(comm_size, size_t{1});
   std::vector<size_t> tx_offsets(comm_size);
   std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
@@ -835,7 +834,6 @@ auto shuffle_values(raft::comms::comms_t const& comm,
     allocate_dataframe_buffer<typename thrust::iterator_traits<TxValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
                             tx_value_first,
@@ -889,7 +887,6 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
     allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
                             tx_value_first,
@@ -946,7 +943,6 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
     allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_keys.size(), stream_view);
 
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
                             tx_key_first,
@@ -959,7 +955,6 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
                             rx_src_ranks,
                             stream_view);
 
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
                             tx_value_first,

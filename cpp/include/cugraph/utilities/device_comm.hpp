@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -806,9 +806,6 @@ device_sendrecv(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: NCCL 2.7 supports only one ncclSend and one ncclRecv for a source rank and destination
-  // rank inside ncclGroupStart/ncclGroupEnd, so we cannot place this inside
-  // ncclGroupStart/ncclGroupEnd, this restriction will be lifted in NCCL 2.8
   detail::device_sendrecv_tuple_iterator_element_impl<InputIterator,
                                                       OutputIterator,
                                                       size_t{0},
@@ -866,9 +863,6 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: NCCL 2.7 supports only one ncclSend and one ncclRecv for a source rank and destination
-  // rank inside ncclGroupStart/ncclGroupEnd, so we cannot place this inside
-  // ncclGroupStart/ncclGroupEnd, this restriction will be lifted in NCCL 2.8
   detail::device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator,
                                                                 OutputIterator,
                                                                 size_t{0},

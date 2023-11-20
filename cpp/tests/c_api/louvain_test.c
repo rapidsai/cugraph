@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,22 +46,39 @@ int generic_louvain_test(vertex_t* h_src,
   cugraph_graph_t* p_graph                           = NULL;
   cugraph_hierarchical_clustering_result_t* p_result = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
   data_type_id_t edge_id_tid   = INT32;
   data_type_id_t edge_type_tid = INT32;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(p_handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &p_graph, &ret_error);
+  ret_code = create_sg_test_graph(p_handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &p_graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_louvain(p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_louvain(
+    p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_louvain failed.");
@@ -141,10 +158,10 @@ int test_louvain_no_weight()
   weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
 
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_result[]          = {1, 1, 1, 2, 0, 0};
-  weight_t expected_modularity = 0.0859375;
+  vertex_t h_src[]             = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]             = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_result[]          = {1, 1, 1, 1, 0, 0};
+  weight_t expected_modularity = 0.125;
 
   // Louvain wants store_transposed = FALSE
   return generic_louvain_test(h_src,
