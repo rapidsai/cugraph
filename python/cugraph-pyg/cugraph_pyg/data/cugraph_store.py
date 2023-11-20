@@ -368,7 +368,6 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-
     def __dask_array_from_numpy(self, array: np.ndarray, npartitions: int):
         return dar.from_array(
             array,
