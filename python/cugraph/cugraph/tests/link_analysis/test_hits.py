@@ -66,13 +66,12 @@ def input_expected_output(input_combo):
     # in the dictionary. This allows separate Nx-only tests that may have run
     # previously on the same input_combo to save their results for re-use
     # elsewhere.
-    if "nxResults" not in input_combo:
-        dataset_path = input_combo["graph_file"].get_path()
-        Gnx = utils.generate_nx_graph_from_file(dataset_path, directed=True)
-        nxResults = nx.hits(
-            Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
-        )
-        input_combo["nxResults"] = nxResults
+    dataset_path = input_combo["graph_file"].get_path()
+    Gnx = utils.generate_nx_graph_from_file(dataset_path, directed=True)
+    nxResults = nx.hits(
+        Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
+    )
+    input_combo["nxResults"] = nxResults
     return input_combo
 
 
