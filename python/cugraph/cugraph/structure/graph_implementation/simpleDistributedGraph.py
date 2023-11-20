@@ -95,8 +95,6 @@ class simpleDistributedGraphImpl:
         edge_types = None
         num_arrays = len(edata_x)
 
-        print("edata = \n", edata_x)
-
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
             weights = [
                 edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
@@ -121,18 +119,12 @@ class simpleDistributedGraphImpl:
                     " a int64 list of edge ids instead."
                 )
         if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
-            # edge_types = edata_x[simpleDistributedGraphImpl.edgeTypeCol]
             edge_types = [
                 edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
                 for i in range(num_arrays)
             ]
 
-        # src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
-        # src_array.append(edata_x[i][src_col_name] for i in range(len(edata_x)))
-        # print("***src_array = \n", src_array)
-        # print("src_array =\n", edata_x[0][src_col_name])
-
-        return MGGraph(
+        plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
             src_array=[edata_x[i][src_col_name] for i in range(num_arrays)],
@@ -144,6 +136,10 @@ class simpleDistributedGraphImpl:
             store_transposed=store_transposed,
             do_expensive_check=False,
         )
+        del edata_x
+        gc.collect()
+
+        return plc_graph
 
     # Functions
     def __from_edgelist(
