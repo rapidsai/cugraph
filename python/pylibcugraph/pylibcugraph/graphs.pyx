@@ -307,7 +307,7 @@ cdef class MGGraph(_GPUGraph):
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
     
-    num_arrays : size_t # FIXME: Should this parameter be internal to PLC?
+    num_arrays : size_t
         Number of edges
     
     do_expensive_check : bool
@@ -345,10 +345,6 @@ cdef class MGGraph(_GPUGraph):
                   drop_self_loops=False,
                   drop_multi_edges=False):
 
-        print("plc-num_arrays = ", num_arrays)
-        #print("the len of the src array = ", len(src_array[0]))
-        #print("the len of the src array = ", len(src_array[1]))
-        # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
                             f"{type(store_transposed)}")
@@ -357,54 +353,42 @@ cdef class MGGraph(_GPUGraph):
             raise TypeError("expected int or bool for do_expensive_check, got "
                             f"{type(do_expensive_check)}")
 
-        # FIXME: assert that src_array and dst_array have the same type
-
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
         # FIXME: Assert that the 'vertices', 'src', 'dst', 'weights', 'edge_ids'
         # and 'edge_type_ids' are of size 'num_arrays'.
+    
+        cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+        if weight_array is not None:
+           self.weights_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
 
-
-        #cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr[2]
-        cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
         cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
-        self.weights_view_ptr_ptr = NULL
-        self.edge_id_view_ptr_ptr = NULL
-        cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
+        if vertices_array is not None:
+            vertices_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
 
-        print("size of 'cugraph_type_erased_device_array_view_t' = ", sizeof(cugraph_type_erased_device_array_view_t))
-        print("size of 'cugraph_type_erased_device_array_view_t*' = ", sizeof(cugraph_type_erased_device_array_view_t*)) # working
+        if edge_id_array is not None:
+            self.edge_id_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
         
-        #cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr_ptr_
-        """
-        print("\n Cleaning memory")
-        for i in range(2):
-            srcs_view_ptr_ptr[i] = NULL
-            #print("v_0 = ", srcs_view_ptr_ptr[0])
-            #print("v_0 = ", srcs_view_ptr_ptr[2])
-        print("\n Done cleaning memory")
-        """
-        """
-        cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = NULL
-
-        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr = NULL
-        cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = NULL
-
-        cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
-        cdef cugraph_type_erased_device_array_view_t* vertices_view_ptr = NULL
-
         cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
-        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
-        """
+        if edge_type_array is not None:
+            edge_type_view_ptr_ptr = \
+                <cugraph_type_erased_device_array_view_t **>malloc(
+                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
 
-        #list_ = []
         for i in range(num_arrays):
-            print("the len of the src array = ", len(src_array[i]))
             if do_expensive_check:
-                # FIXME: This assumes that src, dst, ... arrays are lists which is always
-                # 'True' because there are at least two partitions per workers.
                 assert_CAI_type(src_array[i], "src_array")
                 assert_CAI_type(dst_array[i], "dst_array")
                 assert_CAI_type(weight_array[i], "weight_array", True)
@@ -418,116 +402,31 @@ cdef class MGGraph(_GPUGraph):
                 assert_CAI_type(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
-            
-            """
-            srcs_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
-                    src_array[i]
-                )
-            """
 
-            """
-            cai_ptr = src_array[i].__cuda_array_interface__["data"][0]
-            print("before assigning")
-            srcs_view_ptr_ptr[i] = cugraph_type_erased_device_array_view_create(
-                <void*>cai_ptr,
-                len(src_array[i]),
-                get_c_type_from_numpy_type(src_array[i].dtype))
-            print("after assigning")
-            """
+            srcs_view_ptr_ptr[i] = \
+                create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
 
-
-            #srcs_view_ptr_ptr = &(srcs_view_ptr)
-            """
-            if i == 0:
-                srcs_view_ptr_ptr_ = srcs_view_ptr_ptr
-            """
-            print("plc - ****** i = ", i)
-
-            srcs_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                    src_array[i]
-                )
-            #print("plc - address after = %p", &srcs_view_ptr_ptr)
-            #print("**srcs_view_ptr_ptr before = {0:x}".format(<unsigned long>srcs_view_ptr_ptr))
-            #print("**srcs_view_ptr before = {0:x}".format(<unsigned long>srcs_view_ptr))
-            #printf("**before -- %p", <unsigned long>srcs_view_ptr_ptr)
-            #srcs_view_ptr_ptr += 1
-            #srcs_view_ptr += 1
-            #srcs_view_ptr_ptr = NULL
-            #print("**srcs_view_ptr_ptr after   ={0:x}".format(<unsigned long>srcs_view_ptr_ptr))
-            #print("**srcs_view_ptr after   ={0:x}".format(<unsigned long>srcs_view_ptr))
-            
-            #print("plc - address after = %p", &srcs_view_ptr_ptr)
-            #srcs_view_ptr += 1
-
-            
-
-            dsts_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                    dst_array[i]
-                )
-            """
-            dsts_view_ptr_ptr = &(dsts_view_ptr)
-            dsts_view_ptr_ptr += 1
-            """
+            dsts_view_ptr_ptr[i] = \
+                create_cugraph_type_erased_device_array_view_from_py_obj(dst_array[i])
 
             if vertices_array is not None:
-                vertices_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                vertices_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                        vertices_array[i]
-                    )
-                """
-                vertices_view_ptr_ptr = &(vertices_view_ptr)
-                vertices_view_ptr_ptr += 1
-                """
-            else:
-                # Need to free the memory created
-                pass
+                vertices_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array[i])                
 
-            # FIXME: When checking wethere a graph has weights or edge ids, properly handle
+            # FIXME: When checking wether a graph has weights or edge ids, properly handle
             # SG VS MG as SG will have 'self.weights_view_ptr_ptr' non 'NULL'.
-
             if weight_array is not None:
-                self.weights_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.weights_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                        weight_array[i]
-                    )
-                #self.weights_view_ptr_ptr = &(self.weights_view_ptr)
-                #self.weights_view_ptr_ptr += 1
+                self.weights_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(weight_array[i])
 
             if edge_id_array is not None:
-                self.edge_id_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.edge_id_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                        edge_id_array[i]
-                    )
-                #self.edge_id_view_ptr_ptr = &(self.edge_id_view_ptr)
-                #self.edge_id_view_ptr_ptr += 1
+                self.edge_id_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array[i])
 
             if edge_type_array is not None:
-                edge_type_view_ptr_ptr = <cugraph_type_erased_device_array_view_t **>malloc(num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                edge_type_view_ptr_ptr[i] = create_cugraph_type_erased_device_array_view_from_py_obj(
-                        edge_type_array[i]
-                    )
-                #edge_type_view_ptr_ptr = &(edge_type_view_ptr)
-                #edge_type_view_ptr_ptr += 1
-        
+                edge_type_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_array[i])
 
-        #srcs_view_ptr_ptr -= 1
-        ##print
-        """
-        dsts_view_ptr_ptr -= 2
-        if vertices_array:
-            vertices_view_ptr_ptr -= 2
-            #pass
-        if weight_array:
-           self.weights_view_ptr_ptr -= 2
-           #pass
-        if edge_id_array:
-            self.edge_id_view_ptr_ptr -= 2
-            #pass
-        if edge_type_array:
-            self.edge_type_view_ptr_ptr -= 2
-            #pass
-        """
-        print("\nrunning graph\n", flush=True)
         error_code = cugraph_graph_create_mg(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
@@ -547,12 +446,12 @@ cdef class MGGraph(_GPUGraph):
 
         assert_success(error_code, error_ptr,
                        "cugraph_mg_graph_create()")
-        
-        print("\nDone running graph\n", flush=True)
 
         for i in range(num_arrays):
             cugraph_type_erased_device_array_view_free(srcs_view_ptr_ptr[i])
             cugraph_type_erased_device_array_view_free(dsts_view_ptr_ptr[i])
+            if vertices_view_ptr_ptr is not NULL:
+                cugraph_type_erased_device_array_view_free(vertices_view_ptr_ptr[i])
             if self.weights_view_ptr_ptr is not NULL:
                 cugraph_type_erased_device_array_view_free(self.weights_view_ptr_ptr[i])
             if self.edge_id_view_ptr_ptr is not NULL:

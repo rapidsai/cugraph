@@ -99,20 +99,15 @@ class simpleDistributedGraphImpl:
         print("edata = \n", edata_x)
 
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            #weights = edata_x[simpleDistributedGraphImpl.edgeWeightCol]
             weights = [edata_x[i][simpleDistributedGraphImpl.edgeWeightCol] for i in range(num_arrays)]
-            if weights.dtype == "int32":
-                #weights = weights.astype("float32")
+            if weights[0].dtype == "int32":
                 weights = [w_array.astype("float32") for w_array in weights]
-            elif weights.dtype == "int64":
-                #weights = weights.astype("float64")
+            elif weights[0].dtype == "int64":
                 weights = [w_array.astype("float64") for w_array in weights]
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            #edge_ids = edata_x[simpleDistributedGraphImpl.edgeIdCol]
             edge_ids = [edata_x[i][simpleDistributedGraphImpl.edgeIdCol] for i in range(num_arrays)]
             if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
-                #edge_ids = edge_ids.astype("int64")
                 edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
                 warnings.warn(
                     f"Vertex type is int64 but edge id type is {edge_ids[0].dtype}"
