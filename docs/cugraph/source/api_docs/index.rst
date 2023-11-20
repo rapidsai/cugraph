@@ -27,12 +27,12 @@ Graph Nerual Networks API Documentation
     cugraph-ops/index.rst
     wholegraph/index.rst
 
-Graph Extensions API Documentation
+Additional Graph Packages API Documentation
 ----------------------------------
 
 .. toctree::
     :maxdepth: 3
-    :caption: Graph Extensions API Documentation
+    :caption: Additional Graph Packages API Documentation
 
     service/index.rst
 

@@ -67,8 +67,6 @@ documentation we will mostly use the terms __Node__ and __Edge__ to better
 match NetworkX preferred term use, as well as other Python-based tools.  At
 the CUDA/C layer, we favor the mathematical terms of __Vertex__ and __Edge__.  
 
-## Roadmap
-GitHub does not provide a robust project management interface, and so a roadmap turns into simply a projection of when work will be completed and not a complete picture of everything that needs to be done.   We are working on a roadmap picture that will be linked here.  
 
 
 

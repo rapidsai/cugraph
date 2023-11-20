@@ -185,15 +185,6 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-#autodoc_mock_imports = [
-#    "numpy",
-#    "torch",
-#    "torch.distributed",
-#    "torch.utils.dlpack",
-#    "torch.utils.data.Dataset",
-#    "pylibcugraph.binding.cugraph_binding"
-#]
-
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 

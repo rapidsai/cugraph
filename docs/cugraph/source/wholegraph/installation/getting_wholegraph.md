@@ -36,17 +36,13 @@ Install and update WholeGraph using the conda command:
 conda install -c rapidsai -c conda-forge -c nvidia wholegraph cudatoolkit=11.8
 ```
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
-
 <br>
 
 ## PIP
 wholegraph, and all of RAPIDS, is available via pip.
 
 ```
-pip install wholegraph-cu11 --extra-index-url=https://pypi.ngc.nvidia.com
+pip install wholegraph-cu11 --extra-index-url=https://pypi.nvidia.com
 ```
-
-pip packages for other packages are being worked and should be available in late 2023
 
 <br>
