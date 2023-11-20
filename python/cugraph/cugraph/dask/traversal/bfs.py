@@ -161,12 +161,12 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             tmp_col_names = None
 
         start = input_graph.lookup_internal_vertex_id(start, tmp_col_names)
-        vertex_dtype = start.dtype # if the edgelist was renumbered, update
+        vertex_dtype = start.dtype  # if the edgelist was renumbered, update
         # the vertex type accordingly
 
     data_start = persist_dask_df_equal_parts_per_worker(
-            start, client, return_type="dict"
-        )
+        start, client, return_type="dict"
+    )
 
     do_expensive_check = False
     # FIXME: Why is 'direction_optimizing' not part of the python cugraph API

@@ -36,7 +36,6 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
-    get_length_of_parts,
     persist_dask_df_equal_parts_per_worker,
 )
 from cugraph.dask import get_n_workers
@@ -99,14 +98,20 @@ class simpleDistributedGraphImpl:
         print("edata = \n", edata_x)
 
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            weights = [edata_x[i][simpleDistributedGraphImpl.edgeWeightCol] for i in range(num_arrays)]
+            weights = [
+                edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
+                for i in range(num_arrays)
+            ]
             if weights[0].dtype == "int32":
                 weights = [w_array.astype("float32") for w_array in weights]
             elif weights[0].dtype == "int64":
                 weights = [w_array.astype("float64") for w_array in weights]
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            edge_ids = [edata_x[i][simpleDistributedGraphImpl.edgeIdCol] for i in range(num_arrays)]
+            edge_ids = [
+                edata_x[i][simpleDistributedGraphImpl.edgeIdCol]
+                for i in range(num_arrays)
+            ]
             if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
                 edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
                 warnings.warn(
@@ -116,13 +121,16 @@ class simpleDistributedGraphImpl:
                     " a int64 list of edge ids instead."
                 )
         if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
-            #edge_types = edata_x[simpleDistributedGraphImpl.edgeTypeCol]
-            edge_types = [edata_x[i][simpleDistributedGraphImpl.edgeTypeCol] for i in range(num_arrays)]
-        
-        #src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
-        #src_array.append(edata_x[i][src_col_name] for i in range(len(edata_x)))
-        #print("***src_array = \n", src_array)
-        #print("src_array =\n", edata_x[0][src_col_name])
+            # edge_types = edata_x[simpleDistributedGraphImpl.edgeTypeCol]
+            edge_types = [
+                edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
+                for i in range(num_arrays)
+            ]
+
+        # src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
+        # src_array.append(edata_x[i][src_col_name] for i in range(len(edata_x)))
+        # print("***src_array = \n", src_array)
+        # print("src_array =\n", edata_x[0][src_col_name])
 
         return MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),

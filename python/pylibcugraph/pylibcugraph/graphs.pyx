@@ -255,7 +255,6 @@ cdef class SGGraph(_GPUGraph):
 
         cugraph_type_erased_device_array_view_free(srcs_or_offsets_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_or_indices_view_ptr)
-        #cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
         if self.weights_view_ptr is not NULL:
             cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
         if self.edge_id_view_ptr is not NULL:
