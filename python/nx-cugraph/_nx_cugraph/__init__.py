@@ -79,6 +79,8 @@ _info = {
         "path_graph",
         "petersen_graph",
         "sedgewick_maze_graph",
+        "single_source_shortest_path_length",
+        "single_target_shortest_path_length",
         "star_graph",
         "tadpole_graph",
         "tetrahedral_graph",

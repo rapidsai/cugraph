@@ -224,9 +224,11 @@ class BackendInterface:
                     )
 
         too_slow = "Too slow to run"
+        maybe_oom = "out of memory in CI"
         skip = {
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
+            key("test_efficiency.py:TestEfficiency.test_using_ego_graph"): maybe_oom,
         }
 
         for item in items:
