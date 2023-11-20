@@ -20,8 +20,14 @@ import networkx as nx
 import cudf
 import cugraph
 from cugraph.datasets import dolphins, netscience, karate_disjoint, karate
-from cugraph.testing import utils, Resultset, SMALL_DATASETS, results_dir_path
 
+# from cugraph.testing import utils, Resultset, SMALL_DATASETS, results_dir_path
+from cugraph.testing import (
+    utils,
+    Resultset,
+    SMALL_DATASETS,
+    default_resultset_download_dir,
+)
 
 _resultsets = {}
 
@@ -224,6 +230,7 @@ if __name__ == "__main__":
         ]
     )
     # Generating ALL results files
+    results_dir_path = default_resultset_download_dir.path
     if not results_dir_path.exists():
         results_dir_path.mkdir(parents=True, exist_ok=True)
 

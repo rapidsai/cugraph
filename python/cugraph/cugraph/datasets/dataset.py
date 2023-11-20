@@ -14,44 +14,45 @@
 import cudf
 import yaml
 import os
+import pandas as pd
 from pathlib import Path
 from cugraph.structure.graph_classes import Graph
 
 
 class DefaultDownloadDir:
     """
-    Maintains the path to the download directory used by Dataset instances.
+    Maintains a path to be used as a default download directory.
+
+    All DefaultDownloadDir instances are based on RAPIDS_DATASET_ROOT_DIR if
+    set, or _default_base_dir if not set.
+
     Instances of this class are typically shared by several Dataset instances
     in order to allow for the download directory to be defined and updated by
     a single object.
     """
 
-    def __init__(self):
-        self._path = Path(
-            os.environ.get("RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets")
-        )
+    _default_base_dir = Path.home() / ".cugraph/datasets"
+
+    def __init__(self, *, subdir=""):
+        """
+        subdir can be specified to provide a specialized dir under the base dir.
+        """
+        self._subdir = Path(subdir)
+        self.reset()
 
     @property
     def path(self):
-        """
-        If `path` is not set, set it to the environment variable
-        RAPIDS_DATASET_ROOT_DIR. If the variable is not set, default to the
-        user's home directory.
-        """
-        if self._path is None:
-            self._path = Path(
-                os.environ.get(
-                    "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
-                )
-            )
-        return self._path
+        return self._path.absolute()
 
     @path.setter
     def path(self, new):
         self._path = Path(new)
 
-    def clear(self):
-        self._path = None
+    def reset(self):
+        self._basedir = Path(
+            os.environ.get("RAPIDS_DATASET_ROOT_DIR", self._default_base_dir)
+        )
+        self._path = self._basedir / self._subdir
 
 
 default_download_dir = DefaultDownloadDir()
@@ -159,7 +160,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False):
+    def get_edgelist(self, download=False, reader="cudf"):
         """
         Return an Edgelist
 
@@ -168,6 +169,9 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
+
+        reader : 'cudf' or 'pandas' (default='cudf')
+            The library used to read a CSV and return an edgelist DataFrame.
         """
         if self._edgelist is None:
             full_path = self.get_path()
@@ -180,14 +184,29 @@ class Dataset:
                         " exist. Try setting download=True"
                         " to download the datafile"
                     )
+
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
-            self._edgelist = cudf.read_csv(
-                full_path,
+
+            if reader == "cudf":
+                self.__reader = cudf.read_csv
+            elif reader == "pandas":
+                self.__reader = pd.read_csv
+            else:
+                raise ValueError(
+                    "reader must be a module with a read_csv function compatible with \
+                     cudf.read_csv"
+                )
+
+            self._edgelist = self.__reader(
+                filepath_or_buffer=full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
-                dtype=self.metadata["col_types"],
+                dtype={
+                    self.metadata["col_names"][i]: self.metadata["col_types"][i]
+                    for i in range(len(self.metadata["col_types"]))
+                },
                 header=header,
             )
 
@@ -219,6 +238,10 @@ class Dataset:
             dataset -if present- will be applied to the Graph. If the
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
+
+        store_transposed: Boolean (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
             self.get_edgelist(download)
@@ -237,20 +260,19 @@ class Dataset:
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
-                edge_attr="wgt",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                edge_attr=self.metadata["col_names"][2],
                 store_transposed=store_transposed,
             )
         else:
             G.from_cudf_edgelist(
                 self._edgelist,
-                source="src",
-                destination="dst",
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
                 store_transposed=store_transposed,
             )
         return G
@@ -331,7 +353,7 @@ def download_all(force=False):
 
 def set_download_dir(path):
     """
-    Set the download location fors datasets
+    Set the download location for datasets
 
     Parameters
     ----------
@@ -339,10 +361,10 @@ def set_download_dir(path):
         Location used to store datafiles
     """
     if path is None:
-        default_download_dir.clear()
+        default_download_dir.reset()
     else:
         default_download_dir.path = path
 
 
 def get_download_dir():
-    return default_download_dir.path.absolute()
+    return default_download_dir.path
