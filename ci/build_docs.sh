@@ -59,8 +59,8 @@ pushd docs/cugraph
 # Ensure cugraph is importable, since sphinx does not report details about this
 # type of failure well.
 python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
-sphinx-build -v -b dirhtml source _html
-sphinx-build -v -b text source _text
+sphinx-build -b dirhtml source _html
+sphinx-build -b text source _text
 mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/"{html,txt}
 mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
 mv _text/* "${RAPIDS_DOCS_DIR}/cugraph/txt"
