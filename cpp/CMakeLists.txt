@@ -192,6 +192,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
+    src/detail/collect_comm_wrapper.cu
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
@@ -443,6 +444,7 @@ add_library(cugraph_c
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
+        src/c_api/allgather.cpp
         src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
