@@ -88,7 +88,8 @@ class BackendInterface:
                     "these tests",
                 }
             )
-        elif nxver.major == 3 and nxver.minor <= 1:
+
+        if nxver.major == 3 and nxver.minor <= 1:
             # MAINT: networkx 3.0, 3.1
             # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
             # raise NotImplementedError or `can_run` returns False. The tests below
