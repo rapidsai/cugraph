@@ -1,5 +1,5 @@
-cugraph-ops API reference
-=========================
+cugraph-ops Python API reference
+================================ 
 
 This page provides a list of all publicly accessible modules, methods and classes through `pylibcugraphops.*` namespace.
 
@@ -7,5 +7,7 @@ This page provides a list of all publicly accessible modules, methods and classe
     :maxdepth: 2
     :caption: API Documentation
 
-    python/index
-    c_cpp/index
+    graph_types
+    operators
+    dimenet
+    pytorch
