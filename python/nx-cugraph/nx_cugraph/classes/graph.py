@@ -559,6 +559,7 @@ class Graph:
         edge_dtype: Dtype | None = None,
         *,
         store_transposed: bool = False,
+        switch_indices: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
     ):
         if edge_array is not None:
@@ -613,14 +614,18 @@ class Graph:
             elif edge_array.dtype not in self._plc_allowed_edge_types:
                 raise TypeError(edge_array.dtype)
         # Should we cache PLC graph?
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if switch_indices:
+            src_indices, dst_indices = dst_indices, src_indices
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
                 is_multigraph=self.is_multigraph(),
                 is_symmetric=not self.is_directed(),
             ),
-            src_or_offset_array=self.src_indices,
-            dst_or_index_array=self.dst_indices,
+            src_or_offset_array=src_indices,
+            dst_or_index_array=dst_indices,
             weight_array=edge_array,
             store_transposed=store_transposed,
             renumber=False,

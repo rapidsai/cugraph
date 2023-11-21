@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,6 +137,24 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weigh
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
+ * @brief       Get the edge ids
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of edge ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief       Get the edge types
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of edge types
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_ids(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
  * @brief       Get the subgraph offsets
  *
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
@@ -183,6 +201,33 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   bool_t do_expensive_check,
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
+
+// FIXME: Rename the return type
+/**
+ * @brief      Gather edgelist
+ *
+ * This function collects the edgelist from all ranks and stores the combine edgelist
+ * in each rank
+ *
+ * @param [in]  handle            Handle for accessing resources.
+ * @param [in]  src               Device array containing the source vertex ids.
+ * @param [in]  dst               Device array containing the destination vertex ids
+ * @param [in]  weights           Optional device array containing the edge weights
+ * @param [in]  edge_ids          Optional device array containing the edge ids for each edge.
+ * @param [in]  edge_type_ids     Optional device array containing the edge types for each edge
+ * @param [out] result            Opaque pointer to gathered edgelist result
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_allgather(const cugraph_resource_handle_t* handle,
+                                       const cugraph_type_erased_device_array_view_t* src,
+                                       const cugraph_type_erased_device_array_view_t* dst,
+                                       const cugraph_type_erased_device_array_view_t* weights,
+                                       const cugraph_type_erased_device_array_view_t* edge_ids,
+                                       const cugraph_type_erased_device_array_view_t* edge_type_ids,
+                                       cugraph_induced_subgraph_result_t** result,
+                                       cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

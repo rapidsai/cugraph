@@ -1,7 +1,7 @@
 
 # cuGraph Centrality Notebooks
 
-<img src="../../images/zachary_graph_centrality.png" width="35%"/>
+<img src="../images/zachary_graph_centrality.png" width="35%"/>
 
 The RAPIDS cuGraph Centrality folder contains a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify the importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
@@ -22,6 +22,8 @@ But which vertices are most important? The answer depends on which measure/algor
 |Pagerank|[Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb), [Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
 [System Requirements](https://github.com/rapidsai/cugraph/blob/main/notebooks/README.md#requirements)
+
+
 
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
