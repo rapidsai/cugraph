@@ -69,9 +69,6 @@ class BackendInterface:
 
         xfail = {
             key(
-                "test_eigenvector_centrality.py:TestEigenvectorCentrality.test_P3"
-            ): "Power iteration failed (don't know why; networkx converges in 8 steps)",
-            key(
                 "test_hits.py:TestHITS.test_hits_not_convergent"
             ): "HITS doesn't raise after failing to converge after max_iter iterations",
         }
