@@ -784,7 +784,7 @@ if __name__ == "__main__":
     client, cluster = start_dask_client(
         dask_worker_devices=dask_worker_devices,
         jit_unspill=False,
-        rmm_pool_size=28e9,
+        rmm_pool_size=20e9,
         rmm_async=True,
     )
     enable_spilling()
