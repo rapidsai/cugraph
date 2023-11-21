@@ -300,5 +300,5 @@ def _memory_efficient_drop_duplicates(ddf, vertex_col_name, num_workers):
     """
     # drop duplicates has a 5x+ overhead
     ddf = ddf.reset_index(drop=True).repartition(npartitions=num_workers * 2)
-    ddf = ddf.drop_duplicates(subset=[*vertex_col_name], ignore_index=True)
+    ddf = ddf.drop_duplicates(subset=[*vertex_col_name], ignore_index=True, split_out=num_workers*2)
     return ddf
