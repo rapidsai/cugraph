@@ -45,6 +45,28 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get
                internal_pointer->wgt_->view());
 }
 
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
+  cugraph_induced_subgraph_result_t* induced_subgraph)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(induced_subgraph);
+  return (internal_pointer->edge_ids_ == nullptr)
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_ids_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_ids(
+  cugraph_induced_subgraph_result_t* induced_subgraph)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(induced_subgraph);
+  return (internal_pointer->edge_type_ids_ == nullptr)
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_type_ids_->view());
+}
+
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
   cugraph_induced_subgraph_result_t* induced_subgraph)
 {
@@ -62,6 +84,8 @@ extern "C" void cugraph_induced_subgraph_result_free(
   delete internal_pointer->src_;
   delete internal_pointer->dst_;
   delete internal_pointer->wgt_;
+  delete internal_pointer->edge_ids_;
+  delete internal_pointer->edge_type_ids_;
   delete internal_pointer->subgraph_offsets_;
   delete internal_pointer;
 }

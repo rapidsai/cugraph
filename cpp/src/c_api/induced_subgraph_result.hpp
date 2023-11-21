@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ struct cugraph_induced_subgraph_result_t {
   cugraph_type_erased_device_array_t* src_{};
   cugraph_type_erased_device_array_t* dst_{};
   cugraph_type_erased_device_array_t* wgt_{};
+  cugraph_type_erased_device_array_t* edge_ids_{};
+  cugraph_type_erased_device_array_t* edge_type_ids_{};
   cugraph_type_erased_device_array_t* subgraph_offsets_{};
 };
 

@@ -1,7 +1,7 @@
 
 # cuGraph Centrality Notebooks
 
-<img src="../../images/zachary_graph_centrality.png" width="35%"/>
+<img src="../images/zachary_graph_centrality.png" width="35%"/>
 
 The RAPIDS cuGraph Centrality folder contains a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify the importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
@@ -15,13 +15,13 @@ But which vertices are most important? The answer depends on which measure/algor
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-|[Degree Centrality](./degree_centrality.md)| [Centrality](./Centrality.ipynb), [Degree](./Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
-|[Betweenness Centrality](./betweenness_centrality.md)| [Centrality](./Centrality.ipynb), [Betweenness](./Betweenness.ipynb)                    |Number of shortest paths through the vertex|
-|[Eigenvector Centrality](./eigenvector_centrality.md)|[Centrality](./Centrality.ipynb), [Eigenvector](./Eigenvector.ipynb)|Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
-|[Katz Centrality](./katz_centrality.md)|[Centrality](./Centrality.ipynb), [Katz](./Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
+|[Degree Centrality](./degree_centrality.html)| [Centrality](./Centrality.ipynb), [Degree](./Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
+|[Betweenness Centrality](./betweenness_centrality.html)| [Centrality](./Centrality.ipynb), [Betweenness](./Betweenness.ipynb)                    |Number of shortest paths through the vertex|
+|[Eigenvector Centrality](./eigenvector_centrality.html)|[Centrality](./Centrality.ipynb), [Eigenvector](./Eigenvector.ipynb)|Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
+|[Katz Centrality](./katz_centrality.html)|[Centrality](./Centrality.ipynb), [Katz](./Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
 |Pagerank|[Centrality](./Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
-[System Requirements](../../README.md#requirements)
+[System Requirements](../../README.html#requirements)
 
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
