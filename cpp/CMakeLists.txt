@@ -202,6 +202,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
+    src/structure/remove_self_loops.cu
+    src/structure/remove_multi_edges.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
