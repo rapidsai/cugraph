@@ -85,7 +85,7 @@ class BackendInterface:
                     key(
                         "test_hits.py:TestHITS.test_hits_not_convergent"
                     ): "nx_cugraph.hits raises updated exceptions not caught in "
-                       "these tests",
+                    "these tests",
                 }
             )
         elif nxver.major == 3 and nxver.minor <= 1:
