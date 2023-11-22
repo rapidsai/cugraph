@@ -24,9 +24,7 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
-    cugraph_sg_graph_create,
     cugraph_graph_create_sg,
-    cugraph_mg_graph_create,
     cugraph_graph_create_mg,
     cugraph_sg_graph_create_from_csr, #FIXME: Remove this once
     # 'cugraph_graph_create_sg_from_csr' is exposed
@@ -46,9 +44,6 @@ from pylibcugraph.utils cimport (
     assert_CAI_type,
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
-)
-from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_view_create,
 )
 from libc.stdlib cimport malloc
 
@@ -174,7 +169,8 @@ cdef class SGGraph(_GPUGraph):
         assert_CAI_type(edge_id_array, "edge_id_array", True)
         assert_CAI_type(edge_type_array, "edge_type_array", True)
 
-        # FIXME: assert that src_or_offset_array and dst_or_index_array have the same type
+        # FIXME: assert that src_or_offset_array and dst_or_index_array have
+        # the same type
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
@@ -182,27 +178,21 @@ cdef class SGGraph(_GPUGraph):
         cdef cugraph_type_erased_device_array_view_t* srcs_or_offsets_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 src_or_offset_array
-            )
-        
+            )  
         cdef cugraph_type_erased_device_array_view_t* dsts_or_indices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 dst_or_index_array
             )
-
         cdef cugraph_type_erased_device_array_view_t* vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertices_array
             )
-
         self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
-
         self.edge_id_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
-            )
-
-        
+            )  
         cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_type_array
@@ -357,23 +347,36 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
+
         if not isinstance(src_array, list):
-            src_array = [src_array] * num_arrays
-        
+            src_array = [src_array]
+            if not any(src_array):
+                src_array = src_array * num_arrays
+
         if not isinstance(dst_array, list):
-            dst_array = [dst_array] * num_arrays
+            dst_array = [dst_array]
+            if not any(dst_array):
+                dst_array = dst_array * num_arrays
         
         if not isinstance(weight_array, list):
-            weight_array = [weight_array] * num_arrays
+            weight_array = [weight_array]
+            if not any(weight_array):
+                weight_array = weight_array * num_arrays
         
         if not isinstance(edge_id_array, list):
-            edge_id_array = [edge_id_array] * num_arrays
-        
+            edge_id_array = [edge_id_array]
+            if not any(edge_id_array):
+                edge_id_array = edge_id_array * num_arrays
+
         if not isinstance(edge_type_array, list):
-            edge_type_array = [edge_type_array] * num_arrays
+            edge_type_array = [edge_type_array]
+            if not any(edge_type_array):
+                edge_type_array = edge_type_array * num_arrays
         
         if not isinstance(vertices_array, list):
-            vertices_array = [vertices_array] * num_arrays
+            vertices_array = [vertices_array]
+            if not any(vertices_array):
+                vertices_array = vertices_array * num_arrays
 
         cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr  = NULL

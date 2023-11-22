@@ -97,17 +97,16 @@ class simpleDistributedGraphImpl:
         weight_type,
         edge_id_type,
         edge_type_id,
-        num_arrays,
     ):
-
         weights = None
         edge_ids = None
         edge_types = None
 
+        num_arrays = len(edata_x)
         if weight_type is not None:
             weights = [
                 edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
-                for i in range(len(edata_x))
+                for i in range(num_arrays)
             ]
             if weight_type == "int32":
                 weights = [w_array.astype("float32") for w_array in weights]
@@ -117,7 +116,7 @@ class simpleDistributedGraphImpl:
         if edge_id_type is not None:
             edge_ids = [
                 edata_x[i][simpleDistributedGraphImpl.edgeIdCol]
-                for i in range(len(edata_x))
+                for i in range(num_arrays)
             ]
             if vertex_type == "int64" and edge_id_type != "int64":
                 edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
@@ -130,14 +129,11 @@ class simpleDistributedGraphImpl:
         if edge_type_id is not None:
             edge_types = [
                 edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
-                for i in range(len(edata_x))
+                for i in range(num_arrays)
             ]
 
-        # the 'num_arrays' is does necessarily match the 'len(edata_x)' because
-        # for smaller graphs, some workers might end up with no partition.
-        src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
-        dst_array = [edata_x[i][dst_col_name] for i in range(len(edata_x))]
-
+        src_array = [edata_x[i][src_col_name] for i in range(num_arrays)]
+        dst_array = [edata_x[i][dst_col_name] for i in range(num_arrays)]
         plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
@@ -358,10 +354,6 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"].keys()
         ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
 
-        # Global view of the numer of arrays because local view can be an issue
-        # for smaller graphs and larger number of GPUs
-        num_arrays = len(sorted(ddf_keys_ls, key=len)[-1])
-
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -374,7 +366,6 @@ class simpleDistributedGraphImpl:
                 self.weight_type,
                 self.edge_id_type,
                 self.edge_type_id_type,
-                num_arrays,
             )
             for w, edata in zip(workers, ddf_keys_ls)
         }
