@@ -79,7 +79,7 @@ class Graph:
         np.dtype(np.uint32): np.dtype(np.float64),
         np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
         # other
-        np.dtype(np.bool_): np.dtype(np.float16),
+        np.dtype(np.bool_): np.dtype(np.float32),
         np.dtype(np.float16): np.dtype(np.float32),
     }
     _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {
@@ -562,12 +562,13 @@ class Graph:
         switch_indices: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
     ):
-        if edge_array is not None:
+        if edge_array is not None or edge_attr is None:
             pass
-        elif edge_attr is None:
-            edge_array = None
         elif edge_attr not in self.edge_values:
-            raise KeyError("Graph has no edge attribute {edge_attr!r}")
+            if edge_default is None:
+                raise KeyError("Graph has no edge attribute {edge_attr!r}")
+            # If we were given a default edge value, then it's probably okay to
+            # use None for the edge_array if we don't have this edge attribute.
         elif edge_attr not in self.edge_masks:
             edge_array = self.edge_values[edge_attr]
         elif not self.edge_masks[edge_attr].all():
@@ -685,6 +686,9 @@ class Graph:
             degrees += cp.bincount(self.dst_indices, minlength=self._N)
         return degrees
 
+    _in_degrees_array = _degrees_array
+    _out_degrees_array = _degrees_array
+
     # Data conversions
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
@@ -748,20 +752,22 @@ class Graph:
             values = cp.fromiter(d.values(), dtype)
         return node_ids, values
 
-    # def _dict_to_nodearray(
-    #     self,
-    #     d: dict[NodeKey, NodeValue] | cp.ndarray[NodeValue],
-    #     default: NodeValue | None = None,
-    #     dtype: Dtype | None = None,
-    # ) -> cp.ndarray[NodeValue]:
-    #     if isinstance(d, cp.ndarray):
-    #         if d.shape[0] != len(self):
-    #             raise ValueError
-    #         return d
-    #     if default is None:
-    #         val_iter = map(d.__getitem__, self)
-    #     else:
-    #         val_iter = (d.get(node, default) for node in self)
-    #     if dtype is None:
-    #         return cp.array(list(val_iter))
-    #     return cp.fromiter(val_iter, dtype)
+    def _dict_to_nodearray(
+        self,
+        d: dict[NodeKey, NodeValue] | cp.ndarray[NodeValue],
+        default: NodeValue | None = None,
+        dtype: Dtype | None = None,
+    ) -> cp.ndarray[NodeValue]:
+        if isinstance(d, cp.ndarray):
+            if d.shape[0] != len(self):
+                raise ValueError
+            if dtype is not None and d.dtype != dtype:
+                return d.astype(dtype)
+            return d
+        if default is None:
+            val_iter = map(d.__getitem__, self)
+        else:
+            val_iter = (d.get(node, default) for node in self)
+        if dtype is None:
+            return cp.array(list(val_iter))
+        return cp.fromiter(val_iter, dtype)
