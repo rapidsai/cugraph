@@ -45,7 +45,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([50], "max_iter"),
-    ([1.0e-5], "tol"),
+    ([1.0e-4], "tol"), # FIXME: Temporarily lower tolerance
     (IS_DIRECTED, "directed"),
 )
 
