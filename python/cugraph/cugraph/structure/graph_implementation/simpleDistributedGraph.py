@@ -143,9 +143,15 @@ class simpleDistributedGraphImpl:
             graph_properties=graph_props,
             src_array=src_array if src_array else cudf.Series(dtype=vertex_type),
             dst_array=dst_array if dst_array else cudf.Series(dtype=vertex_type),
-            weight_array=weights if weights else ([cudf.Series(dtype=weight_type)] if weight_type else None),
-            edge_id_array=edge_ids if edge_ids else ([cudf.Series(dtype=edge_id_type)] if edge_id_type else None),
-            edge_type_array=edge_types if edge_types else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
+            weight_array=weights
+            if weights
+            else ([cudf.Series(dtype=weight_type)] if weight_type else None),
+            edge_id_array=edge_ids
+            if edge_ids
+            else ([cudf.Series(dtype=edge_id_type)] if edge_id_type else None),
+            edge_type_array=edge_types
+            if edge_types
+            else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
             num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
