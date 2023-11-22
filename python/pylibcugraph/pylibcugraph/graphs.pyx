@@ -307,10 +307,9 @@ cdef class MGGraph(_GPUGraph):
         algorithms, such as pagerank.
     
     num_arrays : size_t
-        Number of arrays specified in 'src_array', 'dst_array', and 'weight_array',
-        'vertices', 'weight_array', 'edge_id_array' and 'edge_type_array' (if provided)
+        Number of arrays.
         
-        If provided, all arrays should be of the same size.
+        If provided, all list of device arrays should be of the same size.
     
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
