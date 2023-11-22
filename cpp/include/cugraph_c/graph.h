@@ -103,7 +103,8 @@ cugraph_error_code_t cugraph_sg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  weights,
- *    or take the maximum weight), the caller should do that on not rely on this flag.
+ *    or take the maximum weight), the caller should remove specific edges themselves and not rely
+ *    on this flag.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
