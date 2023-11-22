@@ -390,7 +390,7 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
   graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
   bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t>(
-      handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
+      meta.number_of_vertices, meta.number_of_edges, meta.properties),
     partition_(meta.partition)
 {
   CUGRAPH_EXPECTS(
@@ -460,7 +460,7 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_g
   graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
   bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t>(
-      handle, meta.number_of_vertices, static_cast<edge_t>(indices.size()), meta.properties),
+      meta.number_of_vertices, static_cast<edge_t>(indices.size()), meta.properties),
     offsets_(std::move(offsets)),
     indices_(std::move(indices)),
     segment_offsets_(meta.segment_offsets)

@@ -258,12 +258,8 @@ class graph_base_t {
  public:
   graph_base_t() = default;
 
-  graph_base_t(raft::handle_t const& handle,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges,
-               graph_properties_t properties)
-    : handle_ptr_(&handle),
-      number_of_vertices_(number_of_vertices),
+  graph_base_t(vertex_t number_of_vertices, edge_t number_of_edges, graph_properties_t properties)
+    : number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
       properties_(properties){};
 
@@ -304,12 +300,9 @@ class graph_base_t {
   }
 
  protected:
-  raft::handle_t const* handle_ptr() const { return handle_ptr_; };
   graph_properties_t graph_properties() const { return properties_; }
 
  private:
-  raft::handle_t const* handle_ptr_{nullptr};
-
   vertex_t number_of_vertices_{0};
   edge_t number_of_edges_{0};
 
@@ -405,11 +398,10 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
-  graph_view_t(raft::handle_t const& handle,
-               std::vector<edge_t const*> const& edge_partition_offsets,
-               std::vector<vertex_t const*> const& edge_partition_indices,
-               std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
-               std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
+  graph_view_t(std::vector<raft::device_span<edge_t const>> const& edge_partition_offsets,
+               std::vector<raft::device_span<vertex_t const>> const& edge_partition_indices,
+               std::optional<std::vector<raft::device_span<vertex_t const>>> const&
+                 edge_partition_dcs_nzd_vertices,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
 
   std::vector<vertex_t> vertex_partition_range_offsets() const
@@ -624,25 +616,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
         this->local_edge_partition_src_value_start_offset(partition_idx);
     }
     std::optional<vertex_t> major_hypersparse_first{std::nullopt};
-    vertex_t offset_size = (major_range_last - major_range_first) + 1;
     if (this->use_dcs()) {
       major_hypersparse_first =
         major_range_first + (*(this->local_edge_partition_segment_offsets(
                               partition_idx)))[detail::num_sparse_segments_per_vertex_partition];
-      offset_size = ((*major_hypersparse_first) - major_range_first) +
-                    (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx] + 1;
     }
     return edge_partition_view_t<vertex_t, edge_t, true>(
-      raft::device_span<edge_t const>(edge_partition_offsets_[partition_idx],
-                                      edge_partition_offsets_[partition_idx] + offset_size),
-      raft::device_span<vertex_t const>(
-        edge_partition_indices_[partition_idx],
-        edge_partition_indices_[partition_idx] + edge_partition_number_of_edges_[partition_idx]),
+      edge_partition_offsets_[partition_idx],
+      edge_partition_indices_[partition_idx],
       edge_partition_dcs_nzd_vertices_
-        ? std::make_optional<raft::device_span<vertex_t const>>(
-            (*edge_partition_dcs_nzd_vertices_)[partition_idx],
-            (*edge_partition_dcs_nzd_vertices_)[partition_idx] +
-              (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx])
+        ? std::make_optional((*edge_partition_dcs_nzd_vertices_)[partition_idx])
         : std::nullopt,
       major_hypersparse_first,
       major_range_first,
@@ -752,14 +735,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   }
 
  private:
-  std::vector<edge_t const*> edge_partition_offsets_{};
-  std::vector<vertex_t const*> edge_partition_indices_{};
+  std::vector<raft::device_span<edge_t const>> edge_partition_offsets_{};
+  std::vector<raft::device_span<vertex_t const>> edge_partition_indices_{};
 
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
-  std::optional<std::vector<vertex_t const*>> edge_partition_dcs_nzd_vertices_{};
-  std::optional<std::vector<vertex_t>> edge_partition_dcs_nzd_vertex_counts_{};
-
-  std::vector<edge_t> edge_partition_number_of_edges_{};
+  std::optional<std::vector<raft::device_span<vertex_t const>>> edge_partition_dcs_nzd_vertices_{};
 
   partition_t<vertex_t> partition_{};
 
@@ -808,9 +788,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
-  graph_view_t(raft::handle_t const& handle,
-               edge_t const* offsets,
-               vertex_t const* indices,
+  graph_view_t(raft::device_span<edge_t const> offsets,
+               raft::device_span<vertex_t const> indices,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
 
   std::vector<vertex_t> vertex_partition_range_offsets() const
@@ -924,9 +903,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   {
     assert(partition_idx == 0);  // there is only one edge partition in single-GPU
     return edge_partition_view_t<vertex_t, edge_t, false>(
-      raft::device_span<edge_t const>(offsets_, offsets_ + (this->number_of_vertices() + 1)),
-      raft::device_span<vertex_t const>(indices_, indices_ + this->number_of_edges()),
-      this->number_of_vertices());
+      offsets_, indices_, this->number_of_vertices());
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -1017,8 +994,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   }
 
  private:
-  edge_t const* offsets_{nullptr};
-  vertex_t const* indices_{nullptr};
+  raft::device_span<edge_t const> offsets_{};
+  raft::device_span<vertex_t const> indices_{};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};

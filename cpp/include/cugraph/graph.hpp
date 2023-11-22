@@ -92,22 +92,21 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
 
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
-    std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
-    std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    auto dcs_nzd_vertices      = edge_partition_dcs_nzd_vertices_
-                                   ? std::make_optional<std::vector<vertex_t const*>>(
-                                  (*edge_partition_dcs_nzd_vertices_).size(), nullptr)
-                                   : std::nullopt;
-    auto dcs_nzd_vertex_counts = edge_partition_dcs_nzd_vertex_counts_
-                                   ? std::make_optional<std::vector<vertex_t>>(
-                                       (*edge_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
-                                   : std::nullopt;
+    std::vector<raft::device_span<edge_t const>> offsets(edge_partition_offsets_.size());
+    std::vector<raft::device_span<vertex_t const>> indices(edge_partition_indices_.size());
+    auto dcs_nzd_vertices = edge_partition_dcs_nzd_vertices_
+                              ? std::make_optional<std::vector<raft::device_span<vertex_t const>>>(
+                                  (*edge_partition_dcs_nzd_vertices_).size())
+                              : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
-      offsets[i] = edge_partition_offsets_[i].data();
-      indices[i] = edge_partition_indices_[i].data();
+      offsets[i] = raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
+                                                   edge_partition_offsets_[i].size());
+      indices[i] = raft::device_span<vertex_t const>(edge_partition_indices_[i].data(),
+                                                     edge_partition_indices_[i].size());
       if (dcs_nzd_vertices) {
-        (*dcs_nzd_vertices)[i]      = (*edge_partition_dcs_nzd_vertices_)[i].data();
-        (*dcs_nzd_vertex_counts)[i] = (*edge_partition_dcs_nzd_vertex_counts_)[i];
+        (*dcs_nzd_vertices)[i] =
+          raft::device_span<vertex_t const>((*edge_partition_dcs_nzd_vertices_)[i].data(),
+                                            (*edge_partition_dcs_nzd_vertex_counts_)[i]);
       }
     }
 
@@ -196,11 +195,9 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
     }
 
     return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
-      *(this->handle_ptr()),
       offsets,
       indices,
       dcs_nzd_vertices,
-      dcs_nzd_vertex_counts,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
         this->number_of_vertices(),
         this->number_of_edges(),
@@ -286,9 +283,8 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!m
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
-      *(this->handle_ptr()),
-      offsets_.data(),
-      indices_.data(),
+      raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
+      raft::device_span<vertex_t const>(indices_.data(), indices_.size()),
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
                                                                        this->number_of_edges(),
                                                                        this->graph_properties(),
