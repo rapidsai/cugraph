@@ -80,6 +80,10 @@ class simpleDistributedGraphImpl:
         self.destination_columns = None
         self.weight_column = None
         self.vertex_columns = None
+        self.vertex_type = None
+        self.weight_type = None
+        self.edge_id_type = None
+        self.edge_type_id_type = None
 
     def _make_plc_graph(
         sID,
@@ -88,29 +92,33 @@ class simpleDistributedGraphImpl:
         src_col_name,
         dst_col_name,
         store_transposed,
+        vertex_type,
+        weight_type,
+        edge_id_type,
+        edge_type_id,
+        num_arrays,
     ):
 
         weights = None
         edge_ids = None
         edge_types = None
-        num_arrays = len(edata_x)
 
-        if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
+        if weight_type is not None:
             weights = [
                 edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
-                for i in range(num_arrays)
+                for i in range(len(edata_x))
             ]
-            if weights[0].dtype == "int32":
+            if weight_type == "int32":
                 weights = [w_array.astype("float32") for w_array in weights]
-            elif weights[0].dtype == "int64":
+            elif weight_type == "int64":
                 weights = [w_array.astype("float64") for w_array in weights]
 
-        if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
+        if edge_id_type is not None:
             edge_ids = [
                 edata_x[i][simpleDistributedGraphImpl.edgeIdCol]
-                for i in range(num_arrays)
+                for i in range(len(edata_x))
             ]
-            if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
+            if vertex_type == "int64" and edge_id_type != "int64":
                 edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
                 warnings.warn(
                     f"Vertex type is int64 but edge id type is {edge_ids[0].dtype}"
@@ -118,20 +126,25 @@ class simpleDistributedGraphImpl:
                     "This may cause extra memory usage.  Consider passing"
                     " a int64 list of edge ids instead."
                 )
-        if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
+        if edge_type_id is not None:
             edge_types = [
                 edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
-                for i in range(num_arrays)
+                for i in range(len(edata_x))
             ]
+
+        # the 'num_arrays' is does necessarily match the 'len(edata_x)' because
+        # for smaller graphs, some workers might end up with no partition.
+        src_array = [edata_x[i][src_col_name] for i in range(len(edata_x))]
+        dst_array = [edata_x[i][dst_col_name] for i in range(len(edata_x))]
 
         plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
-            src_array=[edata_x[i][src_col_name] for i in range(num_arrays)],
-            dst_array=[edata_x[i][dst_col_name] for i in range(num_arrays)],
-            weight_array=weights,
-            edge_id_array=edge_ids,
-            edge_type_array=edge_types,
+            src_array=src_array if src_array else cudf.Series(dtype=vertex_type),
+            dst_array=dst_array if dst_array else cudf.Series(dtype=vertex_type),
+            weight_array=weights if weights else ([cudf.Series(dtype=weight_type)] if weight_type else None),
+            edge_id_array=edge_ids if edge_ids else ([cudf.Series(dtype=edge_id_type)] if edge_id_type else None),
+            edge_type_array=edge_types if edge_types else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
             num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
@@ -320,15 +333,30 @@ class simpleDistributedGraphImpl:
             dst_col_name = self.renumber_map.renumbered_dst_col_name
 
         ddf = self.edgelist.edgelist_df
+
+        # Get the edgelist dtypes
+        self.vertex_type = ddf[src_col_name].dtype
+        if simpleDistributedGraphImpl.edgeWeightCol in ddf.columns:
+            self.weight_type = ddf[simpleDistributedGraphImpl.edgeWeightCol].dtype
+        if simpleDistributedGraphImpl.edgeIdCol in ddf.columns:
+            self.edge_id_type = ddf[simpleDistributedGraphImpl.edgeIdCol].dtype
+        if simpleDistributedGraphImpl.edgeTypeCol in ddf.columns:
+            self.edge_type_id_type = ddf[simpleDistributedGraphImpl.edgeTypeCol].dtype
+
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
+
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
         )
         del ddf
+        
+        # Global view of the numer of arrays because local view can be an issue
+        # for smaller graphs and larger number of GPUs
+        num_arrays = len(sorted(persisted_keys_d.values(), key=len)[-1])
 
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
@@ -338,6 +366,11 @@ class simpleDistributedGraphImpl:
                 src_col_name,
                 dst_col_name,
                 store_transposed,
+                self.vertex_type,
+                self.weight_type,
+                self.edge_id_type,
+                self.edge_type_id_type,
+                num_arrays,
             )
             for w, edata in persisted_keys_d.items()
         }

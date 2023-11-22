@@ -146,7 +146,6 @@ cdef class SGGraph(_GPUGraph):
                   GraphProperties graph_properties,
                   src_or_offset_array,
                   dst_or_index_array,
-                  vertices_array=None,
                   weight_array=None,
                   store_transposed=False,
                   renumber=False,
@@ -154,6 +153,7 @@ cdef class SGGraph(_GPUGraph):
                   edge_id_array=None,
                   edge_type_array=None,
                   input_array_format="COO",
+                  vertices_array=None,
                   drop_self_loops=False,
                   drop_multi_edges=False):
 
@@ -307,7 +307,10 @@ cdef class MGGraph(_GPUGraph):
         algorithms, such as pagerank.
     
     num_arrays : size_t
-        Number of edges
+        Number of arrays specified in 'src_array', 'dst_array', and 'weight_array',
+        'vertices', 'weight_array', 'edge_id_array' and 'edge_type_array' (if provided)
+        
+        If provided, all arrays should be of the same size.
     
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
@@ -334,13 +337,13 @@ cdef class MGGraph(_GPUGraph):
                   GraphProperties graph_properties,
                   src_array,
                   dst_array,
-                  vertices_array=None,
                   weight_array=None,
                   store_transposed=False,
-                  size_t num_arrays=1, # default value to not break users
-                  do_expensive_check=True,
+                  do_expensive_check=False, # default to False
                   edge_id_array=None,
                   edge_type_array=None,
+                  vertices_array=None,
+                  size_t num_arrays=1, # default value to not break users
                   drop_self_loops=False,
                   drop_multi_edges=False):
 
@@ -355,36 +358,28 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        # FIXME: Assert that the 'vertices', 'src', 'dst', 'weights', 'edge_ids'
-        # and 'edge_type_ids' are of size 'num_arrays'.
-    
-        cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-        if weight_array is not None:
-           self.weights_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-
-        cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
-        if vertices_array is not None:
-            vertices_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-
-        if edge_id_array is not None:
-            self.edge_id_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+        if not isinstance(src_array, list):
+            src_array = [src_array] * num_arrays
         
+        if not isinstance(dst_array, list):
+            dst_array = [dst_array] * num_arrays
+        
+        if not isinstance(weight_array, list):
+            weight_array = [weight_array] * num_arrays
+        
+        if not isinstance(edge_id_array, list):
+            edge_id_array = [edge_id_array] * num_arrays
+        
+        if not isinstance(edge_type_array, list):
+            edge_type_array = [edge_type_array] * num_arrays
+        
+        if not isinstance(vertices_array, list):
+            vertices_array = [vertices_array] * num_arrays
+
+        cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr  = NULL
+        cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr  = NULL
+        cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
-        if edge_type_array is not None:
-            edge_type_view_ptr_ptr = \
-                <cugraph_type_erased_device_array_view_t **>malloc(
-                    num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
 
         for i in range(num_arrays):
             if do_expensive_check:
@@ -402,27 +397,51 @@ cdef class MGGraph(_GPUGraph):
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
 
-            srcs_view_ptr_ptr[i] = \
-                create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
+            if src_array[i] is not None:
+                if i == 0:
+                    srcs_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+                srcs_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
 
-            dsts_view_ptr_ptr[i] = \
-                create_cugraph_type_erased_device_array_view_from_py_obj(dst_array[i])
+            if dst_array[i] is not None:
+                if i == 0:
+                    dsts_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+                dsts_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(dst_array[i])
 
-            if vertices_array is not None:
+            if vertices_array[i] is not None:
+                if i == 0:
+                    vertices_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 vertices_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array[i])                
 
-            # FIXME: When checking wether a graph has weights or edge ids, properly handle
-            # SG VS MG as SG will have 'self.weights_view_ptr_ptr' non 'NULL'.
-            if weight_array is not None:
+            if weight_array[i] is not None:
+                if i == 0:
+                    self.weights_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 self.weights_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(weight_array[i])
 
-            if edge_id_array is not None:
+            if edge_id_array[i] is not None:
+                if i == 0:
+                    self.edge_id_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 self.edge_id_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array[i])
 
-            if edge_type_array is not None:
+            if edge_type_array[i] is not None:
+                if i == 0:
+                    edge_type_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 edge_type_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_array[i])
 
