@@ -212,12 +212,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (drop_multi_edges_) {
         std::tie(
           edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
-          cugraph::sort_and_remove_multi_edges(handle_,
-                                               std::move(edgelist_srcs),
-                                               std::move(edgelist_dsts),
-                                               std::move(edgelist_weights),
-                                               std::move(edgelist_edge_ids),
-                                               std::move(edgelist_edge_types));
+          cugraph::remove_multi_edges(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      std::move(edgelist_edge_ids),
+                                      std::move(edgelist_edge_types));
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -324,6 +324,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   //
   cugraph_data_type_id_t vertex_type{cugraph_data_type_id_t::NTYPES};
   cugraph_data_type_id_t weight_type{cugraph_data_type_id_t::NTYPES};
+
   for (size_t i = 0; i < num_arrays; ++i) {
     CAPI_EXPECTS(p_src[i]->size_ == p_dst[i]->size_,
                  CUGRAPH_INVALID_INPUT,
@@ -334,6 +335,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src type != dst type.",
                  *error);
+
     CAPI_EXPECTS((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src type != vertices type.",

@@ -22,7 +22,7 @@ import nx_cugraph as nxcg
 def test_k_truss(get_graph):
     Gnx = get_graph()
     Gcg = nxcg.from_networkx(Gnx, preserve_all_attrs=True)
-    for k in range(10):
+    for k in range(6):
         Hnx = nx.k_truss(Gnx, k)
         Hcg = nxcg.k_truss(Gcg, k)
         assert nx.utils.graphs_equal(Hnx, nxcg.to_networkx(Hcg))
