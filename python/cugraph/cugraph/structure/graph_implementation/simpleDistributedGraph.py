@@ -360,9 +360,7 @@ class simpleDistributedGraphImpl:
 
         # Global view of the numer of arrays because local view can be an issue
         # for smaller graphs and larger number of GPUs
-        print("ddf_keys_ls = ", ddf_keys_ls)
         num_arrays = len(sorted(ddf_keys_ls, key=len)[-1])
-        print("num_arrays = ", num_arrays)
 
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
@@ -1231,18 +1229,3 @@ class simpleDistributedGraphImpl:
     @property
     def _npartitions(self) -> int:
         return len(self._plc_graph)
-
-
-def _get_column_from_ls_dfs(lst_df, col_name):
-    """
-    This function concatenates the column
-    and drops it from the input list
-    """
-    len_df = sum([len(df) for df in lst_df])
-    if len_df == 0:
-        return lst_df[0][col_name]
-    output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
-    gc.collect()
-    return output_col
