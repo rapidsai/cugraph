@@ -35,6 +35,7 @@ dependencies = [
     "dask-cudf==23.12.*",
     "fsspec[http]>=0.6.0",
     "numba>=0.57",
+    "numpy>=1.21",
     "pylibcugraph==23.12.*",
     "raft-dask==23.12.*",
     "rapids-dask-dependency==23.12.*",

@@ -195,12 +195,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (drop_multi_edges_) {
         std::tie(
           edgelist_srcs, edgelist_dsts, edgelist_weights, edgelist_edge_ids, edgelist_edge_types) =
-          cugraph::sort_and_remove_multi_edges(handle_,
-                                               std::move(edgelist_srcs),
-                                               std::move(edgelist_dsts),
-                                               std::move(edgelist_weights),
-                                               std::move(edgelist_edge_ids),
-                                               std::move(edgelist_edge_types));
+          cugraph::remove_multi_edges(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      std::move(edgelist_edge_ids),
+                                      std::move(edgelist_edge_types));
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =

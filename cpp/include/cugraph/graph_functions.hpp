@@ -1005,7 +1005,9 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
 
 /**
- * @brief Sort the edges and remove all but one edge when a multi-edge exists
+ * @brief Remove all but one edge when a multi-edge exists.  Note that this function does not use
+ *    stable methods.  When a multi-edge exists, one of the edges will remain, there is no
+ *    guarantee on which one will remain.
  *
  * In an MG context it is assumed that edges have been shuffled to the proper GPU,
  * in which case any multi-edges will be on the same GPU.
@@ -1031,11 +1033,11 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>>
-sort_and_remove_multi_edges(raft::handle_t const& handle,
-                            rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                            rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                            std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                            std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+remove_multi_edges(raft::handle_t const& handle,
+                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
 
 }  // namespace cugraph
