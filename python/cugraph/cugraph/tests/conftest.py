@@ -19,6 +19,7 @@ from cugraph.testing.mg_utils import (
 
 import os
 import tempfile
+from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
 
 # module-wide fixtures
 
@@ -40,7 +41,8 @@ def dask_client():
     # start_dask_client will check for the SCHEDULER_FILE and
     # DASK_WORKER_DEVICES env vars and use them when creating a client if
     # set. start_dask_client will also initialize the Comms singleton.
-    dask_client, dask_cluster = start_dask_client()
+    dask_client, dask_cluster = start_dask_client(
+        worker_class=IncreasedCloseTimeoutNanny)
 
     yield dask_client
 
