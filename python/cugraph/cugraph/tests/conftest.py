@@ -19,6 +19,7 @@ from cugraph.testing.mg_utils import (
 
 import os
 import tempfile
+
 # Avoid timeout during shutdown
 from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
 
