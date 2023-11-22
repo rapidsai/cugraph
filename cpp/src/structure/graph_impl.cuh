@@ -133,8 +133,7 @@ update_local_sorted_unique_edge_majors_minors(
   graph_meta_t<vertex_t, edge_t, multi_gpu> const& meta,
   std::vector<rmm::device_uvector<edge_t>> const& edge_partition_offsets,
   std::vector<rmm::device_uvector<vertex_t>> const& edge_partition_indices,
-  std::optional<std::vector<rmm::device_uvector<vertex_t>>> const& edge_partition_dcs_nzd_vertices,
-  std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts)
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>> const& edge_partition_dcs_nzd_vertices)
 {
   auto& comm                 = handle.get_comms();
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -341,8 +340,7 @@ update_local_sorted_unique_edge_majors_minors(
       if (use_dcs) {
         thrust::copy(handle.get_thrust_policy(),
                      (*edge_partition_dcs_nzd_vertices)[i].begin(),
-                     (*edge_partition_dcs_nzd_vertices)[i].begin() +
-                       (*edge_partition_dcs_nzd_vertex_counts)[i],
+                     (*edge_partition_dcs_nzd_vertices)[i].end(),
                      unique_edge_majors.begin() + cur_size);
       }
 
@@ -408,14 +406,6 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
   edge_partition_offsets_          = std::move(edge_partition_offsets);
   edge_partition_indices_          = std::move(edge_partition_indices);
   edge_partition_dcs_nzd_vertices_ = std::move(edge_partition_dcs_nzd_vertices);
-  if (edge_partition_dcs_nzd_vertices_) {
-    edge_partition_dcs_nzd_vertex_counts_ =
-      std::vector<vertex_t>((*edge_partition_dcs_nzd_vertices_).size());
-    for (size_t i = 0; i < (*edge_partition_dcs_nzd_vertex_counts_).size(); ++i) {
-      (*edge_partition_dcs_nzd_vertex_counts_)[i] =
-        static_cast<vertex_t>((*edge_partition_dcs_nzd_vertices_)[i].size());
-    }
-  }
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
@@ -432,8 +422,7 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
         meta,
         edge_partition_offsets_,
         edge_partition_indices_,
-        edge_partition_dcs_nzd_vertices_,
-        edge_partition_dcs_nzd_vertex_counts_);
+        edge_partition_dcs_nzd_vertices_);
   } else {
     std::tie(local_sorted_unique_edge_srcs_,
              local_sorted_unique_edge_src_chunk_start_offsets_,
@@ -447,8 +436,7 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
         meta,
         edge_partition_offsets_,
         edge_partition_indices_,
-        edge_partition_dcs_nzd_vertices_,
-        edge_partition_dcs_nzd_vertex_counts_);
+        edge_partition_dcs_nzd_vertices_);
   }
 }
 

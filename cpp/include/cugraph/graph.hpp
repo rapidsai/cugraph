@@ -106,7 +106,7 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
       if (dcs_nzd_vertices) {
         (*dcs_nzd_vertices)[i] =
           raft::device_span<vertex_t const>((*edge_partition_dcs_nzd_vertices_)[i].data(),
-                                            (*edge_partition_dcs_nzd_vertex_counts_)[i]);
+                                            (*edge_partition_dcs_nzd_vertices_)[i].size());
       }
     }
 
@@ -221,7 +221,6 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
   // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
     std::nullopt};
-  std::optional<std::vector<vertex_t>> edge_partition_dcs_nzd_vertex_counts_{std::nullopt};
   partition_t<vertex_t> partition_{};
 
   // segment offsets within the vertex partition based on vertex degree
