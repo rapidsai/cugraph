@@ -79,7 +79,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not _mg" \
+  -k "not test_property_graph_mg" \
   tests
 popd
 
