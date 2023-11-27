@@ -18,7 +18,9 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 
 from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
 
@@ -135,11 +137,9 @@ def ego_graph(input_graph, n, radius=1, center=True):
         n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
     n = n.astype(n_type)
 
-    n = get_distributed_data(n)
-    wait(n)
-
-    n = n.worker_to_parts
-
+    n = persist_dask_df_equal_parts_per_worker(
+        n, client, return_type="dict"
+    )
     do_expensive_check = False
 
     result = [
@@ -147,13 +147,13 @@ def ego_graph(input_graph, n, radius=1, center=True):
             _call_ego_graph,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            n[w][0],
+            n_[0] if n_ else cudf.Series(dtype=n_type),
             radius,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w, n_ in n.items()
     ]
     wait(result)
 

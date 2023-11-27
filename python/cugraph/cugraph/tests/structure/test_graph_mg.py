@@ -30,6 +30,9 @@ from cudf.testing.testing import assert_frame_equal
 from cugraph.dask.traversal.bfs import convert_to_cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 
 
 # =============================================================================
@@ -141,10 +144,12 @@ def test_create_mg_graph(dask_client, input_combo):
     assert len(G._plc_graph) == len(dask_client.has_what())
 
     start = dask_cudf.from_cudf(cudf.Series([1], dtype="int32"), len(G._plc_graph))
+    vertex_dtype = start.dtype
 
     if G.renumbered:
         start = G.lookup_internal_vertex_id(start, None)
-    data_start = get_distributed_data(start)
+    data_start = persist_dask_df_equal_parts_per_worker(
+        start, dask_client, return_type="dict")
 
     res = [
         dask_client.submit(
@@ -159,10 +164,10 @@ def test_create_mg_graph(dask_client, input_combo):
             ),
             Comms.get_session_id(),
             G._plc_graph[w],
-            data_start.worker_to_parts[w][0],
+            st[0] if st else cudf.Series(dtype=vertex_dtype),
             workers=[w],
         )
-        for w in Comms.get_workers()
+        for w, st in data_start.items()
     ]
 
     wait(res)

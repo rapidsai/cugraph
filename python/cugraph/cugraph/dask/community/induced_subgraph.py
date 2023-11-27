@@ -19,7 +19,9 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import cupy as cp
-from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 from typing import Union, Tuple
 
 from pylibcugraph import (
@@ -155,14 +157,13 @@ def induced_subgraph(
 
     if isinstance(vertices, (cudf.Series, cudf.DataFrame)):
         vertices = dask_cudf.from_cudf(
-            vertices, npartitions=min(input_graph._npartitions, len(vertices))
+            vertices, npartitions=input_graph._npartitions
         )
     vertices = vertices.astype(vertices_type)
 
-    vertices = get_distributed_data(vertices)
-    wait(vertices)
-
-    vertices = vertices.worker_to_parts
+    vertices = persist_dask_df_equal_parts_per_worker(
+        vertices, client, return_type="dict"
+    )
 
     do_expensive_check = False
 
@@ -171,13 +172,13 @@ def induced_subgraph(
             _call_induced_subgraph,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            vertices[w][0],
+            vertices_[0] if vertices_ else cudf.Series(dtype=vertices_type),
             offsets,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w, vertices_ in vertices.items()
     ]
     wait(result)
 
