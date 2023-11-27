@@ -101,7 +101,7 @@ def ecg(ResourceHandle resource_handle,
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=True, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, clusters) = pylibcugraph.ecg(resource_handle, G)
     # FIXME: Check this docstring example
