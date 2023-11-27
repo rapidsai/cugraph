@@ -156,9 +156,7 @@ def induced_subgraph(
         vertices_type = input_graph.input_df.dtypes[0]
 
     if isinstance(vertices, (cudf.Series, cudf.DataFrame)):
-        vertices = dask_cudf.from_cudf(
-            vertices, npartitions=input_graph._npartitions
-        )
+        vertices = dask_cudf.from_cudf(vertices, npartitions=input_graph._npartitions)
     vertices = vertices.astype(vertices_type)
 
     vertices = persist_dask_df_equal_parts_per_worker(

@@ -137,9 +137,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
         n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
     n = n.astype(n_type)
 
-    n = persist_dask_df_equal_parts_per_worker(
-        n, client, return_type="dict"
-    )
+    n = persist_dask_df_equal_parts_per_worker(n, client, return_type="dict")
     do_expensive_check = False
 
     result = [

@@ -149,7 +149,8 @@ def test_create_mg_graph(dask_client, input_combo):
     if G.renumbered:
         start = G.lookup_internal_vertex_id(start, None)
     data_start = persist_dask_df_equal_parts_per_worker(
-        start, dask_client, return_type="dict")
+        start, dask_client, return_type="dict"
+    )
 
     res = [
         dask_client.submit(
