@@ -28,7 +28,9 @@ from pylibcugraph import (
 )
 
 import cugraph.dask.comms.comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 from cugraph.exceptions import FailedToConvergeError
 
 
@@ -352,7 +354,14 @@ def pagerank(
             personalization, npartitions=len(Comms.get_workers())
         )
 
-        data_prsztn = get_distributed_data(personalization_ddf)
+        data_prsztn = persist_dask_df_equal_parts_per_worker(
+            personalization_ddf, client, return_type="dict"
+        )
+
+        empty_df = cudf.DataFrame(columns=list(personalization_ddf.columns))
+        empty_df = empty_df.astype(
+            dict(zip(personalization_ddf.columns, personalization_ddf.dtypes))
+        )
 
         result = [
             client.submit(
@@ -361,7 +370,7 @@ def pagerank(
                 input_graph._plc_graph[w],
                 precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums,
-                data_personalization[0],
+                data_personalization[0] if data_personalization else empty_df,
                 initial_guess_vertices,
                 initial_guess_values,
                 alpha,
@@ -372,7 +381,7 @@ def pagerank(
                 workers=[w],
                 allow_other_workers=False,
             )
-            for w, data_personalization in data_prsztn.worker_to_parts.items()
+            for w, data_personalization in data_prsztn.items()
         ]
     else:
         result = [

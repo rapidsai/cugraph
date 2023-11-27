@@ -29,7 +29,9 @@ rapids-mamba-retry install \
   cugraph-pyg \
   cugraph-service-server \
   cugraph-service-client \
-  libcugraph_etl
+  libcugraph_etl \
+  pylibcugraphops \
+  pylibwholegraph
 
 # This command installs `cugraph-dgl` without its dependencies
 # since this package can currently only run in `11.6` CTK environments
@@ -50,8 +52,7 @@ done
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
-mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/html"
-mv html/* "${RAPIDS_DOCS_DIR}/libcugraph/html"
+export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
 popd
 
 rapids-logger "Build Python docs"

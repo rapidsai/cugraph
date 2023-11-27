@@ -25,12 +25,12 @@ RAPIDS Graph documentation
    * - :abbr:`libcugraph_etl (C++ renumbering function for strings)`
      - :abbr:`wholegraph (Shared memory-based GPU-accelerated GNN training)`
      -
-
 ..
-
-|
 |
 
+~~~~~~~~~~~~
+Introduction
+~~~~~~~~~~~~
 cuGraph is a library of graph algorithms that seamlessly integrates into the
 RAPIDS data science ecosystem and allows the data scientist to easily call
 graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or 
@@ -39,6 +39,7 @@ even CuPy or SciPy sparse Matrices.
 Note: We are redoing all of our documents, please be patient as we update
 the docs and links
 
+|
 
 .. toctree::
    :maxdepth: 2
@@ -48,9 +49,8 @@ the docs and links
    installation/index
    tutorials/index
    graph_support/index
+   wholegraph/index
    references/index
-   dev_resources/index
-   releases/index
    api_docs/index
 
 Indices and tables

@@ -12,3 +12,5 @@
 # limitations under the License.
 from .betweenness import *
 from .degree_alg import *
+from .eigenvector import *
+from .katz import *

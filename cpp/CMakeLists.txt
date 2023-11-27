@@ -192,6 +192,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
+    src/detail/collect_comm_wrapper.cu
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
@@ -201,6 +202,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
+    src/structure/remove_self_loops.cu
+    src/structure/remove_multi_edges.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
@@ -443,6 +446,7 @@ add_library(cugraph_c
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
+        src/c_api/allgather.cpp
         src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)

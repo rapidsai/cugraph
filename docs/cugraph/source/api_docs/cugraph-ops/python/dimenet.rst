@@ -7,7 +7,7 @@ Dimenet operators
 Radial Basis Functions
 ----------------------
 .. autosummary::
-   :toctree: ../api/ops/
+   :toctree: ../../api/ops
 
    dimenet.radial_basis_fwd
    dimenet.radial_basis_bwd
@@ -16,7 +16,7 @@ Radial Basis Functions
 Edge-to-Edge Aggregation
 -------------------------
 .. autosummary::
-   :toctree: ../api/ops/
+   :toctree: ../../api/ops
 
    dimenet.agg_edge_to_edge_fwd
    dimenet.agg_edge_to_edge_bwd
