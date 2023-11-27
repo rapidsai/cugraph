@@ -101,6 +101,7 @@ supported in nx-cugraph.
 | balanced_cut_clustering | ? |
 | betweenness_centrality | 23.10 |
 | bfs | ? |
+| connected_components | 23.12 |
 | core_number | ? |
 | degree_centrality | 23.12 |
 | ecg | ? |

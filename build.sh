@@ -18,6 +18,8 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
+RAPIDS_VERSION=24.02
+
 # Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
    clean
@@ -31,6 +33,7 @@ VALIDARGS="
    cugraph-dgl
    nx-cugraph
    cpp-mgtests
+   cpp-mtmgtests
    docs
    all
    -v
@@ -59,6 +62,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
    nx-cugraph                 - build the nx-cugraph Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
    docs                       - build the docs
    all                        - build everything
  and <flag> is:
@@ -105,6 +109,7 @@ BUILD_TYPE=Release
 INSTALL_TARGET="--target install"
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
+BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
@@ -171,6 +176,9 @@ if hasArg --skip_cpp_tests; then
 fi
 if hasArg --without_cugraphops; then
     BUILD_WITH_CUGRAPHOPS=OFF
+fi
+if hasArg cpp-mtmgtests; then
+    BUILD_CPP_MTMG_TESTS=ON
 fi
 if hasArg cpp-mgtests || hasArg all; then
     BUILD_CPP_MG_TESTS=ON
@@ -264,6 +272,7 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+	      -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
 	      -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
@@ -294,6 +303,7 @@ if buildDefault || hasArg libcugraph_etl || hasArg all; then
               -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+              -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
               -DCMAKE_PREFIX_PATH=${LIBCUGRAPH_BUILD_DIR} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION} \
@@ -404,8 +414,28 @@ if hasArg docs || hasArg all; then
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
     fi
+
+    for PROJECT in libcugraphops libwholegraph; do
+        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+        rm -rf "${XML_DIR}"
+        mkdir -p "${XML_DIR}"
+        export XML_DIR_${PROJECT^^}="$XML_DIR"
+
+        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+        tar -xzf xml.tar.gz -C "${XML_DIR}"
+        rm "./xml.tar.gz"
+    done
+
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
+
+    echo "making libcugraph doc dir"
+    rm -rf ${REPODIR}/docs/cugraph/libcugraph
+    mkdir -p ${REPODIR}/docs/cugraph/libcugraph
+
+    export XML_DIR_LIBCUGRAPH="${REPODIR}/cpp/doxygen/xml"
+
     cd ${REPODIR}/docs/cugraph
     make html
 fi

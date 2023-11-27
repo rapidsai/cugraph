@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -109,7 +109,7 @@ def sssp(ResourceHandle resource_handle,
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (vertices, distances, predecessors) = pylibcugraph.sssp(
     ...     resource_handle, G, source=1, cutoff=999,

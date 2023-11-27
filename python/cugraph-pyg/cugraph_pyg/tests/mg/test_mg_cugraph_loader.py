@@ -15,7 +15,6 @@ import pytest
 
 from cugraph_pyg.loader import CuGraphNeighborLoader
 from cugraph_pyg.data import CuGraphStore
-
 from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")

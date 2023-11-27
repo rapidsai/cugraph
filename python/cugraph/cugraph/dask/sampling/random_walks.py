@@ -16,6 +16,9 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 import operator as op
+from cugraph.dask.common.part_utils import (
+    persist_dask_df_equal_parts_per_worker,
+)
 
 from pylibcugraph import ResourceHandle
 
@@ -24,7 +27,6 @@ from pylibcugraph import (
 )
 
 from cugraph.dask.comms import comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
 
 
 def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
@@ -104,7 +106,7 @@ def random_walks(
     max_path_length : int
         The maximum path length
     """
-
+    client = default_client()
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
 
@@ -126,23 +128,21 @@ def random_walks(
         start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
     )
     start_vertices = start_vertices.astype(start_vertices_type)
-    start_vertices = get_distributed_data(start_vertices)
-    wait(start_vertices)
-    start_vertices = start_vertices.worker_to_parts
-
-    client = default_client()
+    start_vertices = persist_dask_df_equal_parts_per_worker(
+        start_vertices, client, return_type="dict"
+    )
 
     result = [
         client.submit(
             _call_plc_uniform_random_walks,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            start_vertices[w][0],
+            start_v[0] if start_v else cudf.Series(dtype=start_vertices_type),
             max_depth,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w, start_v in start_vertices.items()
     ]
 
     wait(result)

@@ -23,8 +23,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup centrality Centrality algorithms
- *  @ingroup c_api
- *  @{
  */
 
 #ifdef __cplusplus
@@ -39,7 +37,8 @@ typedef struct {
 } cugraph_centrality_result_t;
 
 /**
- * @brief     Get the vertex ids from the centrality result
+ * @ingroup centrality
+ * @brief   Get the vertex ids from the centrality result
  *
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array of vertex ids
@@ -48,7 +47,8 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
   cugraph_centrality_result_t* result);
 
 /**
- * @brief     Get the centrality values from a centrality algorithm result
+ * @ingroup centrality
+ * @brief   Get the centrality values from a centrality algorithm result
  *
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array view of centrality values
@@ -57,6 +57,7 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
   cugraph_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the number of iterations executed from the algorithm metadata
  *
  * @param [in]   result   The result from a centrality algorithm
@@ -65,6 +66,7 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
 size_t cugraph_centrality_result_get_num_iterations(cugraph_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Returns true if the centrality algorithm converged
  *
  * @param [in]   result   The result from a centrality algorithm
@@ -73,6 +75,7 @@ size_t cugraph_centrality_result_get_num_iterations(cugraph_centrality_result_t*
 bool_t cugraph_centrality_result_converged(cugraph_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Free centrality result
  *
  * @param [in]   result   The result from a centrality algorithm
@@ -409,6 +412,7 @@ typedef struct {
 } cugraph_edge_centrality_result_t;
 
 /**
+ * @ingroup centrality
  * @brief     Get the src vertex ids from an edge centrality result
  *
  * @param [in]   result   The result from an edge centrality algorithm
@@ -418,6 +422,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_src_
   cugraph_edge_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the dst vertex ids from an edge centrality result
  *
  * @param [in]   result   The result from an edge centrality algorithm
@@ -427,6 +432,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_dst_
   cugraph_edge_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the edge ids from an edge centrality result
  *
  * @param [in]   result   The result from an edge centrality algorithm
@@ -436,6 +442,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_edge
   cugraph_edge_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the centrality values from an edge centrality algorithm result
  *
  * @param [in]   result   The result from an edge centrality algorithm
@@ -445,6 +452,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_valu
   cugraph_edge_centrality_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Free centrality result
  *
  * @param [in]   result   The result from a centrality algorithm
@@ -491,6 +499,7 @@ typedef struct {
 } cugraph_hits_result_t;
 
 /**
+ * @ingroup centrality
  * @brief     Get the vertex ids from the hits result
  *
  * @param [in]   result   The result from hits
@@ -500,6 +509,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
   cugraph_hits_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the hubs values from the hits result
  *
  * @param [in]   result   The result from hits
@@ -509,6 +519,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
   cugraph_hits_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Get the authorities values from the hits result
  *
  * @param [in]   result   The result from hits
@@ -518,6 +529,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
   cugraph_hits_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief   Get the score differences between the last two iterations
  *
  * @param [in]   result   The result from hits
@@ -526,6 +538,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
 double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief   Get the actual number of iterations
  *
  * @param [in]   result   The result from hits
@@ -534,6 +547,7 @@ double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* resu
 size_t cugraph_hits_result_get_number_of_iterations(cugraph_hits_result_t* result);
 
 /**
+ * @ingroup centrality
  * @brief     Free hits result
  *
  * @param [in]   result   The result from hits
@@ -585,7 +599,3 @@ cugraph_error_code_t cugraph_hits(
 #ifdef __cplusplus
 }
 #endif
-
-/**
- *  @}
- */

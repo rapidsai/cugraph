@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@
 #include <cugraph_c/graph_functions.h>
 #include <cugraph_c/resource_handle.h>
 
+/** @defgroup similarity Similarity algorithms
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,6 +37,7 @@ typedef struct {
 } cugraph_similarity_result_t;
 
 /**
+ * @ingroup similarity
  * @brief       Get the similarity coefficient array
  *
  * @param [in]     result   The result from a similarity algorithm
@@ -43,6 +47,7 @@ cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarit
   cugraph_similarity_result_t* result);
 
 /**
+ * @ingroup similarity
  * @brief     Free similarity result
  *
  * @param [in]    result    The result from a similarity algorithm
