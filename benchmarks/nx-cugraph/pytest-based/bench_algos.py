@@ -210,3 +210,48 @@ def bench_louvain_communities(benchmark, graph_obj, backend_selector):
         G = graph_obj
     result = benchmark(backend_selector(nx.community.louvain_communities), G)
     assert type(result) is list
+
+
+def bench_degree_centrality(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.degree_centrality), G)
+
+
+def bench_eigenvector_centrality(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.eigenvector_centrality), G)
+
+
+def bench_hits(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.hits), G)
+
+
+def bench_in_degree_centrality(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.in_degree_centrality), G)
+
+
+def bench_katz_centrality(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.katz_centrality), G)
+
+
+def bench_k_truss_subgraph(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.k_truss_subgraph), G)
+
+
+def bench_out_degree_centrality(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.out_degree_centrality), G)
+
+
+def bench_pagerank(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.pagerank), G)
+
+
+def bench_sssp(benchmark, graph_obj, backend_selector):
+    G = graph_obj
+    result = benchmark(backend_selector(nx.sssp), G)
