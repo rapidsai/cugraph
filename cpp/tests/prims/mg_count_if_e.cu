@@ -156,19 +156,19 @@ class Tests_MGCountIfE
                                                               (*mg_renumber_map).size()),
         false);
 
-      auto sg_graph_view = sg_graph.view();
-
-      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-        *handle_,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count);
-      auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
-      auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
-
       if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+
+        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+          *handle_,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+
         auto expected_result = count_if_e(
           *handle_,
           sg_graph_view,
