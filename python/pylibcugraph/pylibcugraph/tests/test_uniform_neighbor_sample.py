@@ -95,11 +95,11 @@ def test_neighborhood_sampling_cupy(
     num_edges = max(len(device_srcs), len(device_dsts))
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=store_transposed,
         renumber=renumber,
         do_expensive_check=False,
@@ -153,11 +153,11 @@ def test_neighborhood_sampling_cudf(
     num_edges = max(len(device_srcs), len(device_dsts))
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=store_transposed,
         renumber=renumber,
         do_expensive_check=False,
@@ -203,11 +203,11 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     fanout_vals = np.asarray([1, 2], dtype=np.int32)
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=True,
         renumber=False,
         do_expensive_check=False,

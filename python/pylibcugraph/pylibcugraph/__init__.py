@@ -87,6 +87,8 @@ from pylibcugraph.generate_rmat_edgelist import generate_rmat_edgelist
 
 from pylibcugraph.generate_rmat_edgelists import generate_rmat_edgelists
 
+from pylibcugraph.replicate_edgelist import replicate_edgelist
+
 from pylibcugraph.k_truss_subgraph import k_truss_subgraph
 
 from pylibcugraph.jaccard_coefficients import jaccard_coefficients
