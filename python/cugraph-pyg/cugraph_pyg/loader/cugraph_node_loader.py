@@ -160,7 +160,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # PyG 2.4
         if len(input_node_info) == 2:
             input_type, input_nodes = input_node_info
-        # PyG 2.5 
+        # PyG 2.5
         elif len(input_node_info) == 3:
             input_type, input_nodes, input_id = input_node_info
         # Invalid
