@@ -148,9 +148,22 @@ class EXPERIMENTAL__BulkSampleLoader:
                 self.__input_files = iter(input_files)
             return
 
-        input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
-            (feature_store, graph_store), input_nodes
+        input_node_info = torch_geometric.loader.utils.get_input_nodes(
+            (feature_store, graph_store),
+            input_nodes,
+            input_id=None,
         )
+
+        # PyG 2.4
+        if len(input_node_info) == 2:
+            input_type, input_nodes = input_node_info
+        # PyG 2.5 
+        elif len(input_node_info) == 3:
+            input_type, input_nodes, input_id = input_node_info
+        # Invalid
+        else:
+            raise ValueError("Invalid output from get_input_nodes")
+
         if input_type is not None:
             input_nodes = graph_store._get_sample_from_vertex_groups(
                 {input_type: input_nodes}
