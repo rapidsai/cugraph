@@ -135,6 +135,8 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->vertex_type_),
         wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
             : NULL,
+        NULL,
+        NULL,
         new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
                                                                cugraph_data_type_id_t::SIZE_T)};
     }

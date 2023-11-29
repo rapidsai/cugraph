@@ -180,7 +180,7 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_edge_centrality_result_get_values(result_ptr)
     
-    if graph.edge_id_view_ptr is NULL:
+    if graph.edge_id_view_ptr is NULL and graph.edge_id_view_ptr_ptr is NULL:
         cupy_edge_ids = None
     else:
         edge_ids_ptr = cugraph_edge_centrality_result_get_edge_ids(result_ptr)

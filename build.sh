@@ -18,6 +18,8 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
+RAPIDS_VERSION=24.02
+
 # Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
    clean
@@ -412,8 +414,28 @@ if hasArg docs || hasArg all; then
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
     fi
+
+    for PROJECT in libcugraphops libwholegraph; do
+        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+        rm -rf "${XML_DIR}"
+        mkdir -p "${XML_DIR}"
+        export XML_DIR_${PROJECT^^}="$XML_DIR"
+
+        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+        tar -xzf xml.tar.gz -C "${XML_DIR}"
+        rm "./xml.tar.gz"
+    done
+
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
+
+    echo "making libcugraph doc dir"
+    rm -rf ${REPODIR}/docs/cugraph/libcugraph
+    mkdir -p ${REPODIR}/docs/cugraph/libcugraph
+
+    export XML_DIR_LIBCUGRAPH="${REPODIR}/cpp/doxygen/xml"
+
     cd ${REPODIR}/docs/cugraph
     make html
 fi
