@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ extern "C" {
 #endif
 
 /** @defgroup labeling Labeling algorithms
- *  @ingroup c_api
- *  @{
  */
 
 /**
@@ -37,6 +35,7 @@ typedef struct {
 } cugraph_labeling_result_t;
 
 /**
+ * @ingroup labeling
  * @brief     Get the vertex ids from the labeling result
  *
  * @param [in]   result   The result from a labeling algorithm
@@ -46,6 +45,7 @@ cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
   cugraph_labeling_result_t* result);
 
 /**
+ * @ingroup labeling
  * @brief     Get the label values from the labeling result
  *
  * @param [in]   result   The result from a labeling algorithm
@@ -55,6 +55,7 @@ cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_labels(
   cugraph_labeling_result_t* result);
 
 /**
+ * @ingroup labeling
  * @brief     Free labeling result
  *
  * @param [in]   result   The result from a labeling algorithm
@@ -104,7 +105,3 @@ cugraph_error_code_t cugraph_strongly_connected_components(const cugraph_resourc
 #ifdef __cplusplus
 }
 #endif
-
-/**
- *  @}
- */

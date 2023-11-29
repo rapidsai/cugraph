@@ -54,6 +54,10 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
+
+# build.sh script
+sed_runner 's/RAPIDS_VERSION=.*/RAPIDS_VERSION='${NEXT_SHORT_TAG}'/g' build.sh
+
 # Centralized version file update
 # NOTE: Any script that runs in CI will need to use gha-tool `rapids-generate-version`
 # and echo it to `VERSION` file to get an alpha spec of the current version
@@ -88,10 +92,12 @@ DEPENDENCIES=(
   raft-dask
   rmm
   ucx-py
+  rapids-dask-dependency
 )
 for DEP in "${DEPENDENCIES[@]}"; do
-  for FILE in dependencies.yaml conda/environments/*.yaml; do
+  for FILE in dependencies.yaml conda/environments/*.yaml python/cugraph-{pyg,dgl}/conda/*.yaml; do
     sed_runner "/-.* ${DEP}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*/g" ${FILE}
+    sed_runner "/-.* ${DEP}-cu[0-9][0-9]==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*/g" ${FILE}
     sed_runner "/-.* ucx-py==/ s/==.*/==${NEXT_UCX_PY_VERSION}.*/g" ${FILE}
   done
   for FILE in python/**/pyproject.toml python/**/**/pyproject.toml; do
@@ -107,6 +113,11 @@ sed_runner "s|PROJECT_NUMBER[[:space:]]*=.*|PROJECT_NUMBER=${NEXT_SHORT_TAG}|" c
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/cugraph/conda_build_config.yaml
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/cugraph-service/conda_build_config.yaml
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/pylibcugraph/conda_build_config.yaml
+
+# nx-cugraph NetworkX entry-point meta-data
+sed_runner "s@branch-[0-9][0-9].[0-9][0-9]@branch-${NEXT_SHORT_TAG}@g" python/nx-cugraph/_nx_cugraph/__init__.py
+# FIXME: can this use the standard VERSION file and update mechanism?
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/__init__.py
 
 # CI files
 for FILE in .github/workflows/*.yaml; do

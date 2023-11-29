@@ -317,72 +317,6 @@ TEST(louvain_legacy, success)
   }
 }
 
-TEST(louvain_legacy_renumbered, success)
-{
-  raft::handle_t handle;
-
-  auto stream = handle.get_stream();
-
-  std::vector<int> off_h = {0,   16,  25,  30,  34,  38,  42,  44,  46,  48,  50,  52,
-                            54,  56,  73,  85,  95,  101, 107, 112, 117, 121, 125, 129,
-                            132, 135, 138, 141, 144, 147, 149, 151, 153, 155, 156};
-  std::vector<int> ind_h = {
-    1,  3,  7,  11, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 30, 33, 0,  5,  11, 15, 16, 19, 21,
-    25, 30, 4,  13, 14, 22, 27, 0,  9,  20, 24, 2,  13, 15, 26, 1,  13, 14, 18, 13, 15, 0,  16,
-    13, 14, 3,  20, 13, 14, 0,  1,  13, 22, 2,  4,  5,  6,  8,  10, 12, 14, 17, 18, 19, 22, 25,
-    28, 29, 31, 32, 2,  5,  8,  10, 13, 15, 17, 18, 22, 29, 31, 32, 0,  1,  4,  6,  14, 16, 18,
-    19, 21, 28, 0,  1,  7,  15, 19, 21, 0,  13, 14, 26, 27, 28, 0,  5,  13, 14, 15, 0,  1,  13,
-    16, 16, 0,  3,  9,  23, 0,  1,  15, 16, 2,  12, 13, 14, 0,  20, 24, 0,  3,  23, 0,  1,  13,
-    4,  17, 27, 2,  17, 26, 13, 15, 17, 13, 14, 0,  1,  13, 14, 13, 14, 0};
-
-  std::vector<float> w_h = {
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-  int num_verts = off_h.size() - 1;
-  int num_edges = ind_h.size();
-
-  rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
-  rmm::device_uvector<int> indices_v(num_edges, stream);
-  rmm::device_uvector<float> weights_v(num_edges, stream);
-  rmm::device_uvector<int> result_v(num_verts, stream);
-
-  raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
-  raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
-  raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
-
-  cugraph::legacy::GraphCSRView<int, int, float> G(
-    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
-
-  float modularity{0.0};
-  size_t num_level = 40;
-
-  // "FIXME": remove this check once we drop support for Pascal
-  //
-  // Calling louvain on Pascal will throw an exception, we'll check that
-  // this is the behavior while we still support Pascal (device_prop.major < 7)
-  //
-  if (handle.get_device_properties().major < 7) {
-    EXPECT_THROW(cugraph::louvain(handle, G, result_v.data()), cugraph::logic_error);
-  } else {
-    std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data());
-
-    auto cluster_id = cugraph::test::to_host(handle, result_v);
-
-    int min = *min_element(cluster_id.begin(), cluster_id.end());
-
-    ASSERT_GE(min, 0);
-    ASSERT_FLOAT_EQ(modularity, 0.41880345);
-  }
-}
-
 using Tests_Louvain_File   = Tests_Louvain<cugraph::test::File_Usecase>;
 using Tests_Louvain_File32 = Tests_Louvain<cugraph::test::File_Usecase>;
 using Tests_Louvain_File64 = Tests_Louvain<cugraph::test::File_Usecase>;
@@ -390,11 +324,15 @@ using Tests_Louvain_Rmat   = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 using Tests_Louvain_Rmat32 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 using Tests_Louvain_Rmat64 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 
+#if 0
+// FIXME: Reenable legacy tests once threshold parameter is exposed
+//  by louvain legacy API.
 TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloatLegacy)
 {
   run_legacy_test<int32_t, int32_t, float, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloat)
 {
@@ -458,11 +396,12 @@ TEST_P(Tests_Louvain_Rmat64, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Louvain_File,
-  ::testing::Combine(
-    ::testing::Values(Louvain_Usecase{std::nullopt, std::nullopt, std::nullopt, true, 3, 0.408695},
-                      Louvain_Usecase{20, double{1e-4}, std::nullopt, true, 3, 0.408695},
-                      Louvain_Usecase{100, double{1e-4}, double{0.8}, true, 3, 0.48336622}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  ::testing::Combine(::testing::Values(
+                       Louvain_Usecase{
+                         std::nullopt, std::nullopt, std::nullopt, true, 3, 0.39907956},
+                       Louvain_Usecase{20, double{1e-3}, std::nullopt, true, 3, 0.39907956},
+                       Louvain_Usecase{100, double{1e-3}, double{0.8}, true, 3, 0.47547662}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with

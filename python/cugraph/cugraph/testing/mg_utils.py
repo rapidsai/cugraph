@@ -33,6 +33,7 @@ def start_dask_client(
     rmm_pool_size=None,
     dask_worker_devices=None,
     jit_unspill=False,
+    worker_class=None,
     device_memory_limit=0.8,
 ):
     """
@@ -141,6 +142,7 @@ def start_dask_client(
             rmm_async=rmm_async,
             CUDA_VISIBLE_DEVICES=dask_worker_devices,
             jit_unspill=jit_unspill,
+            worker_class=worker_class,
             device_memory_limit=device_memory_limit,
         )
         client = Client(cluster)

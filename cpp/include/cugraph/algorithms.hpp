@@ -464,51 +464,6 @@ k_truss_subgraph(raft::handle_t const& handle,
                  size_t number_of_vertices,
                  int k);
 
-// FIXME: Internally distances is of int (signed 32-bit) data type, but current
-// template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
-// are not considered
-/**
- * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
- *
- * @throws     cugraph::logic_error with a custom message when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
- *
- * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
- the multi GPU version will be selected.
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- *
- * @param[out] distances             If set to a valid pointer, this is populated by distance of
- * every vertex in the graph from the starting vertex
- *
- * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
- * predecessor of every vertex
- *
- * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
- * shortest_path counter of every vertex
- *
- * @param[in] start_vertex           The starting vertex for breadth first search traversal
- *
- * @param[in] directed               Treat the input graph as directed
- *
- * @param[in] mg_batch               If set to true use SG BFS path when comms are initialized.
- *
- */
-template <typename VT, typename ET, typename WT>
-void bfs(raft::handle_t const& handle,
-         legacy::GraphCSRView<VT, ET, WT> const& graph,
-         VT* distances,
-         VT* predecessors,
-         double* sp_counters,
-         const VT start_vertex,
-         bool directed = true,
-         bool mg_batch = false);
-
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
