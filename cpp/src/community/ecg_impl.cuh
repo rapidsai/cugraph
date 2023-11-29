@@ -1,9 +1,10 @@
 #pragma once
-#include <cugraph/algorithms.hpp>
+#include <cugraph/edge_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <raft/core/handle.hpp>
-#include <rmm/device_uvector.hpp>
+#include <raft/random/rng_state.hpp>
 
-#include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 
@@ -28,8 +29,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   size_t ensemble_size,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution,
-  weight_t theta)
+  weight_t resolution)
 {
   rmm::device_uvector<vertex_t> unique_cluster_ids(graph_view.number_of_vertices(),
                                                    handle.get_stream());
@@ -63,8 +63,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                      ensemble_size,
                      max_level,
                      threshold,
-                     resolution,
-                     1.0);
+                     resolution);
 }
 
 }  // namespace cugraph
