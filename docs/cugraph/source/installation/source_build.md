@@ -171,10 +171,10 @@ Note: This conda installation only applies to Linux and Python versions 3.8/3.10
 
 ### (OPTIONAL) Set environment variable on activation
 
-It is possible to configure the conda environment to set environmental
-variables on activation. Providing instructions to set PATH to include the CUDA
-toolkit bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory
-will be helpful.
+It is possible to configure the conda environment to set environment variables
+on activation. Providing instructions to set PATH to include the CUDA toolkit
+bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be
+helpful.
 
 ```bash
 cd  ~/anaconda3/envs/cugraph_dev
