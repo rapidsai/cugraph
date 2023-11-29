@@ -27,41 +27,41 @@ jobs:
       - wheel-tests-nx-cugraph
       - devcontainer
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@test-new-runners
   checks:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@test-new-runners
     with:
       enable_check_generated_files: false
   conda-cpp-build:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@test-new-runners
     with:
       build_type: pull-request
       node_type: cpu32
   conda-cpp-tests:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@test-new-runners
     with:
       build_type: pull-request
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@test-new-runners
     with:
       build_type: pull-request
   conda-python-tests:
     needs: conda-python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@test-new-runners
     with:
       build_type: pull-request
   conda-notebook-tests:
     needs: conda-python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@test-new-runners
     with:
       build_type: pull-request
       node_type: "gpu-v100-latest-1"
@@ -71,7 +71,7 @@ jobs:
   docs-build:
     needs: conda-python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@test-new-runners
     with:
       build_type: pull-request
       node_type: "gpu-v100-latest-1"
@@ -81,7 +81,7 @@ jobs:
   wheel-build-pylibcugraph:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/build_wheel_pylibcugraph.sh
@@ -92,14 +92,14 @@ jobs:
   wheel-tests-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
   wheel-build-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph.sh
@@ -109,27 +109,27 @@ jobs:
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
   wheel-build-nx-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/build_wheel_nx-cugraph.sh
   wheel-tests-nx-cugraph:
     needs: wheel-build-nx-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@test-new-runners
     with:
       build_type: pull-request
       script: ci/test_wheel_nx-cugraph.sh
   devcontainer:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@test-new-runners
     with:
       node_type: cpu32
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
