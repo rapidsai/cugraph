@@ -1,9 +1,9 @@
 # Building from Source
 
-These instructions are tested on supported distributions of Linux, CUDA, and
-Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of
-supported environments.  Other operating systems _might be_ compatible, but are
-not currently tested.
+These instructions are tested on supported versions/distributions of Linux,
+CUDA, and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html)
+for the list of supported environments.  Other environments _might be_
+compatible, but are not currently tested.
 
 ## Prerequisites
 
