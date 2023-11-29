@@ -301,8 +301,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                      sg_graph_view.local_edge_partition_view().offsets().begin(),
                      sg_graph_view.local_edge_partition_view().offsets().end(),
                      sg_offsets.begin());
-        rmm::device_uvector<vertex_t> sg_indices(sg_graph_view.number_of_edges(),
-                                                 handle_->get_stream());
+        rmm::device_uvector<vertex_t> sg_indices(
+          sg_graph_view.local_edge_partition_view().indices().size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      sg_graph_view.local_edge_partition_view().indices().begin(),
                      sg_graph_view.local_edge_partition_view().indices().end(),

@@ -264,11 +264,6 @@ class graph_base_t {
       properties_(properties){};
 
   vertex_t number_of_vertices() const { return number_of_vertices_; }
-  edge_t number_of_edges() const
-  {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return number_of_edges_;
-  }
 
   template <typename vertex_type = vertex_t>
   std::enable_if_t<std::is_signed<vertex_type>::value, bool> is_valid_vertex(vertex_type v) const
@@ -300,13 +295,11 @@ class graph_base_t {
   }
 
  protected:
-  graph_properties_t graph_properties() const { return properties_; }
+  edge_t number_of_edges_{0};
+  graph_properties_t properties_{};
 
  private:
   vertex_t number_of_vertices_{0};
-  edge_t number_of_edges_{0};
-
-  graph_properties_t properties_{};
 
   std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
@@ -635,6 +628,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       major_value_range_start_offset);
   }
 
+  // FIXME: deprecated, replaced with copmute_number_of_edges (which works with or without edge
+  // masking)
+  edge_t number_of_edges() const
+  {
+    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
+    return this->number_of_edges_;
+  }
+
+  edge_t compute_number_of_edges(raft::handle_t const& handle) const;
+
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
@@ -905,6 +908,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return edge_partition_view_t<vertex_t, edge_t, false>(
       offsets_, indices_, this->number_of_vertices());
   }
+
+  // FIXME: deprecated, replaced with copmute_number_of_edges (which works with or without edge
+  // masking)
+  edge_t number_of_edges() const
+  {
+    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
+    return this->number_of_edges_;
+  }
+
+  edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;

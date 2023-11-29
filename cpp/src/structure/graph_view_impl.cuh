@@ -488,6 +488,38 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
 }
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_number_of_edges(raft::handle_t const& handle) const
+{
+  if (this->has_edge_mask()) {
+    edge_t ret{};
+    auto value_firsts = (*(this->edge_mask_view())).value_firsts();
+    auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
+    for (size_t i = 0; i < value_firsts.size(); ++i) {
+      ret += static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[i], edge_counts[i]));
+    }
+    return ret;
+  } else {
+    return this->number_of_edges_;
+  }
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
+  compute_number_of_edges(raft::handle_t const& handle) const
+{
+  if (this->has_edge_mask()) {
+    auto value_firsts = (*(this->edge_mask_view())).value_firsts();
+    auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
+    assert(value_firsts.size() == 0);
+    assert(edge_counts.size() == 0);
+    return static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[0], edge_counts[0]));
+  } else {
+    return this->number_of_edges_;
+  }
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<edge_t>
 graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_in_degrees(raft::handle_t const& handle) const

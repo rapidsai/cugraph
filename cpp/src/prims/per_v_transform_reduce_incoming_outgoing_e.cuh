@@ -591,10 +591,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           value_size = sizeof(T);
         }
 
-        auto avg_vertex_degree = graph_view.number_of_vertices() > 0
-                                   ? (static_cast<double>(graph_view.number_of_edges()) /
-                                      static_cast<double>(graph_view.number_of_vertices()))
-                                   : double{0.0};
+        auto avg_vertex_degree =
+          graph_view.number_of_vertices() > 0
+            ? (static_cast<double>(graph_view.compute_number_of_edges(handle)) /
+               static_cast<double>(graph_view.number_of_vertices()))
+            : double{0.0};
 
         num_streams =
           std::min(static_cast<size_t>(avg_vertex_degree * (static_cast<double>(sizeof(vertex_t)) /

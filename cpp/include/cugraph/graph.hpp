@@ -90,6 +90,8 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
     graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check = false);
 
+  edge_t number_of_edges() const { return this->number_of_edges_; }
+
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
     std::vector<raft::device_span<edge_t const>> offsets(edge_partition_offsets_.size());
@@ -201,7 +203,7 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
         this->number_of_vertices(),
         this->number_of_edges(),
-        this->graph_properties(),
+        this->properties_,
         partition_,
         edge_partition_segment_offsets_,
         local_sorted_unique_edge_srcs,
@@ -279,15 +281,15 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!m
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  edge_t number_of_edges() const { return this->number_of_edges_; }
+
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
       raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
       raft::device_span<vertex_t const>(indices_.data(), indices_.size()),
-      graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
-                                                                       this->number_of_edges(),
-                                                                       this->graph_properties(),
-                                                                       segment_offsets_});
+      graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
+        this->number_of_vertices(), this->number_of_edges(), this->properties_, segment_offsets_});
   }
 
  private:
