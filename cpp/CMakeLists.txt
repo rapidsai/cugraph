@@ -220,6 +220,8 @@ set(CUGRAPH_SOURCES
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
     src/community/leiden_mg.cu
+    src/community/ecg_sg.cu
+    src/community/ecg_mg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu

@@ -780,6 +780,50 @@ void ecg(raft::handle_t const& handle,
          vertex_t* clustering);
 
 /**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_view_t          Type of graph
+ *
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph             Input graph object
+ * @param[in]  edge_weight_view  View object holding edge weights for @p graph_view.
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default
+ * 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
+ *
+ * @return                       a tuple containing:
+ *                                 1) Device vector containing clustering result
+ *                                 2) number of levels of the returned clustering
+ *                                 3) modularity of the returned clustering
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  raft::random::RngState& rng_state,
+  weight_t min_weight,
+  size_t ensemble_size,
+  size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
+  weight_t resolution = weight_t{1});
+
+/**
  * @brief Generate edges in a minimum spanning forest of an undirected weighted graph.
  *
  * A minimum spanning tree is a subgraph of the graph (a tree) with the minimum sum of edge weights.

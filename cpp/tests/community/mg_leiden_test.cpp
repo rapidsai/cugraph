@@ -162,6 +162,9 @@ class Tests_MGLeiden
                                                         leiden_usecase.resolution_,
                                                         leiden_usecase.theta_);
 
+    cugraph::ecg<vertex_t, edge_t, weight_t, true>(
+      *handle_, mg_graph_view, mg_edge_weight_view, rng_state, 0.1, 20, 5, 1e-07, 0.7);
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
