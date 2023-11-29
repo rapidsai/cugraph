@@ -7,17 +7,17 @@ not currently tested.
 
 ## Prerequisites
 
-__Compiler:__
+__Compilers:__
 * `gcc`           version 9.3+
-* `nvcc`          version 11.0+
+* `nvcc`          version 11.5+
 
 __CUDA:__
-* CUDA 11.0+
+* CUDA 11.2+
 * NVIDIA driver 450.80.02+
 * Pascal architecture or better
 
-You can obtain CUDA from
-[https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
+Further details and download links for these prerequisites are available on the
+[RAPIDS System Requirements page](https://docs.rapids.ai/install#system-req).
 
 ## Setting up the development environment
 
@@ -32,7 +32,7 @@ cd $CUGRAPH_HOME
 
 Using conda is the easiest way to install both the build and runtime
 dependencies for cugraph. While it is possible to build and run cugraph without
-conda, the required packages occasionally changes making it difficult to
+conda, the required packages occasionally change, making it difficult to
 document here. The best way to see the current dependencies needed for a build
 and run environment is to examine the list of packages in the [conda
 environment YAML
