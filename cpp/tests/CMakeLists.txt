@@ -423,6 +423,13 @@ target_link_libraries(MTMG_TEST
                       UCP::UCP
                     )
 
+ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+target_link_libraries(MTMG_LOUVAIN_TEST
+                      PRIVATE
+                      cugraphmgtestutil
+                      UCP::UCP
+                    )
+
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
