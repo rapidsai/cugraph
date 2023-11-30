@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -153,10 +154,25 @@ class Tests_Multithreaded
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
         handle, multithreaded_usecase.test_weighted, false, false);
 
+    rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), d_unique_vertices.begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 d_dst_v.begin(),
+                 d_dst_v.end(),
+                 d_unique_vertices.begin() + d_src_v.size());
+    thrust::sort(handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
+
+    d_unique_vertices.resize(thrust::distance(d_unique_vertices.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             d_unique_vertices.begin(),
+                                                             d_unique_vertices.end())),
+                             handle.get_stream());
+
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);
     auto h_weights_v     = cugraph::test::to_host(handle, d_weights_v);
-    auto unique_vertices = cugraph::test::to_host(handle, d_vertices_v);
+    auto unique_vertices = cugraph::test::to_host(handle, d_unique_vertices);
 
     // Load edgelist from different threads.  We'll use more threads than GPUs here
     for (int i = 0; i < num_threads; ++i) {
@@ -297,6 +313,7 @@ class Tests_Multithreaded
     std::mutex computed_clusters_lock{};
 
     auto louvain_clusters_view = louvain_clusters.view();
+    std::vector<vertex_t> h_renumber_map;
 
     // Load computed_clusters_v from different threads.
     for (int i = 0; i < num_gpus; ++i) {
@@ -309,18 +326,19 @@ class Tests_Multithreaded
                                     &h_src_v,
                                     &h_dst_v,
                                     &h_weights_v,
+                                    &h_renumber_map,
                                     &unique_vertices,
                                     i,
                                     num_threads]() {
         auto thread_handle = instance_manager->get_handle();
 
-        auto number_of_vertices = unique_vertices->size();
+        auto number_of_vertices = unique_vertices.size();
 
         std::vector<vertex_t> my_vertex_list;
         my_vertex_list.reserve((number_of_vertices + num_threads - 1) / num_threads);
 
         for (size_t j = i; j < number_of_vertices; j += num_threads) {
-          my_vertex_list.push_back((*unique_vertices)[j]);
+          my_vertex_list.push_back(unique_vertices[j]);
         }
 
         rmm::device_uvector<vertex_t> d_my_vertex_list(my_vertex_list.size(),
@@ -354,6 +372,11 @@ class Tests_Multithreaded
           computed_clusters_v.push_back(
             std::make_tuple(std::move(my_vertex_list), std::move(my_clusters)));
         }
+
+        h_renumber_map = cugraph::test::to_host(
+          thread_handle.raft_handle(),
+          cugraph::test::device_allgatherv(thread_handle.raft_handle(),
+                                           renumber_map_view->get(thread_handle)));
       });
     }
 
@@ -424,7 +447,7 @@ class Tests_Multithreaded
       std::for_each(
         computed_clusters_v.begin(),
         computed_clusters_v.end(),
-        [&h_sg_clusters, &h_cluster_map, &h_cluster_reverse_map](auto t1) {
+        [&h_sg_clusters, &h_cluster_map, &h_renumber_map, &h_cluster_reverse_map](auto t1) {
           raft::print_host_vector(
             "  t1<0>", std::get<0>(t1).data(), std::get<0>(t1).size(), std::cout);
           raft::print_host_vector(
@@ -432,24 +455,28 @@ class Tests_Multithreaded
           std::for_each(
             thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
             thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
-            [&h_sg_clusters, &h_cluster_map, &h_cluster_reverse_map](auto t2) {
+            [&h_sg_clusters, &h_cluster_map, &h_renumber_map, &h_cluster_reverse_map](auto t2) {
               vertex_t v = thrust::get<0>(t2);
               vertex_t c = thrust::get<1>(t2);
 
-              std::cout << "  v = " << v << ", c = " << c << std::endl;
+              auto pos    = std::find(h_renumber_map.begin(), h_renumber_map.end(), v);
+              auto offset = std::distance(h_renumber_map.begin(), pos);
+
+              std::cout << "  v = " << v << ", c = " << c << ", offset = " << offset << std::endl;
 
               auto cluster_pos = h_cluster_map.find(c);
               if (cluster_pos == h_cluster_map.end()) {
-                auto reverse_pos = h_cluster_reverse_map.find(h_sg_clusters[v]);
+                auto reverse_pos = h_cluster_reverse_map.find(h_sg_clusters[offset]);
 
                 ASSERT_TRUE(reverse_pos != h_cluster_map.end()) << "two different cluster mappings";
 
                 h_cluster_map.insert(std::make_pair(c, h_sg_clusters[v]));
-                h_cluster_reverse_map.insert(std::make_pair(h_sg_clusters[v], c));
+                h_cluster_reverse_map.insert(std::make_pair(h_sg_clusters[offset], c));
               } else {
-                ASSERT_EQ(cluster_pos->second, h_sg_clusters[v])
-                  << "vertex " << v << ", SG cluster = " << h_sg_clusters[v]
-                  << ", mtmg cluster = " << c << ", mapped value = " << cluster_pos->second;
+                ASSERT_EQ(cluster_pos->second, h_sg_clusters[offset])
+                  << "vertex " << v << ", offset = " << offset
+                  << ", SG cluster = " << h_sg_clusters[offset] << ", mtmg cluster = " << c
+                  << ", mapped value = " << cluster_pos->second;
               }
             });
         });
