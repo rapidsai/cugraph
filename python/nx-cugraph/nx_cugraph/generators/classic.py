@@ -19,7 +19,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-from ..utils import _get_int_dtype, index_dtype, networkx_algorithm, nodes_or_number
+from ..utils import _get_int_dtype, index_dtype, networkx_algorithm
 from ._utils import (
     _IS_NX32_OR_LESS,
     _common_small_graph,
@@ -86,8 +86,7 @@ def circular_ladder_graph(n, create_using=None):
     return _ladder_graph(n, create_using, is_circular=True)
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def complete_graph(n, create_using=None):
     n, nodes = _number_and_nodes(n)
     if n < 3:
@@ -143,8 +142,7 @@ def complete_multipartite_graph(*subset_sizes):
     )
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def cycle_graph(n, create_using=None):
     n, nodes = _number_and_nodes(n)
     graph_class, inplace = _create_using_class(create_using)
@@ -174,8 +172,7 @@ def cycle_graph(n, create_using=None):
     return G
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def empty_graph(n=0, create_using=None, default=nx.Graph):
     n, nodes = _number_and_nodes(n)
     graph_class, inplace = _create_using_class(create_using, default=default)
@@ -242,8 +239,7 @@ def ladder_graph(n, create_using=None):
     return _ladder_graph(n, create_using)
 
 
-@nodes_or_number([0, 1])
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=[0, 1])
 def lollipop_graph(m, n, create_using=None):
     # Like complete_graph then path_graph
     orig_m, unused_nodes_m = m
@@ -283,8 +279,7 @@ def null_graph(create_using=None):
     return _common_small_graph(0, None, create_using)
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def path_graph(n, create_using=None):
     n, nodes = _number_and_nodes(n)
     graph_class, inplace = _create_using_class(create_using)
@@ -304,8 +299,7 @@ def path_graph(n, create_using=None):
     return G
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def star_graph(n, create_using=None):
     orig_n, orig_nodes = n
     n, nodes = _number_and_nodes(n)
@@ -329,8 +323,7 @@ def star_graph(n, create_using=None):
     return G
 
 
-@nodes_or_number([0, 1])
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=[0, 1])
 def tadpole_graph(m, n, create_using=None):
     orig_m, unused_nodes_m = m
     orig_n, unused_nodes_n = n
@@ -382,8 +375,7 @@ def turan_graph(n, r):
     return complete_multipartite_graph(*partitions)
 
 
-@nodes_or_number(0)
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=0)
 def wheel_graph(n, create_using=None):
     n, nodes = _number_and_nodes(n)
     graph_class, inplace = _create_using_class(create_using)
