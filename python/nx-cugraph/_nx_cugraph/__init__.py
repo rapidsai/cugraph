@@ -29,6 +29,7 @@ _info = {
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "ancestors",
         "barbell_graph",
         "betweenness_centrality",
         "bull_graph",
@@ -44,6 +45,7 @@ _info = {
         "davis_southern_women_graph",
         "degree_centrality",
         "desargues_graph",
+        "descendants",
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",

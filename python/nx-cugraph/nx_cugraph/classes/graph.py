@@ -458,6 +458,22 @@ class Graph:
                 return False
         return bool(((self.src_indices == u) & (self.dst_indices == v)).any())
 
+    def _neighbors(self, n: NodeKey) -> cp.ndarray[NodeValue]:
+        if n not in self:
+            hash(n)  # To raise TypeError if appropriate
+            raise nx.NetworkXError(f"The node {n} is not in the graph.")
+        if self.key_to_id is not None:
+            n = self.key_to_id[n]
+        nbrs = self.dst_indices[self.src_indices == n]
+        if self.is_multigraph():
+            nbrs = cp.unique(nbrs)
+        return nbrs
+
+    @networkx_api
+    def neighbors(self, n: NodeKey) -> Iterator[NodeKey]:
+        nbrs = self._neighbors(n)
+        return iter(self._nodeiter_to_iter(nbrs.tolist()))
+
     @networkx_api
     def has_node(self, n: NodeKey) -> bool:
         return n in self
