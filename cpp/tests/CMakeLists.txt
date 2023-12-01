@@ -416,13 +416,6 @@ ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/libcugraph)
 
 
-ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
-target_link_libraries(MTMG_LOUVAIN_TEST
-                      PRIVATE
-                      cugraphmgtestutil
-                      UCP::UCP
-                    )
-
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
@@ -745,9 +738,16 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     # - MTMG tests -------------------------------------------------------------------------
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
     target_link_libraries(MTMG_TEST
-                        PRIVATE
-                        UCP::UCP
-                        )
+                          PRIVATE
+                          UCP::UCP
+                         )
+
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    target_link_libraries(MTMG_LOUVAIN_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          UCP::UCP
+                         )
 
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################
