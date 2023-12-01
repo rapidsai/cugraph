@@ -25,7 +25,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   size_t max_level,
   weight_t threshold,
   weight_t resolution,
-  weight_t theta = 1.0;)
+  weight_t theta = 1.0)
 {
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
@@ -91,7 +91,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                     resolution,
                     theta);
 
-  return std::make_tuple(std::move(cluster_assignments), max_level, modulraity);
+  return std::make_tuple(std::move(cluster_assignments), max_level, modularity);
 }
 
 }  // namespace detail
