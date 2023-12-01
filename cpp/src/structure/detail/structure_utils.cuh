@@ -20,6 +20,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
@@ -524,35 +525,21 @@ std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t co
                      return word;
                    });
 
-  // FIXME:  use detail::count_set_bits
-  size_t bit_count = thrust::transform_reduce(
-    handle.get_thrust_policy(),
-    marked_entries.begin(),
-    marked_entries.end(),
-    [] __device__(auto word) { return __popc(word); },
-    size_t{0},
-    thrust::plus<size_t>());
+  size_t bit_count = detail::count_set_bits(handle, marked_entries.begin(), num_entries);
 
   return std::make_tuple(bit_count, std::move(marked_entries));
 }
 
 template <typename T>
-rmm::device_uvector<T> remove_flagged_elements(raft::handle_t const& handle,
-                                               rmm::device_uvector<T>&& vector,
-                                               raft::device_span<uint32_t const> remove_flags,
-                                               size_t remove_count)
+rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
+                                             rmm::device_uvector<T>&& vector,
+                                             raft::device_span<uint32_t const> keep_flags,
+                                             size_t keep_count)
 {
-  rmm::device_uvector<T> result(vector.size() - remove_count, handle.get_stream());
+  rmm::device_uvector<T> result(keep_count, handle.get_stream());
 
-  thrust::copy_if(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(size_t{0}),
-    thrust::make_counting_iterator(vector.size()),
-    thrust::make_transform_output_iterator(result.begin(),
-                                           indirection_t<size_t, T*>{vector.data()}),
-    [remove_flags] __device__(size_t i) {
-      return !(remove_flags[cugraph::packed_bool_offset(i)] & cugraph::packed_bool_mask(i));
-    });
+  detail::copy_if_mask_set(
+    handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
 
   return result;
 }

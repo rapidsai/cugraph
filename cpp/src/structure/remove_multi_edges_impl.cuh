@@ -254,7 +254,7 @@ remove_multi_edges(raft::handle_t const& handle,
     }
   }
 
-  auto [multi_edge_count, multi_edges_to_delete] =
+  auto [keep_count, keep_flags] =
     detail::mark_entries(handle,
                          edgelist_srcs.size(),
                          [d_edgelist_srcs = edgelist_srcs.data(),
@@ -263,41 +263,38 @@ remove_multi_edges(raft::handle_t const& handle,
                                   (d_edgelist_dsts[idx - 1] == d_edgelist_dsts[idx]);
                          });
 
-  if (multi_edge_count > 0) {
-    edgelist_srcs = detail::remove_flagged_elements(
+  if (keep_count < edgelist_srcs.size()) {
+    edgelist_srcs = detail::keep_flagged_elements(
       handle,
       std::move(edgelist_srcs),
-      raft::device_span<uint32_t const>{multi_edges_to_delete.data(), multi_edges_to_delete.size()},
-      multi_edge_count);
-    edgelist_dsts = detail::remove_flagged_elements(
+      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+      keep_count);
+    edgelist_dsts = detail::keep_flagged_elements(
       handle,
       std::move(edgelist_dsts),
-      raft::device_span<uint32_t const>{multi_edges_to_delete.data(), multi_edges_to_delete.size()},
-      multi_edge_count);
+      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+      keep_count);
 
     if (edgelist_weights)
-      edgelist_weights = detail::remove_flagged_elements(
+      edgelist_weights = detail::keep_flagged_elements(
         handle,
         std::move(*edgelist_weights),
-        raft::device_span<uint32_t const>{multi_edges_to_delete.data(),
-                                          multi_edges_to_delete.size()},
-        multi_edge_count);
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
 
     if (edgelist_edge_ids)
-      edgelist_edge_ids = detail::remove_flagged_elements(
+      edgelist_edge_ids = detail::keep_flagged_elements(
         handle,
         std::move(*edgelist_edge_ids),
-        raft::device_span<uint32_t const>{multi_edges_to_delete.data(),
-                                          multi_edges_to_delete.size()},
-        multi_edge_count);
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
 
     if (edgelist_edge_types)
-      edgelist_edge_types = detail::remove_flagged_elements(
+      edgelist_edge_types = detail::keep_flagged_elements(
         handle,
         std::move(*edgelist_edge_types),
-        raft::device_span<uint32_t const>{multi_edges_to_delete.data(),
-                                          multi_edges_to_delete.size()},
-        multi_edge_count);
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
   }
 
   return std::make_tuple(std::move(edgelist_srcs),
