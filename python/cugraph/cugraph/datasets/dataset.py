@@ -153,8 +153,8 @@ class Dataset:
     def __download_dask_csv(self, url):
         """
         Downloads the .csv file from url to the current download path
-        (self._dl_path) via multiple GPUs, updates self._path with the 
-        full path to the downloaded file, and returns the latest value 
+        (self._dl_path) via multiple GPUs, updates self._path with the
+        full path to the downloaded file, and returns the latest value
         of self._path.
         """
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
@@ -173,7 +173,6 @@ class Dataset:
         return self._path
 
     def unload(self):
-
         """
         Remove all saved internal objects, forcing them to be re-created when
         accessed.
@@ -257,7 +256,7 @@ class Dataset:
                         " exist. Try setting download=True"
                         " to download the datafile"
                     )
-                    
+
             header = None
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
@@ -341,7 +340,7 @@ class Dataset:
                 store_transposed=store_transposed,
             )
         return G
-    
+
     def get_dask_graph(
         self,
         download=False,
@@ -404,7 +403,7 @@ class Dataset:
                 source=self.metadata["col_names"][0],
                 destination=self.metadata["col_names"][1],
                 store_transposed=store_transposed,
-            ) 
+            )
         return G
 
     def get_path(self):

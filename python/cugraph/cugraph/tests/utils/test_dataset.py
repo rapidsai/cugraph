@@ -38,6 +38,7 @@ pytestmark = pytest.mark.sg
 ###############################################################################
 # Fixtures
 
+
 # module fixture - called once for this module
 @pytest.fixture(scope="module")
 def tmpdir():
@@ -78,6 +79,7 @@ def setup(tmpdir):
 ###############################################################################
 # Helpers
 
+
 # check if there is a row where src == dst
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:
@@ -115,6 +117,7 @@ def is_symmetric(dataset):
 
 ###############################################################################
 # Tests
+
 
 # setting download_dir to None effectively re-initialized the default
 def test_env_var():
@@ -204,7 +207,7 @@ def test_get_graph(dataset):
 def test_get_dask_graph(dask_client, dataset):
     G = dataset.get_dask_graph(download=True)
     assert G is not None
-  
+
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
