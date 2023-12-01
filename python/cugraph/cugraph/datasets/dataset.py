@@ -12,9 +12,11 @@
 # limitations under the License.
 
 import cudf
+import dask_cudf
 import yaml
 import os
 import pandas as pd
+import cugraph.dask as dcg
 from pathlib import Path
 from cugraph.structure.graph_classes import Graph
 
@@ -148,6 +150,28 @@ class Dataset:
             )
         return self._path
 
+    def __download_dask_csv(self, url):
+        """
+        Downloads the .csv file from url to the current download path
+        (self._dl_path) via multiple GPUs, updates self._path with the 
+        full path to the downloaded file, and returns the latest value 
+        of self._path.
+        """
+        self._dl_path.path.mkdir(parents=True, exist_ok=True)
+
+        filename = self.metadata["name"] + self.metadata["file_type"]
+        if self._dl_path.path.is_dir():
+            blocksize = dcg.get_chunksize(url)
+            ddf = dask_cudf.read_csv(path=url, blocksize=blocksize)
+            self._path = self._dl_path.path / filename
+            ddf.to_csv(self._path, index=False)
+
+        else:
+            raise RuntimeError(
+                f"The directory {self._dl_path.path.absolute()}" "does not exist"
+            )
+        return self._path
+
     def unload(self):
 
         """
@@ -162,7 +186,7 @@ class Dataset:
 
     def get_edgelist(self, download=False, reader="cudf"):
         """
-        Return an Edgelist
+        Return an Edgelist.
 
         Parameters
         ----------
@@ -212,6 +236,47 @@ class Dataset:
 
         return self._edgelist.copy()
 
+    def get_dask_edgelist(self, download=False):
+        """
+        Return a distributed Edgelist.
+
+        Parameters
+        ----------
+        download : Boolean (default=False)
+            Automatically download the dataset from the 'url' location within
+            the YAML file.
+        """
+        if self._edgelist is None:
+            full_path = self.get_path()
+            if not full_path.is_file():
+                if download:
+                    full_path = self.__download_dask_csv(self.metadata["url"])
+                else:
+                    raise RuntimeError(
+                        f"The datafile {full_path} does not"
+                        " exist. Try setting download=True"
+                        " to download the datafile"
+                    )
+                    
+            header = None
+            if isinstance(self.metadata["header"], int):
+                header = self.metadata["header"]
+
+            blocksize = dcg.get_chunksize(full_path)
+            self._edgelist = dask_cudf.read_csv(
+                path=full_path,
+                blocksize=blocksize,
+                delimiter=self.metadata["delim"],
+                names=self.metadata["col_names"],
+                dtype={
+                    self.metadata["col_names"][i]: self.metadata["col_types"][i]
+                    for i in range(len(self.metadata["col_types"]))
+                },
+                header=header,
+            )
+
+        return self._edgelist.copy()
+
     def get_graph(
         self,
         download=False,
@@ -249,7 +314,7 @@ class Dataset:
         if create_using is None:
             G = Graph()
         elif isinstance(create_using, Graph):
-            # what about BFS if trnaposed is True
+            # what about BFS if transposed is True
             attrs = {"directed": create_using.is_directed()}
             G = type(create_using)(**attrs)
         elif type(create_using) is type:
@@ -275,6 +340,71 @@ class Dataset:
                 destination=self.metadata["col_names"][1],
                 store_transposed=store_transposed,
             )
+        return G
+    
+    def get_dask_graph(
+        self,
+        download=False,
+        create_using=Graph,
+        ignore_weights=False,
+        store_transposed=False,
+    ):
+        """
+        Return a distributed Graph object.
+
+        Parameters
+        ----------
+        download : Boolean (default=False)
+            Downloads the dataset from the web.
+
+        create_using: cugraph.Graph (instance or class), optional
+        (default=Graph)
+            Specify the type of Graph to create. Can pass in an instance to
+            create a Graph instance with specified 'directed' attribute.
+
+        ignore_weights : Boolean (default=False)
+            Ignores weights in the dataset if True, resulting in an
+            unweighted Graph. If False (the default), weights from the
+            dataset -if present- will be applied to the Graph. If the
+            dataset does not contain weights, the Graph returned will
+            be unweighted regardless of ignore_weights.
+
+        store_transposed : bool, optional (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms.
+        """
+        if self._edgelist is None:
+            self.get_dask_edgelist(download)
+
+        if create_using is None:
+            G = Graph()
+        elif isinstance(create_using, Graph):
+            attrs = {"directed": create_using.is_directed()}
+            G = type(create_using)(**attrs)
+        elif type(create_using) is type:
+            G = create_using()
+        else:
+            raise TypeError(
+                "create_using must be a cugraph.Graph "
+                "(or subclass) type or instance, got: "
+                f"{type(create_using)}"
+            )
+
+        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+            G.from_dask_cudf_edgelist(
+                self._edgelist,
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                edge_attr=self.metadata["col_names"][2],
+                store_transposed=store_transposed,
+            )
+        else:
+            G.from_dask_cudf_edgelist(
+                self._edgelist,
+                source=self.metadata["col_names"][0],
+                destination=self.metadata["col_names"][1],
+                store_transposed=store_transposed,
+            ) 
         return G
 
     def get_path(self):
@@ -349,6 +479,33 @@ def download_all(force=False):
                 if not save_to.is_file() or force:
                     df = cudf.read_csv(meta["url"])
                     df.to_csv(save_to, index=False)
+
+
+def download_dask_all(force=False):
+    """
+    Looks in `metadata` directory and downloads all datafiles from the the URLs
+    provided in each YAML file via multiple GPUs.
+
+    Parameters
+    force : Boolean (default=False)
+        Overwrite any existing copies of datafiles.
+    """
+    default_download_dir.path.mkdir(parents=True, exist_ok=True)
+
+    meta_path = Path(__file__).parent.absolute() / "metadata"
+    for file in meta_path.iterdir():
+        meta = None
+        if file.suffix == ".yaml":
+            with open(meta_path / file, "r") as metafile:
+                meta = yaml.safe_load(metafile)
+
+            if "url" in meta:
+                filename = meta["name"] + meta["file_type"]
+                save_to = default_download_dir.path / filename
+                if not save_to.is_file() or force:
+                    blocksize = dcg.get_chunksize(meta["url"])
+                    ddf = dask_cudf.read_csv(path=meta["url"], blocksize=blocksize)
+                    ddf.to_csv(save_to, index=False)
 
 
 def set_download_dir(path):

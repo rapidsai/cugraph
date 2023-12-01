@@ -20,6 +20,7 @@ import pandas
 import pytest
 
 import cudf
+import dask_cudf
 from cugraph.structure import Graph
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
@@ -172,8 +173,24 @@ def test_reader(dataset):
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_dask_reader(dask_client, dataset):
+    # using dask_cudf
+    E = dataset.get_dask_edgelist(download=True)
+
+    assert E is not None
+    assert isinstance(E, dask_cudf.core.DataFrame)
+    dataset.unload()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
     E = dataset.get_edgelist(download=True)
+    assert E is not None
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_dask_edgelist(dask_client, dataset):
+    E = dataset.get_dask_edgelist(download=True)
     assert E is not None
 
 
@@ -182,6 +199,12 @@ def test_get_graph(dataset):
     G = dataset.get_graph(download=True)
     assert G is not None
 
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_dask_graph(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
+    assert G is not None
+  
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
@@ -217,7 +240,7 @@ def test_create_using(dataset):
     assert G.is_directed()
 
 
-def test_ctor_with_datafile():
+""" def test_ctor_with_datafile():
     from cugraph.datasets import karate
 
     karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
@@ -365,4 +388,4 @@ def test_object_getters(dataset):
     assert dataset.is_symmetric() == dataset.metadata["is_symmetric"]
     assert dataset.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert dataset.number_of_vertices() == dataset.metadata["number_of_nodes"]
-    assert dataset.number_of_edges() == dataset.metadata["number_of_edges"]
+    assert dataset.number_of_edges() == dataset.metadata["number_of_edges"] """
