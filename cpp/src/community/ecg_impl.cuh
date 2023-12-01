@@ -24,14 +24,9 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   size_t ensemble_size,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0;)
 {
-  rmm::device_uvector<vertex_t> cluster_assignments(graph_view.number_of_vertices(),
-                                                    handle.get_stream());
-
-  weight_t theta      = 1.0;
-  weight_t modularity = -1.0;
-
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
   edge_src_property_t<graph_view_t, vertex_t> src_cluster_assignments(handle, graph_view);
@@ -40,13 +35,17 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 
   cugraph::fill_edge_property(handle, graph_view, weight_t{0}, modified_edge_weights);
 
+  weight_t modularity = -1.0;
+  rmm::device_uvector<vertex_t> cluster_assignments(graph_view.number_of_vertices(),
+                                                    handle.get_stream());
+
   for (size_t i = 0; i < ensemble_size; i++) {
     std::tie(std::ignore, modularity) = cugraph::leiden(handle,
                                                         rng_state,
                                                         graph_view,
                                                         edge_weight_view,
                                                         cluster_assignments.data(),
-                                                        max_level,
+                                                        size_t{1},
                                                         resolution,
                                                         theta);
 
@@ -82,7 +81,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     },
     modified_edge_weights.mutable_view());
 
-  std::tie(std::ignore, modularity) =
+  std::tie(max_level, modularity) =
     cugraph::leiden(handle,
                     rng_state,
                     graph_view,
@@ -92,7 +91,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                     resolution,
                     theta);
 
-  return std::make_tuple(std::move(cluster_assignments), max_level, -1.0);
+  return std::make_tuple(std::move(cluster_assignments), max_level, modulraity);
 }
 
 }  // namespace detail
