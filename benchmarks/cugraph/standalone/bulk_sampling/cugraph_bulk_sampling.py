@@ -211,7 +211,7 @@ def sample_graph(
         renumber=renumber,
         compression=compression,
         compress_per_hop=compress_per_hop,
-        include_hop_column=False,
+        include_hop_column=True,
         log_level=logging.INFO,
     )
 
@@ -535,7 +535,9 @@ def benchmark_cugraph_bulk_sampling(
     compress_per_hop: bool
         Whether to output a separate CSR/CSC per hop
     """
-    print(dataset)
+    
+    logger = logging.getLogger('__main__')
+    logger.info(str(dataset))
     if dataset[0:4] == "rmat":
         (
             dask_edgelist_df,
@@ -570,14 +572,14 @@ def benchmark_cugraph_bulk_sampling(
         )
 
     num_input_edges = len(dask_edgelist_df)
-    print(f"Number of input edges = {num_input_edges:,}")
+    logger.info(f"Number of input edges = {num_input_edges:,}")
 
     G = construct_graph(dask_edgelist_df)
     del dask_edgelist_df
-    print("constructed graph")
+    logger.info("constructed graph")
 
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
-    print(f"input memory: {input_memory}")
+    logger.info(f"input memory: {input_memory}")
 
     output_subdir = os.path.join(
         output_path, f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}"
@@ -630,8 +632,8 @@ def benchmark_cugraph_bulk_sampling(
     with open(os.path.join(output_subdir, "output_meta.json"), "w") as f:
         json.dump(output_meta, f, indent="\t")
 
-    print("allocation counts b:")
-    print(allocation_counts.values())
+    logger.info("allocation counts b:")
+    logger.info(allocation_counts.values())
 
     (
         input_to_peak_ratio,
@@ -641,8 +643,8 @@ def benchmark_cugraph_bulk_sampling(
     ) = get_memory_statistics(
         allocation_counts=allocation_counts, input_memory=input_memory
     )
-    print(f"Number of edges in final graph = {G.number_of_edges():,}")
-    print("-" * 80)
+    logger.info(f"Number of edges in final graph = {G.number_of_edges():,}")
+    logger.info("-" * 80)
     return (
         num_input_edges,
         input_to_peak_ratio,
@@ -808,6 +810,8 @@ def get_args():
 # call __main__ function
 if __name__ == "__main__":
     logging.basicConfig()
+    logger = logging.getLogger('__main__')
+    logger.setLevel(logging.INFO)
 
     args = get_args()
     fanouts = [
@@ -818,15 +822,12 @@ if __name__ == "__main__":
     seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(",")]
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
-    client, cluster = start_dask_client(
-        dask_worker_devices=dask_worker_devices,
-        jit_unspill=False,
-        rmm_pool_size=28e9,
-        rmm_async=True,
-    )
+    logger.info('starting dask client')
+    client, cluster = start_dask_client()
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
+    logger.info('dask client started')
     for dataset in datasets:
         m = re.match(r'(\w+)\[([0-9]+)\]', dataset)
         if m:
@@ -843,10 +844,10 @@ if __name__ == "__main__":
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
-                    print(f"dataset: {dataset}")
-                    print(f"batch size: {batch_size}")
-                    print(f"fanout: {fanout}")
-                    print(f"seeds_per_call: {seeds_per_call}")
+                    logger.info(f"dataset: {dataset}")
+                    logger.info(f"batch size: {batch_size}")
+                    logger.info(f"fanout: {fanout}")
+                    logger.info(f"seeds_per_call: {seeds_per_call}")
 
                     try:
                         stats_d = {}

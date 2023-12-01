@@ -319,7 +319,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        #ddf = delayed(ddf)
+        ddf = delayed(ddf)
         # FIXME delete this once the hang is fixed
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
