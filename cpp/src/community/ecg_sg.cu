@@ -66,4 +66,5 @@ template std::tuple<rmm::device_uvector<int64_t>, size_t, double> ecg(
   size_t max_level,
   double threshold,
   double resolution);
+
 }  // namespace cugraph

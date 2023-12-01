@@ -14,11 +14,6 @@ namespace cugraph {
 
 namespace detail {
 
-//   * @return a tuple containing:
-//   *    1) Device vector containing clustering result
-//   *    2) number of levels of the returned clustering
-//   *    3) modularity of the returned clustering
-
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
