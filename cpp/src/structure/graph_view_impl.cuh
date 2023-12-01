@@ -498,6 +498,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     for (size_t i = 0; i < value_firsts.size(); ++i) {
       ret += static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[i], edge_counts[i]));
     }
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
     return ret;
   } else {
     return this->number_of_edges_;
