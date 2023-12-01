@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,4 +40,11 @@ extern "C" int cugraph_resource_handle_get_rank(const cugraph_resource_handle_t*
   auto internal = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
   auto& comm    = internal->handle_->get_comms();
   return static_cast<int>(comm.get_rank());
+}
+
+extern "C" int cugraph_resource_handle_get_comm_size(const cugraph_resource_handle_t* handle)
+{
+  auto internal = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+  auto& comm    = internal->handle_->get_comms();
+  return static_cast<int>(comm.get_size());
 }

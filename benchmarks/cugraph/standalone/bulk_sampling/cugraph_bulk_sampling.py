@@ -22,7 +22,6 @@ from cugraph.testing.mg_utils import (
     get_allocation_counts_dask_lazy,
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
-    restart_client,
     start_dask_client,
     stop_dask_client,
     enable_spilling,
@@ -182,19 +181,16 @@ def _replicate_df(
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
 def sample_graph(
-                G,
-                label_df,
-                output_path,seed=42,
-                batch_size=500,
-                seeds_per_call=200000,
-                batches_per_partition=100,
-                fanout=[5, 5, 5],
-                prior_sources_behavior=None,
-                deduplicate_sources=True,
-                renumber=False,
-                persist=False,
-                compression='COO',
-                compress_per_hop=False,):
+    G,
+    label_df,
+    output_path,
+    seed=42,
+    batch_size=500,
+    seeds_per_call=400000,
+    batches_per_partition=100,
+    fanout=[5, 5, 5],
+    sampling_kwargs={},
+):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -202,17 +198,12 @@ def sample_graph(
         output_path=output_path,
         graph=G,
         fanout_vals=fanout,
-        prior_sources_behavior=prior_sources_behavior,
-        deduplicate_sources=deduplicate_sources,
         with_replacement=False,
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
-        renumber=renumber,
-        compression=compression,
-        compress_per_hop=compress_per_hop,
-        include_hop_column=True,
         log_level=logging.INFO,
+        **sampling_kwargs,
     )
 
     n_workers = len(default_client().scheduler_info()["workers"])
@@ -472,24 +463,21 @@ def load_disk_dataset(
 
 
 def benchmark_cugraph_bulk_sampling(
-                                    dataset,
-                                    output_path,
-                                    seed,
-                                    batch_size,
-                                    seeds_per_call,
-                                    fanout,
-                                    reverse_edges=True,
-                                    dataset_dir='.',
-                                    replication_factor=1,
-                                    num_labels=256,
-                                    labeled_percentage=0.001,
-                                    persist=False,
-                                    add_edge_types=False,
-                                    prior_sources_behavior=None,
-                                    deduplicate_sources=False,
-                                    renumber=False,
-                                    compression='COO',
-                                    compress_per_hop=False):
+    dataset,
+    output_path,
+    seed,
+    batch_size,
+    seeds_per_call,
+    fanout,
+    sampling_target_framework,
+    reverse_edges=True,
+    dataset_dir=".",
+    replication_factor=1,
+    num_labels=256,
+    labeled_percentage=0.001,
+    persist=False,
+    add_edge_types=False,
+):
     """
     Entry point for the benchmark.
 
@@ -524,16 +512,8 @@ def benchmark_cugraph_bulk_sampling(
     add_edge_types: bool
         Whether to add edge types to the edgelist.
         Defaults to False.
-    prior_sources_behavior: bool
-        Behavior of prior sources.
-    deduplicate_sources: bool
-        If True, the source list is deduplicated before performing sampling.
-    renumber: bool
-        If True, will renumber and add the renumber map to results.
-    compression: str
-        The compression type to use
-    compress_per_hop: bool
-        Whether to output a separate CSR/CSC per hop
+    sampling_target_framework: str
+        The framework to sample for.
     """
     
     logger = logging.getLogger('__main__')
@@ -589,28 +569,40 @@ def benchmark_cugraph_bulk_sampling(
     output_sample_path = os.path.join(output_subdir, "samples")
     os.makedirs(output_sample_path)
 
-    batches_per_partition = 200_000 // batch_size
-    mean_execution_time = 0.0
-    for _ in range(10):
-        execution_time, allocation_counts = sample_graph(
-            G,
-            dask_label_df,
-            output_sample_path,
-            seed=seed,
-            batch_size=batch_size,
-            seeds_per_call=seeds_per_call,
-            batches_per_partition=batches_per_partition,
-            fanout=fanout,
-            prior_sources_behavior=prior_sources_behavior,
-            deduplicate_sources=deduplicate_sources,
-            renumber=renumber,
-            compression=compression,
-            compress_per_hop=compress_per_hop,
-            persist=persist,
-        )
-        mean_execution_time += execution_time
-    mean_execution_time /= 10
-    execution_time = mean_execution_time
+    if sampling_target_framework == "cugraph_dgl_csr":
+        sampling_kwargs = {
+            "deduplicate_sources": True,
+            "prior_sources_behavior": "carryover",
+            "renumber": True,
+            "compression": "CSR",
+            "compress_per_hop": True,
+            "use_legacy_names": False,
+            "include_hop_column": False,
+        }
+    else:
+        # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.02)
+        sampling_kwargs = {
+            "deduplicate_sources": True,
+            "prior_sources_behavior": "exclude",
+            "renumber": True,
+            "compression": "COO",
+            "compress_per_hop": False,
+            "use_legacy_names": False,
+            "include_hop_column": True,
+        }
+
+    batches_per_partition = 400_000 // batch_size
+    execution_time, allocation_counts = sample_graph(
+        G=G,
+        label_df=dask_label_df,
+        output_path=output_sample_path,
+        seed=seed,
+        batch_size=batch_size,
+        seeds_per_call=seeds_per_call,
+        batches_per_partition=batches_per_partition,
+        fanout=fanout,
+        sampling_kwargs=sampling_kwargs,
+    )
 
     output_meta = {
         "dataset": dataset,
@@ -736,7 +728,13 @@ def get_args():
         required=False,
         default=False,
     )
-
+    parser.add_argument(
+        "--sampling_target_framework",
+        type=str,
+        help="The target framework for sampling (i.e. cugraph_dgl_csr, cugraph_pyg_csc, ...)",
+        required=False,
+        default=None,
+    )
     parser.add_argument(
         "--dask_worker_devices",
         type=str,
@@ -757,53 +755,6 @@ def get_args():
         default=False,
     )
 
-    parser.add_argument(
-        "--add_edge_types",
-        action="store_true",
-        help="Adds edge types to the edgelist.  Required for PyG if not providing edge ids.",
-        required=False,
-        default=False,
-    )
-    parser.add_argument(
-        '--prior_sources_behavior',
-        type=str,
-        help='Options: default, carryover, exclude',
-        required=False,
-        default='default',
-    )
-
-    parser.add_argument(
-        '--deduplicate_sources',
-        action='store_true',
-        help='If true, sources are deduplicated before calling sampling',
-        required=False,
-        default=False,
-    )
-
-    parser.add_argument(
-        '--renumber',
-        action='store_true',
-        help='If true, will renumber the sources and add the renumber map to the sampling results',
-        required=False,
-        default=False,
-    )
-
-    parser.add_argument(
-        "--compression",
-        type=str,
-        help='The compression type (COO or CSR) to use for saving samples.',
-        required=False,
-        default='COO'
-    )
-
-    parser.add_argument(
-        "--compress_per_hop",
-        action='store_true',
-        help='If true, will output a separate CSR per hop.  Required for DGL CSR output',
-        required=False,
-        default=False,
-    )
-
     return parser.parse_args()
 
 
@@ -814,6 +765,12 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
 
     args = get_args()
+    if args.sampling_target_framework not in ["cugraph_dgl_csr", None]:
+        raise ValueError(
+            "sampling_target_framework must be one of cugraph_dgl_csr or None",
+            "Other frameworks are not supported at this time.",
+        )
+
     fanouts = [
         [int(f) for f in fanout.split("_")] for fanout in args.fanouts.split(",")
     ]
@@ -835,11 +792,6 @@ if __name__ == "__main__":
             dataset = m.groups()[0]
         else:
             replication_factor = 1
-
-        prior_sources_behavior = (
-            None if args.prior_sources_behavior == 'default'
-            else args.prior_sources_behavior
-        )
 
         for fanout in fanouts:
             for batch_size in batch_sizes:
@@ -864,16 +816,11 @@ if __name__ == "__main__":
                             batch_size=batch_size,
                             seeds_per_call=seeds_per_call,
                             fanout=fanout,
+                            sampling_target_framework=args.sampling_target_framework,
                             dataset_dir=args.dataset_root,
                             reverse_edges=args.reverse_edges,
                             replication_factor=replication_factor,
                             persist=args.persist,
-                            add_edge_types=args.add_edge_types,
-                            prior_sources_behavior=prior_sources_behavior,
-                            deduplicate_sources=args.deduplicate_sources,
-                            renumber=args.renumber,
-                            compression=args.compression,
-                            compress_per_hop=args.compress_per_hop,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
@@ -893,7 +840,6 @@ if __name__ == "__main__":
                         warnings.warn("An Exception Occurred!")
                         print(e)
                         traceback.print_exc()
-                    restart_client(client)
                     sleep(10)
 
         stats_df = pd.DataFrame(

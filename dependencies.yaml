@@ -377,15 +377,14 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &dask dask>=2023.7.1
-          - &distributed distributed>=2023.7.1
+          - &dask rapids-dask-dependency==23.12.*
           - &dask_cuda dask-cuda==23.12.*
           - &numba numba>=0.57
+          - &numpy numpy>=1.21 
           - &ucx_py ucx-py==0.35.*
       - output_types: conda
         packages:
           - aiohttp
-          - &dask-core_conda dask-core>=2023.9.2
           - fsspec>=0.6.0
           - libcudf==23.12.*
           - requests
@@ -401,7 +400,7 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - networkx>=3.0
-          - &numpy numpy>=1.21
+          - *numpy
   python_run_cugraph_dgl:
     common:
       - output_types: [conda, pyproject]
@@ -431,14 +430,10 @@ dependencies:
         packages:
           - *dask
           - *dask_cuda
-          - *distributed
           - *numba
           - *numpy
           - *thrift
           - *ucx_py
-      - output_types: conda
-        packages:
-          - *dask-core_conda
       - output_types: pyproject
         packages:
           - *cugraph
@@ -503,9 +498,9 @@ dependencies:
       - output_types: [conda]
         packages:
           - cugraph==23.12.*
-          - pytorch==2.0
+          - pytorch>=2.0
           - pytorch-cuda==11.8
-          - pyg=2.3.1=*torch_2.0.0*cu118*
+          - pyg>=2.4.0
 
   depends_on_rmm:
     common:

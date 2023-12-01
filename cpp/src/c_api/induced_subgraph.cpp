@@ -147,11 +147,14 @@ struct induced_subgraph_functor : public cugraph::c_api::abstract_functor {
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
 
+      // FIXME: Add support for edge_id and edge_type_id.
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->vertex_type_),
         wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
             : NULL,
+        NULL,
+        NULL,
         new cugraph::c_api::cugraph_type_erased_device_array_t(graph_offsets, SIZE_T)};
     }
   }

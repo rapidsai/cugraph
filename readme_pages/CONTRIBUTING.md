@@ -68,7 +68,7 @@ If you need more context on a particular issue, please ask.
 # So you want to contribute code
 
 **TL;DR General Development Process**
-1. Read the documentation on [building from source](./SOURCEBUILD.md) to learn how to setup, and validate, the development environment
+1. Read the documentation on [building from source](../docs/cugraph/source/installation/source_build.md) to learn how to setup, and validate, the development environment
 2. Read the RAPIDS [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
 3. Find or submit an issue to work on (include a comment that you are working issue)
 4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
@@ -99,7 +99,7 @@ The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in
 ```git clone https://github.com/<YOUR GITHUB NAME>/cugraph.git```
 
 
-Read the section on [building cuGraph from source](./SOURCEBUILD.md) to validate that the environment is correct.
+Read the section on [building cuGraph from source](../docs/cugraph/source/installation/source_build.md) to validate that the environment is correct.
 
 **Pro Tip** add an upstream remote repository so that you can keep your forked repo in sync
 ```git remote add upstream https://github.com/rapidsai/cugraph.git```

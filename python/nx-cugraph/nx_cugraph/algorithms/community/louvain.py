@@ -16,6 +16,7 @@ import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
+    _dtype_param,
     _groupby,
     _seed_to_int,
     networkx_algorithm,
@@ -32,11 +33,19 @@ __all__ = ["louvain_communities"]
     extra_params={
         "max_level : int, optional": (
             "Upper limit of the number of macro-iterations (max: 500)."
-        )
+        ),
+        **_dtype_param,
     }
 )
 def louvain_communities(
-    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
+    G,
+    weight="weight",
+    resolution=1,
+    threshold=0.0000001,
+    seed=None,
+    *,
+    max_level=None,
+    dtype=None,
 ):
     """`seed` parameter is currently ignored."""
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
@@ -54,20 +63,20 @@ def louvain_communities(
             stacklevel=2,
         )
         max_level = 500
-    vertices, clusters, modularity = plc.louvain(
+    node_ids, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(weight, 1, dtype),
         max_level=max_level,  # TODO: add this parameter to NetworkX
         threshold=threshold,
         resolution=resolution,
         do_expensive_check=False,
     )
-    groups = _groupby(clusters, vertices, groups_are_canonical=True)
-    rv = [set(G._nodearray_to_list(node_ids)) for node_ids in groups.values()]
-    # TODO: PLC doesn't handle isolated vertices yet, so this is a temporary fix
+    groups = _groupby(clusters, node_ids, groups_are_canonical=True)
+    rv = [set(G._nodearray_to_list(ids)) for ids in groups.values()]
+    # TODO: PLC doesn't handle isolated node_ids yet, so this is a temporary fix
     isolates = _isolates(G)
     if isolates.size > 0:
-        isolates = isolates[isolates > vertices.max()]
+        isolates = isolates[isolates > node_ids.max()]
         if isolates.size > 0:
             rv.extend({node} for node in G._nodearray_to_list(isolates))
     return rv
@@ -75,7 +84,14 @@ def louvain_communities(
 
 @louvain_communities._can_run
 def _(
-    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
+    G,
+    weight="weight",
+    resolution=1,
+    threshold=0.0000001,
+    seed=None,
+    *,
+    max_level=None,
+    dtype=None,
 ):
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     return not G.is_directed()
