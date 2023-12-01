@@ -74,8 +74,6 @@ typename GraphViewType::edge_type count_if_e(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
