@@ -58,7 +58,7 @@ _dtype_param = {
 
 
 def _groupby(
-    groups: cp.ndarray,
+    groups: cp.ndarray | list[cp.ndarray],
     values: cp.ndarray | list[cp.ndarray],
     groups_are_canonical: bool = False,
 ) -> dict[int, cp.ndarray]:
@@ -66,8 +66,8 @@ def _groupby(
 
     Parameters
     ----------
-    groups : cp.ndarray
-        Array that holds the group IDs.
+    groups : cp.ndarray or list of cp.ndarray
+        Array or list of arrays that holds the group IDs.
     values : cp.ndarray or list of cp.ndarray
         Array or list of arrays of values to be grouped according to groups.
         Must be the same size as groups array.
@@ -78,27 +78,43 @@ def _groupby(
     -------
     dict with group IDs as keys and cp.ndarray as values.
     """
-    if groups.size == 0:
-        return {}
-    sort_indices = cp.argsort(groups)
-    sorted_groups = groups[sort_indices]
-    if not isinstance(values, list):
-        sorted_values = values[sort_indices]
+    if isinstance(groups, list):
+        if groups_are_canonical:
+            raise ValueError(
+                "`groups_are_canonical=True` is not allowed when `groups` is a list."
+            )
+        if len(groups) == 0 or (size := groups[0].size) == 0:
+            return {}
+        sort_indices = cp.lexsort(cp.vstack(groups[::-1]))
+        sorted_groups = cp.vstack([group[sort_indices] for group in groups])
+        prepend = sorted_groups[:, 0].max() + 1
+        changed = cp.abs(cp.diff(sorted_groups, prepend=prepend)).sum(axis=0)
+        changed[0] = 1
+        left_bounds = cp.nonzero(changed)[0]
     else:
+        if (size := groups.size) == 0:
+            return {}
+        sort_indices = cp.argsort(groups)
+        sorted_groups = groups[sort_indices]
+        prepend = 1 if groups_are_canonical else sorted_groups[0] + 1
+        left_bounds = cp.nonzero(cp.diff(sorted_groups, prepend=prepend))[0]
+    if isinstance(values, list):
         sorted_values = [vals[sort_indices] for vals in values]
-    prepend = 1 if groups_are_canonical else sorted_groups[0] + 1
-    left_bounds = cp.nonzero(cp.diff(sorted_groups, prepend=prepend))[0]
-    boundaries = pairwise(itertools.chain(left_bounds.tolist(), [groups.size]))
+    else:
+        sorted_values = values[sort_indices]
+    boundaries = pairwise(itertools.chain(left_bounds.tolist(), [size]))
     if groups_are_canonical:
         it = enumerate(boundaries)
+    elif isinstance(groups, list):
+        it = zip(map(tuple, sorted_groups.T[left_bounds].tolist()), boundaries)
     else:
         it = zip(sorted_groups[left_bounds].tolist(), boundaries)
-    if not isinstance(values, list):
-        return {group: sorted_values[start:end] for group, (start, end) in it}
-    return {
-        group: [sorted_vals[start:end] for sorted_vals in sorted_values]
-        for group, (start, end) in it
-    }
+    if isinstance(values, list):
+        return {
+            group: [sorted_vals[start:end] for sorted_vals in sorted_values]
+            for group, (start, end) in it
+        }
+    return {group: sorted_values[start:end] for group, (start, end) in it}
 
 
 def _seed_to_int(seed: int | Random | None) -> int:
