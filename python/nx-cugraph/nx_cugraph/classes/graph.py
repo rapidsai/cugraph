@@ -461,7 +461,9 @@ class Graph:
     def _neighbors(self, n: NodeKey) -> cp.ndarray[NodeValue]:
         if n not in self:
             hash(n)  # To raise TypeError if appropriate
-            raise nx.NetworkXError(f"The node {n} is not in the graph.")
+            raise nx.NetworkXError(
+                f"The node {n} is not in the {self.__class__.__name__.lower()}."
+            )
         if self.key_to_id is not None:
             n = self.key_to_id[n]
         nbrs = self.dst_indices[self.src_indices == n]

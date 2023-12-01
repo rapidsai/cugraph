@@ -28,24 +28,18 @@ def _ancestors_and_descendants(G, source, *, is_ancestors):
     G = _to_graph(G)
     if source not in G:
         hash(source)  # To raise TypeError if appropriate
-        raise nx.NetworkXError(f"The node {source} is not in the graph.")
+        raise nx.NetworkXError(
+            f"The node {source} is not in the {G.__class__.__name__.lower()}."
+        )
     src_index = source if G.key_to_id is None else G.key_to_id[source]
     distances, predecessors, node_ids = plc.bfs(
-        # XXX: why can't I pass arguments as keywords?!
-        plc.ResourceHandle(),
-        G._get_plc_graph(switch_indices=is_ancestors),
-        cp.array([src_index], dtype=index_dtype),
-        False,
-        -1,
-        False,
-        False,
-        # resource_handle=plc.ResourceHandle(),
-        # graph = G._get_plc_graph(switch_indices=is_ancestors),
-        # sources=cp.array([src_index], dtype=index_dtype),
-        # direction_optimizing=False,
-        # depth_limit=-1,
-        # compute_predecessors=False,
-        # do_expensive_check=False,
+        handle=plc.ResourceHandle(),
+        graph=G._get_plc_graph(switch_indices=is_ancestors),
+        sources=cp.array([src_index], dtype=index_dtype),
+        direction_optimizing=False,
+        depth_limit=-1,
+        compute_predecessors=False,
+        do_expensive_check=False,
     )
     mask = (distances != np.iinfo(distances.dtype).max) & (distances != 0)
     return G._nodearray_to_set(node_ids[mask])

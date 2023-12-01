@@ -58,7 +58,9 @@ _dtype_param = {
 
 
 def _groupby(
-    groups: cp.ndarray, values: cp.ndarray, groups_are_canonical: bool = False
+    groups: cp.ndarray,
+    values: cp.ndarray | list[cp.ndarray],
+    groups_are_canonical: bool = False,
 ) -> dict[int, cp.ndarray]:
     """Perform a groupby operation given an array of group IDs and array of values.
 
@@ -66,8 +68,8 @@ def _groupby(
     ----------
     groups : cp.ndarray
         Array that holds the group IDs.
-    values : cp.ndarray
-        Array of values to be grouped according to groups.
+    values : cp.ndarray or list of cp.ndarray
+        Array or list of arrays of values to be grouped according to groups.
         Must be the same size as groups array.
     groups_are_canonical : bool, default False
         Whether the group IDs are consecutive integers beginning with 0.
@@ -80,7 +82,10 @@ def _groupby(
         return {}
     sort_indices = cp.argsort(groups)
     sorted_groups = groups[sort_indices]
-    sorted_values = values[sort_indices]
+    if not isinstance(values, list):
+        sorted_values = values[sort_indices]
+    else:
+        sorted_values = [vals[sort_indices] for vals in values]
     prepend = 1 if groups_are_canonical else sorted_groups[0] + 1
     left_bounds = cp.nonzero(cp.diff(sorted_groups, prepend=prepend))[0]
     boundaries = pairwise(itertools.chain(left_bounds.tolist(), [groups.size]))
@@ -88,7 +93,12 @@ def _groupby(
         it = enumerate(boundaries)
     else:
         it = zip(sorted_groups[left_bounds].tolist(), boundaries)
-    return {group: sorted_values[start:end] for group, (start, end) in it}
+    if not isinstance(values, list):
+        return {group: sorted_values[start:end] for group, (start, end) in it}
+    return {
+        group: [sorted_vals[start:end] for sorted_vals in sorted_values]
+        for group, (start, end) in it
+    }
 
 
 def _seed_to_int(seed: int | Random | None) -> int:

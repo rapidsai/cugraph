@@ -32,6 +32,8 @@ _info = {
         "ancestors",
         "barbell_graph",
         "betweenness_centrality",
+        "bfs_predecessors",
+        "bfs_successors",
         "bull_graph",
         "caveman_graph",
         "chvatal_graph",
@@ -101,6 +103,8 @@ _info = {
     "extra_docstrings": {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
+        "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_successors": "`sort_neighbors` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
