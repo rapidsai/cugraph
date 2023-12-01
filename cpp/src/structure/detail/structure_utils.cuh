@@ -524,6 +524,7 @@ std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t co
                      return word;
                    });
 
+  // FIXME:  use detail::count_set_bits
   size_t bit_count = thrust::transform_reduce(
     handle.get_thrust_policy(),
     marked_entries.begin(),

@@ -47,15 +47,10 @@ class instance_manager_t {
 
   ~instance_manager_t()
   {
-    int current_device{};
-    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
-
     for (size_t i = 0; i < nccl_comms_.size(); ++i) {
-      RAFT_CUDA_TRY(cudaSetDevice(device_ids_[i].value()));
+      rmm::cuda_set_device_raii local_set_device(device_ids_[i]);
       RAFT_NCCL_TRY(ncclCommDestroy(*nccl_comms_[i]));
     }
-
-    RAFT_CUDA_TRY(cudaSetDevice(current_device));
   }
 
   /**
@@ -75,8 +70,7 @@ class instance_manager_t {
     int gpu_id    = local_id % raft_handle_.size();
     int thread_id = local_id / raft_handle_.size();
 
-    RAFT_CUDA_TRY(cudaSetDevice(device_ids_[gpu_id].value()));
-    return handle_t(*raft_handle_[gpu_id], thread_id, static_cast<size_t>(gpu_id));
+    return handle_t(*raft_handle_[gpu_id], thread_id, device_ids_[gpu_id]);
   }
 
   /**

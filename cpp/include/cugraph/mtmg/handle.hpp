@@ -32,18 +32,19 @@ namespace mtmg {
  *
  */
 class handle_t {
+  handle_t(handle_t const&)           = delete;
+  handle_t operator=(handle_t const&) = delete;
+
  public:
   /**
    * @brief Constructor
    *
    * @param raft_handle   Raft handle for the resources
    * @param thread_rank   Rank for this thread
+   * @param device_id     Device id for the device this handle operates on
    */
-  handle_t(raft::handle_t const& raft_handle, int thread_rank, size_t device_id)
-    : raft_handle_(raft_handle),
-      thread_rank_(thread_rank),
-      local_rank_(raft_handle.get_comms().get_rank()),  // FIXME: update for multi-node
-      device_id_(device_id)
+  handle_t(raft::handle_t const& raft_handle, int thread_rank, rmm::cuda_device_id device_id)
+    : raft_handle_(raft_handle), thread_rank_(thread_rank), device_id_raii_(device_id)
   {
   }
 
@@ -118,18 +119,10 @@ class handle_t {
    */
   int get_rank() const { return raft_handle_.get_comms().get_rank(); }
 
-  /**
-   * @brief Get local gpu rank
-   *
-   * @return local gpu rank
-   */
-  int get_local_rank() const { return local_rank_; }
-
  private:
   raft::handle_t const& raft_handle_;
   int thread_rank_;
-  int local_rank_;
-  size_t device_id_;
+  rmm::cuda_set_device_raii device_id_raii_;
 };
 
 }  // namespace mtmg
