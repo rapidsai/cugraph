@@ -147,8 +147,16 @@ def test_set_download_dir():
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_download(dataset):
+def test_download_csv(dataset):
     E = dataset.get_edgelist(download=True)
+
+    assert E is not None
+    assert dataset.get_path().is_file()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_dask_download_csv(dask_client, dataset):
+    E = dataset.get_dask_edgelist(download=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
@@ -156,7 +164,7 @@ def test_download(dataset):
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_reader(dataset):
-    # defaults to using cudf.read_csv
+    # defaults to using cudf
     E = dataset.get_edgelist(download=True)
 
     assert E is not None
@@ -175,7 +183,7 @@ def test_reader(dataset):
         dataset.get_edgelist(reader=None)
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_dask_reader(dask_client, dataset):
     # using dask_cudf
     E = dataset.get_dask_edgelist(download=True)
@@ -231,6 +239,14 @@ def test_weights(dataset):
     assert G.is_weighted()
     G = dataset.get_graph(download=True, ignore_weights=True)
     assert not G.is_weighted()
+    
+
+@pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
+def test_dask_weights(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
+    assert G.is_weighted()
+    G = dataset.get_dask_graph(download=True, ignore_weights=True)
+    assert not G.is_weighted()
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
@@ -240,6 +256,16 @@ def test_create_using(dataset):
     G = dataset.get_graph(download=True, create_using=Graph)
     assert not G.is_directed()
     G = dataset.get_graph(download=True, create_using=Graph(directed=True))
+    assert G.is_directed()
+    
+
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_dask_create_using(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
+    assert not G.is_directed()
+    G = dataset.get_dask_graph(download=True, create_using=Graph)
+    assert not G.is_directed()
+    G = dataset.get_dask_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
 
 
