@@ -316,7 +316,7 @@ class Dataset:
             # what about BFS if transposed is True
             attrs = {"directed": create_using.is_directed()}
             G = type(create_using)(**attrs)
-        elif type(create_using) is type:
+        elif issubclass(create_using, Graph):
             G = create_using()
         else:
             raise TypeError(
@@ -380,7 +380,7 @@ class Dataset:
         elif isinstance(create_using, Graph):
             attrs = {"directed": create_using.is_directed()}
             G = type(create_using)(**attrs)
-        elif type(create_using) is type:
+        elif issubclass(create_using, Graph):
             G = create_using()
         else:
             raise TypeError(
@@ -408,7 +408,7 @@ class Dataset:
 
     def get_path(self):
         """
-        Returns the location of the stored dataset file
+        Returns the location of the stored dataset file.
         """
         if self._path is None:
             self._path = self._dl_path.path / (

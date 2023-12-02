@@ -30,6 +30,7 @@ from cugraph.testing import (
     BENCHMARKING_DATASETS,
 )
 from cugraph import datasets
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
@@ -147,15 +148,17 @@ def test_set_download_dir():
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_download_csv(dataset):
+def test_download(dataset):
     E = dataset.get_edgelist(download=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_dask_download_csv(dask_client, dataset):
+def test_download_dask(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
 
     assert E is not None
@@ -183,8 +186,10 @@ def test_reader(dataset):
         dataset.get_edgelist(reader=None)
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_dask_reader(dask_client, dataset):
+def test_reader_dask(dask_client, dataset):
     # using dask_cudf
     E = dataset.get_dask_edgelist(download=True)
 
@@ -199,6 +204,8 @@ def test_get_edgelist(dataset):
     assert E is not None
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_dask_edgelist(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
@@ -211,6 +218,8 @@ def test_get_graph(dataset):
     assert G is not None
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_dask_graph(dask_client, dataset):
     G = dataset.get_dask_graph(download=True)
@@ -239,10 +248,12 @@ def test_weights(dataset):
     assert G.is_weighted()
     G = dataset.get_graph(download=True, ignore_weights=True)
     assert not G.is_weighted()
-    
 
+
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
-def test_dask_weights(dask_client, dataset):
+def test_weights_dask(dask_client, dataset):
     G = dataset.get_dask_graph(download=True)
     assert G.is_weighted()
     G = dataset.get_dask_graph(download=True, ignore_weights=True)
@@ -257,10 +268,16 @@ def test_create_using(dataset):
     assert not G.is_directed()
     G = dataset.get_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
-    
 
+    # using a non-Graph type should raise an error
+    with pytest.raises(TypeError):
+        dataset.get_graph(download=True, create_using=set)
+
+
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_dask_create_using(dask_client, dataset):
+def test_create_using_dask(dask_client, dataset):
     G = dataset.get_dask_graph(download=True)
     assert not G.is_directed()
     G = dataset.get_dask_graph(download=True, create_using=Graph)
@@ -268,8 +285,12 @@ def test_dask_create_using(dask_client, dataset):
     G = dataset.get_dask_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
 
+    # using a non-Graph type should raise an error
+    with pytest.raises(TypeError):
+        dataset.get_dask_graph(download=True, create_using=set)
 
-""" def test_ctor_with_datafile():
+
+def test_ctor_with_datafile():
     from cugraph.datasets import karate
 
     karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
@@ -417,4 +438,4 @@ def test_object_getters(dataset):
     assert dataset.is_symmetric() == dataset.metadata["is_symmetric"]
     assert dataset.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert dataset.number_of_vertices() == dataset.metadata["number_of_nodes"]
-    assert dataset.number_of_edges() == dataset.metadata["number_of_edges"] """
+    assert dataset.number_of_edges() == dataset.metadata["number_of_edges"]
