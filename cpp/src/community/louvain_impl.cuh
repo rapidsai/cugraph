@@ -27,6 +27,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
@@ -48,7 +49,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution)
+  weight_t resolution,
+  bool is_random_initial_cluster = false)
 {
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -82,11 +84,31 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
 
-    detail::sequence_fill(handle.get_stream(),
-                          dendrogram->current_level_begin(),
-                          dendrogram->current_level_size(),
-                          current_graph_view.local_vertex_partition_range_first());
+    if (is_random_initial_cluster) {
+      raft::random::RngState rng_state(0);
+      rmm::device_uvector<vertex_t> random_cluster_assignments = cugraph::select_random_vertices(
+        handle,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        graph_view.number_of_vertices(),
+        false,
+        false,
+        true);
 
+      assert(random_cluster_assignments.size() == graph_view.local_vertex_partition_range_size());
+
+      raft::copy(dendrogram->current_level_begin(),
+                 random_cluster_assignments.begin(),
+                 random_cluster_assignments.size(),
+                 handle.get_stream());
+
+    } else {
+      detail::sequence_fill(handle.get_stream(),
+                            dendrogram->current_level_begin(),
+                            dendrogram->current_level_size(),
+                            current_graph_view.local_vertex_partition_range_first());
+    }
     //
     //  Compute the vertex and cluster weights, these are different for each
     //  graph in the hierarchical decomposition
