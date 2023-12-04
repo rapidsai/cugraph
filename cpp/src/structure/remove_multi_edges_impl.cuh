@@ -254,14 +254,14 @@ remove_multi_edges(raft::handle_t const& handle,
     }
   }
 
-  auto [keep_count, keep_flags] =
-    detail::mark_entries(handle,
-                         edgelist_srcs.size(),
-                         [d_edgelist_srcs = edgelist_srcs.data(),
-                          d_edgelist_dsts = edgelist_dsts.data()] __device__(auto idx) {
-                           return (idx > 0) && (d_edgelist_srcs[idx - 1] == d_edgelist_srcs[idx]) &&
-                                  (d_edgelist_dsts[idx - 1] == d_edgelist_dsts[idx]);
-                         });
+  auto [keep_count, keep_flags] = detail::mark_entries(
+    handle,
+    edgelist_srcs.size(),
+    [d_edgelist_srcs = edgelist_srcs.data(),
+     d_edgelist_dsts = edgelist_dsts.data()] __device__(auto idx) {
+      return !((idx > 0) && (d_edgelist_srcs[idx - 1] == d_edgelist_srcs[idx]) &&
+               (d_edgelist_dsts[idx - 1] == d_edgelist_dsts[idx]));
+    });
 
   if (keep_count < edgelist_srcs.size()) {
     edgelist_srcs = detail::keep_flagged_elements(
