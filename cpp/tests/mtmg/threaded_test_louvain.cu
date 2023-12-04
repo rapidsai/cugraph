@@ -207,8 +207,6 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    std::cout << "calling create graph" << std::endl;
-
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
@@ -234,8 +232,6 @@ class Tests_Multithreaded
         edgelist.finalize_buffer(thread_handle);
         edgelist.consolidate_and_shuffle(thread_handle, false);
 
-        std::cout << "calling create_graph_from_edgelist" << std::endl;
-
         cugraph::mtmg::
           create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
             thread_handle,
@@ -255,9 +251,6 @@ class Tests_Multithreaded
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
     running_threads.resize(0);
     instance_manager->reset_threads();
-
-    std::cout << "created graph" << std::endl;
-    std::cout << "  Has edge weights: " << (edge_weights ? "TRUE" : "FALSE") << std::endl;
 
     graph_view             = graph.view();
     auto renumber_map_view = renumber_map ? std::make_optional(renumber_map->view()) : std::nullopt;
@@ -291,13 +284,6 @@ class Tests_Multithreaded
           threshold,
           resolution);
 
-        sleep(thread_handle.get_rank());
-        std::cout << "rank: " << thread_handle.get_rank() << std::endl;
-        raft::print_device_vector("  local_louvain_clusters",
-                                  local_louvain_clusters.data(),
-                                  local_louvain_clusters.size(),
-                                  std::cout);
-
         louvain_clusters.set(thread_handle, std::move(local_louvain_clusters));
       });
     }
@@ -306,8 +292,6 @@ class Tests_Multithreaded
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
     running_threads.resize(0);
     instance_manager->reset_threads();
-
-    std::cout << "finished louvain" << std::endl;
 
     std::vector<std::tuple<std::vector<vertex_t>, std::vector<vertex_t>>> computed_clusters_v;
     std::mutex computed_clusters_lock{};
@@ -348,17 +332,11 @@ class Tests_Multithreaded
                             my_vertex_list.size(),
                             thread_handle.raft_handle().get_stream());
 
-        sleep(thread_handle.get_rank());
-        std::cout << "rank: " << thread_handle.get_rank() << std::endl;
-        raft::print_device_vector("  clusters",
-                                  louvain_clusters_view.get(thread_handle).data(),
-                                  louvain_clusters_view.get(thread_handle).size(),
-                                  std::cout);
-
         auto d_my_clusters = louvain_clusters_view.gather(
           thread_handle,
           raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
-          graph_view,
+          graph_view.get_vertex_partition_range_lasts(thread_handle),
+          graph_view.get_vertex_partition_view(thread_handle),
           renumber_map_view);
 
         std::vector<vertex_t> my_clusters(d_my_clusters.size());
@@ -379,8 +357,6 @@ class Tests_Multithreaded
                                            renumber_map_view->get(thread_handle)));
       });
     }
-
-    std::cout << "finished gather" << std::endl;
 
     // Wait for CPU threads to complete
     std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
@@ -441,17 +417,10 @@ class Tests_Multithreaded
       std::map<vertex_t, vertex_t> h_cluster_map;
       std::map<vertex_t, vertex_t> h_cluster_reverse_map;
 
-      raft::print_host_vector(
-        "h_sg_clusters", h_sg_clusters.data(), h_sg_clusters.size(), std::cout);
-
       std::for_each(
         computed_clusters_v.begin(),
         computed_clusters_v.end(),
         [&h_sg_clusters, &h_cluster_map, &h_renumber_map, &h_cluster_reverse_map](auto t1) {
-          raft::print_host_vector(
-            "  t1<0>", std::get<0>(t1).data(), std::get<0>(t1).size(), std::cout);
-          raft::print_host_vector(
-            "  t1<1>", std::get<1>(t1).data(), std::get<1>(t1).size(), std::cout);
           std::for_each(
             thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
             thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
@@ -462,15 +431,13 @@ class Tests_Multithreaded
               auto pos    = std::find(h_renumber_map.begin(), h_renumber_map.end(), v);
               auto offset = std::distance(h_renumber_map.begin(), pos);
 
-              std::cout << "  v = " << v << ", c = " << c << ", offset = " << offset << std::endl;
-
               auto cluster_pos = h_cluster_map.find(c);
               if (cluster_pos == h_cluster_map.end()) {
                 auto reverse_pos = h_cluster_reverse_map.find(h_sg_clusters[offset]);
 
                 ASSERT_TRUE(reverse_pos != h_cluster_map.end()) << "two different cluster mappings";
 
-                h_cluster_map.insert(std::make_pair(c, h_sg_clusters[v]));
+                h_cluster_map.insert(std::make_pair(c, h_sg_clusters[offset]));
                 h_cluster_reverse_map.insert(std::make_pair(h_sg_clusters[offset], c));
               } else {
                 ASSERT_EQ(cluster_pos->second, h_sg_clusters[offset])
