@@ -183,6 +183,70 @@ class Tests_MGSelectRandomVertices
                       });
       }
     }
+
+    std::vector<bool> sort_vertices_flags        = {true, false};
+    std::vector<bool> shuffle_int_to_local_flags = {true, false};
+    std::vector<vertex_t> select_counts          = {mg_graph_view.number_of_vertices(),
+                                                    mg_graph_view.number_of_vertices() / 4};
+
+    for (int i = 0; i < with_replacement_flags.size(); i++) {
+      for (int j = 0; j < sort_vertices_flags.size(); j++) {
+        for (int k = 0; k < shuffle_int_to_local_flags.size(); k++) {
+          for (int l = 0; l < select_counts.size(); l++) {
+            bool with_replacement     = with_replacement_flags[i];
+            bool sort_vertices        = sort_vertices_flags[j];
+            bool shuffle_int_to_local = shuffle_int_to_local_flags[k];
+            auto select_count         = static_cast<size_t>(select_counts[l]);
+
+            auto d_sampled_vertices = cugraph::select_random_vertices(
+              *handle_,
+              mg_graph_view,
+              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              rng_state,
+              select_count,
+              with_replacement,
+              sort_vertices,
+              shuffle_int_to_local);
+
+            RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+            auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
+
+            if (select_random_vertices_usecase.check_correctness) {
+              if (!with_replacement) {
+                std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
+
+                auto nr_duplicates =
+                  std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
+                                h_sampled_vertices.end());
+
+                ASSERT_EQ(nr_duplicates, 0);
+              }
+
+              if (shuffle_int_to_local) {
+                auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
+                auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
+
+                std::for_each(h_sampled_vertices.begin(),
+                              h_sampled_vertices.end(),
+                              [vertex_first, vertex_last](vertex_t v) {
+                                ASSERT_TRUE((v >= vertex_first) && (v < vertex_last));
+                              });
+              } else {
+                if (!with_replacement &&
+                    select_count == static_cast<size_t>(mg_graph_view.number_of_vertices())) {
+                  ASSERT_EQ(h_sampled_vertices.size(),
+                            mg_graph_view.local_vertex_partition_range_size());
+                }
+
+                std::cout << "silv: " << shuffle_int_to_local << " sc: " << select_count
+                          << "  got: " << h_sampled_vertices.size() << std::endl;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
  private:
@@ -242,8 +306,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGSelectRandomVertices_Rmat,
   ::testing::Combine(
-    ::testing::Values(SelectRandomVertices_Usecase{500, false},
-                      SelectRandomVertices_Usecase{500, false}),
+    ::testing::Values(SelectRandomVertices_Usecase{500, true},
+                      SelectRandomVertices_Usecase{500, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -236,9 +236,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     if (given_set) {
       mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(mg_sample_buffer), partition_range_lasts);
-
-    } else {
-      if (!shuffle_int_to_local &&
+    } else if (!shuffle_int_to_local) {
+      if (!with_replacement &&
           select_count == static_cast<size_t>(graph_view.number_of_vertices())) {
         // shuffle as many vertices as local vertex partition size to each GPU.
         auto& comm           = handle.get_comms();
@@ -269,11 +268,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
         std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
           handle.get_comms(), mg_sample_buffer.begin(), tx_value_counts, handle.get_stream());
-      } else {
-        mg_sample_buffer =
-          cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-            handle, std::move(mg_sample_buffer), partition_range_lasts);
       }
+    } else {
+      mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(mg_sample_buffer), partition_range_lasts);
     }
   }
 
