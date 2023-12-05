@@ -148,7 +148,7 @@ class Tests_MGSelectRandomVertices
     //
 
     for (int idx = 0; idx < with_replacement_flags.size(); idx++) {
-      bool with_replacement   = false;
+      bool with_replacement   = with_replacement_flags[idx];
       auto d_sampled_vertices = cugraph::select_random_vertices(
         *handle_,
         mg_graph_view,
