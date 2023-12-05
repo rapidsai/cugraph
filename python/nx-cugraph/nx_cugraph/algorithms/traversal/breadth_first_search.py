@@ -14,6 +14,7 @@ from itertools import repeat
 
 import cupy as cp
 import networkx as nx
+import numpy as np
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
@@ -25,8 +26,35 @@ __all__ = [
     "bfs_tree",
     "bfs_predecessors",
     "bfs_successors",
+    "descendants_at_distance",
+    "bfs_layers",
     "generic_bfs_edges",
 ]
+
+
+def _check_G_and_source(G, source):
+    G = _to_graph(G)
+    if source not in G:
+        hash(source)  # To raise TypeError if appropriate
+        raise nx.NetworkXError(
+            f"The node {source} is not in the {G.__class__.__name__.lower()}."
+        )
+    return G
+
+
+def _bfs(G, source, *, depth_limit=None, reverse=False):
+    src_index = source if G.key_to_id is None else G.key_to_id[source]
+    distances, predecessors, node_ids = plc.bfs(
+        handle=plc.ResourceHandle(),
+        graph=G._get_plc_graph(switch_indices=reverse),
+        sources=cp.array([src_index], dtype=index_dtype),
+        direction_optimizing=False,
+        depth_limit=-1 if depth_limit is None else depth_limit,
+        compute_predecessors=True,
+        do_expensive_check=False,
+    )
+    mask = predecessors >= 0
+    return distances[mask], predecessors[mask], node_ids[mask]
 
 
 @networkx_algorithm
@@ -43,30 +71,13 @@ def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
 @networkx_algorithm
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
-    # DRY warning: see also bfs_predecessors and bfs_tree
-    G = _to_graph(G)
-    if source not in G:
-        hash(source)  # To raise TypeError if appropriate
-        raise nx.NetworkXError(
-            f"The node {source} is not in the {G.__class__.__name__.lower()}."
-        )
+    G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return
-
-    src_index = source if G.key_to_id is None else G.key_to_id[source]
-    distances, predecessors, node_ids = plc.bfs(
-        handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(switch_indices=reverse),
-        sources=cp.array([src_index], dtype=index_dtype),
-        direction_optimizing=False,
-        depth_limit=-1 if depth_limit is None else depth_limit,
-        compute_predecessors=True,
-        do_expensive_check=False,
+    distances, predecessors, node_ids = _bfs(
+        G, source, depth_limit=depth_limit, reverse=reverse
     )
-    mask = predecessors >= 0
-    distances = distances[mask]
-    predecessors = predecessors[mask]
-    node_ids = node_ids[mask]
+    # Using groupby like this is similar to bfs_predecessors
     groups = _groupby([distances, predecessors], node_ids)
     id_to_key = G.id_to_key
     for key in sorted(groups):
@@ -87,13 +98,7 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 @networkx_algorithm
 def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
-    # DRY warning: see also bfs_edges and bfs_predecessors
-    G = _to_graph(G)
-    if source not in G:
-        hash(source)  # To raise TypeError if appropriate
-        raise nx.NetworkXError(
-            f"The node {source} is not in the {G.__class__.__name__.lower()}."
-        )
+    G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return nxcg.DiGraph.from_coo(
             1,
@@ -102,18 +107,12 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             id_to_key=[source],
         )
 
-    src_index = source if G.key_to_id is None else G.key_to_id[source]
-    distances, predecessors, node_ids = plc.bfs(
-        handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(switch_indices=reverse),
-        sources=cp.array([src_index], dtype=index_dtype),
-        direction_optimizing=False,
-        depth_limit=-1 if depth_limit is None else depth_limit,
-        compute_predecessors=True,
-        do_expensive_check=False,
+    distances, predecessors, node_ids = _bfs(
+        G,
+        source,
+        depth_limit=depth_limit,
+        reverse=reverse,
     )
-    mask = predecessors >= 0
-    predecessors = predecessors[mask]
     if predecessors.size == 0:
         return nxcg.DiGraph.from_coo(
             1,
@@ -121,7 +120,6 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             cp.array([], dtype=index_dtype),
             id_to_key=[source],
         )
-    node_ids = node_ids[mask]
     # TODO: create renumbering helper function(s)
     unique_node_ids = cp.unique(cp.hstack((predecessors, node_ids)))
     # Renumber edges
@@ -160,30 +158,12 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 @networkx_algorithm
 def bfs_successors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
-    G = _to_graph(G)
-    if source not in G:
-        hash(source)  # To raise TypeError if appropriate
-        raise nx.NetworkXError(
-            f"The node {source} is not in the {G.__class__.__name__.lower()}."
-        )
+    G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         yield (source, [])
         return
 
-    src_index = source if G.key_to_id is None else G.key_to_id[source]
-    distances, predecessors, node_ids = plc.bfs(
-        handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
-        sources=cp.array([src_index], dtype=index_dtype),
-        direction_optimizing=False,
-        depth_limit=-1 if depth_limit is None else depth_limit,
-        compute_predecessors=True,
-        do_expensive_check=False,
-    )
-    mask = predecessors >= 0
-    distances = distances[mask]
-    predecessors = predecessors[mask]
-    node_ids = node_ids[mask]
+    distances, predecessors, node_ids = _bfs(G, source, depth_limit=depth_limit)
     groups = _groupby([distances, predecessors], node_ids)
     id_to_key = G.id_to_key
     for key in sorted(groups):
@@ -200,32 +180,42 @@ def _(G, source, depth_limit=None, sort_neighbors=None):
 
 
 @networkx_algorithm
-def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
-    """`sort_neighbors` parameter is not yet supported."""
-    # DRY warning: see also bfs_edges and bfs_tree
+def bfs_layers(G, sources):
     G = _to_graph(G)
-    if source not in G:
-        hash(source)  # To raise TypeError if appropriate
-        raise nx.NetworkXError(
-            f"The node {source} is not in the {G.__class__.__name__.lower()}."
-        )
-    if depth_limit is not None and depth_limit < 1:
-        return
-
-    src_index = source if G.key_to_id is None else G.key_to_id[source]
+    if sources in G:
+        sources = [sources]
+    else:
+        sources = set(sources)
+        if not all(source in G for source in sources):
+            node = next(source for source in sources if source not in G)
+            raise nx.NetworkXError(f"The node {node} is not in the graph.")
+        sources = list(sources)
+    source_ids = G._list_to_nodearray(sources)
     distances, predecessors, node_ids = plc.bfs(
         handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
-        sources=cp.array([src_index], dtype=index_dtype),
+        sources=source_ids,
         direction_optimizing=False,
-        depth_limit=-1 if depth_limit is None else depth_limit,
-        compute_predecessors=True,
+        depth_limit=-1,
+        compute_predecessors=False,
         do_expensive_check=False,
     )
-    mask = predecessors >= 0
+    mask = distances != np.iinfo(distances.dtype).max
     distances = distances[mask]
-    predecessors = predecessors[mask]
     node_ids = node_ids[mask]
+    groups = _groupby(distances, node_ids)
+    return (G._nodearray_to_list(groups[key]) for key in range(len(groups)))
+
+
+@networkx_algorithm
+def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
+    """`sort_neighbors` parameter is not yet supported."""
+    G = _check_G_and_source(G, source)
+    if depth_limit is not None and depth_limit < 1:
+        return
+
+    distances, predecessors, node_ids = _bfs(G, source, depth_limit=depth_limit)
+    # We include `predecessors` in the groupby for "nicer" iteration order
     groups = _groupby([distances, predecessors], node_ids)
     id_to_key = G.id_to_key
     for key in sorted(groups):
@@ -241,3 +231,26 @@ def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
 @bfs_predecessors._can_run
 def _(G, source, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
+
+
+@networkx_algorithm
+def descendants_at_distance(G, source, distance):
+    G = _check_G_and_source(G, source)
+    if distance is None or distance < 0:
+        return set()
+    if distance == 0:
+        return {source}
+
+    src_index = source if G.key_to_id is None else G.key_to_id[source]
+    distances, predecessors, node_ids = plc.bfs(
+        handle=plc.ResourceHandle(),
+        graph=G._get_plc_graph(),
+        sources=cp.array([src_index], dtype=index_dtype),
+        direction_optimizing=False,
+        depth_limit=distance,
+        compute_predecessors=False,
+        do_expensive_check=False,
+    )
+    mask = distances == distance
+    node_ids = node_ids[mask]
+    return G._nodearray_to_set(node_ids)

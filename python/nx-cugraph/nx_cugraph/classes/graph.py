@@ -719,6 +719,11 @@ class Graph:
             return node_ids.tolist()
         return list(self._nodeiter_to_iter(node_ids.tolist()))
 
+    def _list_to_nodearray(self, nodes: list[NodeKey]) -> cp.ndarray[IndexValue]:
+        if (key_to_id := self.key_to_id) is not None:
+            nodes = [key_to_id[node] for node in nodes]
+        return cp.array(nodes, dtype=index_dtype)
+
     def _nodearray_to_set(self, node_ids: cp.ndarray[IndexValue]) -> set[NodeKey]:
         if self.key_to_id is None:
             return set(node_ids.tolist())
