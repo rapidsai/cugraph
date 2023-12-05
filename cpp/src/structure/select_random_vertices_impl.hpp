@@ -52,6 +52,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
+  bool shuffle_int_to_local,
   bool do_expensive_check)
 {
   size_t num_of_elements_in_given_set{0};
@@ -232,8 +233,48 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if constexpr (multi_gpu) {
-    mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(mg_sample_buffer), partition_range_lasts);
+    if (given_set) {
+      mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(mg_sample_buffer), partition_range_lasts);
+    } else {
+      if (shuffle_int_to_local) {
+        mg_sample_buffer =
+          cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+            handle, std::move(mg_sample_buffer), partition_range_lasts);
+
+      } else {
+        // shuffle as many vertices as local vertex partition size to each GPU.
+
+        auto& comm           = handle.get_comms();
+        auto const comm_size = comm.get_size();
+        auto const comm_rank = comm.get_rank();
+        std::vector<size_t> tx_value_counts(comm_size, 0);
+        auto sample_buffer_sizes = cugraph::host_scalar_allgather(
+          handle.get_comms(), mg_sample_buffer.size(), handle.get_stream());
+
+        auto expected_sample_buffer_sizes = cugraph::host_scalar_allgather(
+          handle.get_comms(), graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+        std::vector<size_t> nr_smaples(comm_size, 0);
+
+        // find out how many elements current GPU needs to send to other GPUs
+        for (int i = 0; i < comm_size; i++) {
+          size_t nr_samples_ith_gpu = sample_buffer_sizes[i];
+          for (int j = 0; nr_samples_ith_gpu > 0 && j < comm_size; j++) {
+            if (expected_sample_buffer_sizes[j] > static_cast<vertex_t>(nr_smaples[j])) {
+              size_t delta =
+                std::min(nr_samples_ith_gpu, expected_sample_buffer_sizes[j] - nr_smaples[j]);
+              if (comm_rank == i) { tx_value_counts[j] = delta; }
+              nr_smaples[j] += delta;
+              nr_samples_ith_gpu -= delta;
+            }
+          }
+        }
+
+        std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
+          handle.get_comms(), mg_sample_buffer.begin(), tx_value_counts, handle.get_stream());
+      }
+    }
   }
 
   if (given_set) {

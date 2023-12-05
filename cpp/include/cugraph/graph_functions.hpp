@@ -903,6 +903,9 @@ weight_t compute_total_edge_weight(
  * @param  select_count The number of vertices to select from the graph
  * @param  with_replacement If true, select with replacement, if false select without replacement
  * @param  sort_vertices If true, return the sorted vertices (in the ascending order).
+ * @param  shuffle_int_to_local If true and If @p given_set is not specified
+ * then shuffle internal (i.e. renumbered) vertices to their local GPUs based on vertex
+ * partitioning, otherwise shuffle as many vertices as local vertex partition size to each GPU.
  * @return Device vector of selected vertices.
  */
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
@@ -914,7 +917,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool do_expensive_check = false);
+  bool shuffle_int_to_local = true,
+  bool do_expensive_check   = false);
 
 /**
  * @brief renumber sampling output
