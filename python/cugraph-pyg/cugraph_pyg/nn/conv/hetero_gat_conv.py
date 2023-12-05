@@ -84,7 +84,6 @@ class HeteroGATConv(BaseConv):
 
         self.node_types = node_types
         self.edge_types = edge_types
-        self.edge_types_str = ["__".join(etype) for etype in self.edge_types]
         self.num_heads = heads
         self.concat_heads = concat
 
@@ -95,27 +94,28 @@ class HeteroGATConv(BaseConv):
 
         lin_weights = dict.fromkeys(self.node_types)
 
-        attn_weights = dict.fromkeys(self.edge_types_str)
+        attn_weights = dict.fromkeys(self.edge_types)
 
-        biases = dict.fromkeys(self.edge_types_str)
+        biases = dict.fromkeys(self.edge_types)
+
+        ParameterDict = torch_geometric.nn.parameter_dict.ParameterDict
 
         for edge_type in self.edge_types:
             src_type, _, dst_type = edge_type
-            etype_str = "__".join(edge_type)
-            self.relations_per_ntype[src_type][0].append(etype_str)
+            self.relations_per_ntype[src_type][0].append(edge_type)
             if src_type != dst_type:
-                self.relations_per_ntype[dst_type][1].append(etype_str)
+                self.relations_per_ntype[dst_type][1].append(edge_type)
 
-            attn_weights[etype_str] = torch.empty(
+            attn_weights[edge_type] = torch.empty(
                 2 * self.num_heads * self.out_channels
             )
 
             if bias and concat:
-                biases[etype_str] = torch.empty(self.num_heads * out_channels)
+                biases[edge_type] = torch.empty(self.num_heads * out_channels)
             elif bias:
-                biases[etype_str] = torch.empty(out_channels)
+                biases[edge_type] = torch.empty(out_channels)
             else:
-                biases[etype_str] = None
+                biases[edge_type] = None
 
         for ntype in self.node_types:
             n_src_rel = len(self.relations_per_ntype[ntype][0])
@@ -126,11 +126,11 @@ class HeteroGATConv(BaseConv):
                 (n_rel * self.num_heads * self.out_channels, self.in_channels[ntype])
             )
 
-        self.lin_weights = nn.ParameterDict(lin_weights)
-        self.attn_weights = nn.ParameterDict(attn_weights)
+        self.lin_weights = ParameterDict(lin_weights)
+        self.attn_weights = ParameterDict(attn_weights)
 
         if bias:
-            self.bias = nn.ParameterDict(biases)
+            self.bias = ParameterDict(biases)
         else:
             self.register_parameter("bias", None)
 
@@ -159,8 +159,8 @@ class HeteroGATConv(BaseConv):
         x_dst_dict : dict[str, torch.Tensor]
             A dictionary to hold destination node feature for each relation graph.
         """
-        x_src_dict = dict.fromkeys(self.edge_types_str)
-        x_dst_dict = dict.fromkeys(self.edge_types_str)
+        x_src_dict = dict.fromkeys(self.edge_types)
+        x_dst_dict = dict.fromkeys(self.edge_types)
 
         for ntype, t in x_fused_dict.items():
             n_src_rel = len(self.relations_per_ntype[ntype][0])
@@ -182,24 +182,24 @@ class HeteroGATConv(BaseConv):
 
         w_src, w_dst = self.split_tensors(self.lin_weights, dim=0)
 
-        for _, edge_type in enumerate(self.edge_types):
+        for edge_type in self.edge_types:
             src_type, _, dst_type = edge_type
-            etype_str = "__".join(edge_type)
+
             # lin_src
-            torch_geometric.nn.inits.glorot(w_src[etype_str])
+            torch_geometric.nn.inits.glorot(w_src[edge_type])
 
             # lin_dst
             if src_type != dst_type:
-                torch_geometric.nn.inits.glorot(w_dst[etype_str])
+                torch_geometric.nn.inits.glorot(w_dst[edge_type])
 
             # attn_weights
             torch_geometric.nn.inits.glorot(
-                self.attn_weights[etype_str].view(-1, self.num_heads, self.out_channels)
+                self.attn_weights[edge_type].view(-1, self.num_heads, self.out_channels)
             )
 
             # bias
             if self.bias is not None:
-                torch_geometric.nn.inits.zeros(self.bias[etype_str])
+                torch_geometric.nn.inits.zeros(self.bias[edge_type])
 
     def forward(
         self,
@@ -217,7 +217,6 @@ class HeteroGATConv(BaseConv):
 
         for edge_type, edge_index in edge_index_dict.items():
             src_type, _, dst_type = edge_type
-            etype_str = "__".join(edge_type)
 
             csc = BaseConv.to_csc(
                 edge_index, (x_dict[src_type].size(0), x_dict[dst_type].size(0))
@@ -229,8 +228,8 @@ class HeteroGATConv(BaseConv):
                     bipartite=False,
                 )
                 out = mha_gat_n2n(
-                    x_src_dict[etype_str],
-                    self.attn_weights[etype_str],
+                    x_src_dict[edge_type],
+                    self.attn_weights[edge_type],
                     graph,
                     num_heads=self.num_heads,
                     activation="LeakyReLU",
@@ -244,8 +243,8 @@ class HeteroGATConv(BaseConv):
                     bipartite=True,
                 )
                 out = mha_gat_n2n(
-                    (x_src_dict[etype_str], x_dst_dict[etype_str]),
-                    self.attn_weights[etype_str],
+                    (x_src_dict[edge_type], x_dst_dict[edge_type]),
+                    self.attn_weights[edge_type],
                     graph,
                     num_heads=self.num_heads,
                     activation="LeakyReLU",
@@ -254,7 +253,7 @@ class HeteroGATConv(BaseConv):
                 )
 
             if self.bias is not None:
-                out = out + self.bias[etype_str]
+                out = out + self.bias[edge_type]
 
             out_dict[dst_type].append(out)
 
