@@ -239,10 +239,6 @@ class Tests_MGSelectRandomVertices
                   ASSERT_EQ(h_sampled_vertices.size(),
                             mg_graph_view.local_vertex_partition_range_size());
                 }
-
-                std::cout << "silv: " << shuffle_random_vertices_using_vertex_partition
-                          << " sc: " << select_count << "  got: " << h_sampled_vertices.size()
-                          << std::endl;
               }
             }
           }
