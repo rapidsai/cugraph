@@ -151,59 +151,6 @@ class Tests_MGSelectRandomVertices
     std::vector<size_t> select_counts = {select_random_vertices_usecase.select_count,
                                          static_cast<size_t>(mg_graph_view.number_of_vertices())};
 
-    for (int idx = 0; idx < with_replacement_flags.size(); idx++) {
-      for (int k = 0; k < shuffle_flags.size(); k++) {
-        for (int l = 0; l < select_counts.size(); l++) {
-          bool with_replacement               = with_replacement_flags[idx];
-          bool shuffle_using_vertex_partition = shuffle_flags[k];
-          auto select_count                   = select_counts[l];
-
-          auto d_sampled_vertices = cugraph::select_random_vertices(
-            *handle_,
-            mg_graph_view,
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            rng_state,
-            select_count,
-            with_replacement,
-            true,
-            shuffle_using_vertex_partition);
-
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-          auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
-
-          if (select_random_vertices_usecase.check_correctness) {
-            if (!with_replacement) {
-              std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
-
-              auto nr_duplicates =
-                std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
-                              h_sampled_vertices.end());
-
-              ASSERT_EQ(nr_duplicates, 0);
-            }
-
-            if (shuffle_using_vertex_partition) {
-              auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
-              auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
-
-              std::for_each(h_sampled_vertices.begin(),
-                            h_sampled_vertices.end(),
-                            [vertex_first, vertex_last](vertex_t v) {
-                              ASSERT_TRUE((v >= vertex_first) && (v < vertex_last));
-                            });
-
-            } else {
-              if (select_count == static_cast<size_t>(mg_graph_view.number_of_vertices())) {
-                ASSERT_EQ(h_sampled_vertices.size(),
-                          mg_graph_view.local_vertex_partition_range_size());
-              }
-            }
-          }
-        }
-      }
-    }
-
     std::vector<bool> sort_vertices_flags = {true, false};
 
     for (int i = 0; i < with_replacement_flags.size(); i++) {
