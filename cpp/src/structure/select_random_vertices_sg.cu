@@ -26,7 +26,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 template rmm::device_uvector<int32_t> select_random_vertices(
@@ -37,7 +37,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 template rmm::device_uvector<int64_t> select_random_vertices(
@@ -48,7 +48,7 @@ template rmm::device_uvector<int64_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 template rmm::device_uvector<int32_t> select_random_vertices(
@@ -59,7 +59,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 template rmm::device_uvector<int32_t> select_random_vertices(
@@ -70,7 +70,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 template rmm::device_uvector<int64_t> select_random_vertices(
@@ -81,7 +81,7 @@ template rmm::device_uvector<int64_t> select_random_vertices(
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
-  bool shuffle_int_to_local,
+  bool shuffle_random_vertices_using_vertex_partition,
   bool do_expensive_check);
 
 }  // namespace cugraph

@@ -184,19 +184,20 @@ class Tests_MGSelectRandomVertices
       }
     }
 
-    std::vector<bool> sort_vertices_flags        = {true, false};
-    std::vector<bool> shuffle_int_to_local_flags = {true, false};
-    std::vector<vertex_t> select_counts          = {mg_graph_view.number_of_vertices(),
-                                                    mg_graph_view.number_of_vertices() / 4};
+    std::vector<bool> sort_vertices_flags                                  = {true, false};
+    std::vector<bool> shuffle_random_vertices_using_vertex_partition_flags = {true, false};
+    std::vector<vertex_t> select_counts = {mg_graph_view.number_of_vertices(),
+                                           mg_graph_view.number_of_vertices() / 4};
 
     for (int i = 0; i < with_replacement_flags.size(); i++) {
       for (int j = 0; j < sort_vertices_flags.size(); j++) {
-        for (int k = 0; k < shuffle_int_to_local_flags.size(); k++) {
+        for (int k = 0; k < shuffle_random_vertices_using_vertex_partition_flags.size(); k++) {
           for (int l = 0; l < select_counts.size(); l++) {
-            bool with_replacement     = with_replacement_flags[i];
-            bool sort_vertices        = sort_vertices_flags[j];
-            bool shuffle_int_to_local = shuffle_int_to_local_flags[k];
-            auto select_count         = static_cast<size_t>(select_counts[l]);
+            bool with_replacement = with_replacement_flags[i];
+            bool sort_vertices    = sort_vertices_flags[j];
+            bool shuffle_random_vertices_using_vertex_partition =
+              shuffle_random_vertices_using_vertex_partition_flags[k];
+            auto select_count = static_cast<size_t>(select_counts[l]);
 
             auto d_sampled_vertices = cugraph::select_random_vertices(
               *handle_,
@@ -206,7 +207,7 @@ class Tests_MGSelectRandomVertices
               select_count,
               with_replacement,
               sort_vertices,
-              shuffle_int_to_local);
+              shuffle_random_vertices_using_vertex_partition);
 
             RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
@@ -223,7 +224,7 @@ class Tests_MGSelectRandomVertices
                 ASSERT_EQ(nr_duplicates, 0);
               }
 
-              if (shuffle_int_to_local) {
+              if (shuffle_random_vertices_using_vertex_partition) {
                 auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
                 auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
 
@@ -239,8 +240,9 @@ class Tests_MGSelectRandomVertices
                             mg_graph_view.local_vertex_partition_range_size());
                 }
 
-                std::cout << "silv: " << shuffle_int_to_local << " sc: " << select_count
-                          << "  got: " << h_sampled_vertices.size() << std::endl;
+                std::cout << "silv: " << shuffle_random_vertices_using_vertex_partition
+                          << " sc: " << select_count << "  got: " << h_sampled_vertices.size()
+                          << std::endl;
               }
             }
           }
