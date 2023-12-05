@@ -91,8 +91,9 @@ struct result_compare<thrust::tuple<Args...>> {
 };
 
 struct Prims_Usecase {
-  bool check_correctness{true};
   bool test_weighted{false};
+  bool edge_masking{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -140,6 +141,13 @@ class Tests_MGTransformReduceE
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG transform reduce
 
@@ -365,7 +373,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGTransformReduceE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(Prims_Usecase{false, false, true},
+                      Prims_Usecase{false, true, true},
+                      Prims_Usecase{true, false, true},
+                      Prims_Usecase{true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -373,7 +384,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGTransformReduceE_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                         ::testing::Combine(::testing::Values(Prims_Usecase{false, false, true},
+                                                              Prims_Usecase{false, true, true},
+                                                              Prims_Usecase{true, false, true},
+                                                              Prims_Usecase{true, true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -385,7 +399,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformReduceE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(Prims_Usecase{false, false, false},
+                      Prims_Usecase{false, true, false},
+                      Prims_Usecase{true, false, false},
+                      Prims_Usecase{true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

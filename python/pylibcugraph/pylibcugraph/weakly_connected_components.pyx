@@ -129,7 +129,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
     >>> graph_props = pylibcugraph.GraphProperties(
     ...      is_symmetric=True, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=True, do_expensive_check=False)
     >>> (vertices, labels) = weakly_connected_components(
     ...     resource_handle, G, None, None, None, None, False)

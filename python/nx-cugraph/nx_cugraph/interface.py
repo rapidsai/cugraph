@@ -72,12 +72,29 @@ class BackendInterface:
         from packaging.version import parse
 
         nxver = parse(nx.__version__)
-        if nxver.major == 3 and nxver.minor in {0, 1}:
+
+        if nxver.major == 3 and nxver.minor <= 2:
+            # Networkx versions prior to 3.2.1 have tests written to expect
+            # sp.sparse.linalg.ArpackNoConvergence exceptions raised on no
+            # convergence in HITS. Newer versions since the merge of
+            # https://github.com/networkx/networkx/pull/7084 expect
+            # nx.PowerIterationFailedConvergence, which is what nx_cugraph.hits
+            # raises, so we mark them as xfail for previous versions of NX.
+            xfail.update(
+                {
+                    key(
+                        "test_hits.py:TestHITS.test_hits_not_convergent"
+                    ): "nx_cugraph.hits raises updated exceptions not caught in "
+                    "these tests",
+                }
+            )
+
+        if nxver.major == 3 and nxver.minor <= 1:
             # MAINT: networkx 3.0, 3.1
             # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
             # raise NotImplementedError or `can_run` returns False. The tests below
             # exercise behavior we have not implemented yet, so we mark them as xfail
-            # for previous versions of NetworkX.
+            # for previous versions of NX.
             xfail.update(
                 {
                     key(

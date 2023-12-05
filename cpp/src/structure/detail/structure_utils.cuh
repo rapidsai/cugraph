@@ -20,7 +20,9 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -33,6 +35,7 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/transform_output_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
@@ -496,6 +499,50 @@ void sort_adjacency_list(raft::handle_t const& handle,
   }
 }
 
-}  // namespace detail
+template <typename comparison_t>
+std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t const& handle,
+                                                               size_t num_entries,
+                                                               comparison_t comparison)
+{
+  rmm::device_uvector<uint32_t> marked_entries(cugraph::packed_bool_size(num_entries),
+                                               handle.get_stream());
 
+  thrust::tabulate(handle.get_thrust_policy(),
+                   marked_entries.begin(),
+                   marked_entries.end(),
+                   [comparison, num_entries] __device__(size_t idx) {
+                     auto word          = cugraph::packed_bool_empty_mask();
+                     size_t start_index = idx * cugraph::packed_bools_per_word();
+                     size_t bits_in_this_word =
+                       (start_index + cugraph::packed_bools_per_word() < num_entries)
+                         ? cugraph::packed_bools_per_word()
+                         : (num_entries - start_index);
+
+                     for (size_t bit = 0; bit < bits_in_this_word; ++bit) {
+                       if (comparison(start_index + bit)) word |= cugraph::packed_bool_mask(bit);
+                     }
+
+                     return word;
+                   });
+
+  size_t bit_count = detail::count_set_bits(handle, marked_entries.begin(), num_entries);
+
+  return std::make_tuple(bit_count, std::move(marked_entries));
+}
+
+template <typename T>
+rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
+                                             rmm::device_uvector<T>&& vector,
+                                             raft::device_span<uint32_t const> keep_flags,
+                                             size_t keep_count)
+{
+  rmm::device_uvector<T> result(keep_count, handle.get_stream());
+
+  detail::copy_if_mask_set(
+    handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
+
+  return result;
+}
+
+}  // namespace detail
 }  // namespace cugraph

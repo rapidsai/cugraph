@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <prims/transform_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
@@ -61,7 +62,7 @@ __host__ __device__ auto make_property_value(T val)
 }
 
 template <typename vertex_t, typename property_t>
-struct property_transform {
+struct vertex_property_transform {
   int32_t mod{};
 
   constexpr __device__ property_t operator()(vertex_t v) const
@@ -70,6 +71,20 @@ struct property_transform {
                   std::is_arithmetic_v<property_t>);
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return make_property_value<property_t>(hash_func(v) % mod);
+  }
+};
+
+template <typename vertex_t, typename property_t>
+struct edge_property_transform {
+  int32_t mod{};
+
+  constexpr __device__ property_t operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  {
+    static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
+                  std::is_arithmetic_v<property_t>);
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return make_property_value<property_t>(hash_func(src + dst) % mod);
   }
 };
 
@@ -96,7 +111,7 @@ struct generate {
                       labels.begin(),
                       labels.end(),
                       cugraph::get_dataframe_buffer_begin(data),
-                      detail::property_transform<vertex_t, property_t>{hash_bin_count});
+                      detail::vertex_property_transform<vertex_t, property_t>{hash_bin_count});
     return data;
   }
 
@@ -111,7 +126,7 @@ struct generate {
                       begin,
                       end,
                       cugraph::get_dataframe_buffer_begin(data),
-                      detail::property_transform<vertex_t, property_t>{hash_bin_count});
+                      detail::vertex_property_transform<vertex_t, property_t>{hash_bin_count});
     return data;
   }
 
@@ -136,6 +151,22 @@ struct generate {
       cugraph::edge_dst_property_t<graph_view_type, property_t>(handle, graph_view);
     update_edge_dst_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
+    return output_property;
+  }
+
+  template <typename graph_view_type>
+  static auto edge_property(raft::handle_t const& handle,
+                            graph_view_type const& graph_view,
+                            int32_t hash_bin_count)
+  {
+    auto output_property = cugraph::edge_property_t<graph_view_type, bool>(handle, graph_view);
+    cugraph::transform_e(handle,
+                         graph_view,
+                         cugraph::edge_src_dummy_property_t{}.view(),
+                         cugraph::edge_dst_dummy_property_t{}.view(),
+                         cugraph::edge_dummy_property_t{}.view(),
+                         detail::edge_property_transform<vertex_t, property_t>{hash_bin_count},
+                         output_property.mutable_view());
     return output_property;
   }
 };

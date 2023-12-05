@@ -58,6 +58,18 @@ typedef struct cugraph_resource_handle_ {
 cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle);
 
 /**
+ * @brief get comm_size from resource handle
+ *
+ * If the resource handle has been configured for multi-gpu, this will return
+ * the comm_size for this cluster.  If the resource handle has not been configured for
+ * multi-gpu this will always return 1.
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @return comm_size
+ */
+int cugraph_resource_handle_get_comm_size(const cugraph_resource_handle_t* handle);
+
+/**
  * @brief get rank from resource handle
  *
  * If the resource handle has been configured for multi-gpu, this will return

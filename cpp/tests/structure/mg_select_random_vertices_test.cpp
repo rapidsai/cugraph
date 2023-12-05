@@ -90,7 +90,7 @@ class Tests_MGSelectRandomVertices
       std::iota(
         h_given_set.begin(), h_given_set.end(), mg_graph_view.local_vertex_partition_range_first());
       std::shuffle(h_given_set.begin(), h_given_set.end(), std::mt19937{std::random_device{}()});
-      h_given_set.resize(std::rand() % mg_graph_view.local_vertex_partition_range_size() + 1);
+      h_given_set.resize(std::rand() % (mg_graph_view.local_vertex_partition_range_size() + 1));
 
       // Compute size of the distributed vertex set
       int num_of_elements_in_given_set = static_cast<int>(h_given_set.size());
@@ -105,7 +105,7 @@ class Tests_MGSelectRandomVertices
       size_t select_count =
         num_of_elements_in_given_set > select_random_vertices_usecase.select_count
           ? select_random_vertices_usecase.select_count
-          : std::rand() % num_of_elements_in_given_set + 1;
+          : std::rand() % (num_of_elements_in_given_set + 1);
 
       for (int idx = 0; idx < with_replacement_flags.size(); idx++) {
         bool with_replacement = with_replacement_flags[idx];
