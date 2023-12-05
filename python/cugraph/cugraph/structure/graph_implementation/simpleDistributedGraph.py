@@ -37,10 +37,10 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
-    _chunk_lst,
 )
 from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
+from dask.distributed import get_worker
 
 
 class simpleDistributedGraphImpl:
@@ -98,6 +98,7 @@ class simpleDistributedGraphImpl:
         edge_id_type,
         edge_type_id,
     ):
+        print(f"_make_plc_graph called from worker = {get_worker().name}", flush=True)
         weights = None
         edge_ids = None
         edge_types = None
@@ -350,9 +351,11 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        ddf_keys = ddf.to_delayed()
         workers = _client.scheduler_info()["workers"].keys()
-        ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
+        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
+            ddf, _client, return_type="dict"
+        )
+        del ddf
 
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
@@ -367,19 +370,19 @@ class simpleDistributedGraphImpl:
                 self.edge_id_type,
                 self.edge_type_id_type,
             )
-            for w, edata in zip(workers, ddf_keys_ls)
+            for w, edata in persisted_keys_d.items()
         }
+        del persisted_keys_d
         self._plc_graph = {
             w: _client.compute(
                 delayed_task, workers=w, allow_other_workers=False, pure=False
             )
             for w, delayed_task in delayed_tasks_d.items()
         }
-        wait(list(self._plc_graph.values()))
-        del ddf_keys
         del delayed_tasks_d
         gc.collect()
         _client.run(gc.collect)
+        wait(list(self._plc_graph.values()))
 
     @property
     def renumbered(self):
