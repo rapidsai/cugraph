@@ -38,9 +38,9 @@ from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
 )
+from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
 from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
-from dask.distributed import get_worker
 
 
 class simpleDistributedGraphImpl:
@@ -98,7 +98,6 @@ class simpleDistributedGraphImpl:
         edge_id_type,
         edge_type_id,
     ):
-        print(f"_make_plc_graph called from worker = {get_worker().name}", flush=True)
         weights = None
         edge_ids = None
         edge_types = None
@@ -172,7 +171,6 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
-
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
@@ -276,7 +274,6 @@ class simpleDistributedGraphImpl:
             )
             value_col = None
         else:
-
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
                 source,
@@ -380,9 +377,9 @@ class simpleDistributedGraphImpl:
             for w, delayed_task in delayed_tasks_d.items()
         }
         del delayed_tasks_d
-        gc.collect()
-        _client.run(gc.collect)
+        run_gc_on_dask_cluster(_client)
         wait(list(self._plc_graph.values()))
+        run_gc_on_dask_cluster(_client)
 
     @property
     def renumbered(self):
@@ -948,7 +945,6 @@ class simpleDistributedGraphImpl:
         def _call_plc_select_random_vertices(
             mg_graph_x, sID: bytes, random_state: int, num_vertices: int
         ) -> cudf.Series:
-
             cp_arrays = pylibcugraph_select_random_vertices(
                 graph=mg_graph_x,
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -964,7 +960,6 @@ class simpleDistributedGraphImpl:
             random_state: int,
             num_vertices: int,
         ) -> dask_cudf.Series:
-
             result = [
                 client.submit(
                     _call_plc_select_random_vertices,
