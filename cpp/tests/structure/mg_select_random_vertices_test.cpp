@@ -234,8 +234,7 @@ class Tests_MGSelectRandomVertices
                                 ASSERT_TRUE((v >= vertex_first) && (v < vertex_last));
                               });
               } else {
-                if (!with_replacement &&
-                    select_count == static_cast<size_t>(mg_graph_view.number_of_vertices())) {
+                if (select_count == static_cast<size_t>(mg_graph_view.number_of_vertices())) {
                   ASSERT_EQ(h_sampled_vertices.size(),
                             mg_graph_view.local_vertex_partition_range_size());
                 }
