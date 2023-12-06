@@ -155,10 +155,25 @@ class Tests_Multithreaded
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
         handle, multithreaded_usecase.test_weighted, false, false);
 
+    rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), d_unique_vertices.begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 d_dst_v.begin(),
+                 d_dst_v.end(),
+                 d_unique_vertices.begin() + d_src_v.size());
+    thrust::sort(handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
+
+    d_unique_vertices.resize(thrust::distance(d_unique_vertices.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             d_unique_vertices.begin(),
+                                                             d_unique_vertices.end())),
+                             handle.get_stream());
+
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);
     auto h_weights_v     = cugraph::test::to_host(handle, d_weights_v);
-    auto unique_vertices = cugraph::test::to_host(handle, d_vertices_v);
+    auto unique_vertices = cugraph::test::to_host(handle, d_unique_vertices);
 
     // Load edgelist from different threads.  We'll use more threads than GPUs here
     for (int i = 0; i < num_threads; ++i) {
@@ -293,13 +308,13 @@ class Tests_Multithreaded
                                     num_threads]() {
         auto thread_handle = instance_manager->get_handle();
 
-        auto number_of_vertices = unique_vertices->size();
+        auto number_of_vertices = unique_vertices.size();
 
         std::vector<vertex_t> my_vertex_list;
         my_vertex_list.reserve((number_of_vertices + num_threads - 1) / num_threads);
 
         for (size_t j = i; j < number_of_vertices; j += num_threads) {
-          my_vertex_list.push_back((*unique_vertices)[j]);
+          my_vertex_list.push_back(unique_vertices[j]);
         }
 
         rmm::device_uvector<vertex_t> d_my_vertex_list(my_vertex_list.size(),
@@ -312,7 +327,8 @@ class Tests_Multithreaded
         auto d_my_pageranks = pageranks_view.gather(
           thread_handle,
           raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
-          graph_view,
+          graph_view.get_vertex_partition_range_lasts(thread_handle),
+          graph_view.get_vertex_partition_view(thread_handle),
           renumber_map_view);
 
         std::vector<result_t> my_pageranks(d_my_pageranks.size());
