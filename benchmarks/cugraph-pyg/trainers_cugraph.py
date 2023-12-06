@@ -11,8 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from trainer import PyGTrainer
 
-class CuGraphTrainer:
+
+class PyGCuGraphTrainer(PyGTrainer):
     def __init__(self, model='GraphSAGE', dataset="ogbn_papers100M", replication_factor=1):
         self.__model = get_model(model)
         self.__dataset = dataset

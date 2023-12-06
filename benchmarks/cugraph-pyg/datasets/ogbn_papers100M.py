@@ -16,10 +16,12 @@ from typing import Dict, Tuple
 
 import pandas
 import torch
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 
 import gc
+import os
 
 # TODO automatically generate this dataset and splits
 class OGBNPapers100MDataset(Dataset):
@@ -28,40 +30,44 @@ class OGBNPapers100MDataset(Dataset):
         self.__disk_x = None
         self.__y = None
         self.__edge_index = None
-        self.__dataset_dir = '.'        
+        self.__dataset_dir = dataset_dir
         self.__train_split = train_split
         self.__val_split = val_split
 
     @property 
     def edge_index_dict(self) -> Dict[Tuple[str, str, str], Dict[str, torch.Tensor]]:
+        import logging
+        logger = logging.getLogger('OGBNPapers100MDataset')
+
         if self.__edge_index is None:
-            parquet_path = os.path.join(
+            npy_path = os.path.join(
                 self.__dataset_dir,
-                'ogbn_papers100M',
-                'parquet'
+                'ogbn_papers100M_copy',
+                'npy',
+                'paper__cites__paper',
+                'edge_index.npy'
             )
 
-            ei = pandas.read_parquet(
-                os.path.join(parquet_path, 'paper__cites__paper', 'edge_index.parquet')
-            )
-
+            logger.info(f'loading edge index from {npy_path}')
+            ei = np.load(npy_path, mmap_mode='r')
+            ei = torch.as_tensor(ei)
             ei = {
-                'src': torch.as_tensor(ei.src.values, device='cpu'),
-                'dst': torch.as_tensor(ei.dst.values, device='cpu'),
+                'src': ei[1],
+                'dst': ei[0],
             }
 
-            print('sorting edge index...')
+            logger.info('sorting edge index...')
             ei['dst'], ix = torch.sort(ei['dst'])
             ei['src'] = ei['src'][ix]
             del ix
             gc.collect()
 
-            print('processing replications...')
+            logger.info('processing replications...')
             orig_num_nodes = self.num_nodes('paper') // self.__replication_factor
             if self.__replication_factor > 1:
                 orig_src = ei['src'].clone().detach()
                 orig_dst = ei['dst'].clone().detach()
-                for r in range(1, replication_factor):
+                for r in range(1, self.__replication_factor):
                     ei['src'] = torch.concat([
                         ei['src'],
                         orig_src + int(r * orig_num_nodes),
@@ -79,7 +85,7 @@ class OGBNPapers100MDataset(Dataset):
                 ei['dst'] = ei['dst'].contiguous()
             gc.collect()
 
-            print(f"# edges: {len(ei['src'])}")
+            logger.info(f"# edges: {len(ei['src'])}")
             self.__edge_index = {('paper','cites','paper'): ei}
         
         return self.__edge_index
@@ -94,10 +100,10 @@ class OGBNPapers100MDataset(Dataset):
         )
         
         if self.__disk_x is None:
-            if replication_factor == 1:
+            if self.__replication_factor == 1:
                 full_path = os.path.join(node_type_path, 'node_feat.npy')
             else:
-                full_path = os.path.join(node_type_path, f'node_feat_{replication_factor}x.npy')
+                full_path = os.path.join(node_type_path, f'node_feat_{self.__replication_factor}x.npy')
             
             self.__disk_x = {'paper': np.load(
                 full_path,
@@ -133,11 +139,11 @@ class OGBNPapers100MDataset(Dataset):
     
     @property
     def num_input_features(self) -> int:
-        return self.x_dict['paper'].shape[1]
+        return int(self.x_dict['paper'].shape[1])
     
     @property
     def num_labels(self) -> int:
-        return self.y_dict['paper'].max() + 1
+        return int(self.y_dict['paper'].max()) + 1
     
     def num_nodes(self, node_type: str) -> int:
         if node_type != 'paper':
@@ -162,11 +168,11 @@ class OGBNPapers100MDataset(Dataset):
 
         node_label = pandas.read_parquet(label_path)
 
-        if replication_factor > 1:
-            orig_num_nodes = self.num_nodes('paper') // replication_factor
+        if self.__replication_factor > 1:
+            orig_num_nodes = self.num_nodes('paper') // self.__replication_factor
             dfr = pandas.DataFrame({
-                'node': pandas.concat([node_label.node + (r * orig_num_nodes) for r in range(1, replication_factor)]),
-                'label': pandas.concat([node_label.label for r in range(1, replication_factor)]),
+                'node': pandas.concat([node_label.node + (r * orig_num_nodes) for r in range(1, self.__replication_factor)]),
+                'label': pandas.concat([node_label.label for r in range(1, self.__replication_factor)]),
             })
             node_label = pandas.concat([node_label, dfr]).reset_index(drop=True)
 
@@ -177,8 +183,8 @@ class OGBNPapers100MDataset(Dataset):
             
         self.__y = {'paper': node_label_tensor.contiguous()}
         
-        train_ix, test_val_ix = train_test_split(torch.as_tensor(node_label.node.values), train_split=self.__train_split, random_state=num_nodes)
-        test_ix, val_ix = train_test_split(test_val_ix, test_split=self.__val_split, random_state=num_nodes)
+        train_ix, test_val_ix = train_test_split(torch.as_tensor(node_label.node.values), train_size=self.__train_split, random_state=num_nodes)
+        test_ix, val_ix = train_test_split(test_val_ix, test_size=self.__val_split, random_state=num_nodes)
 
         train_tensor = torch.full((num_nodes,), 0, dtype=torch.bool, device='cpu')
         train_tensor[train_ix] = 1

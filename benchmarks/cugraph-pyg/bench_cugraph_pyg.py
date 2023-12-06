@@ -19,13 +19,14 @@ import argparse
 import gc
 import os
 import socket
+import json
 
 import torch
 import numpy as np
 import pandas
 
 import torch.nn.functional as F
-import torch.distributed as td
+import torch.distributed as dist
 import torch.multiprocessing as tmp
 from torch.nn.parallel import DistributedDataParallel as ddp
 from torch.distributed.optim import ZeroRedundancyOptimizer
@@ -33,8 +34,8 @@ from torch.distributed.optim import ZeroRedundancyOptimizer
 from typing import Union, List
 
 from models_cugraph import CuGraphSAGE
-from trainers_cugraph import CuGraphTrainer
-from trainers_native import NativeTrainer
+from trainers_cugraph import PyGCuGraphTrainer
+from trainers_native import PyGNativeTrainer
 
 from datasets import OGBNPapers100MDataset
 
@@ -135,7 +136,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
                 if num_classes > num_output_features:
                     num_output_features = num_classes
         print('done loading data')
-        td.barrier()
+        dist.barrier()
 
         print(f"num input features: {num_input_features}; num output features: {num_output_features}; fanout: {output_meta['fanout']}")
         
@@ -151,15 +152,15 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
         model = ddp(model, device_ids=[device])
         
         print('done creating model')
-        td.barrier()
+        dist.barrier()
         
         cugraph_store = CuGraphStore(fs, G, N)
         print('done creating store')
-        td.barrier()
+        dist.barrier()
 
         #optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
         optimizer = ZeroRedundancyOptimizer(model.parameters(), torch.optim.Adam, lr=0.01)
-        td.barrier()
+        dist.barrier()
 
         for epoch in range(num_epochs):
             start_time_train = time.perf_counter_ns()
@@ -180,7 +181,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
                 directory=samples_dir,
             )
             print('done creating loader')
-            td.barrier()
+            dist.barrier()
 
             total_loss, num_batches, mean_total_time, mean_time_fw, mean_time_bw, mean_time_loader, mean_additional_feature_time = train_epoch(model, cugraph_loader, optimizer)
 
@@ -381,12 +382,20 @@ def parse_args():
 
 
 def main(args):
-    rank = int(os.environ['LOCAL_RANK'])
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+    )
+    logger = logging.getLogger('bench_cugraph_pyg')
+    logger.setLevel(logging.INFO)
 
-    init_pytorch_worker(rank, use_rmm_torch_allocator=(args.framework == "cuGraph"))
+    local_rank = int(os.environ['LOCAL_RANK'])
+    global_rank = int(os.environ["RANK"])
+
+    init_pytorch_worker(local_rank, use_rmm_torch_allocator=(args.framework == "cuGraph"))
     enable_spilling()
     print(f'worker initialized')
-    td.barrier()
+    dist.barrier()
 
     world_size = int(os.environ['SLURM_JOB_NUM_NODES']) * int(os.environ['SLURM_GPUS_PER_NODE'])
 
@@ -398,22 +407,26 @@ def main(args):
     )
 
     if args.framework == "Native":
-        trainer = NativeTrainer(
+        trainer = PyGNativeTrainer(
             model=args.model,
             dataset=dataset,
-            device=rank,
-            rank=rank,
+            device=local_rank,
+            rank=global_rank,
             world_size=world_size,
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
-            fanout=[int(f) for f in args.fanout.split('_')],
+            num_neighbors=[int(f) for f in args.fanout.split('_')],
             batch_size=args.batch_size,
         )
     else:
         raise ValueError("unsuported framework")
 
-    trainer.train()
+    stats = trainer.train()
+    logger.info(stats)
+
+    with open(f'{args.output_file}[{global_rank}]', 'w') as f:
+        json.dump(stats, f)
 
 if __name__ == "__main__":
     args = parse_args()

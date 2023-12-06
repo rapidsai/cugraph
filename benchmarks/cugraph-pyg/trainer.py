@@ -15,11 +15,31 @@ import torch
 import torch.distributed as td
 import torch.nn.functional as F
 
+import time
+
+from typing import Union, List
+
+def extend_tensor(t: Union[List[int], torch.Tensor], l:int):
+    t = torch.as_tensor(t)
+
+    return torch.concat([
+        t,
+        torch.zeros(
+            l - len(t),
+            dtype=t.dtype,
+            device=t.device
+        )
+    ])
+
 class Trainer:
     @property
     def model(self):
         raise NotImplementedError()
     
+    @property
+    def dataset(self):
+        raise NotImplementedError()
+
     @property
     def data(self):
         raise NotImplementedError()
@@ -35,17 +55,14 @@ class Trainer:
     def get_loader(self, epoch: int):
         raise NotImplementedError()
 
-    def extend_tensor(t: torch.Tensor, l:int):
-        return torch.concat([
-            t,
-            torch.zeros(
-                l - len(t),
-                dtype=t.dtype,
-                device=t.device
-            )
-        ])
-
     def train(self):
+        raise NotImplementedError()
+
+class PyGTrainer(Trainer):
+    def train(self):
+        import logging
+        logger = logging.getLogger('PyGTrainer')
+
         total_loss = 0.0
         num_batches = 0
 
@@ -56,20 +73,31 @@ class Trainer:
         start_time = time.perf_counter()
         end_time_backward = start_time
 
-        for epoch in range(num_epochs):
+        for epoch in range(self.num_epochs):
             with td.algorithms.join.Join([self.model, self.optimizer]):
                 for iter_i, data in enumerate(self.get_loader(epoch)):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
-                    #data = data.to_homogeneous()
-                    num_sampled_nodes = data['paper']['num_sampled_nodes']
-                    num_sampled_edges = data['paper','cites','paper']['num_sampled_edges']
+                    additional_feature_time_start = time.perf_counter()
+                    
+                    num_sampled_nodes = sum([
+                        torch.tensor(n)
+                        for n in data.num_sampled_nodes_dict.values()
+                    ])
+                    num_sampled_edges = sum([
+                        torch.tensor(e)
+                        for e in data.num_sampled_edges_dict.values()
+                    ])
 
                     # FIXME find a way to get around this and not have to call extend_tensor
                     num_layers = len(self.model.module.convs)
                     num_sampled_nodes = extend_tensor(num_sampled_nodes, num_layers + 1)
                     num_sampled_edges = extend_tensor(num_sampled_edges, num_layers)
+
+                    data = data.to_homogeneous().cuda()
+                    additional_feature_time_end = time.perf_counter()
+                    time_feature_additional += additional_feature_time_end - additional_feature_time_start
 
                     num_batches += 1
                     if iter_i % 20 == 1:
@@ -77,25 +105,22 @@ class Trainer:
                         time_backward_iter = time_backward / num_batches
                         
                         total_time_iter = (time.perf_counter() - start_time) / num_batches
-                        print(f"iteration {iter_i}")
-                        print(f"num sampled nodes: {num_sampled_nodes}")
-                        print(f"num sampled edges: {num_sampled_edges}")
-                        print(f"time forward: {time_forward_iter}")
-                        print(f"time backward: {time_backward_iter}")
-                        print(f"loader time: {loader_time_iter}")
-                        print(f"total time: {total_time_iter}")
+                        logger.info(f"iteration {iter_i}")
+                        logger.info(f"num sampled nodes: {num_sampled_nodes}")
+                        logger.info(f"num sampled edges: {num_sampled_edges}")
+                        logger.info(f"time forward: {time_forward_iter}")
+                        logger.info(f"time backward: {time_backward_iter}")
+                        logger.info(f"loader time: {loader_time_iter}")
+                        logger.info(f"total time: {total_time_iter}")
 
                     
-                    additional_feature_time_start = time.perf_counter()
-                    y_true = data['paper'].y.cuda() # train
-                    x = data['paper'].x.cuda().to(torch.float32)
-                    additional_feature_time_end = time.perf_counter()
-                    time_feature_additional += additional_feature_time_end - additional_feature_time_start
+                    y_true = data.y
+                    x = data.x.to(torch.float32)
 
                     start_time_forward = time.perf_counter()
-                    edge_index = data['paper','cites','paper'].edge_index if 'edge_index' in data['paper','cites','paper'] else data['paper','cites','paper'].adj_t
+                    edge_index = data.edge_index if 'edge_index' in data else data.adj_t
                     
-                    y_pred = model(
+                    y_pred = self.model(
                         x,
                         edge_index,
                         num_sampled_nodes,
@@ -110,10 +135,8 @@ class Trainer:
 
                     y_true = y_true[:y_pred.shape[0]]
 
-                    # FIXME temporary fix
-                    y_true += 1
                     y_true = F.one_hot(
-                        y_true.to(torch.int64), num_classes=172
+                        y_true.to(torch.int64), num_classes=self.dataset.num_labels
                     ).to(torch.float32)            
 
                     if y_true.shape != y_pred.shape:
@@ -122,20 +145,26 @@ class Trainer:
                             f'but y_pred shape was {y_pred.shape} '
                             f'in iteration {iter_i} '
                             f'on rank {y_pred.device.index}'
-                        )
-                    
+                        )                  
 
                     start_time_backward = time.perf_counter()
                     loss = F.cross_entropy(y_pred, y_true)
 
-                    optimizer.zero_grad()
+                    self.optimizer.zero_grad()
                     loss.backward()
-                    optimizer.step()
+                    self.optimizer.step()
                     total_loss += loss.item()
                     end_time_backward = time.perf_counter()
                     time_backward += end_time_backward - start_time_backward
-                    
             
             end_time = time.perf_counter()
             # FIXME add test, validation steps
-        return total_loss, num_batches, ((end_time - start_time) / num_batches), (time_forward / num_batches), (time_backward / num_batches), (time_loader / num_batches), (time_feature_additional / num_batches)
+        
+        stats = {
+            'Loss': total_loss,
+            '# Batches': num_batches,
+            'Loader Time': time_loader + time_feature_additional,
+            'Forward Time': time_forward,
+            'Backward Time': time_backward,
+        }
+        return stats
