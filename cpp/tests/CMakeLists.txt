@@ -257,7 +257,7 @@ ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - EGO tests -------------------------------------------------------------------------------------
-ConfigureTest(EGO_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
+ConfigureTest(EGONET_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
@@ -531,7 +531,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cu)
+    ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
