@@ -280,28 +280,12 @@ class graph_base_t {
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
 
-  void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
-  {
-    edge_mask_view_ = edge_mask_view;
-  }
-
-  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
-
-  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
-
-  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
-  {
-    return edge_mask_view_;
-  }
-
  protected:
   edge_t number_of_edges_{0};
   graph_properties_t properties_{};
 
  private:
   vertex_t number_of_vertices_{0};
-
-  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
 }  // namespace detail
@@ -737,6 +721,20 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return local_sorted_unique_edge_dst_vertex_partition_offsets_;
   }
 
+  void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
+  {
+    edge_mask_view_ = edge_mask_view;
+  }
+
+  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
+
+  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
+
  private:
   std::vector<raft::device_span<edge_t const>> edge_partition_offsets_{};
   std::vector<raft::device_span<vertex_t const>> edge_partition_indices_{};
@@ -779,6 +777,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                      std::optional<raft::host_span<vertex_t const>>,
                      std::optional<std::byte> /* dummy */>
     local_sorted_unique_edge_dst_vertex_partition_offsets_{std::nullopt};
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
 // single-GPU version
@@ -1006,12 +1006,28 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return std::nullopt;
   }
 
+  void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
+  {
+    edge_mask_view_ = edge_mask_view;
+  }
+
+  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
+
+  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
+
  private:
   raft::device_span<edge_t const> offsets_{};
   raft::device_span<vertex_t const> indices_{};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
 }  // namespace cugraph
