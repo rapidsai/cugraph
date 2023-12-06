@@ -1,13 +1,15 @@
 #pragma once
-#include <cugraph/algorithms.hpp>
-#include <cugraph/edge_property.hpp>
-#include <cugraph/graph_view.hpp>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <raft/core/handle.hpp>
-#include <raft/random/rng_state.hpp>
 
 #include <prims/fill_edge_property.cuh>
 #include <prims/transform_e.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+
+#include <cugraph/algorithms.hpp>
+#include <cugraph/edge_property.hpp>
+#include <cugraph/graph_view.hpp>
+
+#include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
@@ -24,8 +26,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   size_t ensemble_size,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution,
-  weight_t theta = 1.0)
+  weight_t resolution)
 {
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 

@@ -522,6 +522,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
+    # - MG ECG tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
+
+    ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
 
