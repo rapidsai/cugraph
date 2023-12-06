@@ -233,14 +233,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEcg_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Ecg_Usecase{0.1, 10, 100, 1e-7, 1.0, true}),
+    ::testing::Values(Ecg_Usecase{0.1, 2, 100, 1e-7, 1.0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGEcg_Rmat,
   ::testing::Combine(
-    ::testing::Values(Ecg_Usecase{0.1, 10, 100, 1e-7, 1.0, true}),
+    ::testing::Values(Ecg_Usecase{0.1, 2, 100, 1e-7, 1.0, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -252,7 +252,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEcg_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Ecg_Usecase{0.1, 10, 100, 1e-7, 1.0, true}),
+    ::testing::Values(Ecg_Usecase{0.1, 2, 100, 1e-7, 1.0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -264,7 +264,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEcg_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Ecg_Usecase{0.1, 10, 100, 1e-7, 1.0, true}),
+    ::testing::Values(Ecg_Usecase{0.1, 2, 100, 1e-7, 1.0, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
