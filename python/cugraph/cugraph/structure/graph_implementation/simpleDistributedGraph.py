@@ -37,8 +37,8 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
-    _chunk_lst,
 )
+from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
 from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
 
@@ -171,7 +171,6 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
-
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
@@ -275,7 +274,6 @@ class simpleDistributedGraphImpl:
             )
             value_col = None
         else:
-
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
                 source,
@@ -350,9 +348,11 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        ddf_keys = ddf.to_delayed()
         workers = _client.scheduler_info()["workers"].keys()
-        ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
+        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
+            ddf, _client, return_type="dict"
+        )
+        del ddf
 
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
@@ -367,19 +367,19 @@ class simpleDistributedGraphImpl:
                 self.edge_id_type,
                 self.edge_type_id_type,
             )
-            for w, edata in zip(workers, ddf_keys_ls)
+            for w, edata in persisted_keys_d.items()
         }
+        del persisted_keys_d
         self._plc_graph = {
             w: _client.compute(
                 delayed_task, workers=w, allow_other_workers=False, pure=False
             )
             for w, delayed_task in delayed_tasks_d.items()
         }
-        wait(list(self._plc_graph.values()))
-        del ddf_keys
         del delayed_tasks_d
-        gc.collect()
-        _client.run(gc.collect)
+        run_gc_on_dask_cluster(_client)
+        wait(list(self._plc_graph.values()))
+        run_gc_on_dask_cluster(_client)
 
     @property
     def renumbered(self):
@@ -945,7 +945,6 @@ class simpleDistributedGraphImpl:
         def _call_plc_select_random_vertices(
             mg_graph_x, sID: bytes, random_state: int, num_vertices: int
         ) -> cudf.Series:
-
             cp_arrays = pylibcugraph_select_random_vertices(
                 graph=mg_graph_x,
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -961,7 +960,6 @@ class simpleDistributedGraphImpl:
             random_state: int,
             num_vertices: int,
         ) -> dask_cudf.Series:
-
             result = [
                 client.submit(
                     _call_plc_select_random_vertices,
