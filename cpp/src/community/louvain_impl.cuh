@@ -86,15 +86,86 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     if (is_random_initial_cluster) {
       raft::random::RngState rng_state(0);
-      rmm::device_uvector<vertex_t> random_cluster_assignments = cugraph::select_random_vertices(
-        handle,
-        graph_view,
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
-        graph_view.number_of_vertices(),
-        false,
-        false,
-        true);
+      // rmm::device_uvector<vertex_t> random_cluster_assignments = cugraph::select_random_vertices(
+      //   handle,
+      //   graph_view,
+      //   std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+      //   rng_state,
+      //   graph_view.number_of_vertices(),
+      //   false,
+      //   false,
+      //   true);
+
+      rmm::device_uvector<vertex_t> random_cluster_assignments(
+        graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+      detail::sequence_fill(handle.get_stream(),
+                            random_cluster_assignments.begin(),
+                            random_cluster_assignments.size(),
+                            current_graph_view.local_vertex_partition_range_first());
+
+      {
+        rmm::device_uvector<float> random_numbers(random_cluster_assignments.size(),
+                                                  handle.get_stream());
+
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                             random_numbers.data(),
+                                             random_numbers.size(),
+                                             float{0.0},
+                                             float{1.0},
+                                             rng_state);
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            random_numbers.begin(),
+                            random_numbers.end(),
+                            random_cluster_assignments.begin());
+
+        auto& comm           = handle.get_comms();
+        auto const comm_size = comm.get_size();
+        auto const comm_rank = comm.get_rank();
+        std::vector<size_t> tx_value_counts(comm_size, 0);
+
+        for (int i = 0; i < comm_size; i++) {
+          tx_value_counts[i] = random_cluster_assignments.size() / comm_size + i <
+                                   (random_cluster_assignments.size() % comm_size)
+                                 ? 1
+                                 : 0;
+        }
+
+        std::tie(random_cluster_assignments, std::ignore) =
+          cugraph::shuffle_values(handle.get_comms(),
+                                  random_cluster_assignments.begin(),
+                                  tx_value_counts,
+                                  handle.get_stream());
+
+        // shuffle as many vertices as local vertex partition size to each GPU.
+        std::fill(tx_value_counts.begin(), tx_value_counts.end(), 0);
+        auto sample_buffer_sizes = cugraph::host_scalar_allgather(
+          handle.get_comms(), random_cluster_assignments.size(), handle.get_stream());
+
+        auto expected_sample_buffer_sizes = cugraph::host_scalar_allgather(
+          handle.get_comms(), graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+        // find out how many elements current GPU needs to send to other GPUs
+        std::vector<size_t> nr_smaples_per_GPU(comm_size, 0);
+        for (int i = 0; i < comm_size; i++) {
+          size_t nr_samples_ith_gpu = sample_buffer_sizes[i];
+          for (int j = 0; nr_samples_ith_gpu > 0 && j < comm_size; j++) {
+            if (expected_sample_buffer_sizes[j] > static_cast<vertex_t>(nr_smaples_per_GPU[j])) {
+              size_t delta = std::min(nr_samples_ith_gpu,
+                                      expected_sample_buffer_sizes[j] - nr_smaples_per_GPU[j]);
+              if (comm_rank == i) { tx_value_counts[j] = delta; }
+              nr_smaples_per_GPU[j] += delta;
+              nr_samples_ith_gpu -= delta;
+            }
+          }
+        }
+
+        std::tie(random_cluster_assignments, std::ignore) =
+          cugraph::shuffle_values(handle.get_comms(),
+                                  random_cluster_assignments.begin(),
+                                  tx_value_counts,
+                                  handle.get_stream());
+      }
 
       assert(random_cluster_assignments.size() == graph_view.local_vertex_partition_range_size());
 
