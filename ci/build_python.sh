@@ -11,7 +11,18 @@ rapids-print-env
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 
+version=$(rapids-generate-version)
+git_commit=$(git rev-parse HEAD)
+export RAPIDS_PACKAGE_VERSION=${version}
+echo "${version}" > VERSION
+
 rapids-logger "Begin py build"
+
+package_dir="python"
+for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do 
+  underscore_package_name=$(echo "${package_name}" | tr "-" "_")
+  sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" "${package_dir}/${package_name}/${underscore_package_name}/_version.py"
+done
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
@@ -40,6 +51,10 @@ rapids-conda-retry mambabuild \
 # built on each CUDA platform to ensure they are included in each set of
 # artifacts, since test scripts only install from one set of artifacts based on
 # the CUDA version used for the test run.
+version_file_cugraph_service_client="python/cugraph-service/client/cugraph_service_client/_version.py"
+sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_service_client}
+version_file_cugraph_service_server="python/cugraph-service/server/cugraph_service_server/_version.py"
+sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" ${version_file_cugraph_service_server}
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \

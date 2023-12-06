@@ -11,3 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .betweenness import *
+from .degree_alg import *
+from .eigenvector import *
+from .katz import *

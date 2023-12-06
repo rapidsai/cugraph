@@ -243,7 +243,9 @@ if __name__ == "__main__":
 
     else:
         g = g.to("cuda" if args.mode == "gpu_dgl" else "cpu")
-    device = torch.device("cpu" if args.mode == "cpu" else "cuda")
+    device = torch.device(
+        "cpu" if args.mode == "cpu" or args.mode == "mixed" else "cuda"
+    )
 
     # create GraphSAGE model
     feat_shape = (

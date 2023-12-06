@@ -36,8 +36,8 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
-    get_length_of_parts,
     persist_dask_df_equal_parts_per_worker,
+    _chunk_lst,
 )
 from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
@@ -81,6 +81,10 @@ class simpleDistributedGraphImpl:
         self.destination_columns = None
         self.weight_column = None
         self.vertex_columns = None
+        self.vertex_type = None
+        self.weight_type = None
+        self.edge_id_type = None
+        self.edge_type_id_type = None
 
     def _make_plc_graph(
         sID,
@@ -89,51 +93,69 @@ class simpleDistributedGraphImpl:
         src_col_name,
         dst_col_name,
         store_transposed,
-        num_edges,
+        vertex_type,
+        weight_type,
+        edge_id_type,
+        edge_type_id,
     ):
-
         weights = None
         edge_ids = None
         edge_types = None
 
-        if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            weights = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeWeightCol
-            )
-            if weights.dtype == "int32":
-                weights = weights.astype("float32")
-            elif weights.dtype == "int64":
-                weights = weights.astype("float64")
+        num_arrays = len(edata_x)
+        if weight_type is not None:
+            weights = [
+                edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
+                for i in range(num_arrays)
+            ]
+            if weight_type == "int32":
+                weights = [w_array.astype("float32") for w_array in weights]
+            elif weight_type == "int64":
+                weights = [w_array.astype("float64") for w_array in weights]
 
-        if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            edge_ids = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeIdCol
-            )
-            if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
-                edge_ids = edge_ids.astype("int64")
+        if edge_id_type is not None:
+            edge_ids = [
+                edata_x[i][simpleDistributedGraphImpl.edgeIdCol]
+                for i in range(num_arrays)
+            ]
+            if vertex_type == "int64" and edge_id_type != "int64":
+                edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
                 warnings.warn(
-                    f"Vertex type is int64 but edge id type is {edge_ids.dtype}"
+                    f"Vertex type is int64 but edge id type is {edge_ids[0].dtype}"
                     ", automatically casting edge id type to int64. "
                     "This may cause extra memory usage.  Consider passing"
                     " a int64 list of edge ids instead."
                 )
-        if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
-            edge_types = _get_column_from_ls_dfs(
-                edata_x, simpleDistributedGraphImpl.edgeTypeCol
-            )
+        if edge_type_id is not None:
+            edge_types = [
+                edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
+                for i in range(num_arrays)
+            ]
 
-        return MGGraph(
+        src_array = [edata_x[i][src_col_name] for i in range(num_arrays)]
+        dst_array = [edata_x[i][dst_col_name] for i in range(num_arrays)]
+        plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
-            src_array=_get_column_from_ls_dfs(edata_x, src_col_name),
-            dst_array=_get_column_from_ls_dfs(edata_x, dst_col_name),
-            weight_array=weights,
-            edge_id_array=edge_ids,
-            edge_type_array=edge_types,
+            src_array=src_array if src_array else cudf.Series(dtype=vertex_type),
+            dst_array=dst_array if dst_array else cudf.Series(dtype=vertex_type),
+            weight_array=weights
+            if weights
+            else ([cudf.Series(dtype=weight_type)] if weight_type else None),
+            edge_id_array=edge_ids
+            if edge_ids
+            else ([cudf.Series(dtype=edge_id_type)] if edge_id_type else None),
+            edge_type_array=edge_types
+            if edge_types
+            else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
+            num_arrays=num_arrays,
             store_transposed=store_transposed,
-            num_edges=num_edges,
             do_expensive_check=False,
         )
+        del edata_x
+        gc.collect()
+
+        return plc_graph
 
     # Functions
     def __from_edgelist(
@@ -182,7 +204,6 @@ class simpleDistributedGraphImpl:
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
-        input_ddf = input_ddf.map_partitions(lambda df: df.copy())
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -314,19 +335,25 @@ class simpleDistributedGraphImpl:
             dst_col_name = self.renumber_map.renumbered_dst_col_name
 
         ddf = self.edgelist.edgelist_df
+
+        # Get the edgelist dtypes
+        self.vertex_type = ddf[src_col_name].dtype
+        if simpleDistributedGraphImpl.edgeWeightCol in ddf.columns:
+            self.weight_type = ddf[simpleDistributedGraphImpl.edgeWeightCol].dtype
+        if simpleDistributedGraphImpl.edgeIdCol in ddf.columns:
+            self.edge_id_type = ddf[simpleDistributedGraphImpl.edgeIdCol].dtype
+        if simpleDistributedGraphImpl.edgeTypeCol in ddf.columns:
+            self.edge_type_id_type = ddf[simpleDistributedGraphImpl.edgeTypeCol].dtype
+
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
-            ddf, _client, return_type="dict"
-        )
-        del ddf
-        length_of_parts = get_length_of_parts(persisted_keys_d, _client)
-        num_edges = sum(
-            [item for sublist in length_of_parts.values() for item in sublist]
-        )
+        ddf_keys = ddf.to_delayed()
+        workers = _client.scheduler_info()["workers"].keys()
+        ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
+
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -335,9 +362,12 @@ class simpleDistributedGraphImpl:
                 src_col_name,
                 dst_col_name,
                 store_transposed,
-                num_edges,
+                self.vertex_type,
+                self.weight_type,
+                self.edge_id_type,
+                self.edge_type_id_type,
             )
-            for w, edata in persisted_keys_d.items()
+            for w, edata in zip(workers, ddf_keys_ls)
         }
         self._plc_graph = {
             w: _client.compute(
@@ -346,8 +376,9 @@ class simpleDistributedGraphImpl:
             for w, delayed_task in delayed_tasks_d.items()
         }
         wait(list(self._plc_graph.values()))
-        del persisted_keys_d
+        del ddf_keys
         del delayed_tasks_d
+        gc.collect()
         _client.run(gc.collect)
 
     @property
@@ -1189,18 +1220,3 @@ class simpleDistributedGraphImpl:
     @property
     def _npartitions(self) -> int:
         return len(self._plc_graph)
-
-
-def _get_column_from_ls_dfs(lst_df, col_name):
-    """
-    This function concatenates the column
-    and drops it from the input list
-    """
-    len_df = sum([len(df) for df in lst_df])
-    if len_df == 0:
-        return lst_df[0][col_name]
-    output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
-    for df in lst_df:
-        df.drop(columns=[col_name], inplace=True)
-    gc.collect()
-    return output_col

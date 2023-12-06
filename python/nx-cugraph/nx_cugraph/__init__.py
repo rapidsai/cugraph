@@ -20,13 +20,13 @@ from .classes import *
 from . import convert
 from .convert import *
 
-# from . import convert_matrix
-# from .convert_matrix import *
+from . import convert_matrix
+from .convert_matrix import *
 
-# from . import generators
-# from .generators import *
+from . import generators
+from .generators import *
 
 from . import algorithms
 from .algorithms import *
 
-__version__ = "23.10.00"
+from nx_cugraph._version import __git_commit__, __version__

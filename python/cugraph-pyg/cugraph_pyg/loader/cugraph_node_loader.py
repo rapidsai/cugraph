@@ -15,6 +15,7 @@ import tempfile
 
 import os
 import re
+import warnings
 
 import cupy
 import cudf
@@ -51,7 +52,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         graph_store: CuGraphStore,
         input_nodes: InputNodes = None,
         batch_size: int = 0,
+        *,
         shuffle: bool = False,
+        drop_last: bool = True,
         edge_types: Sequence[Tuple[str]] = None,
         directory: Union[str, tempfile.TemporaryDirectory] = None,
         input_files: List[str] = None,
@@ -159,23 +162,34 @@ class EXPERIMENTAL__BulkSampleLoader:
         if batch_size is None or batch_size < 1:
             raise ValueError("Batch size must be >= 1")
 
-        self.__directory = tempfile.TemporaryDirectory(dir=directory)
+        self.__directory = (
+            tempfile.TemporaryDirectory() if directory is None else directory
+        )
 
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
-        renumber = (
-            True
-            if (
-                (len(self.__graph_store.node_types) == 1)
-                and (len(self.__graph_store.edge_types) == 1)
+        if "renumber" in kwargs:
+            warnings.warn(
+                "Setting renumbering manually could result in invalid output,"
+                " please ensure you intended to do this."
             )
-            else False
-        )
+            renumber = kwargs.pop("renumber")
+        else:
+            renumber = (
+                True
+                if (
+                    (len(self.__graph_store.node_types) == 1)
+                    and (len(self.__graph_store.edge_types) == 1)
+                )
+                else False
+            )
 
         bulk_sampler = BulkSampler(
             batch_size,
-            self.__directory.name,
+            self.__directory
+            if isinstance(self.__directory, str)
+            else self.__directory.name,
             self.__graph_store._subgraph(edge_types),
             fanout_vals=num_neighbors,
             with_replacement=replace,
@@ -197,29 +211,40 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Truncate if we can't evenly divide the input array
         stop = (len(input_nodes) // batch_size) * batch_size
-        input_nodes = input_nodes[:stop]
+        input_nodes, remainder = cupy.array_split(input_nodes, [stop])
 
         # Split into batches
-        input_nodes = cupy.split(input_nodes, len(input_nodes) // batch_size)
+        input_nodes = cupy.split(input_nodes, max(len(input_nodes) // batch_size, 1))
+
+        if not drop_last:
+            input_nodes.append(remainder)
 
         self.__num_batches = 0
         for batch_num, batch_i in enumerate(input_nodes):
-            self.__num_batches += 1
-            bulk_sampler.add_batches(
-                cudf.DataFrame(
-                    {
-                        "start": batch_i,
-                        "batch": cupy.full(
-                            batch_size, batch_num + starting_batch_id, dtype="int32"
-                        ),
-                    }
-                ),
-                start_col_name="start",
-                batch_col_name="batch",
-            )
+            batch_len = len(batch_i)
+            if batch_len > 0:
+                self.__num_batches += 1
+                bulk_sampler.add_batches(
+                    cudf.DataFrame(
+                        {
+                            "start": batch_i,
+                            "batch": cupy.full(
+                                batch_len, batch_num + starting_batch_id, dtype="int32"
+                            ),
+                        }
+                    ),
+                    start_col_name="start",
+                    batch_col_name="batch",
+                )
 
         bulk_sampler.flush()
-        self.__input_files = iter(os.listdir(self.__directory.name))
+        self.__input_files = iter(
+            os.listdir(
+                self.__directory
+                if isinstance(self.__directory, str)
+                else self.__directory.name
+            )
+        )
 
     def __next__(self):
         from time import perf_counter
@@ -423,9 +448,6 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.edge,
             )
         else:
-            if self.__graph_store.order == "CSR":
-                raise ValueError("CSR format incompatible with CSC output")
-
             out = filter_cugraph_store_csc(
                 self.__feature_store,
                 self.__graph_store,
@@ -437,11 +459,8 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
         if self.__coo and self.__graph_store.order == "CSC":
-            for node_type in out.edge_index_dict:
-                out[node_type].edge_index[0], out[node_type].edge_index[1] = (
-                    out[node_type].edge_index[1],
-                    out[node_type].edge_index[0],
-                )
+            for edge_type in out.edge_index_dict:
+                out[edge_type].edge_index = out[edge_type].edge_index.flip(dims=[0])
 
         out.set_value_dict("num_sampled_nodes", sampler_output.num_sampled_nodes)
         out.set_value_dict("num_sampled_edges", sampler_output.num_sampled_edges)

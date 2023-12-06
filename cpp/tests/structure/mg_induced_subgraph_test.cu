@@ -210,6 +210,7 @@ class Tests_MGInducedSubgraph
                                                         graph_ids_v.end(),
                                                         size_t{0},
                                                         size_t{d_subgraph_offsets.size() - 1},
+                                                        true,
                                                         handle_->get_stream());
 
       auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(

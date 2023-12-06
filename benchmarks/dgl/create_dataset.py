@@ -15,6 +15,7 @@ import os
 import rmm
 from cugraph.generators import rmat
 
+
 def create_dataset(scale, edgefactor, folder_path):
     _seed = 42
     num_edges = (2**scale) * edgefactor
@@ -31,14 +32,15 @@ def create_dataset(scale, edgefactor, folder_path):
         create_using=None,  # None == return edgelist
         mg=False,
     )
-    filepath = os.path.join(folder_path, f'rmat_scale_{scale}_edgefactor_{edgefactor}.parquet')
+    filepath = os.path.join(
+        folder_path, f"rmat_scale_{scale}_edgefactor_{edgefactor}.parquet"
+    )
     edgelist_df.to_parquet(filepath)
 
 
-
-folder_path = os.path.join(os.getcwd(), 'datasets') 
+folder_path = os.path.join(os.getcwd(), "datasets")
 os.makedirs(folder_path, exist_ok=True)
 rmm.reinitialize(managed_memory=True)
-for scale in [24,25,26]:
+for scale in [24, 25, 26]:
     edgefactor = 16
     create_dataset(scale=scale, edgefactor=edgefactor, folder_path=folder_path)

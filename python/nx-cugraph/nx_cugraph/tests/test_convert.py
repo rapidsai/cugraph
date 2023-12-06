@@ -18,7 +18,9 @@ import nx_cugraph as nxcg
 from nx_cugraph import interface
 
 
-@pytest.mark.parametrize("graph_class", [nx.Graph, nx.DiGraph])
+@pytest.mark.parametrize(
+    "graph_class", [nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph]
+)
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -48,9 +50,10 @@ def test_convert_empty(graph_class, kwargs):
     assert G.graph == Gcg.graph == H.graph == {}
 
 
-def test_convert():
+@pytest.mark.parametrize("graph_class", [nx.Graph, nx.MultiGraph])
+def test_convert(graph_class):
     # FIXME: can we break this into smaller tests?
-    G = nx.Graph()
+    G = graph_class()
     G.add_edge(0, 1, x=2)
     G.add_node(0, foo=10)
     G.add_node(1, foo=20, bar=100)
@@ -68,8 +71,8 @@ def test_convert():
     ]:
         # All edges have "x" attribute, so all kwargs are equivalent
         Gcg = nxcg.from_networkx(G, **kwargs)
-        cp.testing.assert_array_equal(Gcg.row_indices, [0, 1])
-        cp.testing.assert_array_equal(Gcg.col_indices, [1, 0])
+        cp.testing.assert_array_equal(Gcg.src_indices, [0, 1])
+        cp.testing.assert_array_equal(Gcg.dst_indices, [1, 0])
         cp.testing.assert_array_equal(Gcg.edge_values["x"], [2, 2])
         assert len(Gcg.edge_values) == 1
         assert Gcg.edge_masks == {}
@@ -83,43 +86,52 @@ def test_convert():
 
     # Structure-only graph (no edge attributes)
     Gcg = nxcg.from_networkx(G, preserve_node_attrs=True)
-    cp.testing.assert_array_equal(Gcg.row_indices, [0, 1])
-    cp.testing.assert_array_equal(Gcg.col_indices, [1, 0])
+    cp.testing.assert_array_equal(Gcg.src_indices, [0, 1])
+    cp.testing.assert_array_equal(Gcg.dst_indices, [1, 0])
     cp.testing.assert_array_equal(Gcg.node_values["foo"], [10, 20])
     assert Gcg.edge_values == Gcg.edge_masks == {}
     H = nxcg.to_networkx(Gcg)
-    assert set(G.edges) == set(H.edges) == {(0, 1)}
+    if G.is_multigraph():
+        assert set(G.edges) == set(H.edges) == {(0, 1, 0)}
+    else:
+        assert set(G.edges) == set(H.edges) == {(0, 1)}
     assert G.nodes == H.nodes
 
     # Fill completely missing attribute with default value
     Gcg = nxcg.from_networkx(G, edge_attrs={"y": 0})
-    cp.testing.assert_array_equal(Gcg.row_indices, [0, 1])
-    cp.testing.assert_array_equal(Gcg.col_indices, [1, 0])
+    cp.testing.assert_array_equal(Gcg.src_indices, [0, 1])
+    cp.testing.assert_array_equal(Gcg.dst_indices, [1, 0])
     cp.testing.assert_array_equal(Gcg.edge_values["y"], [0, 0])
     assert len(Gcg.edge_values) == 1
     assert Gcg.edge_masks == Gcg.node_values == Gcg.node_masks == {}
     H = nxcg.to_networkx(Gcg)
     assert list(H.edges(data=True)) == [(0, 1, {"y": 0})]
+    if Gcg.is_multigraph():
+        assert set(H.edges) == {(0, 1, 0)}
 
     # If attribute is completely missing (and no default), then just ignore it
     Gcg = nxcg.from_networkx(G, edge_attrs={"y": None})
-    cp.testing.assert_array_equal(Gcg.row_indices, [0, 1])
-    cp.testing.assert_array_equal(Gcg.col_indices, [1, 0])
+    cp.testing.assert_array_equal(Gcg.src_indices, [0, 1])
+    cp.testing.assert_array_equal(Gcg.dst_indices, [1, 0])
     assert sorted(Gcg.edge_values) == sorted(Gcg.edge_masks) == []
     H = nxcg.to_networkx(Gcg)
     assert list(H.edges(data=True)) == [(0, 1, {})]
+    if Gcg.is_multigraph():
+        assert set(H.edges) == {(0, 1, 0)}
 
     G.add_edge(0, 2)
     # Some edges are missing 'x' attribute; need to use a mask
     for kwargs in [{"preserve_edge_attrs": True}, {"edge_attrs": {"x": None}}]:
         Gcg = nxcg.from_networkx(G, **kwargs)
-        cp.testing.assert_array_equal(Gcg.row_indices, [0, 0, 1, 2])
-        cp.testing.assert_array_equal(Gcg.col_indices, [1, 2, 0, 0])
+        cp.testing.assert_array_equal(Gcg.src_indices, [0, 0, 1, 2])
+        cp.testing.assert_array_equal(Gcg.dst_indices, [1, 2, 0, 0])
         assert sorted(Gcg.edge_values) == sorted(Gcg.edge_masks) == ["x"]
         cp.testing.assert_array_equal(Gcg.edge_masks["x"], [True, False, True, False])
         cp.testing.assert_array_equal(Gcg.edge_values["x"][Gcg.edge_masks["x"]], [2, 2])
     H = nxcg.to_networkx(Gcg)
     assert list(H.edges(data=True)) == [(0, 1, {"x": 2}), (0, 2, {})]
+    if Gcg.is_multigraph():
+        assert set(H.edges) == {(0, 1, 0), (0, 2, 0)}
 
     with pytest.raises(KeyError, match="x"):
         nxcg.from_networkx(G, edge_attrs={"x": nxcg.convert.REQUIRED})
@@ -131,7 +143,7 @@ def test_convert():
         nxcg.from_networkx(G, node_attrs={"bar": ...})
 
     # Now for something more complicated...
-    G = nx.Graph()
+    G = graph_class()
     G.add_edge(10, 20, x=1)
     G.add_edge(10, 30, x=2, y=1.5)
     G.add_node(10, foo=100)
@@ -147,9 +159,9 @@ def test_convert():
         {"edge_attrs": {"x": 0, "y": None}, "edge_dtypes": {"x": int, "y": float}},
     ]:
         Gcg = nxcg.from_networkx(G, **kwargs)
-        assert Gcg.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
-        cp.testing.assert_array_equal(Gcg.row_indices, [0, 0, 1, 2])
-        cp.testing.assert_array_equal(Gcg.col_indices, [1, 2, 0, 0])
+        assert Gcg.id_to_key == [10, 20, 30]  # Remap node IDs to 0, 1, ...
+        cp.testing.assert_array_equal(Gcg.src_indices, [0, 0, 1, 2])
+        cp.testing.assert_array_equal(Gcg.dst_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(Gcg.edge_values["x"], [1, 2, 1, 2])
         assert sorted(Gcg.edge_masks) == ["y"]
         cp.testing.assert_array_equal(Gcg.edge_masks["y"], [False, True, False, True])
@@ -168,9 +180,9 @@ def test_convert():
         {"node_attrs": {"foo": 0, "bar": None, "missing": None}},
     ]:
         Gcg = nxcg.from_networkx(G, **kwargs)
-        assert Gcg.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
-        cp.testing.assert_array_equal(Gcg.row_indices, [0, 0, 1, 2])
-        cp.testing.assert_array_equal(Gcg.col_indices, [1, 2, 0, 0])
+        assert Gcg.id_to_key == [10, 20, 30]  # Remap node IDs to 0, 1, ...
+        cp.testing.assert_array_equal(Gcg.src_indices, [0, 0, 1, 2])
+        cp.testing.assert_array_equal(Gcg.dst_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(Gcg.node_values["foo"], [100, 200, 300])
         assert sorted(Gcg.node_masks) == ["bar"]
         cp.testing.assert_array_equal(Gcg.node_masks["bar"], [False, True, False])
@@ -189,9 +201,9 @@ def test_convert():
         {"node_attrs": {"bar": 0, "foo": None}, "node_dtypes": int},
     ]:
         Gcg = nxcg.from_networkx(G, **kwargs)
-        assert Gcg.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
-        cp.testing.assert_array_equal(Gcg.row_indices, [0, 0, 1, 2])
-        cp.testing.assert_array_equal(Gcg.col_indices, [1, 2, 0, 0])
+        assert Gcg.id_to_key == [10, 20, 30]  # Remap node IDs to 0, 1, ...
+        cp.testing.assert_array_equal(Gcg.src_indices, [0, 0, 1, 2])
+        cp.testing.assert_array_equal(Gcg.dst_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(Gcg.node_values["bar"], [0, 1000, 0])
         assert Gcg.node_masks == {}
 
@@ -201,3 +213,14 @@ def test_convert():
         interface.BackendInterface.convert_from_nx(G, edge_attrs={"x": 1}, weight="x")
     with pytest.raises(TypeError, match="Expected networkx.Graph"):
         nxcg.from_networkx({})
+
+
+@pytest.mark.parametrize("graph_class", [nx.MultiGraph, nx.MultiDiGraph])
+def test_multigraph(graph_class):
+    G = graph_class()
+    G.add_edge(0, 1, "key1", x=10)
+    G.add_edge(0, 1, "key2", y=20)
+    Gcg = nxcg.from_networkx(G, preserve_edge_attrs=True)
+    H = nxcg.to_networkx(Gcg)
+    assert type(G) is type(H)
+    assert nx.utils.graphs_equal(G, H)

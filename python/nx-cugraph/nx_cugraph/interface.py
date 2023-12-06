@@ -12,6 +12,8 @@
 # limitations under the License.
 from __future__ import annotations
 
+import sys
+
 import networkx as nx
 
 import nx_cugraph as nxcg
@@ -63,18 +65,36 @@ class BackendInterface:
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
         louvain_different = "Louvain may be different due to RNG"
+        no_string_dtype = "string edge values not currently supported"
 
         xfail = {}
 
         from packaging.version import parse
 
         nxver = parse(nx.__version__)
-        if nxver.major == 3 and nxver.minor in {0, 1}:
+
+        if nxver.major == 3 and nxver.minor <= 2:
+            # Networkx versions prior to 3.2.1 have tests written to expect
+            # sp.sparse.linalg.ArpackNoConvergence exceptions raised on no
+            # convergence in HITS. Newer versions since the merge of
+            # https://github.com/networkx/networkx/pull/7084 expect
+            # nx.PowerIterationFailedConvergence, which is what nx_cugraph.hits
+            # raises, so we mark them as xfail for previous versions of NX.
+            xfail.update(
+                {
+                    key(
+                        "test_hits.py:TestHITS.test_hits_not_convergent"
+                    ): "nx_cugraph.hits raises updated exceptions not caught in "
+                    "these tests",
+                }
+            )
+
+        if nxver.major == 3 and nxver.minor <= 1:
             # MAINT: networkx 3.0, 3.1
             # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
             # raise NotImplementedError or `can_run` returns False. The tests below
             # exercise behavior we have not implemented yet, so we mark them as xfail
-            # for previous versions of NetworkX.
+            # for previous versions of NX.
             xfail.update(
                 {
                     key(
@@ -174,14 +194,68 @@ class BackendInterface:
                     ): louvain_different,
                     key("test_louvain.py:test_none_weight_param"): louvain_different,
                     key("test_louvain.py:test_multigraph"): louvain_different,
+                    # See networkx#6630
+                    key(
+                        "test_louvain.py:test_undirected_selfloops"
+                    ): "self-loops not handled in Louvain",
                 }
             )
+            if sys.version_info[:2] == (3, 9):
+                # This test is sensitive to RNG, which depends on Python version
+                xfail[
+                    key("test_louvain.py:test_threshold")
+                ] = "Louvain does not support seed parameter"
+            if nxver.major == 3 and nxver.minor >= 2:
+                xfail.update(
+                    {
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_multi_attr_incl_target"
+                        ): no_string_dtype,
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_multidigraph_and_edge_attr"
+                        ): no_string_dtype,
+                        key(
+                            "test_convert_pandas.py:TestConvertPandas."
+                            "test_from_edgelist_int_attr_name"
+                        ): no_string_dtype,
+                    }
+                )
+                if nxver.minor == 2:
+                    different_iteration_order = "Different graph data iteration order"
+                    xfail.update(
+                        {
+                            key(
+                                "test_cycles.py:TestMinimumCycleBasis."
+                                "test_gh6787_and_edge_attribute_names"
+                            ): different_iteration_order,
+                            key(
+                                "test_euler.py:TestEulerianCircuit."
+                                "test_eulerian_circuit_cycle"
+                            ): different_iteration_order,
+                            key(
+                                "test_gml.py:TestGraph.test_special_float_label"
+                            ): different_iteration_order,
+                        }
+                    )
+
+        too_slow = "Too slow to run"
+        maybe_oom = "out of memory in CI"
+        skip = {
+            key("test_tree_isomorphism.py:test_positive"): too_slow,
+            key("test_tree_isomorphism.py:test_negative"): too_slow,
+            key("test_efficiency.py:TestEfficiency.test_using_ego_graph"): maybe_oom,
+        }
 
         for item in items:
             kset = set(item.keywords)
             for (test_name, keywords), reason in xfail.items():
                 if item.name == test_name and keywords.issubset(kset):
                     item.add_marker(pytest.mark.xfail(reason=reason))
+            for (test_name, keywords), reason in skip.items():
+                if item.name == test_name and keywords.issubset(kset):
+                    item.add_marker(pytest.mark.skip(reason=reason))
 
     @classmethod
     def can_run(cls, name, args, kwargs):
@@ -189,10 +263,4 @@ class BackendInterface:
 
         This is a proposed API to add to networkx dispatching machinery and may change.
         """
-        return (
-            hasattr(cls, name)
-            and getattr(cls, name).can_run(*args, **kwargs)
-            # We don't support MultiGraphs yet
-            and not any(isinstance(x, nx.MultiGraph) for x in args)
-            and not any(isinstance(x, nx.MultiGraph) for x in kwargs.values())
-        )
+        return hasattr(cls, name) and getattr(cls, name).can_run(*args, **kwargs)

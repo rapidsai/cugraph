@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -161,7 +161,7 @@ int test_leiden_no_weights()
   vertex_t h_src[]             = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[]             = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t h_result[]          = {1, 1, 1, 2, 0, 0};
-  weight_t expected_modularity = 0.0859375;
+  weight_t expected_modularity = 0.125;
 
   // Louvain wants store_transposed = FALSE
   return generic_leiden_test(h_src,

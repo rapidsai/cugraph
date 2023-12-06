@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cugraph-service-client"
-version = "23.10.00"
+dynamic = ["version"]
 description = "cuGraph Service client"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -34,6 +34,9 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {file = "cugraph_service_client/VERSION"}
 
 [tool.setuptools.packages.find]
 include = [

@@ -27,11 +27,12 @@ import cudf
 import cugraph
 import warnings
 
-from cugraph.utilities.utils import import_optional, MissingModule
+import dask.array as dar
+import dask.dataframe as dd
+import dask.distributed as distributed
+import dask_cudf
 
-dd = import_optional("dask.dataframe")
-distributed = import_optional("dask.distributed")
-dask_cudf = import_optional("dask_cudf")
+from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -210,11 +211,14 @@ class EXPERIMENTAL__CuGraphStore:
     def __init__(
         self,
         F: cugraph.gnn.FeatureStore,
-        G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
+        G: Union[
+            Dict[Tuple[str, str, str], Tuple[TensorType]],
+            Dict[Tuple[str, str, str], int],
+        ],
         num_nodes_dict: Dict[str, int],
         *,
         multi_gpu: bool = False,
-        order: str = "CSC",
+        order: str = "CSR",
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -260,11 +264,11 @@ class EXPERIMENTAL__CuGraphStore:
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
 
-        order: str (Optional ["CSR", "CSC"], default = CSC)
-            The order to use for sampling.  Should nearly always be CSC
-            unless there is a specific expectation of "reverse" sampling.
-            It is also not uncommon to use CSR order for correctness
-            testing, which some cuGraph-PyG tests do.
+        order: str (Optional ["CSR", "CSC"], default = CSR)
+            The order to use for sampling.  CSR corresponds to the
+            standard OGB dataset order that is usually used in PyG.
+            CSC order constructs the same graph as CSR, but with
+            edges in the opposite direction.
         """
 
         if None in G:
@@ -320,7 +324,13 @@ class EXPERIMENTAL__CuGraphStore:
     def __del__(self):
         if self.__is_graph_owner:
             if isinstance(self.__graph._plc_graph, dict):
-                distributed.get_client().unpublish_dataset("cugraph_graph")
+                try:
+                    distributed.get_client().unpublish_dataset("cugraph_graph")
+                except TypeError:
+                    warnings.warn(
+                        "Could not unpublish graph dataset, most likely because"
+                        " dask has already shut down."
+                    )
             del self.__graph
 
     def __make_offsets(self, input_dict):
@@ -356,6 +366,13 @@ class EXPERIMENTAL__CuGraphStore:
                 "__".join(pyg_can_edge_type): n
                 for pyg_can_edge_type, n in num_edges_dict.items()
             }
+        )
+
+    def __dask_array_from_numpy(self, array: np.ndarray, npartitions: int):
+        return dar.from_array(
+            array,
+            meta=np.array([], dtype=array.dtype),
+            chunks=max(1, len(array) // npartitions),
         )
 
     def __construct_graph(
@@ -455,22 +472,32 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
-        df = pandas.DataFrame(
-            {
-                "src": pandas.Series(na_dst)
-                if order == "CSC"
-                else pandas.Series(na_src),
-                "dst": pandas.Series(na_src)
-                if order == "CSC"
-                else pandas.Series(na_dst),
-                "etp": pandas.Series(na_etp),
-            }
-        )
-        vertex_dtype = df.src.dtype
+        vertex_dtype = na_src.dtype
 
         if multi_gpu:
-            nworkers = len(distributed.get_client().scheduler_info()["workers"])
-            df = dd.from_pandas(df, npartitions=nworkers if len(df) > 32 else 1)
+            client = distributed.get_client()
+            nworkers = len(client.scheduler_info()["workers"])
+            npartitions = nworkers * 4
+
+            src_dar = self.__dask_array_from_numpy(na_src, npartitions)
+            del na_src
+
+            dst_dar = self.__dask_array_from_numpy(na_dst, npartitions)
+            del na_dst
+
+            etp_dar = self.__dask_array_from_numpy(na_etp, npartitions)
+            del na_etp
+
+            df = dd.from_dask_array(etp_dar, columns=["etp"])
+            df["src"] = dst_dar if order == "CSC" else src_dar
+            df["dst"] = src_dar if order == "CSC" else dst_dar
+
+            del src_dar
+            del dst_dar
+            del etp_dar
+
+            if df.etp.dtype != "int32":
+                raise ValueError("Edge type must be int32!")
 
             # Ensure the dataframe is constructed on each partition
             # instead of adding additional synchronization head from potential
@@ -478,9 +505,9 @@ class EXPERIMENTAL__CuGraphStore:
             def get_empty_df():
                 return cudf.DataFrame(
                     {
+                        "etp": cudf.Series([], dtype="int32"),
                         "src": cudf.Series([], dtype=vertex_dtype),
                         "dst": cudf.Series([], dtype=vertex_dtype),
-                        "etp": cudf.Series([], dtype="int32"),
                     }
                 )
 
@@ -491,9 +518,23 @@ class EXPERIMENTAL__CuGraphStore:
                 if len(f) > 0
                 else get_empty_df(),
                 meta=get_empty_df(),
-            ).reset_index(drop=True)
+            ).reset_index(
+                drop=True
+            )  # should be ok for dask
         else:
-            df = cudf.from_pandas(df).reset_index(drop=True)
+            df = pandas.DataFrame(
+                {
+                    "src": pandas.Series(na_dst)
+                    if order == "CSC"
+                    else pandas.Series(na_src),
+                    "dst": pandas.Series(na_src)
+                    if order == "CSC"
+                    else pandas.Series(na_dst),
+                    "etp": pandas.Series(na_etp),
+                }
+            )
+            df = cudf.from_pandas(df)
+            df.reset_index(drop=True, inplace=True)
 
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
@@ -512,6 +553,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_type="etp",
             )
 
+        del df
         return graph
 
     @property
@@ -738,7 +780,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_vertex_groups_from_sample(
         self, nodes_of_interest: TensorType, is_sorted: bool = False
-    ) -> dict:
+    ) -> Dict[str, torch.Tensor]:
         """
         Given a tensor of nodes of interest, this
         method a single dictionary, noi_index.
@@ -802,7 +844,10 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_renumbered_edge_groups_from_sample(
         self, sampling_results: cudf.DataFrame, noi_index: dict
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[
+        Dict[Tuple[str, str, str], torch.Tensor],
+        Tuple[Dict[Tuple[str, str, str], torch.Tensor]],
+    ]:
         """
         Given a cudf (NOT dask_cudf) DataFrame of sampling results and a dictionary
         of non-renumbered vertex ids grouped by vertex type, this method

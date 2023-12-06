@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,6 +56,7 @@ def generate_console_report(benchmark_result_list):
 
     return retstring
 
+
 def update_csv_report(csv_results_file, benchmark_result_list, ngpus):
     """
     Update (or create if DNE) csv_results_file as a CSV file containing the
@@ -93,9 +94,12 @@ def update_csv_report(csv_results_file, benchmark_result_list, ngpus):
     # Add any new algos that were not present in the existing CSV. If there was
     # no existing CSV, then this is all the algos ran in this run.
     for name in new_names - names_from_csv:
-        rows.append({"name": name,
-                     ngpus_key: new_times[name],
-                    })
+        rows.append(
+            {
+                "name": name,
+                ngpus_key: new_times[name],
+            }
+        )
 
     with open(csv_results_file, "w") as csv_file:
         field_names = sorted(all_fields)

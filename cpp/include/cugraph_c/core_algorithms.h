@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
+/** @defgroup core Core algorithms
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,6 +43,7 @@ typedef struct {
 } cugraph_k_core_result_t;
 
 /**
+ * @ingroup core
  * @brief       Create a core_number result (in case it was previously extracted)
  *
  * @param [in]  handle       Handle for accessing resources
@@ -58,6 +62,7 @@ cugraph_error_code_t cugraph_core_result_create(
   cugraph_error_t** error);
 
 /**
+ * @ingroup core
  * @brief       Get the vertex ids from the core result
  *
  * @param [in]     result   The result from core number
@@ -67,6 +72,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
   cugraph_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief       Get the core numbers from the core result
  *
  * @param [in]    result    The result from core number
@@ -76,6 +82,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
   cugraph_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief     Free core result
  *
  * @param [in]    result    The result from core number
@@ -83,6 +90,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
 void cugraph_core_result_free(cugraph_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief       Get the src vertex ids from the k-core result
  *
  * @param [in]     result   The result from k-core
@@ -92,6 +100,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
   cugraph_k_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief       Get the dst vertex ids from the k-core result
  *
  * @param [in]     result   The result from k-core
@@ -101,6 +110,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
   cugraph_k_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief       Get the weights from the k-core result
  *
  * Returns NULL if the graph is unweighted
@@ -112,6 +122,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
   cugraph_k_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief     Free k-core result
  *
  * @param [in]    result    The result from k-core
@@ -119,6 +130,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
 void cugraph_k_core_result_free(cugraph_k_core_result_t* result);
 
 /**
+ * @ingroup core
  * @brief     Enumeration for computing core number
  */
 typedef enum {

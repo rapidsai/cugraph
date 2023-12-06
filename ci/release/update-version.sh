@@ -54,24 +54,14 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
-# Python __init__.py updates
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/nx_cugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/__init__.py
 
-# Python pyproject.toml updates
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pyproject.toml
-sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/pyproject.toml
+# build.sh script
+sed_runner 's/RAPIDS_VERSION=.*/RAPIDS_VERSION='${NEXT_SHORT_TAG}'/g' build.sh
+
+# Centralized version file update
+# NOTE: Any script that runs in CI will need to use gha-tool `rapids-generate-version`
+# and echo it to `VERSION` file to get an alpha spec of the current version
+echo "${NEXT_FULL_TAG}" > VERSION
 
 # Wheel testing script
 sed_runner "s/branch-.*/branch-${NEXT_SHORT_TAG}/g" ci/test_wheel_cugraph.sh
@@ -102,10 +92,12 @@ DEPENDENCIES=(
   raft-dask
   rmm
   ucx-py
+  rapids-dask-dependency
 )
 for DEP in "${DEPENDENCIES[@]}"; do
-  for FILE in dependencies.yaml conda/environments/*.yaml; do
+  for FILE in dependencies.yaml conda/environments/*.yaml python/cugraph-{pyg,dgl}/conda/*.yaml; do
     sed_runner "/-.* ${DEP}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*/g" ${FILE}
+    sed_runner "/-.* ${DEP}-cu[0-9][0-9]==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*/g" ${FILE}
     sed_runner "/-.* ucx-py==/ s/==.*/==${NEXT_UCX_PY_VERSION}.*/g" ${FILE}
   done
   for FILE in python/**/pyproject.toml python/**/**/pyproject.toml; do
@@ -122,9 +114,14 @@ sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" cond
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/cugraph-service/conda_build_config.yaml
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/pylibcugraph/conda_build_config.yaml
 
+# nx-cugraph NetworkX entry-point meta-data
+sed_runner "s@branch-[0-9][0-9].[0-9][0-9]@branch-${NEXT_SHORT_TAG}@g" python/nx-cugraph/_nx_cugraph/__init__.py
+# FIXME: can this use the standard VERSION file and update mechanism?
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/nx-cugraph/_nx_cugraph/__init__.py
+
 # CI files
 for FILE in .github/workflows/*.yaml; do
-  sed_runner "/shared-action-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
+  sed_runner "/shared-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds clone cugraph-ops, update its branch
   sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds install dask-cuda from source, update its branch
