@@ -565,6 +565,7 @@ weight_t hungarian(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -612,6 +613,7 @@ std::pair<size_t, weight_t> louvain(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
@@ -814,9 +816,9 @@ void ecg(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::random::RngState& rng_state,
   weight_t min_weight,
   size_t ensemble_size,
   size_t max_level    = 100,

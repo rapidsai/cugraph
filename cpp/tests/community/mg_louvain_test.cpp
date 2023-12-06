@@ -126,13 +126,15 @@ class Tests_MGLouvain
           rmm::device_uvector<vertex_t> d_sg_cluster_v(sg_graph_view.number_of_vertices(),
                                                        handle_->get_stream());
 
-          std::tie(std::ignore, sg_modularity) = cugraph::louvain(handle,
-                                                                  sg_graph_view,
-                                                                  sg_edge_weight_view,
-                                                                  d_sg_cluster_v.data(),
-                                                                  size_t{1},
-                                                                  threshold,
-                                                                  resolution);
+          std::tie(std::ignore, sg_modularity) = cugraph::louvain(
+            handle,
+            std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+            sg_graph_view,
+            sg_edge_weight_view,
+            d_sg_cluster_v.data(),
+            size_t{1},
+            threshold,
+            resolution);
 
           EXPECT_TRUE(cugraph::test::check_invertible(
             handle,
@@ -191,6 +193,7 @@ class Tests_MGLouvain
 
     auto [dendrogram, mg_modularity] = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
       *handle_,
+      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
       mg_graph_view,
       mg_edge_weight_view,
       louvain_usecase.max_level_,

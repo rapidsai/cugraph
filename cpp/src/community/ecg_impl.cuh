@@ -17,9 +17,9 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::random::RngState& rng_state,
   weight_t min_weight,
   size_t ensemble_size,
   size_t max_level,
@@ -40,13 +40,15 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                                                     handle.get_stream());
 
   for (size_t i = 0; i < ensemble_size; i++) {
-    std::tie(std::ignore, modularity) = cugraph::louvain(handle,
-                                                         graph_view,
-                                                         edge_weight_view,
-                                                         cluster_assignments.data(),
-                                                         size_t{1},
-                                                         threshold,
-                                                         resolution);
+    std::tie(std::ignore, modularity) = cugraph::louvain(
+      handle,
+      std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
+      graph_view,
+      edge_weight_view,
+      cluster_assignments.data(),
+      size_t{1},
+      threshold,
+      resolution);
 
     // std::tie(std::ignore, modularity) = cugraph::leiden(handle,
     //                                                     rng_state,
@@ -132,13 +134,14 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
              static_cast<float>(e_weight),
              static_cast<float>(e_frequency));
 
-      return min_weight + e_weight * e_frequency / ensemble_size;
+      return min_weight + (e_weight - min_weight) * e_frequency / ensemble_size;
     },
     modified_edge_weights.mutable_view());
 
   std::tie(max_level, modularity) =
 
     cugraph::louvain(handle,
+                     std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
                      graph_view,
                      std::make_optional(modified_edge_weights.view()),
                      cluster_assignments.data(),
@@ -171,9 +174,9 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::random::RngState& rng_state,
   weight_t min_weight,
   size_t ensemble_size,
   size_t max_level,
@@ -181,9 +184,9 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   weight_t resolution)
 {
   return detail::ecg(handle,
+                     rng_state,
                      graph_view,
                      edge_weight_view,
-                     rng_state,
                      min_weight,
                      ensemble_size,
                      max_level,

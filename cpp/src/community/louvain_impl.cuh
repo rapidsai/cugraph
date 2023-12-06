@@ -45,12 +45,12 @@ void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& gr
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution,
-  bool is_random_initial_cluster = false)
+  weight_t resolution)
 {
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -84,18 +84,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
 
-    if (is_random_initial_cluster) {
-      raft::random::RngState rng_state(0);
-      // rmm::device_uvector<vertex_t> random_cluster_assignments = cugraph::select_random_vertices(
-      //   handle,
-      //   graph_view,
-      //   std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      //   rng_state,
-      //   graph_view.number_of_vertices(),
-      //   false,
-      //   false,
-      //   true);
-
+    if (rng_state) {
       rmm::device_uvector<vertex_t> random_cluster_assignments(
         graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -113,7 +102,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                              random_numbers.size(),
                                              float{0.0},
                                              float{1.0},
-                                             rng_state);
+                                             *rng_state);
         thrust::sort_by_key(handle.get_thrust_policy(),
                             random_numbers.begin(),
                             random_numbers.end(),
@@ -382,6 +371,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -391,7 +381,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
-  return detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
+  return detail::louvain(
+    handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -408,6 +399,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -423,8 +415,8 @@ std::pair<size_t, weight_t> louvain(
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
 
-  std::tie(dendrogram, modularity) =
-    detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
+  std::tie(dendrogram, modularity) = detail::louvain(
+    handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 

@@ -95,18 +95,19 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
       // could add support in Louvain for std::nullopt as the edge weights behaving
       // as desired and only instantiating a real edge_property_view_t for the
       // coarsened graphs.
-      auto [level, modularity] =
-        cugraph::louvain(handle_,
-                         graph_view,
-                         (edge_weights != nullptr)
-                           ? std::make_optional(edge_weights->view())
-                           : std::make_optional(cugraph::c_api::create_constant_edge_property(
-                                                  handle_, graph_view, weight_t{1})
-                                                  .view()),
-                         clusters.data(),
-                         max_level_,
-                         static_cast<weight_t>(threshold_),
-                         static_cast<weight_t>(resolution_));
+      auto [level, modularity] = cugraph::louvain(
+        handle_,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        (edge_weights != nullptr)
+          ? std::make_optional(edge_weights->view())
+          : std::make_optional(
+              cugraph::c_api::create_constant_edge_property(handle_, graph_view, weight_t{1})
+                .view()),
+        clusters.data(),
+        max_level_,
+        static_cast<weight_t>(threshold_),
+        static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
