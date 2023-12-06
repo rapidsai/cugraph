@@ -24,9 +24,9 @@ from torch_geometric.data import HeteroData
 
 
 class NativeTrainer(Trainer):
-    def __init__(self, model='GraphSAGE', dataset, device, rank=0, world_size=1, num_epochs=1, **kwargs):
-        self.__model = get_model(model)
+    def __init__(self, dataset, model='GraphSAGE', device=0, rank=0, world_size=1, num_epochs=1, **kwargs):
         self.__dataset = dataset
+        self.__model = self.get_model(model)
         self.__device = device
         self.__data = None
         self.__rank = rank

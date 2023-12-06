@@ -311,7 +311,7 @@ def parse_args():
 
     parser.add_argument(
         "--fanout",
-        type=int,
+        type=str,
         default="10_10_10",
         help="Fanout (required for Native run)",
         required=False,
@@ -381,7 +381,7 @@ def parse_args():
 
 
 def main(args):
-    rank = os.environ['LOCAL_RANK']
+    rank = int(os.environ['LOCAL_RANK'])
 
     init_pytorch_worker(rank, use_rmm_torch_allocator=(args.framework == "cuGraph"))
     enable_spilling()
@@ -391,7 +391,7 @@ def main(args):
     world_size = int(os.environ['SLURM_JOB_NUM_NODES']) * int(os.environ['SLURM_GPUS_PER_NODE'])
 
     dataset = OGBNPapers100MDataset(
-        replication_factor=replication_factor,
+        replication_factor=args.replication_factor,
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
