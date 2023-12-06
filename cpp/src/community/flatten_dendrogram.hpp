@@ -71,6 +71,16 @@ void leiden_partition_at_level(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> local_vertex_ids_v(local_num_verts, handle.get_stream());
 
+  for (size_t i = 0; i < level; i++) {
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "\tlevel : " << i << ", dendrogram_size: " << dendrogram.get_level_size_nocheck(i)
+              << std::endl;
+    raft::print_device_vector("\tdendrogram.get_level_ptr_nocheck(l):",
+                              dendrogram.get_level_ptr_nocheck(i),
+                              dendrogram.get_level_size_nocheck(i),
+                              std::cout);
+  }
+
   std::for_each(
     thrust::make_counting_iterator<size_t>(0),
     thrust::make_counting_iterator<size_t>((level - 1) / 2),
