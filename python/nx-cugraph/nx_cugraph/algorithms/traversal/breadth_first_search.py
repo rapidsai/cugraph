@@ -59,7 +59,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
 
 @networkx_algorithm
 def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
-    """`neighbors` parameter is not yet supported."""
+    """`neighbors` and `sort_neighbors` parameters are not yet supported."""
     return bfs_edges(source, depth_limit=depth_limit)
 
 
@@ -123,14 +123,8 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     # TODO: create renumbering helper function(s)
     unique_node_ids = cp.unique(cp.hstack((predecessors, node_ids)))
     # Renumber edges
-    # Option 1
-    src_indices = cp.searchsorted(unique_node_ids, predecessors)
-    dst_indices = cp.searchsorted(unique_node_ids, node_ids)
-    # Option 2
-    # mapper = cp.zeros(len(G), index_dtype)
-    # mapper[unique_node_ids] = cp.arange(unique_node_ids.size, dtype=mapper.dtype)
-    # src_indices = mapper[predecessors]
-    # dst_indices = mapper[node_ids]
+    src_indices = cp.searchsorted(unique_node_ids, predecessors).astype(index_dtype)
+    dst_indices = cp.searchsorted(unique_node_ids, node_ids).astype(index_dtype)
     # Renumber nodes
     if (id_to_key := G.id_to_key) is not None:
         key_to_id = {

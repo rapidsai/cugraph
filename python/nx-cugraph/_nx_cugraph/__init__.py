@@ -115,7 +115,7 @@ _info = {
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
-        "generic_bfs_edges": "`neighbors` parameter is not yet supported.",
+        "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
