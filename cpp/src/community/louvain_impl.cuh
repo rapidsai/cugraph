@@ -88,12 +88,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       rmm::device_uvector<vertex_t> random_cluster_assignments(
         graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
+      // generate as many number as #local_vertices on each GPU
       detail::sequence_fill(handle.get_stream(),
                             random_cluster_assignments.begin(),
                             random_cluster_assignments.size(),
                             current_graph_view.local_vertex_partition_range_first());
 
       {
+        // shuffle/permute locally
         rmm::device_uvector<float> random_numbers(random_cluster_assignments.size(),
                                                   handle.get_stream());
 
@@ -108,6 +110,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                             random_numbers.end(),
                             random_cluster_assignments.begin());
 
+        // evenly distributed Shuffled/permuted numbers to other GPUs
         auto& comm           = handle.get_comms();
         auto const comm_size = comm.get_size();
         auto const comm_rank = comm.get_rank();
@@ -126,7 +129,22 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                   tx_value_counts,
                                   handle.get_stream());
 
-        // shuffle as many vertices as local vertex partition size to each GPU.
+        // shuffle/permute locally
+        random_numbers.resize(random_cluster_assignments.size(), handle.get_stream());
+
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                             random_numbers.data(),
+                                             random_numbers.size(),
+                                             float{0.0},
+                                             float{1.0},
+                                             *rng_state);
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            random_numbers.begin(),
+                            random_numbers.end(),
+                            random_cluster_assignments.begin());
+
+        // find out how many elements current GPU needs to send to other GPUs
+
         std::fill(tx_value_counts.begin(), tx_value_counts.end(), 0);
         auto sample_buffer_sizes = cugraph::host_scalar_allgather(
           handle.get_comms(), random_cluster_assignments.size(), handle.get_stream());
@@ -134,7 +152,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         auto expected_sample_buffer_sizes = cugraph::host_scalar_allgather(
           handle.get_comms(), graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-        // find out how many elements current GPU needs to send to other GPUs
         std::vector<size_t> nr_smaples_per_GPU(comm_size, 0);
         for (int i = 0; i < comm_size; i++) {
           size_t nr_samples_ith_gpu = sample_buffer_sizes[i];
@@ -148,7 +165,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
             }
           }
         }
-
+        // shuffle as many vertices as local vertex partition size to each GPU.
         std::tie(random_cluster_assignments, std::ignore) =
           cugraph::shuffle_values(handle.get_comms(),
                                   random_cluster_assignments.begin(),
