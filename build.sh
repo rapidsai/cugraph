@@ -190,11 +190,15 @@ if hasArg --pydevelop; then
     PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e"
 fi
 
-# Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
 SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
-  if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
-      SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS} -DFIND_CUGRAPH_CPP=ON"
-  fi
+
+# Replace spaces with semicolons in SKBUILD_EXTRA_CMAKE_ARGS
+SKBUILD_EXTRA_CMAKE_ARGS=$(echo ${SKBUILD_EXTRA_CMAKE_ARGS} | sed 's/ /;/g')
+
+# Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
+if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
+    SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DFIND_CUGRAPH_CPP=ON"
+fi
 
 # If clean or uninstall targets given, run them prior to any other steps
 if hasArg uninstall; then
@@ -333,8 +337,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
                    -j${PARALLEL_LEVEL:-1}
             cd -
         fi
-        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
@@ -360,8 +363,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
                    -j${PARALLEL_LEVEL:-1}
             cd -
         fi
-        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi

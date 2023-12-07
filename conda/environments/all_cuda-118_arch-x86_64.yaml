@@ -63,7 +63,7 @@ dependencies:
 - recommonmark
 - requests
 - rmm==24.2.*
-- scikit-build>=0.13.1
+- scikit-build-core >=0.7.0
 - scikit-learn>=0.23.1
 - scipy
 - setuptools>=61.0.0
