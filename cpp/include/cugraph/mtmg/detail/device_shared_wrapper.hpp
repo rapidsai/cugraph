@@ -57,10 +57,10 @@ class device_shared_wrapper_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    auto pos = objects_.find(handle.get_local_rank());
+    auto pos = objects_.find(handle.get_rank());
     CUGRAPH_EXPECTS(pos == objects_.end(), "Cannot overwrite wrapped object");
 
-    objects_.insert(std::make_pair(handle.get_local_rank(), std::move(obj)));
+    objects_.insert(std::make_pair(handle.get_rank(), std::move(obj)));
   }
 
   /**
@@ -79,7 +79,6 @@ class device_shared_wrapper_t {
     objects_.insert(std::make_pair(local_rank, std::move(obj)));
   }
 
- public:
   /**
    * @brief Get reference to an object for a particular thread
    *
@@ -90,7 +89,7 @@ class device_shared_wrapper_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    auto pos = objects_.find(handle.get_local_rank());
+    auto pos = objects_.find(handle.get_rank());
     CUGRAPH_EXPECTS(pos != objects_.end(), "Uninitialized wrapped object");
 
     return pos->second;
@@ -106,7 +105,7 @@ class device_shared_wrapper_t {
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    auto pos = objects_.find(handle.get_local_rank());
+    auto pos = objects_.find(handle.get_rank());
 
     CUGRAPH_EXPECTS(pos != objects_.end(), "Uninitialized wrapped object");
 
