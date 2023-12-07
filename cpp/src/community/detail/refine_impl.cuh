@@ -246,12 +246,13 @@ refine_clustering(
     wcut_deg_and_cluster_vol_triple_begin,
     wcut_deg_and_cluster_vol_triple_end,
     singleton_and_connected_flags.begin(),
-    cuda::proclaim_return_type<uint8_t>([resolution, total_edge_weight] __device__(auto wcut_wdeg_and_louvain_volume) {
-      auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
-      auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
-      auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
-      return wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight);
-    }));
+    cuda::proclaim_return_type<uint8_t>(
+      [resolution, total_edge_weight] __device__(auto wcut_wdeg_and_louvain_volume) {
+        auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
+        auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
+        auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
+        return wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight);
+      }));
 
   edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);
   edge_src_property_t<GraphViewType, weight_t> src_cut_to_louvain_cache(handle);
