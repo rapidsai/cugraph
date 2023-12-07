@@ -163,7 +163,7 @@ int test_hits()
   weight_t h_hubs[]        = {0.347296, 0.532089, 1, 0.00003608, 0.00003608, 0};
   weight_t h_authorities[] = {0.652703, 0.879385, 0, 1, 0.347296, 0.00009136};
 
-  double epsilon        = 0.0001;
+  double epsilon        = 0.00002;
   size_t max_iterations = 20;
 
   // hits wants store_transposed = TRUE
@@ -195,7 +195,7 @@ int test_hits_with_transpose()
   weight_t h_hubs[]        = {0.347296, 0.532089, 1, 0.00003608, 0.00003608, 0};
   weight_t h_authorities[] = {0.652703, 0.879385, 0, 1, 0.347296, 0.00009136};
 
-  double epsilon        = 0.0001;
+  double epsilon        = 0.00002;
   size_t max_iterations = 20;
 
   // Hits wants store_transposed = TRUE
@@ -232,7 +232,7 @@ int test_hits_with_initial()
   vertex_t h_initial_vertices[] = {0, 1, 2, 3, 4};
   weight_t h_initial_hubs[]     = {0.347296, 0.532089, 1, 0.00003608, 0.00003608};
 
-  double epsilon        = 0.0001;
+  double epsilon        = 0.00002;
   size_t max_iterations = 20;
 
   return generic_hits_test(h_src,

@@ -79,7 +79,6 @@ class device_shared_wrapper_t {
     objects_.insert(std::make_pair(local_rank, std::move(obj)));
   }
 
- public:
   /**
    * @brief Get reference to an object for a particular thread
    *
