@@ -46,18 +46,5 @@ void populate_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_vertices_v /* [INOUT] */,
                          vertex_t vertex_id_offset);
 
-template <typename vertex_t, typename weight_t>
-void remove_self_loops(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,
-                       rmm::device_uvector<vertex_t>& d_dst_v /* [INOUT] */,
-                       std::optional<rmm::device_uvector<weight_t>>& d_weight_v /* [INOUT] */);
-
-template <typename vertex_t, typename weight_t>
-void sort_and_remove_multi_edges(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,
-  rmm::device_uvector<vertex_t>& d_dst_v /* [INOUT] */,
-  std::optional<rmm::device_uvector<weight_t>>& d_weight_v /* [INOUT] */);
-
 }  // namespace test
 }  // namespace cugraph

@@ -327,7 +327,8 @@ class Tests_Multithreaded
         auto d_my_pageranks = pageranks_view.gather(
           thread_handle,
           raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
-          graph_view,
+          graph_view.get_vertex_partition_range_lasts(thread_handle),
+          graph_view.get_vertex_partition_view(thread_handle),
           renumber_map_view);
 
         std::vector<result_t> my_pageranks(d_my_pageranks.size());
