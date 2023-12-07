@@ -20,7 +20,6 @@ from pylibcugraphops.pytorch.operators import mha_gat_n2n
 from .base import BaseConv
 
 torch = import_optional("torch")
-nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
 
 
@@ -75,6 +74,11 @@ class HeteroGATConv(BaseConv):
         bias: bool = True,
         aggr: str = "sum",
     ):
+        major, minor, patch = torch_geometric.__version__.split(".")[:3]
+        pyg_version = tuple(map(int, [major, minor, patch]))
+        if pyg_version < (2, 4, 0):
+            raise RuntimeError(f"{self.__class__.__name__} requires pyg >= 2.4.0.")
+
         super().__init__()
 
         if isinstance(in_channels, int):
@@ -93,9 +97,7 @@ class HeteroGATConv(BaseConv):
         self.relations_per_ntype = defaultdict(lambda: ([], []))
 
         lin_weights = dict.fromkeys(self.node_types)
-
         attn_weights = dict.fromkeys(self.edge_types)
-
         biases = dict.fromkeys(self.edge_types)
 
         ParameterDict = torch_geometric.nn.parameter_dict.ParameterDict

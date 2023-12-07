@@ -30,6 +30,11 @@ ATOL = 1e-6
 @pytest.mark.parametrize("heads", [1, 3, 10])
 @pytest.mark.parametrize("aggr", ["sum", "mean"])
 def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
+    major, minor, patch = torch_geometric.__version__.split(".")[:3]
+    pyg_version = tuple(map(int, [major, minor, patch]))
+    if pyg_version < (2, 4, 0):
+        pytest.skip("Skipping HeteroGATConv test")
+
     from torch_geometric.data import HeteroData
     from torch_geometric.nn import HeteroConv, GATConv
 
