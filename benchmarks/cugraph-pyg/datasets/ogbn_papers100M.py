@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from .dataset import Dataset
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import pandas
 import torch
@@ -25,7 +25,7 @@ import os
 
 # TODO automatically generate this dataset and splits
 class OGBNPapers100MDataset(Dataset):
-    def __init__(self, *, replication_factor=1, dataset_dir='.', train_split=0.8, val_split=0.5):
+    def __init__(self, *, replication_factor=1, dataset_dir='.', train_split=0.8, val_split=0.5, load_edge_index=True):
         self.__replication_factor = replication_factor
         self.__disk_x = None
         self.__y = None
@@ -33,61 +33,65 @@ class OGBNPapers100MDataset(Dataset):
         self.__dataset_dir = dataset_dir
         self.__train_split = train_split
         self.__val_split = val_split
+        self.__load_edge_index = load_edge_index
 
     @property 
-    def edge_index_dict(self) -> Dict[Tuple[str, str, str], Dict[str, torch.Tensor]]:
+    def edge_index_dict(self) -> Dict[Tuple[str, str, str], Union[Dict[str, torch.Tensor], int]]:
         import logging
         logger = logging.getLogger('OGBNPapers100MDataset')
 
         if self.__edge_index is None:
-            npy_path = os.path.join(
-                self.__dataset_dir,
-                'ogbn_papers100M_copy',
-                'npy',
-                'paper__cites__paper',
-                'edge_index.npy'
-            )
+            if self.__load_edge_index:
+                npy_path = os.path.join(
+                    self.__dataset_dir,
+                    'ogbn_papers100M_copy',
+                    'npy',
+                    'paper__cites__paper',
+                    'edge_index.npy'
+                )
 
-            logger.info(f'loading edge index from {npy_path}')
-            ei = np.load(npy_path, mmap_mode='r')
-            ei = torch.as_tensor(ei)
-            ei = {
-                'src': ei[1],
-                'dst': ei[0],
-            }
+                logger.info(f'loading edge index from {npy_path}')
+                ei = np.load(npy_path, mmap_mode='r')
+                ei = torch.as_tensor(ei)
+                ei = {
+                    'src': ei[1],
+                    'dst': ei[0],
+                }
 
-            logger.info('sorting edge index...')
-            ei['dst'], ix = torch.sort(ei['dst'])
-            ei['src'] = ei['src'][ix]
-            del ix
-            gc.collect()
+                logger.info('sorting edge index...')
+                ei['dst'], ix = torch.sort(ei['dst'])
+                ei['src'] = ei['src'][ix]
+                del ix
+                gc.collect()
 
-            logger.info('processing replications...')
-            orig_num_nodes = self.num_nodes('paper') // self.__replication_factor
-            if self.__replication_factor > 1:
-                orig_src = ei['src'].clone().detach()
-                orig_dst = ei['dst'].clone().detach()
-                for r in range(1, self.__replication_factor):
-                    ei['src'] = torch.concat([
-                        ei['src'],
-                        orig_src + int(r * orig_num_nodes),
-                    ])
+                logger.info('processing replications...')
+                orig_num_nodes = self.num_nodes('paper') // self.__replication_factor
+                if self.__replication_factor > 1:
+                    orig_src = ei['src'].clone().detach()
+                    orig_dst = ei['dst'].clone().detach()
+                    for r in range(1, self.__replication_factor):
+                        ei['src'] = torch.concat([
+                            ei['src'],
+                            orig_src + int(r * orig_num_nodes),
+                        ])
 
-                    ei['dst'] = torch.concat([
-                        ei['dst'],
-                        orig_dst + int(r * orig_num_nodes),
-                    ])
+                        ei['dst'] = torch.concat([
+                            ei['dst'],
+                            orig_dst + int(r * orig_num_nodes),
+                        ])
 
-                del orig_src
-                del orig_dst
+                    del orig_src
+                    del orig_dst
 
-                ei['src'] = ei['src'].contiguous()
-                ei['dst'] = ei['dst'].contiguous()
-            gc.collect()
+                    ei['src'] = ei['src'].contiguous()
+                    ei['dst'] = ei['dst'].contiguous()
+                gc.collect()
 
-            logger.info(f"# edges: {len(ei['src'])}")
-            self.__edge_index = {('paper','cites','paper'): ei}
-        
+                logger.info(f"# edges: {len(ei['src'])}")
+                self.__edge_index = {('paper','cites','paper'): ei}
+            else:
+                self.__edge_index = {('paper','cites','paper'): self.__num_edges(('paper','cites','paper'))}
+
         return self.__edge_index
 
     @property

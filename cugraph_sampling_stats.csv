@@ -1,0 +1,5 @@
+,dataset,num_input_edges,directed,renumber,input_memory_per_worker,peak_allocation_across_workers,input_to_peak_ratio,output_to_peak_ratio
+0,ogbn_papers100M,3231371744,,,6.0GB,9.5GB,1.5855738537398067,5.116519236671495
+1,ogbn_papers100M,3231371744,,,6.0GB,10.3GB,1.7046710423299412,4.932446007081244
+2,ogbn_papers100M,3231371744,,,6.0GB,10.1GB,1.6730220297426726,4.895644541722588
+3,ogbn_papers100M,3231371744,,,6.0GB,10.1GB,1.672006355515127,5.65415896480471

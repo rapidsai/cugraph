@@ -97,19 +97,15 @@ def symmetrize_ddf(dask_dataframe):
     return new_ddf
 
 
-def renumber_ddf(dask_df, persist=False):
+def renumber_ddf(dask_df):
     vertices = (
         dask_cudf.concat([dask_df["src"], dask_df["dst"]])
         .unique()
         .reset_index(drop=True)
     )
-    if persist:
-        vertices = vertices.persist()
 
     vertices.name = "v"
     vertices = vertices.reset_index().set_index("v").rename(columns={"index": "m"})
-    if persist:
-        vertices = vertices.persist()
 
     src = dask_df.merge(vertices, left_on="src", right_on="v", how="left").m.rename(
         "src"
@@ -253,7 +249,6 @@ def generate_rmat_dataset(
     labeled_percentage=0.01,
     num_labels=256,
     reverse_edges=False,
-    persist=False,
     add_edge_types=False,
 ):
     """
@@ -282,12 +277,8 @@ def generate_rmat_dataset(
     dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
 
     dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
-    if persist:
-        dask_edgelist_df = dask_edgelist_df.persist()
 
     dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
-    if persist:
-        dask_edgelist_df = dask_edgelist_df.persist()
 
     if add_edge_types:
         dask_edgelist_df["etp"] = cupy.int32(
@@ -329,7 +320,6 @@ def load_disk_dataset(
     dataset_dir=".",
     reverse_edges=True,
     replication_factor=1,
-    persist=False,
     add_edge_types=False,
 ):
     from pathlib import Path
@@ -363,8 +353,6 @@ def load_disk_dataset(
         ]
 
         edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
-        if persist:
-            edge_index_dict = edge_index_dict.persist()
 
         if replication_factor > 1:
             edge_index_dict[can_edge_type] = edge_index_dict[
@@ -384,20 +372,12 @@ def load_disk_dataset(
                 ),
             )
 
-            if persist:
-                edge_index_dict[can_edge_type] = edge_index_dict[
-                    can_edge_type
-                ].persist()
-
         gc.collect()
 
         if reverse_edges:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(
                 columns={"src": "dst", "dst": "src"}
             )
-
-        if persist:
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
@@ -409,9 +389,6 @@ def load_disk_dataset(
         edge_count += len(edge_index_dict[can_edge_type])
 
     all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
-
-    if persist:
-        all_edges_df = all_edges_df.persist()
 
     del edge_index_dict
     gc.collect()
@@ -440,15 +417,9 @@ def load_disk_dataset(
                     meta=cudf.DataFrame({"node": cudf.Series(dtype="int64")}),
                 )
 
-                if persist:
-                    node_labels[node_type] = node_labels[node_type].persist()
-
             gc.collect()
 
     node_labels_df = dask_cudf.concat(list(node_labels.values()))
-
-    if persist:
-        node_labels_df = node_labels_df.persist()
 
     del node_labels
     gc.collect()
@@ -475,8 +446,8 @@ def benchmark_cugraph_bulk_sampling(
     replication_factor=1,
     num_labels=256,
     labeled_percentage=0.001,
-    persist=False,
     add_edge_types=False,
+    epoch=0,
 ):
     """
     Entry point for the benchmark.
@@ -506,14 +477,13 @@ def benchmark_cugraph_bulk_sampling(
     labeled_percentage: float
         The percentage of the data that is labeled (only for rmat datasets)
         Defaults to 0.001 to match papers100M
-    persist: bool
-        Whether to aggressively persist data in dask in attempt to speed up ETL.
-        Defaults to False.
     add_edge_types: bool
         Whether to add edge types to the edgelist.
         Defaults to False.
     sampling_target_framework: str
         The framework to sample for.
+    epoch: int
+        The number of the current epoch.
     """
     
     logger = logging.getLogger('__main__')
@@ -531,7 +501,6 @@ def benchmark_cugraph_bulk_sampling(
             seed=seed,
             labeled_percentage=labeled_percentage,
             num_labels=num_labels,
-            persist=persist,
             add_edge_types=add_edge_types,
         )
 
@@ -547,7 +516,6 @@ def benchmark_cugraph_bulk_sampling(
             dataset_dir=dataset_dir,
             reverse_edges=reverse_edges,
             replication_factor=replication_factor,
-            persist=persist,
             add_edge_types=add_edge_types,
         )
 
@@ -562,7 +530,9 @@ def benchmark_cugraph_bulk_sampling(
     logger.info(f"input memory: {input_memory}")
 
     output_subdir = os.path.join(
-        output_path, f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}"
+        output_path,
+        f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}",
+        f"epoch={epoch}",
     )
     os.makedirs(output_subdir)
 
@@ -698,6 +668,14 @@ def get_args():
     )
 
     parser.add_argument(
+        "--num_epochs",
+        type=int,
+        help="Number of epochs to run for",
+        required=False,
+        default=1,
+    )
+
+    parser.add_argument(
         "--fanouts",
         type=str,
         help="Comma separated list of fanouts (i.e. 10_25,5_5_5)",
@@ -747,14 +725,6 @@ def get_args():
         "--random_seed", type=int, help="Random seed", required=False, default=62
     )
 
-    parser.add_argument(
-        "--persist",
-        action="store_true",
-        help="Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.",
-        required=False,
-        default=False,
-    )
-
     return parser.parse_args()
 
 
@@ -796,51 +766,53 @@ if __name__ == "__main__":
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
-                    logger.info(f"dataset: {dataset}")
-                    logger.info(f"batch size: {batch_size}")
-                    logger.info(f"fanout: {fanout}")
-                    logger.info(f"seeds_per_call: {seeds_per_call}")
+                    for epoch in range(args.num_epochs):
+                        logger.info(f"dataset: {dataset}")
+                        logger.info(f"batch size: {batch_size}")
+                        logger.info(f"fanout: {fanout}")
+                        logger.info(f"seeds_per_call: {seeds_per_call}")
+                        logger.info(f"epoch: {epoch}")
 
-                    try:
-                        stats_d = {}
-                        (
-                            num_input_edges,
-                            input_to_peak_ratio,
-                            output_to_peak_ratio,
-                            input_memory_per_worker,
-                            peak_allocation_across_workers,
-                        ) = benchmark_cugraph_bulk_sampling(
-                            dataset=dataset,
-                            output_path=args.output_root,
-                            seed=args.random_seed,
-                            batch_size=batch_size,
-                            seeds_per_call=seeds_per_call,
-                            fanout=fanout,
-                            sampling_target_framework=args.sampling_target_framework,
-                            dataset_dir=args.dataset_root,
-                            reverse_edges=args.reverse_edges,
-                            replication_factor=replication_factor,
-                            persist=args.persist,
-                        )
-                        stats_d["dataset"] = dataset
-                        stats_d["num_input_edges"] = num_input_edges
-                        stats_d["batch_size"] = batch_size
-                        stats_d["fanout"] = fanout
-                        stats_d["seeds_per_call"] = seeds_per_call
-                        stats_d["input_memory_per_worker"] = sizeof_fmt(
-                            input_memory_per_worker
-                        )
-                        stats_d["peak_allocation_across_workers"] = sizeof_fmt(
-                            peak_allocation_across_workers
-                        )
-                        stats_d["input_to_peak_ratio"] = input_to_peak_ratio
-                        stats_d["output_to_peak_ratio"] = output_to_peak_ratio
-                        stats_ls.append(stats_d)
-                    except Exception as e:
-                        warnings.warn("An Exception Occurred!")
-                        print(e)
-                        traceback.print_exc()
-                    sleep(10)
+                        try:
+                            stats_d = {}
+                            (
+                                num_input_edges,
+                                input_to_peak_ratio,
+                                output_to_peak_ratio,
+                                input_memory_per_worker,
+                                peak_allocation_across_workers,
+                            ) = benchmark_cugraph_bulk_sampling(
+                                dataset=dataset,
+                                output_path=args.output_root,
+                                epoch=epoch,
+                                seed=args.random_seed,
+                                batch_size=batch_size,
+                                seeds_per_call=seeds_per_call,
+                                fanout=fanout,
+                                sampling_target_framework=args.sampling_target_framework,
+                                dataset_dir=args.dataset_root,
+                                reverse_edges=args.reverse_edges,
+                                replication_factor=replication_factor,
+                            )
+                            stats_d["dataset"] = dataset
+                            stats_d["num_input_edges"] = num_input_edges
+                            stats_d["batch_size"] = batch_size
+                            stats_d["fanout"] = fanout
+                            stats_d["seeds_per_call"] = seeds_per_call
+                            stats_d["input_memory_per_worker"] = sizeof_fmt(
+                                input_memory_per_worker
+                            )
+                            stats_d["peak_allocation_across_workers"] = sizeof_fmt(
+                                peak_allocation_across_workers
+                            )
+                            stats_d["input_to_peak_ratio"] = input_to_peak_ratio
+                            stats_d["output_to_peak_ratio"] = output_to_peak_ratio
+                            stats_ls.append(stats_d)
+                        except Exception as e:
+                            warnings.warn("An Exception Occurred!")
+                            print(e)
+                            traceback.print_exc()
+                        sleep(10)
 
         stats_df = pd.DataFrame(
             stats_ls,
