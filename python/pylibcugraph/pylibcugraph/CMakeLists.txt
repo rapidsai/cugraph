@@ -35,6 +35,7 @@ set(cython_sources
     hits.pyx
     induced_subgraph.pyx
     k_core.pyx
+    k_truss_subgraph.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
@@ -55,6 +56,7 @@ set(cython_sources
     uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
+    replicate_edgelist.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

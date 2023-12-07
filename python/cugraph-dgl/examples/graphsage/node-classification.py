@@ -39,14 +39,16 @@ warnings.filterwarnings("ignore")
 
 
 def set_allocators():
+    import rmm
     import cudf
     import cupy
-    import rmm
+    from rmm.allocators.torch import rmm_torch_allocator
+    from rmm.allocators.cupy import rmm_cupy_allocator
 
     mr = rmm.mr.CudaAsyncMemoryResource()
     rmm.mr.set_current_device_resource(mr)
-    torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
-    cupy.cuda.set_allocator(rmm.allocators.cupy.rmm_cupy_allocator)
+    torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+    cupy.cuda.set_allocator(rmm_cupy_allocator)
     cudf.set_option("spill", True)
 
 
@@ -241,7 +243,9 @@ if __name__ == "__main__":
 
     else:
         g = g.to("cuda" if args.mode == "gpu_dgl" else "cpu")
-    device = torch.device("cpu" if args.mode == "cpu" else "cuda")
+    device = torch.device(
+        "cpu" if args.mode == "cpu" or args.mode == "mixed" else "cuda"
+    )
 
     # create GraphSAGE model
     feat_shape = (

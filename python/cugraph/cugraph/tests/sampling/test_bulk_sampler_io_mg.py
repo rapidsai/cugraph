@@ -38,8 +38,12 @@ def test_bulk_sampler_io(scratch_dir):
         divisions=[0, 8, 11]
     )
 
-    offsets = cudf.DataFrame({"offsets": [0, 0], "batch_id": [0, 1]})
-    offsets = dask_cudf.from_cudf(offsets, npartitions=2)
+    assert len(results) == 12
+
+    offsets = cudf.DataFrame({"offsets": [0, 8, 0, 4], "batch_id": [0, None, 1, None]})
+    offsets = dask_cudf.from_cudf(offsets, npartitions=1).repartition(
+        divisions=[0, 2, 3]
+    )
 
     samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io")
     create_directory_with_overwrite(samples_path)
@@ -149,9 +153,11 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
     )
 
     # some batches are missing
-    offsets = cudf.DataFrame({"offsets": [0, 8, 0, 4], "batch_id": [0, 3, 4, 10]})
+    offsets = cudf.DataFrame(
+        {"offsets": [0, 8, 12, 0, 4, 8], "batch_id": [0, 3, None, 4, 10, None]}
+    )
     offsets = dask_cudf.from_cudf(offsets, npartitions=1).repartition(
-        divisions=[0, 2, 3]
+        divisions=[0, 3, 5]
     )
 
     samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io_empty_batch")

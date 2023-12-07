@@ -20,4 +20,4 @@ from cugraph_dgl.convert import cugraph_storage_from_heterograph
 import cugraph_dgl.dataloading
 import cugraph_dgl.nn
 
-__version__ = "23.10.00"
+from cugraph_dgl._version import __git_commit__, __version__

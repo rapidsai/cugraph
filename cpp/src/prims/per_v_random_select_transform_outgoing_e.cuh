@@ -289,7 +289,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
 #ifndef NO_CUGRAPH_OPS
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
-  size_t high_partition_over_sampling_K = K * 2;                         // tuning parameter
+  size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
   assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
@@ -887,7 +887,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};        // relevant only when (minor_comm_size > 1)
+    std::nullopt};  // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (minor_comm_size > 1) {
@@ -945,7 +945,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       minor_comm_ranks.begin(),
       thrust::make_zip_iterator(
         thrust::make_tuple(tmp_sample_local_nbr_indices.begin(), tmp_sample_key_indices.begin())),
-      not_equal_t<int>{-1});
+      is_not_equal_t<int>{-1});
 
     sample_local_nbr_indices = std::move(tmp_sample_local_nbr_indices);
     sample_key_indices       = std::move(tmp_sample_key_indices);

@@ -84,8 +84,10 @@ datasets/*
 # Jupyter Notebooks
 .ipynb_checkpoints
 
-## Doxygen
+## Doxygen and Docs
 cpp/doxygen/html
+docs/cugraph/lib*
+docs/cugraph/api/*
 
 # created by Dask tests
 python/dask-worker-space
@@ -97,3 +99,7 @@ python/cugraph/cugraph/tests/dask-worker-space
 docs/cugraph/source/api_docs/api/*
 _html
 _text
+
+# clang tooling
+compile_commands.json
+.clangd/

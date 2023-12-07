@@ -96,7 +96,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  centralities.end(),
                  old_centralities.data());
 
-    update_edge_src_property(handle, pull_graph_view, centralities.begin(), edge_src_centralities);
+    update_edge_src_property(
+      handle, pull_graph_view, old_centralities.begin(), edge_src_centralities);
 
     if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
@@ -121,6 +122,13 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
         reduce_op::plus<weight_t>{},
         centralities.begin());
     }
+
+    thrust::transform(handle.get_thrust_policy(),
+                      centralities.begin(),
+                      centralities.end(),
+                      old_centralities.begin(),
+                      centralities.begin(),
+                      thrust::plus<weight_t>());
 
     // Normalize the centralities
     auto hypotenuse = sqrt(transform_reduce_v(

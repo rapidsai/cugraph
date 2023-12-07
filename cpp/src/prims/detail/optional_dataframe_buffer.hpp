@@ -97,6 +97,7 @@ void shrink_to_fit_optional_dataframe_buffer(
 {
   return shrink_to_fit_dataframe_buffer(optional_dataframe_buffer, stream_view);
 }
+
 }  // namespace detail
 
 }  // namespace cugraph

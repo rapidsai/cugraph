@@ -72,7 +72,7 @@ struct v_to_core_number_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename edge_t>
 struct mult_degree_by_two_t {
-  __device__ edge_t operator()(edge_t d) const { return d* edge_t{2}; }
+  __device__ edge_t operator()(edge_t d) const { return d * edge_t{2}; }
 };
 
 }  // namespace

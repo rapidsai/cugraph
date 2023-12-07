@@ -269,6 +269,7 @@ class EXPERIMENTAL__BulkSampler:
             with_edge_properties=True,
             return_offsets=True,
             renumber=self.__renumber,
+            # use_legacy_names=False,
         )
 
         if self.__renumber:

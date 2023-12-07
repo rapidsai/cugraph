@@ -10,53 +10,88 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
+import warnings
 
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
+    _dtype_param,
     _groupby,
-    _handle_seed,
+    _seed_to_int,
     networkx_algorithm,
     not_implemented_for,
 )
+
+from ..isolate import _isolates
 
 __all__ = ["louvain_communities"]
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(extra_params="max_level")
+@networkx_algorithm(
+    extra_params={
+        "max_level : int, optional": (
+            "Upper limit of the number of macro-iterations (max: 500)."
+        ),
+        **_dtype_param,
+    }
+)
 def louvain_communities(
-    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
+    G,
+    weight="weight",
+    resolution=1,
+    threshold=0.0000001,
+    seed=None,
+    *,
+    max_level=None,
+    dtype=None,
 ):
-    """`threshold` and `seed` parameters are currently ignored.
-
-    Extra parameter: `max_level` controls the maximum number of levels of the algorithm.
-    """
+    """`seed` parameter is currently ignored."""
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
-    seed = _handle_seed(seed)  # Unused, but ensure it's valid for future compatibility
+    seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
-    if G.row_indices.size == 0:
+    if G.src_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     if max_level is None:
-        max_level = sys.maxsize
-    vertices, clusters, modularity = plc.louvain(
+        max_level = 500
+    elif max_level > 500:
+        warnings.warn(
+            f"max_level is set too high (={max_level}), setting it to 500.",
+            UserWarning,
+            stacklevel=2,
+        )
+        max_level = 500
+    node_ids, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(weight, 1, dtype),
         max_level=max_level,  # TODO: add this parameter to NetworkX
+        threshold=threshold,
         resolution=resolution,
-        # threshold=threshold,  # TODO: add this parameter to PLC
         do_expensive_check=False,
     )
-    groups = _groupby(clusters, vertices)
-    return [set(G._nodearray_to_list(node_ids)) for node_ids in groups.values()]
+    groups = _groupby(clusters, node_ids, groups_are_canonical=True)
+    rv = [set(G._nodearray_to_list(ids)) for ids in groups.values()]
+    # TODO: PLC doesn't handle isolated node_ids yet, so this is a temporary fix
+    isolates = _isolates(G)
+    if isolates.size > 0:
+        isolates = isolates[isolates > node_ids.max()]
+        if isolates.size > 0:
+            rv.extend({node} for node in G._nodearray_to_list(isolates))
+    return rv
 
 
 @louvain_communities._can_run
 def _(
-    G, weight="weight", resolution=1, threshold=0.0000001, seed=None, *, max_level=None
+    G,
+    weight="weight",
+    resolution=1,
+    threshold=0.0000001,
+    seed=None,
+    *,
+    max_level=None,
+    dtype=None,
 ):
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     return not G.is_directed()

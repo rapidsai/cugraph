@@ -880,8 +880,6 @@ void update_edge_src_property(
     edge_src_property_output,
   bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -931,8 +929,6 @@ void update_edge_src_property(
     edge_src_property_output,
   bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),
@@ -999,8 +995,6 @@ void update_edge_dst_property(
     edge_dst_property_output,
   bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -1050,8 +1044,6 @@ void update_edge_dst_property(
     edge_dst_property_output,
   bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),

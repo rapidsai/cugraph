@@ -19,6 +19,7 @@
 #include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>

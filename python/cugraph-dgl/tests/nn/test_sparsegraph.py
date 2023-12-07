@@ -19,32 +19,42 @@ torch = import_optional("torch")
 
 def test_coo2csc(sparse_graph_1):
     data = sparse_graph_1
-    values = torch.ones(data.nnz).cuda()
+
     g = SparseGraph(
-        size=data.size, src_ids=data.src_ids, dst_ids=data.dst_ids, formats="csc"
+        size=data.size,
+        src_ids=data.src_ids,
+        dst_ids=data.dst_ids,
+        values=data.values,
+        formats=["csc"],
     )
-    cdst_ids, src_ids = g.csc()
+    cdst_ids, src_ids, values = g.csc()
 
     new = torch.sparse_csc_tensor(cdst_ids, src_ids, values).cuda()
     old = torch.sparse_coo_tensor(
-        torch.vstack((data.src_ids, data.dst_ids)), values
+        torch.vstack((data.src_ids, data.dst_ids)), data.values
     ).cuda()
     torch.allclose(new.to_dense(), old.to_dense())
 
 
-def test_csc2coo(sparse_graph_1):
+def test_csc_input(sparse_graph_1):
     data = sparse_graph_1
-    values = torch.ones(data.nnz).cuda()
+
     g = SparseGraph(
         size=data.size,
         src_ids=data.src_ids_sorted_by_dst,
         cdst_ids=data.cdst_ids,
-        formats="coo",
+        values=data.values_csc,
+        formats=["coo", "csc", "csr"],
     )
-    src_ids, dst_ids = g.coo()
+    src_ids, dst_ids, values = g.coo()
 
     new = torch.sparse_coo_tensor(torch.vstack((src_ids, dst_ids)), values).cuda()
     old = torch.sparse_csc_tensor(
-        data.cdst_ids, data.src_ids_sorted_by_dst, values
+        data.cdst_ids, data.src_ids_sorted_by_dst, data.values_csc
     ).cuda()
+    torch.allclose(new.to_dense(), old.to_dense())
+
+    csrc_ids, dst_ids, values = g.csr()
+
+    new = torch.sparse_csr_tensor(csrc_ids, dst_ids, values).cuda()
     torch.allclose(new.to_dense(), old.to_dense())

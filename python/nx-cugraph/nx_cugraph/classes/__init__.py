@@ -11,5 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .graph import Graph
+from .digraph import DiGraph
+from .multigraph import MultiGraph
+from .multidigraph import MultiDiGraph
 
-from .digraph import DiGraph  # isort:skip
+from .function import *

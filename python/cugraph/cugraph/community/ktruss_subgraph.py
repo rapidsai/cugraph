@@ -11,14 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph_classes import Graph
+from typing import Union
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
 )
 
+from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
+from pylibcugraph import ResourceHandle
+import warnings
+
 from numba import cuda
+import cudf
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# ktruss_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 # FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
@@ -39,7 +52,9 @@ def _ensure_compatible_cuda_version():
         )
 
 
-def k_truss(G, k):
+def k_truss(
+    G: Union[Graph, "networkx.Graph"], k: int
+) -> Union[Graph, "networkx.Graph"]:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
@@ -90,7 +105,11 @@ def k_truss(G, k):
 # FIXME: merge this function with k_truss
 
 
-def ktruss_subgraph(G, k, use_weights=True):
+def ktruss_subgraph(
+    G: Union[Graph, "networkx.Graph"],
+    k: int,
+    use_weights=True,  # deprecated
+) -> Graph:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
@@ -103,7 +122,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     finding the maximal k-clique is known to be NP-Hard.
 
     In contrast, finding a k-truss is computationally tractable as its
-    key building block, namely triangle counting counting, can be executed
+    key building block, namely triangle counting, can be executed
     in polnymomial time.Typically, it takes many iterations of triangle
     counting to find the k-truss of a graph. Yet these iterations operate
     on a weakly monotonically shrinking graph.
@@ -141,7 +160,10 @@ def ktruss_subgraph(G, k, use_weights=True):
         The desired k to be used for extracting the k-truss subgraph.
 
     use_weights : bool, optional (default=True)
-        whether the output should contain the edge weights if G has them
+        Whether the output should contain the edge weights if G has them.
+
+        Deprecated: If 'weights' were passed at the graph creation, they will
+        be used.
 
     Returns
     -------
@@ -162,7 +184,27 @@ def ktruss_subgraph(G, k, use_weights=True):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
+    if use_weights:
+        warning_msg = (
+            "The use_weights flag is deprecated "
+            "and will be removed in the next release. if weights "
+            "were passed at the graph creation, they will be used."
+        )
+        warnings.warn(warning_msg, FutureWarning)
+
+    sources, destinations, edge_weights, _ = pylibcugraph_k_truss_subgraph(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        k=k,
+        do_expensive_check=True,
+    )
+
+    subgraph_df = cudf.DataFrame()
+    subgraph_df["src"] = sources
+    subgraph_df["dst"] = destinations
+    if edge_weights is not None:
+        subgraph_df["weight"] = edge_weights
+
     if G.renumbered:
         subgraph_df = G.unrenumber(subgraph_df, "src")
         subgraph_df = G.unrenumber(subgraph_df, "dst")

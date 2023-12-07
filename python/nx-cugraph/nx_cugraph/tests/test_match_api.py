@@ -31,6 +31,9 @@ def test_match_signature_and_names():
 
         if is_nx_30_or_31 and name in {"louvain_communities"}:
             continue
+        if name not in nx_backends._registered_algorithms:
+            print(f"{name} not dispatched from networkx")
+            continue
         dispatchable_func = nx_backends._registered_algorithms[name]
         # nx version >=3.2 uses orig_func, version >=3.0,<3.2 uses _orig_func
         if is_nx_30_or_31:
@@ -45,11 +48,14 @@ def test_match_signature_and_names():
             assert orig_sig == func_sig
         else:
             # Ignore extra parameters added to nx-cugraph algorithm
+            # The key of func.extra_params may be like "max_level : int, optional",
+            # but we only want "max_level" here.
+            extra_params = {name.split(" ")[0] for name in func.extra_params}
             assert orig_sig == func_sig.replace(
                 parameters=[
                     p
                     for name, p in func_sig.parameters.items()
-                    if name not in func.extra_params
+                    if name not in extra_params
                 ]
             )
         if func.can_run is not nxcg.utils.decorators._default_can_run:

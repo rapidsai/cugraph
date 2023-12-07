@@ -15,31 +15,37 @@ import pytest
 
 
 def pytest_addoption(parser):
-    parser.addoption("--allow-rmm-reinit",
-                     action="store_true",
-                     default=False,
-                     help="Allow RMM to be reinitialized, possibly multiple times within "
-                     "the same process, in order to run benchmarks with different managed "
-                     "memory and pool allocator options. This is not the default behavior "
-                     "since it does not represent a typical use case, and support for "
-                     "this may be limited. Instead, consider multiple pytest runs that "
-                     "use a fixed set of RMM settings.")
-    parser.addoption("--rmat-scale",
-                     action="store",
-                     type=int,
-                     default=20,
-                     metavar="scale",
-                     help="For use when using synthetic graph data generated using RMAT. "
-                     "This results in a graph with 2^scale vertices. Default is "
-                     "%(default)s.")
-    parser.addoption("--rmat-edgefactor",
-                     action="store",
-                     type=int,
-                     default=16,
-                     metavar="edgefactor",
-                     help="For use when using synthetic graph data generated using RMAT. "
-                     "This results in a graph with (2^scale)*edgefactor edges. Default "
-                     "is %(default)s.")
+    parser.addoption(
+        "--allow-rmm-reinit",
+        action="store_true",
+        default=False,
+        help="Allow RMM to be reinitialized, possibly multiple times within "
+        "the same process, in order to run benchmarks with different managed "
+        "memory and pool allocator options. This is not the default behavior "
+        "since it does not represent a typical use case, and support for "
+        "this may be limited. Instead, consider multiple pytest runs that "
+        "use a fixed set of RMM settings.",
+    )
+    parser.addoption(
+        "--rmat-scale",
+        action="store",
+        type=int,
+        default=20,
+        metavar="scale",
+        help="For use when using synthetic graph data generated using RMAT. "
+        "This results in a graph with 2^scale vertices. Default is "
+        "%(default)s.",
+    )
+    parser.addoption(
+        "--rmat-edgefactor",
+        action="store",
+        type=int,
+        default=16,
+        metavar="edgefactor",
+        help="For use when using synthetic graph data generated using RMAT. "
+        "This results in a graph with (2^scale)*edgefactor edges. Default "
+        "is %(default)s.",
+    )
 
 
 def pytest_sessionstart(session):
@@ -57,10 +63,11 @@ def pytest_sessionstart(session):
     if session.config.getoption("allow_rmm_reinit") is False:
         currentMarkexpr = session.config.getoption("markexpr")
 
-        if ("managedmem" in currentMarkexpr) or \
-           ("poolallocator" in currentMarkexpr):
-            raise RuntimeError("managedmem and poolallocator markers cannot "
-                               "be used without --allow-rmm-reinit.")
+        if ("managedmem" in currentMarkexpr) or ("poolallocator" in currentMarkexpr):
+            raise RuntimeError(
+                "managedmem and poolallocator markers cannot "
+                "be used without --allow-rmm-reinit."
+            )
 
         newMarkexpr = "managedmem_off and poolallocator_on"
         if currentMarkexpr:

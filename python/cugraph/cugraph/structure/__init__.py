@@ -25,6 +25,11 @@ from cugraph.structure.graph_classes import (
 )
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df, symmetrize_ddf
+from cugraph.structure.replicate_edgelist import (
+    replicate_edgelist,
+    replicate_cudf_dataframe,
+    replicate_cudf_series,
+)
 from cugraph.structure.convert_matrix import (
     from_edgelist,
     from_cudf_edgelist,

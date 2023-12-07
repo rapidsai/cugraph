@@ -13,6 +13,7 @@
 
 from .base import SparseGraph
 from .gatconv import GATConv
+from .gatv2conv import GATv2Conv
 from .relgraphconv import RelGraphConv
 from .sageconv import SAGEConv
 from .transformerconv import TransformerConv
@@ -20,6 +21,7 @@ from .transformerconv import TransformerConv
 __all__ = [
     "SparseGraph",
     "GATConv",
+    "GATv2Conv",
     "RelGraphConv",
     "SAGEConv",
     "TransformerConv",

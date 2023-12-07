@@ -20,7 +20,9 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -33,6 +35,7 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/transform_output_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
@@ -47,57 +50,38 @@ namespace cugraph {
 
 namespace detail {
 
-template <bool store_transposed,
-          typename vertex_t,
-          typename edge_t,
-          typename EdgeIterator,
-          typename EdgeValueIterator>
-struct update_edge_t {
-  raft::device_span<edge_t> offsets{};
-  raft::device_span<vertex_t> indices{};
-  EdgeValueIterator edge_value_first{};
-  vertex_t major_range_first{};
-
-  __device__ void operator()(typename thrust::iterator_traits<EdgeIterator>::value_type e) const
-  {
-    auto s      = thrust::get<0>(e);
-    auto d      = thrust::get<1>(e);
-    auto major  = store_transposed ? d : s;
-    auto minor  = store_transposed ? s : d;
-    auto start  = offsets[major - major_range_first];
-    auto degree = offsets[(major - major_range_first) + 1] - start;
-    auto idx =
-      atomicAdd(&indices[start + degree - 1], vertex_t{1});  // use the last element as a counter
-    // FIXME: we can actually store minor - minor_range_first instead of minor to save memory if
-    // minor can be larger than 32 bit but minor -  minor_range_first fits within 32 bit
-    indices[start + idx] = minor;  // overwrite the counter only if idx == degree - 1 (no race)
-    if constexpr (!std::is_same_v<EdgeValueIterator, void*>) {
-      auto value                          = thrust::get<2>(e);
-      *(edge_value_first + (start + idx)) = value;
-    }
-  }
-};
-
 template <typename edge_t, typename VertexIterator>
 rmm::device_uvector<edge_t> compute_sparse_offsets(
   VertexIterator edgelist_major_first,
   VertexIterator edgelist_major_last,
   typename thrust::iterator_traits<VertexIterator>::value_type major_range_first,
   typename thrust::iterator_traits<VertexIterator>::value_type major_range_last,
+  bool edgelist_major_sorted,
   rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_range_last - major_range_first) + 1, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
+  if (edgelist_major_sorted) {
+    offsets.set_element_to_zero_async(0, stream_view);
+    thrust::upper_bound(rmm::exec_policy(stream_view),
+                        edgelist_major_first,
+                        edgelist_major_last,
+                        thrust::make_counting_iterator(major_range_first),
+                        thrust::make_counting_iterator(major_range_last),
+                        offsets.begin() + 1);
+  } else {
+    thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
 
-  auto offset_view = raft::device_span<edge_t>(offsets.data(), offsets.size());
-  thrust::for_each(rmm::exec_policy(stream_view),
-                   edgelist_major_first,
-                   edgelist_major_last,
-                   [offset_view, major_range_first] __device__(auto v) {
-                     atomicAdd(&offset_view[v - major_range_first], edge_t{1});
-                   });
-  thrust::exclusive_scan(
-    rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
+    auto offset_view = raft::device_span<edge_t>(offsets.data(), offsets.size());
+    thrust::for_each(rmm::exec_policy(stream_view),
+                     edgelist_major_first,
+                     edgelist_major_last,
+                     [offset_view, major_range_first] __device__(auto v) {
+                       atomicAdd(&offset_view[v - major_range_first], edge_t{1});
+                     });
+
+    thrust::exclusive_scan(
+      rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
+  }
 
   return offsets;
 }
@@ -156,61 +140,77 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
 }
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
-template <typename edge_t,
-          bool store_transposed,
-          typename VertexIterator,
-          typename EdgeValueIterator>
-std::tuple<
-  rmm::device_uvector<edge_t>,
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>,
-  decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<
-             EdgeValueIterator>::value_type>(size_t{0}, rmm::cuda_stream_view{})),
-  std::optional<rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>>>
-compress_edgelist(
-  VertexIterator edgelist_src_first,
-  VertexIterator edgelist_src_last,
-  VertexIterator edgelist_dst_first,
-  EdgeValueIterator edge_value_first,
-  typename thrust::iterator_traits<VertexIterator>::value_type major_range_first,
-  std::optional<typename thrust::iterator_traits<VertexIterator>::value_type>
-    major_hypersparse_first,
-  typename thrust::iterator_traits<VertexIterator>::value_type major_range_last,
-  typename thrust::iterator_traits<VertexIterator>::value_type /* minor_range_first */,
-  typename thrust::iterator_traits<VertexIterator>::value_type /* minor_range_last */,
+template <typename vertex_t, typename edge_t, typename edge_value_t, bool store_transposed>
+std::tuple<rmm::device_uvector<edge_t>,
+           rmm::device_uvector<vertex_t>,
+           decltype(allocate_dataframe_buffer<edge_value_t>(size_t{0}, rmm::cuda_stream_view{})),
+           std::optional<rmm::device_uvector<vertex_t>>>
+sort_and_compress_edgelist(
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  decltype(allocate_dataframe_buffer<edge_value_t>(0, rmm::cuda_stream_view{}))&& edgelist_values,
+  vertex_t major_range_first,
+  std::optional<vertex_t> major_hypersparse_first,
+  vertex_t major_range_last,
+  vertex_t /* minor_range_first */,
+  vertex_t /* minor_range_last */,
+  size_t mem_frugal_threshold,
   rmm::cuda_stream_view stream_view)
 {
-  using vertex_t = std::remove_cv_t<typename thrust::iterator_traits<VertexIterator>::value_type>;
-  using edge_value_t =
-    std::remove_cv_t<typename thrust::iterator_traits<EdgeValueIterator>::value_type>;
+  auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
+  auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
 
-  auto number_of_edges =
-    static_cast<edge_t>(thrust::distance(edgelist_src_first, edgelist_src_last));
+  rmm::device_uvector<edge_t> offsets(0, stream_view);
+  rmm::device_uvector<vertex_t> indices(0, stream_view);
+  auto values     = allocate_dataframe_buffer<edge_value_t>(0, stream_view);
+  auto pair_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
+  if (edgelist_minors.size() > mem_frugal_threshold) {
+    offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
+                                             edgelist_majors.end(),
+                                             major_range_first,
+                                             major_range_last,
+                                             false,
+                                             stream_view);
 
-  auto offsets = compute_sparse_offsets<edge_t>(
-    store_transposed ? edgelist_dst_first : edgelist_src_first,
-    store_transposed ? edgelist_dst_first + number_of_edges : edgelist_src_last,
-    major_range_first,
-    major_range_last,
-    stream_view);
+    auto pivot = major_range_first + static_cast<vertex_t>(thrust::distance(
+                                       offsets.begin(),
+                                       thrust::lower_bound(rmm::exec_policy(stream_view),
+                                                           offsets.begin(),
+                                                           offsets.end(),
+                                                           edgelist_minors.size() / 2)));
+    auto second_first =
+      detail::mem_frugal_partition(pair_first,
+                                   pair_first + edgelist_minors.size(),
+                                   get_dataframe_buffer_begin(edgelist_values),
+                                   thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                   pivot,
+                                   stream_view);
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        pair_first,
+                        std::get<0>(second_first),
+                        get_dataframe_buffer_begin(edgelist_values));
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        std::get<0>(second_first),
+                        pair_first + edgelist_minors.size(),
+                        std::get<1>(second_first));
+  } else {
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        pair_first,
+                        pair_first + edgelist_minors.size(),
+                        get_dataframe_buffer_begin(edgelist_values));
 
-  rmm::device_uvector<vertex_t> indices(number_of_edges, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), indices.begin(), indices.end(), vertex_t{0});
-  auto values = allocate_dataframe_buffer<edge_value_t>(number_of_edges, stream_view);
+    offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
+                                             edgelist_majors.end(),
+                                             major_range_first,
+                                             major_range_last,
+                                             true,
+                                             stream_view);
+  }
+  indices = std::move(edgelist_minors);
+  values  = std::move(edgelist_values);
 
-  auto offset_view = raft::device_span<edge_t>(offsets.data(), offsets.size());
-  auto index_view  = raft::device_span<vertex_t>(indices.data(), indices.size());
-  auto edge_first  = thrust::make_zip_iterator(
-    thrust::make_tuple(edgelist_src_first, edgelist_dst_first, edge_value_first));
-  thrust::for_each(
-    rmm::exec_policy(stream_view),
-    edge_first,
-    edge_first + number_of_edges,
-    update_edge_t<store_transposed,
-                  vertex_t,
-                  edge_t,
-                  decltype(edge_first),
-                  decltype(get_dataframe_buffer_begin(values))>{
-      offset_view, index_view, get_dataframe_buffer_begin(values), major_range_first});
+  edgelist_majors.resize(0, stream_view);
+  edgelist_majors.shrink_to_fit(stream_view);
 
   std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
   if (major_hypersparse_first) {
@@ -226,47 +226,61 @@ compress_edgelist(
 }
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
-template <typename edge_t, bool store_transposed, typename VertexIterator>
-std::tuple<
-  rmm::device_uvector<edge_t>,
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>,
-  std::optional<rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>>>
-compress_edgelist(
-  VertexIterator edgelist_src_first,
-  VertexIterator edgelist_src_last,
-  VertexIterator edgelist_dst_first,
-  typename thrust::iterator_traits<VertexIterator>::value_type major_range_first,
-  std::optional<typename thrust::iterator_traits<VertexIterator>::value_type>
-    major_hypersparse_first,
-  typename thrust::iterator_traits<VertexIterator>::value_type major_range_last,
-  typename thrust::iterator_traits<VertexIterator>::value_type /* minor_range_first */,
-  typename thrust::iterator_traits<VertexIterator>::value_type /* minor_range_last */,
-  rmm::cuda_stream_view stream_view)
+template <typename vertex_t, typename edge_t, bool store_transposed>
+std::tuple<rmm::device_uvector<edge_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                           vertex_t major_range_first,
+                           std::optional<vertex_t> major_hypersparse_first,
+                           vertex_t major_range_last,
+                           vertex_t /* minor_range_first */,
+                           vertex_t /* minor_range_last */,
+                           size_t mem_frugal_threshold,
+                           rmm::cuda_stream_view stream_view)
 {
-  using vertex_t = std::remove_cv_t<typename thrust::iterator_traits<VertexIterator>::value_type>;
+  auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
+  auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
 
-  auto number_of_edges =
-    static_cast<edge_t>(thrust::distance(edgelist_src_first, edgelist_src_last));
+  rmm::device_uvector<edge_t> offsets(0, stream_view);
+  rmm::device_uvector<vertex_t> indices(0, stream_view);
+  auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
+  if (edgelist_minors.size() > mem_frugal_threshold) {
+    offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
+                                             edgelist_majors.end(),
+                                             major_range_first,
+                                             major_range_last,
+                                             false,
+                                             stream_view);
 
-  auto offsets = compute_sparse_offsets<edge_t>(
-    store_transposed ? edgelist_dst_first : edgelist_src_first,
-    store_transposed ? edgelist_dst_first + number_of_edges : edgelist_src_last,
-    major_range_first,
-    major_range_last,
-    stream_view);
+    auto pivot = major_range_first + static_cast<vertex_t>(thrust::distance(
+                                       offsets.begin(),
+                                       thrust::lower_bound(rmm::exec_policy(stream_view),
+                                                           offsets.begin(),
+                                                           offsets.end(),
+                                                           edgelist_minors.size() / 2)));
+    auto second_first =
+      detail::mem_frugal_partition(edge_first,
+                                   edge_first + edgelist_minors.size(),
+                                   thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                   pivot,
+                                   stream_view);
+    thrust::sort(rmm::exec_policy(stream_view), edge_first, second_first);
+    thrust::sort(rmm::exec_policy(stream_view), second_first, edge_first + edgelist_minors.size());
+  } else {
+    thrust::sort(rmm::exec_policy(stream_view), edge_first, edge_first + edgelist_minors.size());
+    offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
+                                             edgelist_majors.end(),
+                                             major_range_first,
+                                             major_range_last,
+                                             true,
+                                             stream_view);
+  }
+  indices = std::move(edgelist_minors);
 
-  rmm::device_uvector<vertex_t> indices(number_of_edges, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), indices.begin(), indices.end(), vertex_t{0});
-
-  auto offset_view = raft::device_span<edge_t>(offsets.data(), offsets.size());
-  auto index_view  = raft::device_span<vertex_t>(indices.data(), indices.size());
-  auto edge_first =
-    thrust::make_zip_iterator(thrust::make_tuple(edgelist_src_first, edgelist_dst_first));
-  thrust::for_each(rmm::exec_policy(stream_view),
-                   edge_first,
-                   edge_first + number_of_edges,
-                   update_edge_t<store_transposed, vertex_t, edge_t, decltype(edge_first), void*>{
-                     offset_view, index_view, static_cast<void*>(nullptr), major_range_first});
+  edgelist_majors.resize(0, stream_view);
+  edgelist_majors.shrink_to_fit(stream_view);
 
   std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
   if (major_hypersparse_first) {
@@ -485,6 +499,50 @@ void sort_adjacency_list(raft::handle_t const& handle,
   }
 }
 
-}  // namespace detail
+template <typename comparison_t>
+std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t const& handle,
+                                                               size_t num_entries,
+                                                               comparison_t comparison)
+{
+  rmm::device_uvector<uint32_t> marked_entries(cugraph::packed_bool_size(num_entries),
+                                               handle.get_stream());
 
+  thrust::tabulate(handle.get_thrust_policy(),
+                   marked_entries.begin(),
+                   marked_entries.end(),
+                   [comparison, num_entries] __device__(size_t idx) {
+                     auto word          = cugraph::packed_bool_empty_mask();
+                     size_t start_index = idx * cugraph::packed_bools_per_word();
+                     size_t bits_in_this_word =
+                       (start_index + cugraph::packed_bools_per_word() < num_entries)
+                         ? cugraph::packed_bools_per_word()
+                         : (num_entries - start_index);
+
+                     for (size_t bit = 0; bit < bits_in_this_word; ++bit) {
+                       if (comparison(start_index + bit)) word |= cugraph::packed_bool_mask(bit);
+                     }
+
+                     return word;
+                   });
+
+  size_t bit_count = detail::count_set_bits(handle, marked_entries.begin(), num_entries);
+
+  return std::make_tuple(bit_count, std::move(marked_entries));
+}
+
+template <typename T>
+rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
+                                             rmm::device_uvector<T>&& vector,
+                                             raft::device_span<uint32_t const> keep_flags,
+                                             size_t keep_count)
+{
+  rmm::device_uvector<T> result(keep_count, handle.get_stream());
+
+  detail::copy_if_mask_set(
+    handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
+
+  return result;
+}
+
+}  // namespace detail
 }  // namespace cugraph

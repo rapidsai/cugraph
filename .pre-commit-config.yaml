@@ -16,7 +16,7 @@ repos:
       - id: black
         language_version: python3
         args: [--target-version=py38]
-        files: ^python/
+        files: ^(python/.*|benchmarks/.*)$
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
@@ -33,7 +33,7 @@ repos:
         additional_dependencies:
           - flake8==6.0.0
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.1
+    rev: v16.0.6
     hooks:
       - id: clang-format
         exclude: |

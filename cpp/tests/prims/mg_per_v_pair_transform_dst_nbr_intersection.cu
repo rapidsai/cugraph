@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "property_generator.cuh"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/mg_utilities.hpp>
@@ -21,9 +23,13 @@
 #include <utilities/test_utilities.hpp>
 
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <prims/transform_e.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -61,6 +67,7 @@ struct intersection_op_t {
 
 struct Prims_Usecase {
   size_t num_vertex_pairs{0};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -78,7 +85,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
   virtual void TearDown() {}
 
   // Verify the results of per_v_pair_transform_dst_nbr_intersection primitive
-  template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     HighResTimer hr_timer{};
@@ -108,6 +115,13 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG per_v_pair_transform_dst_nbr_intersection primitive
 
@@ -262,47 +276,16 @@ using Tests_MGPerVPairTransformDstNbrIntersection_File =
 using Tests_MGPerVPairTransformDstNbrIntersection_Rmat =
   Tests_MGPerVPairTransformDstNbrIntersection<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                       std::get<1>(param));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64FloatTupleIntFloat)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -310,7 +293,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int32Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int>(
+  run_current_test<int32_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -318,7 +301,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt32Int64Float)
 TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -327,15 +310,18 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024}, true}),
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024}, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -345,7 +331,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false}),
+    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false, false},
+                      Prims_Usecase{size_t{1024 * 1024}, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -109,6 +109,13 @@ class edge_partition_device_view_base_t {
   __host__ __device__ edge_t const* offsets() const { return offsets_.data(); }
   __host__ __device__ vertex_t const* indices() const { return indices_.data(); }
 
+  __device__ vertex_t major_idx_from_local_edge_idx_nocheck(edge_t local_edge_idx) const noexcept
+  {
+    return static_cast<vertex_t>(thrust::distance(
+      offsets_.begin() + 1,
+      thrust::upper_bound(thrust::seq, offsets_.begin() + 1, offsets_.end(), local_edge_idx)));
+  }
+
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ thrust::tuple<vertex_t const*, edge_t, edge_t> local_edges(
     vertex_t major_idx) const noexcept
@@ -291,8 +298,19 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_range_first_ + major_offset;
   }
 
+  __device__ vertex_t major_from_major_idx_nocheck(vertex_t major_idx) const noexcept
+  {
+    if (major_hypersparse_first_) {
+      return major_idx >= (*major_hypersparse_first_ - major_range_first_)
+               ? (*dcs_nzd_vertices_)[major_idx - (*major_hypersparse_first_ - major_range_first_)]
+               : major_from_major_offset_nocheck(major_idx);
+    } else {  // major_idx == major_offset
+      return major_from_major_offset_nocheck(major_idx);
+    }
+  }
+
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
+  __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
     vertex_t major) const noexcept
   {
     if (dcs_nzd_vertices_) {
@@ -303,7 +321,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
+  __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
     vertex_t major_hypersparse_idx) const noexcept
   {
     return dcs_nzd_vertices_
@@ -442,8 +460,13 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_offset;
   }
 
+  __device__ vertex_t major_from_major_idx_nocheck(vertex_t major_idx) const noexcept
+  {
+    return major_from_major_offset_nocheck(major_idx);
+  }
+
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
+  __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
     vertex_t major) const noexcept
   {
     assert(false);
@@ -451,7 +474,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
+  __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
     vertex_t major_hypersparse_idx) const noexcept
   {
     assert(false);

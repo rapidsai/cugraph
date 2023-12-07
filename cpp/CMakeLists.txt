@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.10.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 24.02.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -153,6 +153,11 @@ rapids_cpm_init()
 # lags behind.
 ###
 
+# Need to make sure rmm is found before cuco so that rmm patches the libcudacxx
+# directory to be found by cuco.
+include(${rapids-cmake-dir}/cpm/rmm.cmake)
+rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
+               INSTALL_EXPORT_SET  cugraph-exports)
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
@@ -166,6 +171,10 @@ endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
+
+if (BUILD_CUGRAPH_MTMG_TESTS)
+  include(cmake/thirdparty/get_ucp.cmake)
+endif()
 
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
@@ -183,6 +192,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
+    src/detail/collect_comm_wrapper.cu
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
@@ -192,11 +202,11 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
+    src/structure/remove_self_loops.cu
+    src/structure/remove_multi_edges.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/link_prediction/legacy/jaccard.cu
-    src/link_prediction/legacy/overlap.cu
     src/link_prediction/jaccard_sg.cu
     src/link_prediction/sorensen_sg.cu
     src/link_prediction/overlap_sg.cu
@@ -292,6 +302,7 @@ set(CUGRAPH_SOURCES
     src/community/triangle_count_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
+    src/mtmg/vertex_result.cu
 )
 
 if(USE_CUGRAPH_OPS)
@@ -435,6 +446,8 @@ add_library(cugraph_c
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
+        src/c_api/allgather.cpp
+        src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

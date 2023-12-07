@@ -430,79 +430,39 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
- * @brief     Compute k truss for a graph
+ * @brief     Compute k truss for a graph  ** temporary
  *
  * K Truss is the maximal subgraph of a graph which contains at least three
  * vertices where every edge is incident to at least k-2 triangles.
  *
- * Note that current implementation does not support a weighted graph.
+ * This version is a temporary solution to clean up python integration through the C API.
  *
- * @throws                           cugraph::logic_error with a custom message when an error
+ * This version is only supported SG.
+ *
+ * @throws                  cugraph::logic_error with a custom message when an error
  * occurs.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam vertex_t         Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam weight_t         Type of edge weights. Supported values : float or double.
  *
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a COO
- * @param[in] k                      The order of the truss
- * @param[in] mr                     Memory resource used to allocate the returned graph
- * @return                           Unique pointer to K Truss subgraph in COO format
- *
+ * @param[in] handle        Library handle (RAFT).
+ * @param[in] src           Source vertices from COO
+ * @param[in] dst           Destination vertices from COO
+ * @param[in] wgt           Optional edge weights from COO
+ * @param[in] k             The order of the truss
+ * @return                  Tuple containing extracted src, dst and optional weights for the
+ * subgraph
  */
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  legacy::GraphCOOView<VT, ET, WT> const& graph,
-  int k,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
-
-// FIXME: Internally distances is of int (signed 32-bit) data type, but current
-// template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
-// are not considered
-/**
- * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
- *
- * @throws     cugraph::logic_error with a custom message when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
- *
- * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
- the multi GPU version will be selected.
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- *
- * @param[out] distances             If set to a valid pointer, this is populated by distance of
- * every vertex in the graph from the starting vertex
- *
- * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
- * predecessor of every vertex
- *
- * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
- * shortest_path counter of every vertex
- *
- * @param[in] start_vertex           The starting vertex for breadth first search traversal
- *
- * @param[in] directed               Treat the input graph as directed
- *
- * @param[in] mg_batch               If set to true use SG BFS path when comms are initialized.
- *
- */
-template <typename VT, typename ET, typename WT>
-void bfs(raft::handle_t const& handle,
-         legacy::GraphCSRView<VT, ET, WT> const& graph,
-         VT* distances,
-         VT* predecessors,
-         double* sp_counters,
-         const VT start_vertex,
-         bool directed = true,
-         bool mg_batch = false);
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss_subgraph(raft::handle_t const& handle,
+                 raft::device_span<vertex_t> src,
+                 raft::device_span<vertex_t> dst,
+                 std::optional<raft::device_span<weight_t>> wgt,
+                 size_t number_of_vertices,
+                 int k);
 
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph

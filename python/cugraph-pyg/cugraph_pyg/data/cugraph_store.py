@@ -25,12 +25,14 @@ import cupy
 import pandas
 import cudf
 import cugraph
+import warnings
+
+import dask.array as dar
+import dask.dataframe as dd
+import dask.distributed as distributed
+import dask_cudf
 
 from cugraph.utilities.utils import import_optional, MissingModule
-
-dd = import_optional("dask.dataframe")
-distributed = import_optional("dask.distributed")
-dask_cudf = import_optional("dask_cudf")
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -209,9 +211,14 @@ class EXPERIMENTAL__CuGraphStore:
     def __init__(
         self,
         F: cugraph.gnn.FeatureStore,
-        G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
+        G: Union[
+            Dict[Tuple[str, str, str], Tuple[TensorType]],
+            Dict[Tuple[str, str, str], int],
+        ],
         num_nodes_dict: Dict[str, int],
+        *,
         multi_gpu: bool = False,
+        order: str = "CSR",
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -256,10 +263,19 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
+
+        order: str (Optional ["CSR", "CSC"], default = CSR)
+            The order to use for sampling.  CSR corresponds to the
+            standard OGB dataset order that is usually used in PyG.
+            CSC order constructs the same graph as CSR, but with
+            edges in the opposite direction.
         """
 
         if None in G:
             raise ValueError("Unspecified edge types not allowed in PyG")
+
+        if order != "CSR" and order != "CSC":
+            raise ValueError("invalid valid for order")
 
         self.__vertex_dtype = torch.int64
 
@@ -289,6 +305,7 @@ class EXPERIMENTAL__CuGraphStore:
         self.__features = F
         self.__graph = None
         self.__is_graph_owner = False
+        self.__order = order
 
         if construct_graph:
             if multi_gpu:
@@ -297,7 +314,9 @@ class EXPERIMENTAL__CuGraphStore:
                 )
 
             if self.__graph is None:
-                self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+                self.__graph = self.__construct_graph(
+                    G, multi_gpu=multi_gpu, order=order
+                )
                 self.__is_graph_owner = True
 
         self.__subgraphs = {}
@@ -305,7 +324,13 @@ class EXPERIMENTAL__CuGraphStore:
     def __del__(self):
         if self.__is_graph_owner:
             if isinstance(self.__graph._plc_graph, dict):
-                distributed.get_client().unpublish_dataset("cugraph_graph")
+                try:
+                    distributed.get_client().unpublish_dataset("cugraph_graph")
+                except TypeError:
+                    warnings.warn(
+                        "Could not unpublish graph dataset, most likely because"
+                        " dask has already shut down."
+                    )
             del self.__graph
 
     def __make_offsets(self, input_dict):
@@ -343,10 +368,18 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
+    def __dask_array_from_numpy(self, array: np.ndarray, npartitions: int):
+        return dar.from_array(
+            array,
+            meta=np.array([], dtype=array.dtype),
+            chunks=max(1, len(array) // npartitions),
+        )
+
     def __construct_graph(
         self,
         edge_info: Dict[Tuple[str, str, str], List[TensorType]],
         multi_gpu: bool = False,
+        order: str = "CSC",
     ) -> cugraph.MultiGraph:
         """
         This function takes edge information and uses it to construct
@@ -363,6 +396,14 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool (Optional, default=False)
             Whether to construct a single-GPU or multi-GPU cugraph Graph.
             Defaults to a single-GPU graph.
+
+        order: str (CSC or CSR)
+            Essentially whether to reverse edges so that the cuGraph
+            sampling algorithm operates on the CSC matrix instead of
+            the CSR matrix.  Should nearly always be CSC unless there
+            is a specific expectation of reverse sampling, or correctness
+            testing is being performed.
+
         Returns
         -------
         A newly-constructed directed cugraph.MultiGraph object.
@@ -370,6 +411,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         # Ensure the original dict is not modified.
         edge_info_cg = {}
+
+        if order != "CSR" and order != "CSC":
+            raise ValueError("Order must be either CSC (default) or CSR!")
 
         # Iterate over the keys in sorted order so that the created
         # numerical types correspond to the lexicographic order
@@ -428,22 +472,69 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
-        df = pandas.DataFrame(
-            {
-                "src": pandas.Series(na_src),
-                "dst": pandas.Series(na_dst),
-                "etp": pandas.Series(na_etp),
-            }
-        )
+        vertex_dtype = na_src.dtype
 
         if multi_gpu:
-            nworkers = len(distributed.get_client().scheduler_info()["workers"])
-            df = dd.from_pandas(df, npartitions=nworkers).persist()
-            df = df.map_partitions(cudf.DataFrame.from_pandas)
-        else:
-            df = cudf.from_pandas(df)
+            client = distributed.get_client()
+            nworkers = len(client.scheduler_info()["workers"])
+            npartitions = nworkers * 4
 
-        df = df.reset_index(drop=True)
+            src_dar = self.__dask_array_from_numpy(na_src, npartitions)
+            del na_src
+
+            dst_dar = self.__dask_array_from_numpy(na_dst, npartitions)
+            del na_dst
+
+            etp_dar = self.__dask_array_from_numpy(na_etp, npartitions)
+            del na_etp
+
+            df = dd.from_dask_array(etp_dar, columns=["etp"])
+            df["src"] = dst_dar if order == "CSC" else src_dar
+            df["dst"] = src_dar if order == "CSC" else dst_dar
+
+            del src_dar
+            del dst_dar
+            del etp_dar
+
+            if df.etp.dtype != "int32":
+                raise ValueError("Edge type must be int32!")
+
+            # Ensure the dataframe is constructed on each partition
+            # instead of adding additional synchronization head from potential
+            # host to device copies.
+            def get_empty_df():
+                return cudf.DataFrame(
+                    {
+                        "etp": cudf.Series([], dtype="int32"),
+                        "src": cudf.Series([], dtype=vertex_dtype),
+                        "dst": cudf.Series([], dtype=vertex_dtype),
+                    }
+                )
+
+            # Have to check for empty partitions and handle them appropriately
+            df = df.persist()
+            df = df.map_partitions(
+                lambda f: cudf.DataFrame.from_pandas(f)
+                if len(f) > 0
+                else get_empty_df(),
+                meta=get_empty_df(),
+            ).reset_index(
+                drop=True
+            )  # should be ok for dask
+        else:
+            df = pandas.DataFrame(
+                {
+                    "src": pandas.Series(na_dst)
+                    if order == "CSC"
+                    else pandas.Series(na_src),
+                    "dst": pandas.Series(na_src)
+                    if order == "CSC"
+                    else pandas.Series(na_dst),
+                    "etp": pandas.Series(na_etp),
+                }
+            )
+            df = cudf.from_pandas(df)
+            df.reset_index(drop=True, inplace=True)
 
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
@@ -462,11 +553,16 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_type="etp",
             )
 
+        del df
         return graph
 
     @property
     def _edge_types_to_attrs(self) -> dict:
         return dict(self.__edge_types_to_attrs)
+
+    @property
+    def order(self) -> str:
+        return self.__order
 
     @property
     def node_types(self) -> List[NodeType]:
@@ -557,6 +653,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise ValueError("Graph is not in memory, cannot access edge index!")
 
         if attr.layout != EdgeLayout.COO:
+            # TODO support returning CSR/CSC (Issue #3802)
             raise TypeError("Only COO direct access is supported!")
 
         # Currently, graph creation enforces that input vertex ids are always of
@@ -566,12 +663,14 @@ class EXPERIMENTAL__CuGraphStore:
         # This may change in the future if/when renumbering or the graph
         # creation process is refactored.
         # See Issue #3201 for more details.
+        # Also note src/dst are flipped so that cuGraph sampling is done in
+        # CSC format rather than CSR format.
         if self._is_delayed:
-            src_col_name = self.__graph.renumber_map.renumbered_src_col_name
-            dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name
+            dst_col_name = self.__graph.renumber_map.renumbered_src_col_name
+            src_col_name = self.__graph.renumber_map.renumbered_dst_col_name
         else:
-            src_col_name = self.__graph.srcCol
-            dst_col_name = self.__graph.dstCol
+            dst_col_name = self.__graph.srcCol
+            src_col_name = self.__graph.dstCol
 
         # If there is only one edge type (homogeneous graph) then
         # bypass the edge filters for a significant speed improvement.
@@ -681,7 +780,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_vertex_groups_from_sample(
         self, nodes_of_interest: TensorType, is_sorted: bool = False
-    ) -> dict:
+    ) -> Dict[str, torch.Tensor]:
         """
         Given a tensor of nodes of interest, this
         method a single dictionary, noi_index.
@@ -745,7 +844,10 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_renumbered_edge_groups_from_sample(
         self, sampling_results: cudf.DataFrame, noi_index: dict
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[
+        Dict[Tuple[str, str, str], torch.Tensor],
+        Tuple[Dict[Tuple[str, str, str], torch.Tensor]],
+    ]:
         """
         Given a cudf (NOT dask_cudf) DataFrame of sampling results and a dictionary
         of non-renumbered vertex ids grouped by vertex type, this method
@@ -762,8 +864,8 @@ class EXPERIMENTAL__CuGraphStore:
           before this one to get the noi_index.
 
         Example Input: Series({
-                'sources': [0, 5, 11, 3],
-                'destinations': [8, 2, 3, 5]},
+                'majors': [0, 5, 11, 3],
+                'minors': [8, 2, 3, 5]},
                 'edge_type': [1, 3, 5, 14]
             }),
             {
@@ -785,29 +887,71 @@ class EXPERIMENTAL__CuGraphStore:
         """
         row_dict = {}
         col_dict = {}
-        if len(self.__edge_types_to_attrs) == 1:
+        # If there is only 1 edge type (includes heterogeneous graphs)
+        if len(self.edge_types) == 1:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            dst_id_table = noi_index[dst_type]
-            dst_id_map = (
-                cudf.Series(cupy.asarray(dst_id_table), name="dst")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("dst")
-            )
-            dst = dst_id_map["new_id"].loc[sampling_results.destinations]
-            col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+            # If there is only 1 node type (homogeneous)
+            # This should only occur if the cuGraph loader was
+            # not used.  This logic is deprecated.
+            if len(self.node_types) == 1:
+                warnings.warn(
+                    "Renumbering after sampling for homogeneous graphs is deprecated.",
+                    FutureWarning,
+                )
 
-            src_id_table = noi_index[src_type]
-            src_id_map = (
-                cudf.Series(cupy.asarray(src_id_table), name="src")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("src")
-            )
-            src = src_id_map["new_id"].loc[sampling_results.sources]
-            row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
+                # Create a dataframe mapping old ids to new ids.
+                vtype = src_type
+                id_table = noi_index[vtype]
+                id_map = cudf.Series(
+                    cupy.arange(id_table.shape[0], dtype="int32"),
+                    name="new_id",
+                    index=cupy.asarray(id_table),
+                ).sort_index()
+
+                # Renumber the majors using binary search
+                # Step 1: get the index of the new id
+                ix_r = torch.searchsorted(
+                    torch.as_tensor(id_map.index.values, device="cuda"),
+                    torch.as_tensor(sampling_results.majors.values, device="cuda"),
+                )
+                # Step 2: Go from id indices to actual ids
+                row_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
+                    ix_r
+                ]
+
+                # Renumber the minors using binary search
+                # Step 1: get the index of the new id
+                ix_c = torch.searchsorted(
+                    torch.as_tensor(id_map.index.values, device="cuda"),
+                    torch.as_tensor(sampling_results.minors.values, device="cuda"),
+                )
+                # Step 2: Go from id indices to actual ids
+                col_dict[t_pyg_type] = torch.as_tensor(id_map.values, device="cuda")[
+                    ix_c
+                ]
+            else:
+                # Handle the heterogeneous case where there is only 1 edge type
+                dst_id_table = noi_index[dst_type]
+                dst_id_map = cudf.DataFrame(
+                    {
+                        "dst": cupy.asarray(dst_id_table),
+                        "new_id": cupy.arange(dst_id_table.shape[0]),
+                    }
+                ).set_index("dst")
+                dst = dst_id_map["new_id"].loc[sampling_results.minors]
+                col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+
+                src_id_table = noi_index[src_type]
+                src_id_map = cudf.DataFrame(
+                    {
+                        "src": cupy.asarray(src_id_table),
+                        "new_id": cupy.arange(src_id_table.shape[0]),
+                    }
+                ).set_index("src")
+                src = src_id_map["new_id"].loc[sampling_results.majors]
+                row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
 
         else:
             # This will retrieve the single string representation.
@@ -822,36 +966,18 @@ class EXPERIMENTAL__CuGraphStore:
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
                 pyg_can_edge_type = tuple(pyg_can_edge_type_str.split("__"))
-                src_type, _, dst_type = pyg_can_edge_type
 
-                # Get the de-offsetted sources
-                sources = torch.as_tensor(
-                    sampling_results.sources.iloc[ix].values, device="cuda"
-                )
-                sources_ix = torch.searchsorted(
-                    self.__vertex_type_offsets["stop"], sources
-                )
-                sources -= self.__vertex_type_offsets["start"][sources_ix]
+                if self.__order == "CSR":
+                    src_type, _, dst_type = pyg_can_edge_type
+                else:  # CSC
+                    dst_type, _, src_type = pyg_can_edge_type
 
-                # Create the row entry for this type
-                src_id_table = noi_index[src_type]
-                src_id_map = (
-                    cudf.Series(cupy.asarray(src_id_table), name="src")
-                    .reset_index()
-                    .rename(columns={"index": "new_id"})
-                    .set_index("src")
+                # Get the de-offsetted minors
+                dst_num_type = self._numeric_vertex_type_from_name(dst_type)
+                minors = torch.as_tensor(
+                    sampling_results.minors.iloc[ix].values, device="cuda"
                 )
-                src = src_id_map["new_id"].loc[cupy.asarray(sources)]
-                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
-
-                # Get the de-offsetted destinations
-                destinations = torch.as_tensor(
-                    sampling_results.destinations.iloc[ix].values, device="cuda"
-                )
-                destinations_ix = torch.searchsorted(
-                    self.__vertex_type_offsets["stop"], destinations
-                )
-                destinations -= self.__vertex_type_offsets["start"][destinations_ix]
+                minors -= self.__vertex_type_offsets["start"][dst_num_type]
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
@@ -861,8 +987,26 @@ class EXPERIMENTAL__CuGraphStore:
                     .rename(columns={"index": "new_id"})
                     .set_index("dst")
                 )
-                dst = dst_id_map["new_id"].loc[cupy.asarray(destinations)]
+                dst = dst_id_map["new_id"].loc[cupy.asarray(minors)]
                 col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device="cuda")
+
+                # Get the de-offsetted majors
+                src_num_type = self._numeric_vertex_type_from_name(src_type)
+                majors = torch.as_tensor(
+                    sampling_results.majors.iloc[ix].values, device="cuda"
+                )
+                majors -= self.__vertex_type_offsets["start"][src_num_type]
+
+                # Create the row entry for this type
+                src_id_table = noi_index[src_type]
+                src_id_map = (
+                    cudf.Series(cupy.asarray(src_id_table), name="src")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("src")
+                )
+                src = src_id_map["new_id"].loc[cupy.asarray(majors)]
+                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
 
         return row_dict, col_dict
 
@@ -959,9 +1103,7 @@ class EXPERIMENTAL__CuGraphStore:
                 t = t[-1]
 
             if isinstance(t, np.ndarray):
-                t = torch.as_tensor(t, device="cuda")
-            else:
-                t = t.cuda()
+                t = torch.as_tensor(t, device="cpu")
 
             return t
 
@@ -979,7 +1121,6 @@ class EXPERIMENTAL__CuGraphStore:
 
                 t = torch.concatenate([t, u])
 
-            t = t.cuda()
             return t
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:

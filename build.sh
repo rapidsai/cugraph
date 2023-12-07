@@ -18,20 +18,24 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
+RAPIDS_VERSION=24.02
+
 # Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
    clean
    uninstall
    libcugraph
    libcugraph_etl
+   pylibcugraph
    cugraph
    cugraph-service
-   pylibcugraph
-   cpp-mgtests
    cugraph-pyg
    cugraph-dgl
    nx-cugraph
+   cpp-mgtests
+   cpp-mtmgtests
    docs
+   all
    -v
    -g
    -n
@@ -52,13 +56,15 @@ HELP="$0 [<target> ...] [<flag> ...]
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
-   cugraph-pyg                - build the cugraph-pyg Python package
    cugraph                    - build the cugraph Python package
-   nx-cugraph                 - build the nx-cugraph Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
-   cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cugraph-pyg                - build the cugraph-pyg Python package
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
+   nx-cugraph                 - build the nx-cugraph Python package
+   cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
    docs                       - build the docs
+   all                        - build everything
  and <flag> is:
    -v                         - verbose build mode
    -g                         - build for debug
@@ -71,7 +77,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' and then 'cugraph' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -103,6 +109,7 @@ BUILD_TYPE=Release
 INSTALL_TARGET="--target install"
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
+BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
@@ -119,7 +126,7 @@ function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-function buildAll {
+function buildDefault {
     (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]\+ ")
 }
 
@@ -170,7 +177,10 @@ fi
 if hasArg --without_cugraphops; then
     BUILD_WITH_CUGRAPHOPS=OFF
 fi
-if hasArg cpp-mgtests; then
+if hasArg cpp-mtmgtests; then
+    BUILD_CPP_MTMG_TESTS=ON
+fi
+if hasArg cpp-mgtests || hasArg all; then
     BUILD_CPP_MG_TESTS=ON
 fi
 if hasArg --cmake_default_generator; then
@@ -240,7 +250,7 @@ fi
 
 ################################################################################
 # Configure, build, and install libcugraph
-if buildAll || hasArg libcugraph; then
+if buildDefault || hasArg libcugraph || hasArg all; then
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_BUILD_DIR} -mindepth 1 -delete
@@ -262,6 +272,7 @@ if buildAll || hasArg libcugraph; then
               -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+	      -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
 	      -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
@@ -270,7 +281,7 @@ if buildAll || hasArg libcugraph; then
 fi
 
 # Configure, build, and install libcugraph_etl
-if buildAll || hasArg libcugraph_etl; then
+if buildDefault || hasArg libcugraph_etl || hasArg all; then
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_ETL_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_ETL_BUILD_DIR} -mindepth 1 -delete
@@ -292,6 +303,7 @@ if buildAll || hasArg libcugraph_etl; then
               -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+              -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
               -DCMAKE_PREFIX_PATH=${LIBCUGRAPH_BUILD_DIR} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION} \
@@ -301,7 +313,7 @@ if buildAll || hasArg libcugraph_etl; then
 fi
 
 # Build, and install pylibcugraph
-if buildAll || hasArg pylibcugraph; then
+if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
@@ -328,7 +340,7 @@ if buildAll || hasArg pylibcugraph; then
 fi
 
 # Build and install the cugraph Python package
-if buildAll || hasArg cugraph; then
+if buildDefault || hasArg cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
@@ -355,7 +367,7 @@ if buildAll || hasArg cugraph; then
 fi
 
 # Install the cugraph-service-client and cugraph-service-server Python packages
-if hasArg cugraph-service; then
+if hasArg cugraph-service || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
@@ -365,7 +377,7 @@ if hasArg cugraph-service; then
 fi
 
 # Build and install the cugraph-pyg Python package
-if hasArg cugraph-pyg; then
+if hasArg cugraph-pyg || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
@@ -374,7 +386,7 @@ if hasArg cugraph-pyg; then
 fi
 
 # Install the cugraph-dgl extensions for DGL
-if hasArg cugraph-dgl; then
+if hasArg cugraph-dgl || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
@@ -383,7 +395,7 @@ if hasArg cugraph-dgl; then
 fi
 
 # Build and install the nx-cugraph Python package
-if hasArg nx-cugraph; then
+if hasArg nx-cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
@@ -392,7 +404,7 @@ if hasArg nx-cugraph; then
 fi
 
 # Build the docs
-if hasArg docs; then
+if hasArg docs || hasArg all; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
@@ -402,8 +414,28 @@ if hasArg docs; then
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
     fi
+
+    for PROJECT in libcugraphops libwholegraph; do
+        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+        rm -rf "${XML_DIR}"
+        mkdir -p "${XML_DIR}"
+        export XML_DIR_${PROJECT^^}="$XML_DIR"
+
+        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+        tar -xzf xml.tar.gz -C "${XML_DIR}"
+        rm "./xml.tar.gz"
+    done
+
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
+
+    echo "making libcugraph doc dir"
+    rm -rf ${REPODIR}/docs/cugraph/libcugraph
+    mkdir -p ${REPODIR}/docs/cugraph/libcugraph
+
+    export XML_DIR_LIBCUGRAPH="${REPODIR}/cpp/doxygen/xml"
+
     cd ${REPODIR}/docs/cugraph
     make html
 fi

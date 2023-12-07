@@ -289,10 +289,6 @@ ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_te
     GPUS 1 PERCENT 100)
 
 ###################################################################################################
-# - Graph mask tests ------------------------------------------------------------------------------
-ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
-
-###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
@@ -418,6 +414,7 @@ ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/libcugraph)
+
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -676,6 +673,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 
     rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_mg DESTINATION bin/gtests/libcugraph_mg)
+
 endif()
 
 ###################################################################################################
@@ -733,5 +731,34 @@ ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
+ConfigureCTest(CAPI_LEGACY_K_TRUSS_TEST c_api/legacy_k_truss_test.c)
+
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    ###################################################################################################
+    # - MTMG tests -------------------------------------------------------------------------
+    ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
+    target_link_libraries(MTMG_TEST
+                          PRIVATE
+                          UCP::UCP
+                         )
+
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    target_link_libraries(MTMG_LOUVAIN_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          UCP::UCP
+                         )
+
+    if(BUILD_CUGRAPH_MG_TESTS)
+        ###############################################################################################
+        # - Multi-node MTMG tests ---------------------------------------------------------------------
+        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
+        target_link_libraries(MTMG_MULTINODE_TEST
+                              PRIVATE
+                              cugraphmgtestutil
+                              UCP::UCP
+                             )
+    endif(BUILD_CUGRAPH_MG_TESTS)
+endif(BUILD_CUGRAPH_MTMG_TESTS)
 
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_c DESTINATION bin/gtests/libcugraph_c)

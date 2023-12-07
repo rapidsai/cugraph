@@ -199,19 +199,19 @@ struct col_indx_extract_t {
   void operator()(
     original::device_vec_t<vertex_t> const& d_coalesced_src_v,  // in: coalesced vector of vertices
     original::device_vec_t<vertex_t> const&
-      d_v_col_indx,       // in: column indices, given by stepper's random engine
+      d_v_col_indx,  // in: column indices, given by stepper's random engine
     original::device_vec_t<vertex_t>&
       d_v_next_vertices,  // out: set of destination vertices, for next step
     original::device_vec_t<weight_t>&
-      d_v_next_weights)   // out: set of weights between src and destination vertices, for next step
+      d_v_next_weights)  // out: set of weights between src and destination vertices, for next step
     const
   {
     thrust::transform_if(
       handle_.get_thrust_policy(),
       thrust::make_counting_iterator<index_t>(0),
-      thrust::make_counting_iterator<index_t>(num_paths_),                         // input1
-      d_v_col_indx.begin(),                                                        // input2
-      out_degs_,                                                                   // stencil
+      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
+      d_v_col_indx.begin(),                                 // input2
+      out_degs_,                                            // stencil
       thrust::make_zip_iterator(
         thrust::make_tuple(d_v_next_vertices.begin(), d_v_next_weights.begin())),  // output
       [max_depth         = max_depth_,
@@ -579,9 +579,9 @@ struct random_walker_t {
       d_crt_out_degs,  // |current set of vertex out degrees| = nelems,
                        // to be used as stencil (don't scatter if 0)
     original::device_vec_t<index_t> const&
-      d_sizes,         // paths sizes used to provide delta in coalesced paths;
-                       // pre-condition: assumed as updated to reflect new vertex additions;
-                       // also, this is the number of _vertices_ in each path;
+      d_sizes,  // paths sizes used to provide delta in coalesced paths;
+                // pre-condition: assumed as updated to reflect new vertex additions;
+                // also, this is the number of _vertices_ in each path;
     // hence for scattering weights this needs to be adjusted; hence the `adjust` parameter
     index_t
       stride,  // stride = coalesce block size (max_depth for vertices; max_depth-1 for weights)
@@ -767,7 +767,7 @@ random_walks_impl(
   // pre-allocate num_paths * max_depth;
   //
   original::device_vec_t<vertex_t> d_coalesced_v(num_paths * max_depth,
-                                                 stream);         // coalesced vertex set
+                                                 stream);  // coalesced vertex set
   original::device_vec_t<weight_t> d_coalesced_w(num_paths * (max_depth - 1),
                                                  stream);         // coalesced weight set
   original::device_vec_t<index_t> d_paths_sz(num_paths, stream);  // paths sizes

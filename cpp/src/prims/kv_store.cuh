@@ -604,7 +604,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_dataframe_buffer_begin(store_values_),
-                         not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
     }
   }
 
@@ -649,7 +649,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_dataframe_buffer_begin(store_values_),
-                         not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
     }
   }
 
@@ -695,7 +695,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_dataframe_buffer_begin(store_values_),
-                         not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
 
       // now perform assigns (for k,v pairs that failed to insert)
 

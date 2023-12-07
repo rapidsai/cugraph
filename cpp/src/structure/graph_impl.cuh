@@ -213,16 +213,17 @@ update_local_sorted_unique_edge_majors_minors(
             thrust::make_counting_iterator(minor_range_first + num_scanned),
             thrust::make_counting_iterator(minor_range_first + num_scanned + this_scan_size),
             unique_edge_minors.begin() + num_copied,
-            cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first})));
+            cugraph::detail::check_bit_set_t<uint32_t const*, vertex_t>{minor_bitmaps.data(),
+                                                                        minor_range_first})));
         num_scanned += this_scan_size;
       }
 #else
-      thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(minor_range_first),
-        thrust::make_counting_iterator(minor_range_last),
-        unique_edge_minors.begin(),
-        cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
+      thrust::copy_if(handle.get_thrust_policy(),
+                      thrust::make_counting_iterator(minor_range_first),
+                      thrust::make_counting_iterator(minor_range_last),
+                      unique_edge_minors.begin(),
+                      cugraph::detail::check_bit_set_t<uint32_t const*, vertex_t>{
+                        minor_bitmaps.data(), minor_range_first});
 #endif
 
       auto num_chunks =

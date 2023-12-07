@@ -95,11 +95,11 @@ def test_neighborhood_sampling_cupy(
     num_edges = max(len(device_srcs), len(device_dsts))
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=store_transposed,
         renumber=renumber,
         do_expensive_check=False,
@@ -153,11 +153,11 @@ def test_neighborhood_sampling_cudf(
     num_edges = max(len(device_srcs), len(device_dsts))
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=store_transposed,
         renumber=renumber,
         do_expensive_check=False,
@@ -203,11 +203,11 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     fanout_vals = np.asarray([1, 2], dtype=np.int32)
 
     sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
         store_transposed=True,
         renumber=False,
         do_expensive_check=False,
@@ -266,7 +266,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
 
 def test_sample_result():
     """
-    Ensure the SampleResult class returns zero-opy cupy arrays and properly
+    Ensure the SampleResult class returns zero-copy cupy arrays and properly
     frees device memory when all references to it are gone and it's garbage
     collected.
     """
@@ -303,6 +303,8 @@ def test_sample_result():
     assert isinstance(sources, cp.ndarray)
     assert isinstance(destinations, cp.ndarray)
     assert isinstance(indices, cp.ndarray)
+
+    print("sources:", destinations)
 
     # Delete the SampleResult instance. This *should not* free the device
     # memory yet since the variables sources, destinations, and indices are

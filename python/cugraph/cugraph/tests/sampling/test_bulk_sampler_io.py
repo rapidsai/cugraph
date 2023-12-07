@@ -16,6 +16,7 @@ import shutil
 
 import pytest
 
+import cupy
 import cudf
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 from cugraph.utilities.utils import create_directory_with_overwrite
@@ -34,7 +35,9 @@ def test_bulk_sampler_io(scratch_dir):
         }
     )
 
-    offsets = cudf.DataFrame({"offsets": [0, 8], "batch_id": [0, 1]})
+    assert len(results) == 12
+
+    offsets = cudf.DataFrame({"offsets": [0, 8, 12], "batch_id": [0, 1, None]})
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io")
     create_directory_with_overwrite(samples_path)
@@ -138,8 +141,12 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
         }
     )
 
+    assert len(results) == 20
+
     # some batches are missing
-    offsets = cudf.DataFrame({"offsets": [0, 8, 12, 16], "batch_id": [0, 3, 4, 10]})
+    offsets = cudf.DataFrame(
+        {"offsets": [0, 8, 12, 16, 20], "batch_id": [0, 3, 4, 10, None]}
+    )
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_empty_batch")
     create_directory_with_overwrite(samples_path)
@@ -157,3 +164,61 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
     df1 = cudf.read_parquet(os.path.join(samples_path, "batch=4-5.parquet"))
     assert df1.batch_id.min() == 4
     assert df1.batch_id.max() == 5
+
+    shutil.rmtree(samples_path)
+
+
+@pytest.mark.sg
+def test_bulk_sampler_io_mock_csr(scratch_dir):
+    major_offsets_array = cudf.Series([0, 5, 10, 15])
+    minors_array = cudf.Series([1, 2, 3, 4, 8, 9, 1, 3, 4, 5, 3, 0, 4, 9, 1])
+    edge_ids = cudf.Series(cupy.arange(len(minors_array)))
+
+    # 2 hops
+    label_hop_offsets = cudf.Series([0, 1, 3])
+
+    # map
+    renumber_map = cudf.Series(cupy.arange(10))
+    renumber_map_offsets = cudf.Series([0, 10])
+
+    results_df = cudf.DataFrame()
+    results_df["minors"] = minors_array
+    results_df["major_offsets"] = major_offsets_array
+    results_df["edge_id"] = edge_ids
+    results_df["edge_type"] = None
+    results_df["weight"] = None
+
+    offsets_df = cudf.DataFrame()
+    offsets_df["offsets"] = label_hop_offsets
+    offsets_df["renumber_map_offsets"] = renumber_map_offsets
+    offsets_df["batch_id"] = cudf.Series([0])
+
+    renumber_df = cudf.DataFrame()
+    renumber_df["map"] = renumber_map
+
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io_mock_csr")
+    create_directory_with_overwrite(samples_path)
+
+    write_samples(results_df, offsets_df, renumber_df, 1, samples_path)
+
+    result = cudf.read_parquet(os.path.join(samples_path, "batch=0-0.parquet"))
+
+    assert (
+        result.minors.dropna().values_host.tolist() == minors_array.values_host.tolist()
+    )
+    assert (
+        result.major_offsets.dropna().values_host.tolist()
+        == major_offsets_array.values_host.tolist()
+    )
+    assert result.edge_id.dropna().values_host.tolist() == edge_ids.values_host.tolist()
+    assert (
+        result.renumber_map_offsets.dropna().values_host.tolist()
+        == renumber_map_offsets.values_host.tolist()
+    )
+    assert result.map.dropna().values_host.tolist() == renumber_map.values_host.tolist()
+    assert (
+        result.label_hop_offsets.dropna().values_host.tolist()
+        == label_hop_offsets.values_host.tolist()
+    )
+
+    shutil.rmtree(samples_path)

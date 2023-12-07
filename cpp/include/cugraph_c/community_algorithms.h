@@ -23,7 +23,6 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
- *  @ingroup c_api
  *  @{
  */
 
@@ -226,6 +225,27 @@ cugraph_error_code_t cugraph_extract_ego(
   bool_t do_expensive_check,
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
+
+/**
+ * @brief   Extract k truss for a graph
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                              needs to be transposed
+ * @param [in]  k               The order of the truss
+ * @param [in]  do_expensive_check
+ *                              A flag to run expensive checks for input arguments (if set to true)
+ * @param [out] result          Opaque object containing the extracted subgraph
+ * @param [out] error           Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_k_truss_subgraph(const cugraph_resource_handle_t* handle,
+                                              cugraph_graph_t* graph,
+                                              size_t k,
+                                              bool_t do_expensive_check,
+                                              cugraph_induced_subgraph_result_t** result,
+                                              cugraph_error_t** error);
 
 /**
  * @brief     Opaque clustering output

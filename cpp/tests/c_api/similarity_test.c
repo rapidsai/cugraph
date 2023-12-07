@@ -161,15 +161,16 @@ int test_jaccard()
 int test_weighted_jaccard()
 {
   size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 0, 1};
+  vertex_t h_second[] = {1, 2, 3};
+  weight_t h_result[] = {0.357143, 0.208333, 0.0};
 
   return generic_similarity_test(h_src,
                                  h_dst,
@@ -215,15 +216,16 @@ int test_sorensen()
 int test_weighted_sorensen()
 {
   size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 0, 1};
+  vertex_t h_second[] = {1, 2, 3};
+  weight_t h_result[] = {0.526316, 0.344828, 0.000000};
 
   return generic_similarity_test(h_src,
                                  h_dst,
@@ -269,15 +271,16 @@ int test_overlap()
 int test_weighted_overlap()
 {
   size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 0, 1};
+  vertex_t h_second[] = {1, 2, 3};
+  weight_t h_result[] = {0.714286, 0.416667, 0.000000};
 
   return generic_similarity_test(h_src,
                                  h_dst,
@@ -301,8 +304,8 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_jaccard);
   result |= RUN_TEST(test_sorensen);
   result |= RUN_TEST(test_overlap);
-  // result |= RUN_TEST(test_weighted_jaccard);
-  // result |= RUN_TEST(test_weighted_sorensen);
-  // result |= RUN_TEST(test_weighted_overlap);
+  result |= RUN_TEST(test_weighted_jaccard);
+  result |= RUN_TEST(test_weighted_sorensen);
+  result |= RUN_TEST(test_weighted_overlap);
   return result;
 }

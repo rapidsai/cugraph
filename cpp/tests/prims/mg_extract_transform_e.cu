@@ -157,8 +157,8 @@ class Tests_MGExtractTransformE
     // 1. create MG graph
 
     constexpr bool is_multi_gpu     = true;
-    constexpr bool renumber         = true;    // needs to be true for multi gpu case
-    constexpr bool store_transposed = false;   // needs to be false for using extract_transform_e
+    constexpr bool renumber         = true;   // needs to be true for multi gpu case
+    constexpr bool store_transposed = false;  // needs to be false for using extract_transform_e
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
