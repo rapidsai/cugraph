@@ -1,3 +1,84 @@
+# cuGraph 23.12.00 (6 Dec 2023)
+
+## 🚨 Breaking Changes
+
+- [BUG] Restore the original default order of CSR, which does not reverse edges in cuGraph-PyG ([#3980](https://github.com/rapidsai/cugraph/pull/3980)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- `Resultset` and `Dataset` Refactors ([#3957](https://github.com/rapidsai/cugraph/pull/3957)) [@nv-rliu](https://github.com/nv-rliu)
+- Moves more MG graph ETL to libcugraph and re-enables MG tests in CI ([#3941](https://github.com/rapidsai/cugraph/pull/3941)) [@jnke2016](https://github.com/jnke2016)
+
+## 🐛 Bug Fixes
+
+- Pin actions/labeler to v4 ([#4038](https://github.com/rapidsai/cugraph/pull/4038)) [@raydouglass](https://github.com/raydouglass)
+- Find rmm before cuco ([#4011](https://github.com/rapidsai/cugraph/pull/4011)) [@vyasr](https://github.com/vyasr)
+- Pin to minor versions of packages outside the cuGraph repository. ([#4004](https://github.com/rapidsai/cugraph/pull/4004)) [@bdice](https://github.com/bdice)
+- Move MTMG_TEST to MG tests block ([#3993](https://github.com/rapidsai/cugraph/pull/3993)) [@naimnv](https://github.com/naimnv)
+- Fix Leiden refinement phase ([#3990](https://github.com/rapidsai/cugraph/pull/3990)) [@naimnv](https://github.com/naimnv)
+- [BUG] Fix Graph Construction From Pandas in cuGraph-PyG ([#3985](https://github.com/rapidsai/cugraph/pull/3985)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- [BUG] Restore the original default order of CSR, which does not reverse edges in cuGraph-PyG ([#3980](https://github.com/rapidsai/cugraph/pull/3980)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Fix eigenvector testing and HITS testing discrepancies ([#3979](https://github.com/rapidsai/cugraph/pull/3979)) [@ChuckHastings](https://github.com/ChuckHastings)
+- [BUG] Fix Incorrect Edge Index, Directory Selection in cuGraph-PyG Loader ([#3978](https://github.com/rapidsai/cugraph/pull/3978)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- [BUG] Check if Dask has quit to avoid throwing an exception and triggering a segfault on ddp exit ([#3961](https://github.com/rapidsai/cugraph/pull/3961)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- nx-cugraph: xfail test_louvain.py:test_threshold in Python 3.9 ([#3944](https://github.com/rapidsai/cugraph/pull/3944)) [@eriknw](https://github.com/eriknw)
+
+## 📖 Documentation
+
+- [DOC]: Fix invalid links and add materials to notebooks ([#4002](https://github.com/rapidsai/cugraph/pull/4002)) [@huiyuxie](https://github.com/huiyuxie)
+- Update Broken Links in README.md ([#3924](https://github.com/rapidsai/cugraph/pull/3924)) [@nv-rliu](https://github.com/nv-rliu)
+
+## 🚀 New Features
+
+- Implement the transform_e primitive (to update property values for all edges) ([#3917](https://github.com/rapidsai/cugraph/pull/3917)) [@seunghwak](https://github.com/seunghwak)
+- Update the neighbor intersection primitive to support edge masking. ([#3550](https://github.com/rapidsai/cugraph/pull/3550)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Correct defect found in DLFW testing ([#4021](https://github.com/rapidsai/cugraph/pull/4021)) [@ChuckHastings](https://github.com/ChuckHastings)
+- `nx-cugraph` README update: adds missing `connected_components` algo to table ([#4019](https://github.com/rapidsai/cugraph/pull/4019)) [@rlratzel](https://github.com/rlratzel)
+- Build concurrency for nightly and merge triggers ([#4009](https://github.com/rapidsai/cugraph/pull/4009)) [@bdice](https://github.com/bdice)
+- Support `drop_last` Argument in cuGraph-PyG Loader ([#3995](https://github.com/rapidsai/cugraph/pull/3995)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Adds `update-version.sh` support for recently added files containing RAPIDS versions ([#3994](https://github.com/rapidsai/cugraph/pull/3994)) [@rlratzel](https://github.com/rlratzel)
+- Use new `rapids-dask-dependency` metapackage for managing `dask` versions ([#3991](https://github.com/rapidsai/cugraph/pull/3991)) [@galipremsagar](https://github.com/galipremsagar)
+- Fixes to nx-cugraph README: fixes typos, updates link to NX backend docs ([#3989](https://github.com/rapidsai/cugraph/pull/3989)) [@rlratzel](https://github.com/rlratzel)
+- Address FIXMEs ([#3988](https://github.com/rapidsai/cugraph/pull/3988)) [@seunghwak](https://github.com/seunghwak)
+- Updates README file to include nx-cugraph user documentation, adds nx-cugraph to main README ([#3984](https://github.com/rapidsai/cugraph/pull/3984)) [@rlratzel](https://github.com/rlratzel)
+- Update C API graph creation function signatures ([#3982](https://github.com/rapidsai/cugraph/pull/3982)) [@ChuckHastings](https://github.com/ChuckHastings)
+- [REVIEW]Optimize cugraph-DGL csc codepath ([#3977](https://github.com/rapidsai/cugraph/pull/3977)) [@VibhuJawa](https://github.com/VibhuJawa)
+- nx-cugraph: add SSSP (unweighted) ([#3976](https://github.com/rapidsai/cugraph/pull/3976)) [@eriknw](https://github.com/eriknw)
+- CuGraph compatibility fixes ([#3973](https://github.com/rapidsai/cugraph/pull/3973)) [@brandon-b-miller](https://github.com/brandon-b-miller)
+- Skip certain `cugraph-pyg` tests when torch-sparse is not available ([#3970](https://github.com/rapidsai/cugraph/pull/3970)) [@tingyu66](https://github.com/tingyu66)
+- nx-cugraph: add `eigenvector_centrality`, `katz_centrality`, `hits`, `pagerank` ([#3968](https://github.com/rapidsai/cugraph/pull/3968)) [@eriknw](https://github.com/eriknw)
+- Cut peak memory footprint in graph creation ([#3966](https://github.com/rapidsai/cugraph/pull/3966)) [@seunghwak](https://github.com/seunghwak)
+- nx-cugraph: add CC for undirected graphs to fix k-truss ([#3965](https://github.com/rapidsai/cugraph/pull/3965)) [@eriknw](https://github.com/eriknw)
+- Skip certain `cugraph-pyg` tests when `torch_sparse` is not available ([#3962](https://github.com/rapidsai/cugraph/pull/3962)) [@tingyu66](https://github.com/tingyu66)
+- `Resultset` and `Dataset` Refactors ([#3957](https://github.com/rapidsai/cugraph/pull/3957)) [@nv-rliu](https://github.com/nv-rliu)
+- Download `xml` docs artifact through CloudFront endpoint ([#3955](https://github.com/rapidsai/cugraph/pull/3955)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Add many graph generators to nx-cugraph ([#3954](https://github.com/rapidsai/cugraph/pull/3954)) [@eriknw](https://github.com/eriknw)
+- Unpin `dask` and `distributed` for `23.12` development ([#3953](https://github.com/rapidsai/cugraph/pull/3953)) [@galipremsagar](https://github.com/galipremsagar)
+- Errors compiling for DLFW on CUDA 12.3 ([#3952](https://github.com/rapidsai/cugraph/pull/3952)) [@ChuckHastings](https://github.com/ChuckHastings)
+- nx-cugraph: add k_truss and degree centralities ([#3945](https://github.com/rapidsai/cugraph/pull/3945)) [@eriknw](https://github.com/eriknw)
+- nx-cugraph: handle seed argument in edge_betweenness_centrality ([#3943](https://github.com/rapidsai/cugraph/pull/3943)) [@eriknw](https://github.com/eriknw)
+- Moves more MG graph ETL to libcugraph and re-enables MG tests in CI ([#3941](https://github.com/rapidsai/cugraph/pull/3941)) [@jnke2016](https://github.com/jnke2016)
+- Temporarily disable mg testing ([#3940](https://github.com/rapidsai/cugraph/pull/3940)) [@jnke2016](https://github.com/jnke2016)
+- adding C/C++ API docs ([#3938](https://github.com/rapidsai/cugraph/pull/3938)) [@BradReesWork](https://github.com/BradReesWork)
+- Add multigraph support to nx-cugraph ([#3934](https://github.com/rapidsai/cugraph/pull/3934)) [@eriknw](https://github.com/eriknw)
+- Setup Consistent Nightly Versions for Pip and Conda ([#3933](https://github.com/rapidsai/cugraph/pull/3933)) [@divyegala](https://github.com/divyegala)
+- MTMG multi node ([#3932](https://github.com/rapidsai/cugraph/pull/3932)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Use branch-23.12 workflows. ([#3928](https://github.com/rapidsai/cugraph/pull/3928)) [@bdice](https://github.com/bdice)
+- Fix an issue occurring in the cuGraph-DGL example for &quot;mixed&quot; mode. ([#3927](https://github.com/rapidsai/cugraph/pull/3927)) [@drivanov](https://github.com/drivanov)
+- Updating Docs ([#3923](https://github.com/rapidsai/cugraph/pull/3923)) [@BradReesWork](https://github.com/BradReesWork)
+- Forward-merge branch-23.10 to branch-23.12 ([#3919](https://github.com/rapidsai/cugraph/pull/3919)) [@nv-rliu](https://github.com/nv-rliu)
+- new build all option ([#3916](https://github.com/rapidsai/cugraph/pull/3916)) [@BradReesWork](https://github.com/BradReesWork)
+- Silence spurious compiler warnings ([#3913](https://github.com/rapidsai/cugraph/pull/3913)) [@seunghwak](https://github.com/seunghwak)
+- Link wholegrah and cugraphops XML docs ([#3906](https://github.com/rapidsai/cugraph/pull/3906)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Updates to 23.12 ([#3905](https://github.com/rapidsai/cugraph/pull/3905)) [@raydouglass](https://github.com/raydouglass)
+- Forward-merge branch-23.10 to branch-23.12 ([#3904](https://github.com/rapidsai/cugraph/pull/3904)) [@GPUtester](https://github.com/GPUtester)
+- Build CUDA 12.0 ARM conda packages. ([#3903](https://github.com/rapidsai/cugraph/pull/3903)) [@bdice](https://github.com/bdice)
+- Merge branch-23.10 into branch-23.12 ([#3898](https://github.com/rapidsai/cugraph/pull/3898)) [@rlratzel](https://github.com/rlratzel)
+- Some MTMG code cleanup and small optimizations ([#3894](https://github.com/rapidsai/cugraph/pull/3894)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Enable parallel mode ([#3875](https://github.com/rapidsai/cugraph/pull/3875)) [@jnke2016](https://github.com/jnke2016)
+- Adds benchmarks for `nx-cugraph` ([#3854](https://github.com/rapidsai/cugraph/pull/3854)) [@rlratzel](https://github.com/rlratzel)
+- Add nx-cugraph notebook for showing accelerated networkX APIs ([#3830](https://github.com/rapidsai/cugraph/pull/3830)) [@betochimas](https://github.com/betochimas)
+
 # cuGraph 23.10.00 (11 Oct 2023)
 
 ## 🚨 Breaking Changes

@@ -33,8 +33,8 @@
 #include <gtest/gtest.h>
 
 struct Hits_Usecase {
-  bool check_correctness{true};
   bool check_initial_input{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -81,7 +81,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     auto mg_graph_view = mg_graph.view();
 
     auto maximum_iterations = 200;
-    weight_t tolerance      = 1e-8;
+    weight_t epsilon        = 1e-7;
     rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
                                             handle_->get_stream());
 
@@ -110,7 +110,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
                                 mg_graph_view,
                                 d_mg_hubs.data(),
                                 d_mg_authorities.data(),
-                                tolerance,
+                                epsilon,
                                 maximum_iterations,
                                 hits_usecase.check_initial_input,
                                 true,
@@ -205,7 +205,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
                                     sg_graph_view,
                                     d_sg_hubs.data(),
                                     d_sg_authorities.data(),
-                                    tolerance,
+                                    epsilon,
                                     maximum_iterations,
                                     hits_usecase.check_initial_input,
                                     true,
@@ -218,9 +218,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
-          (1.0 / static_cast<result_t>(mg_graph_view.number_of_vertices())) *
-          threshold_ratio;  // skip comparison for low Hits verties (lowly ranked
-                            // vertices)
+          1e-6;  // skip comparison for low Hits verties (lowly ranked vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
           return std::abs(lhs - rhs) <
                  std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
@@ -274,7 +272,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Hits_Usecase{true, false}, Hits_Usecase{true, true}),
+    ::testing::Values(Hits_Usecase{false, true}, Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -285,7 +283,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Hits_Usecase{true, false}, Hits_Usecase{true, true}),
+    ::testing::Values(Hits_Usecase{false, true}, Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -297,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Hits_Usecase{false, false}),
+    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

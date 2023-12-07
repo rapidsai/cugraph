@@ -9,17 +9,6 @@ python:
 benchmarks:
   - 'benchmarks/**'
 
-doc:
-  - 'docs/**'
-  - '**/*.md'
-  - 'datasets/**'
-  - 'notebooks/**'
-  - '**/*.txt'
-  - '**/*.rst'
-  - '**/*.ipynb'
-  - '**/*.pdf'
-  - '**/*.png'
-
 datasets:
   - 'datasets/**'
 
