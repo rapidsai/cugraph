@@ -21,6 +21,7 @@
 
 #include <detail/graph_partition_utils.cuh>
 
+#include <thrust/functional.h>
 #include <thrust/gather.h>
 
 namespace cugraph {
@@ -91,10 +92,11 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   auto vertex_partition =
     vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
 
-  auto iter =
-    thrust::make_transform_iterator(local_vertices.begin(), [vertex_partition] __device__(auto v) {
+  auto iter = thrust::make_transform_iterator(
+    local_vertices.begin(),
+    cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
       return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-    });
+    }));
 
   thrust::gather(handle.get_thrust_policy(),
                  iter,
@@ -111,7 +113,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       vertex_gpu_ids.begin(),
       vertex_gpu_ids.end(),
       thrust::make_zip_iterator(local_vertices.begin(), vertex_pos.begin(), tmp_result.begin()),
-      [] __device__(int gpu) { return gpu; },
+      thrust::identity{},
       handle.get_stream());
 
   //
