@@ -13,7 +13,7 @@
 
 import torch
 
-from torch_geometric.nn import CuGraphSAGEConv
+from cugraph_pyg.nn.conv import SAGEConv as CuGraphSAGEConv
 from torch_geometric.utils.trim_to_layer import TrimToLayer
 
 import torch.nn as nn
@@ -44,47 +44,33 @@ class CuGraphSAGE(nn.Module):
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
-        edge = edge.csr()
-        edge = [edge[1], edge[0], x.shape[0]]
-        print('edge:', edge[1].shape, edge[0].shape, edge[2])
+        if isinstance(edge, torch.Tensor):
+            edge = list(
+                CuGraphSAGEConv.to_csc(edge.cuda(), (x.shape[0], num_sampled_nodes.sum()))
+            )
+        else:
+            edge = edge.csr()
+            edge = [edge[1], edge[0], x.shape[0]]
 
         x = x.cuda().to(torch.float32)
 
-        print('# sampled nodes:', num_sampled_nodes)
-        print('# sampled edges:', num_sampled_edges)
         for i, conv in enumerate(self.convs):
             if i > 0:                
+                new_num_edges = edge[1][-2]
                 edge[0] = edge[0].narrow(
                     dim=0,
                     start=0,
-                    length=edge[0].size(0) - num_sampled_edges[-i],
+                    length=new_num_edges,
                 )
                 edge[1] = edge[1].narrow(
                     dim=0,
                     start=0,
-                    length=edge[1].size(0) - num_sampled_nodes[-(i+1)]
+                    length=edge[1].size(0) - num_sampled_nodes[-i-1]
                 )
                 edge[2] = x.shape[0]
-
-                """
-                x = x.narrow(
-                    dim=0,
-                    start=0,
-                    length=x.size(0) - num_sampled_nodes[-i],
-                )
-                """
-
-            print('i:', i)
-            print(x.shape, edge[0].shape, edge[1].shape, edge[2])
-            print(edge[0].max())
-            print(edge[1].max())
-            #assert edge[0].max() + 1 <= x.shape[0]
-
-            x = extend_tensor(x, edge[0].max()+1)
             
-            print('before:', x.shape)
             x = conv(x, edge)
-            print('after:', x.shape)
+
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
@@ -93,8 +79,6 @@ class CuGraphSAGE(nn.Module):
             start=0,
             length=num_sampled_nodes[0]
         )
-        print(x.shape)
 
-        # assert x.shape[0] == num_sampled_nodes[0]
         return x
 

@@ -29,6 +29,7 @@ import os
 
 class PyGCuGraphTrainer(PyGTrainer):
     def __init__(self, dataset, model='GraphSAGE', device=0, rank=0, world_size=1, num_epochs=1, sample_dir='.', **kwargs):
+        self.__data = None
         self.__device = device
         self.__rank = rank
         self.__world_size = world_size
@@ -54,15 +55,14 @@ class PyGCuGraphTrainer(PyGTrainer):
     def num_epochs(self) -> int:
         return self.__num_epochs
 
-    @property
-    def get_loader(self, epoch) -> int:
+    def get_loader(self, epoch:int) -> int:
         # FIXME suppor test, val
         # TODO support online sampling
-        loader = BulkSampleLoader(
+        return BulkSampleLoader(
             self.data,
             self.data,
             None, # FIXME get input nodes properly
-            directory=os.path.join(self.__sample_dir, f'epoch={epoch}'),
+            directory=os.path.join(self.__sample_dir, f'epoch={epoch}', 'samples'),
             input_files=self.get_input_files(epoch),
             **self.__loader_kwargs,
         )
@@ -101,7 +101,7 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             # TODO support online sampling if the edge index is provided
             num_edges_dict = self.__dataset.edge_index_dict
-            if not isinstance(list(num_edges_dict).values()[0], int):
+            if not isinstance(list(num_edges_dict.values())[0], int):
                 num_edges_dict = {k: len(v) for k, v in num_edges_dict}
             
             self.__data = CuGraphStore(
@@ -134,7 +134,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         return model
     
     def get_input_files(self, epoch=0):
-        path = os.path.join(self.__sample_dir, f'epoch={epoch}')
+        path = os.path.join(self.__sample_dir, f'epoch={epoch}', 'samples')
         file_list = np.array(
             os.listdir(path)
         )

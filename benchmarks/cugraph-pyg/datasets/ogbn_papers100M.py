@@ -90,7 +90,7 @@ class OGBNPapers100MDataset(Dataset):
                 logger.info(f"# edges: {len(ei['src'])}")
                 self.__edge_index = {('paper','cites','paper'): ei}
             else:
-                self.__edge_index = {('paper','cites','paper'): self.__num_edges(('paper','cites','paper'))}
+                self.__edge_index = {('paper','cites','paper'): self.num_edges(('paper','cites','paper'))}
 
         return self.__edge_index
 
