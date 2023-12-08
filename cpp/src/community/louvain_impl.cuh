@@ -86,7 +86,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     if (rng_state) {
       rmm::device_uvector<vertex_t> random_cluster_assignments(
-        graph_view.local_vertex_partition_range_size(), handle.get_stream());
+        current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
       // generate as many number as #local_vertices on each GPU
       detail::sequence_fill(handle.get_stream(),
@@ -149,8 +149,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         auto sample_buffer_sizes = cugraph::host_scalar_allgather(
           handle.get_comms(), random_cluster_assignments.size(), handle.get_stream());
 
-        auto expected_sample_buffer_sizes = cugraph::host_scalar_allgather(
-          handle.get_comms(), graph_view.local_vertex_partition_range_size(), handle.get_stream());
+        auto expected_sample_buffer_sizes =
+          cugraph::host_scalar_allgather(handle.get_comms(),
+                                         current_graph_view.local_vertex_partition_range_size(),
+                                         handle.get_stream());
 
         std::vector<size_t> nr_smaples_per_GPU(comm_size, 0);
         for (int i = 0; i < comm_size; i++) {
@@ -173,7 +175,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                   handle.get_stream());
       }
 
-      assert(random_cluster_assignments.size() == graph_view.local_vertex_partition_range_size());
+      assert(random_cluster_assignments.size() ==
+             current_graph_view.local_vertex_partition_range_size());
+
+      assert(dendrogram->current_level_size() ==
+             current_graph_view.local_vertex_partition_range_size());
 
       raft::copy(dendrogram->current_level_begin(),
                  random_cluster_assignments.begin(),
