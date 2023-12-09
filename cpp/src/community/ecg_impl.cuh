@@ -108,6 +108,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                      max_level,
                      threshold,
                      resolution);
+  // FIXME:Final modularity should be computed using original graph and edge weights
+  // using based on cluster_assignments
 
   return std::make_tuple(std::move(cluster_assignments), max_level, modularity);
 }

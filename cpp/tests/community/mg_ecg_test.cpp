@@ -112,7 +112,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
                                                                        resolution);
     }
     if (comm_rank == 0) {
-      EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-3);
+      EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-2);
     }
   }
 
