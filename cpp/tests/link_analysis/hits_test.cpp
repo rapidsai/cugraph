@@ -52,9 +52,11 @@ std::tuple<std::vector<result_t>, std::vector<result_t>, double, size_t> hits_re
   size_t max_iterations,
   std::optional<result_t const*> starting_hub_values,
   bool normalized,
-  double tolerance)
+  double epsilon)
 {
   CUGRAPH_EXPECTS(num_vertices > 1, "number of vertices expected to be non-zero");
+  auto tolerance = static_cast<result_t>(num_vertices) * epsilon;
+
   std::vector<result_t> prev_hubs(num_vertices, result_t{1.0} / num_vertices);
   std::vector<result_t> prev_authorities(num_vertices, result_t{1.0} / num_vertices);
   std::vector<result_t> curr_hubs(num_vertices);
@@ -127,8 +129,8 @@ std::tuple<std::vector<result_t>, std::vector<result_t>, double, size_t> hits_re
 }
 
 struct Hits_Usecase {
-  bool check_correctness{true};
   bool check_initial_input{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -175,8 +177,8 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     // 3. run hits
 
     auto graph_view         = graph.view();
-    auto maximum_iterations = 500;
-    weight_t tolerance      = 1e-5;
+    auto maximum_iterations = 200;
+    weight_t epsilon        = 1e-7;
     rmm::device_uvector<weight_t> d_hubs(graph_view.local_vertex_partition_range_size(),
                                          handle.get_stream());
 
@@ -201,7 +203,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
                                 graph_view,
                                 d_hubs.data(),
                                 d_authorities.data(),
-                                tolerance,
+                                epsilon,
                                 maximum_iterations,
                                 hits_usecase.check_initial_input,
                                 true,
@@ -232,7 +234,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         (hits_usecase.check_initial_input) ? std::make_optional(initial_random_hubs.data())
                                            : std::nullopt,
         true,
-        tolerance);
+        epsilon);
 
       std::vector<weight_t> h_cugraph_hits{};
       if (renumber) {
@@ -246,8 +248,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       handle.sync_stream();
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-        (1.0 / static_cast<weight_t>(graph_view.number_of_vertices())) *
-        threshold_ratio;  // skip comparison for low hits vertices (lowly ranked vertices)
+        1e-6;  // skip comparison for low hits vertices (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <=
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
@@ -294,14 +295,17 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Hits_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Hits_Usecase{true, false}, Hits_Usecase{true, true}),
+    ::testing::Values(Hits_Usecase{false, true}, Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Hits_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(Hits_Usecase{true, false},
+                         ::testing::Combine(::testing::Values(Hits_Usecase{false, true},
                                                               Hits_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
@@ -315,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Hits_File,
   ::testing::Combine(
     // disable correctness checks
-    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
+    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -327,7 +331,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Hits_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
+    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
