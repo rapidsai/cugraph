@@ -51,6 +51,8 @@
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 
+#include <cuda/functional>
+
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -940,16 +942,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      minor_init);
         auto value_first = thrust::make_transform_iterator(
           view.value_first(),
-          [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); });
-        thrust::scatter(
-          handle.get_thrust_policy(),
-          value_first + (*minor_key_offsets)[i],
-          value_first + (*minor_key_offsets)[i + 1],
-          thrust::make_transform_iterator(
-            (*(view.keys())).begin() + (*minor_key_offsets)[i],
-            [key_first = graph_view.vertex_partition_range_first(
-               this_segment_vertex_partition_id)] __device__(auto key) { return key - key_first; }),
-          tx_buffer_first);
+          cuda::proclaim_return_type<T>(
+            [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); }));
+        thrust::scatter(handle.get_thrust_policy(),
+                        value_first + (*minor_key_offsets)[i],
+                        value_first + (*minor_key_offsets)[i + 1],
+                        thrust::make_transform_iterator(
+                          (*(view.keys())).begin() + (*minor_key_offsets)[i],
+                          cuda::proclaim_return_type<vertex_t>(
+                            [key_first = graph_view.vertex_partition_range_first(
+                               this_segment_vertex_partition_id)] __device__(auto key) {
+                              return key - key_first;
+                            })),
+                        tx_buffer_first);
         device_reduce(major_comm,
                       tx_buffer_first,
                       vertex_value_output_first,
