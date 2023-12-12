@@ -85,10 +85,4 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     conda/recipes/cugraph-dgl
 fi
 
-rapids-conda-retry mambabuild \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph-equivariant
-
 rapids-upload-conda-to-s3 python
