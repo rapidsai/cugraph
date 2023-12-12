@@ -21,21 +21,21 @@
 
 #include <detail/graph_partition_utils.cuh>
 
+#include <thrust/functional.h>
 #include <thrust/gather.h>
 
 namespace cugraph {
 namespace mtmg {
 
 template <typename result_t>
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, bool multi_gpu>
 rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   handle_t const& handle,
   raft::device_span<vertex_t const> vertices,
-  cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<vertex_t>>& renumber_map_view)
 {
-  auto this_gpu_graph_view = graph_view.get(handle);
-
   rmm::device_uvector<vertex_t> local_vertices(vertices.size(), handle.get_stream());
   rmm::device_uvector<int> vertex_gpu_ids(vertices.size(), handle.get_stream());
   rmm::device_uvector<size_t> vertex_pos(vertices.size(), handle.get_stream());
@@ -47,11 +47,11 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   cugraph::detail::sequence_fill(
     handle.get_stream(), vertex_pos.data(), vertex_pos.size(), size_t{0});
 
-  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-    this_gpu_graph_view.vertex_partition_range_lasts().size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
+                                                               handle.get_stream());
   raft::update_device(d_vertex_partition_range_lasts.data(),
-                      this_gpu_graph_view.vertex_partition_range_lasts().data(),
-                      this_gpu_graph_view.vertex_partition_range_lasts().size(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
                       handle.get_stream());
 
   if (renumber_map_view) {
@@ -60,8 +60,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       local_vertices.data(),
       local_vertices.size(),
       renumber_map_view->get(handle).data(),
-      this_gpu_graph_view.local_vertex_partition_range_first(),
-      this_gpu_graph_view.local_vertex_partition_range_last());
+      vertex_partition_view.local_vertex_partition_range_first(),
+      vertex_partition_view.local_vertex_partition_range_last());
   }
 
   auto const major_comm_size =
@@ -89,13 +89,14 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
 
   auto& wrapped = this->get(handle);
 
-  auto vertex_partition = vertex_partition_device_view_t<vertex_t, multi_gpu>(
-    this_gpu_graph_view.local_vertex_partition_view());
+  auto vertex_partition =
+    vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
 
-  auto iter =
-    thrust::make_transform_iterator(local_vertices.begin(), [vertex_partition] __device__(auto v) {
+  auto iter = thrust::make_transform_iterator(
+    local_vertices.begin(),
+    cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
       return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-    });
+    }));
 
   thrust::gather(handle.get_thrust_policy(),
                  iter,
@@ -112,7 +113,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       vertex_gpu_ids.begin(),
       vertex_gpu_ids.end(),
       thrust::make_zip_iterator(local_vertices.begin(), vertex_pos.begin(), tmp_result.begin()),
-      [] __device__(int gpu) { return gpu; },
+      thrust::identity{},
       handle.get_stream());
 
   //
@@ -130,37 +131,85 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
 template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, false> const& graph_view,
-  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
-
-template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
-  handle_t const& handle,
-  raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, false> const& graph_view,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, false> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
 
 template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, false> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
 
 template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int32_t, true, true> const& graph_view,
-  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
-
-template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
-  handle_t const& handle,
-  raft::device_span<int32_t const> vertices,
-  cugraph::mtmg::graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, true> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
 
 template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  cugraph::mtmg::graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, true> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
+
+template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
+  handle_t const& handle,
+  raft::device_span<int32_t const> vertices,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, false> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
+
+template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
+  handle_t const& handle,
+  raft::device_span<int64_t const> vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, false> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
+
+template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
+  handle_t const& handle,
+  raft::device_span<int32_t const> vertices,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, true> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
+
+template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
+  handle_t const& handle,
+  raft::device_span<int64_t const> vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, true> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
+
+template rmm::device_uvector<int32_t> vertex_result_view_t<int32_t>::gather(
+  handle_t const& handle,
+  raft::device_span<int32_t const> vertices,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, false> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
+
+template rmm::device_uvector<int32_t> vertex_result_view_t<int32_t>::gather(
+  handle_t const& handle,
+  raft::device_span<int32_t const> vertices,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int32_t, true> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
+
+template rmm::device_uvector<int64_t> vertex_result_view_t<int64_t>::gather(
+  handle_t const& handle,
+  raft::device_span<int64_t const> vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, false> vertex_partition_view,
+  std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
+
+template rmm::device_uvector<int64_t> vertex_result_view_t<int64_t>::gather(
+  handle_t const& handle,
+  raft::device_span<int64_t const> vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  vertex_partition_view_t<int64_t, true> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
 
 }  // namespace mtmg

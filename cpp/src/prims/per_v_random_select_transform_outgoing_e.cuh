@@ -44,6 +44,8 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 #include <optional>
 #include <tuple>
 
@@ -596,8 +598,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -615,8 +618,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
                                         multiplier_t<size_t>{high_partition_over_sampling_K}),
         thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
-          [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
-            size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; }),
+          cuda::proclaim_return_type<size_t>(
+            [high_partition_over_sampling_K, unique_counts = unique_counts.data()] __device__(
+              size_t i) { return i * high_partition_over_sampling_K + unique_counts[i]; })),
         handle.get_stream());
 
       // copy the neighbor indices back to sample_nbr_indices
