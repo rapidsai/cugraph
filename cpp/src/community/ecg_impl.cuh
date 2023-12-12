@@ -20,8 +20,10 @@
 #include <prims/transform_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
+#include <community/detail/common_methods.hpp>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/handle.hpp>
@@ -108,8 +110,30 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                      max_level,
                      threshold,
                      resolution);
-  // FIXME:Final modularity should be computed using original graph and edge weights
-  // using based on cluster_assignments
+  // Compute final modularity using original edge weights
+
+  weight_t total_edge_weight =
+    cugraph::compute_total_edge_weight(handle, graph_view, *edge_weight_view);
+
+  if constexpr (multi_gpu) {
+    cugraph::update_edge_src_property(
+      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments);
+    cugraph::update_edge_dst_property(
+      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments);
+  }
+
+  auto [cluster_keys, cluster_weights] = cugraph::detail::compute_cluster_keys_and_values(
+    handle, graph_view, edge_weight_view, cluster_assignments, src_cluster_assignments);
+
+  modularity = detail::compute_modularity(handle,
+                                          graph_view,
+                                          edge_weight_view,
+                                          src_cluster_assignments,
+                                          dst_cluster_assignments,
+                                          cluster_assignments,
+                                          cluster_weights,
+                                          total_edge_weight,
+                                          resolution);
 
   return std::make_tuple(std::move(cluster_assignments), max_level, modularity);
 }
