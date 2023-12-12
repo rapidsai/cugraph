@@ -259,8 +259,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGSelectRandomVertices_Rmat,
   ::testing::Combine(
-    ::testing::Values(SelectRandomVertices_Usecase{500, true},
-                      SelectRandomVertices_Usecase{500, true}),
+    ::testing::Values(SelectRandomVertices_Usecase{500, false},
+                      SelectRandomVertices_Usecase{500, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
