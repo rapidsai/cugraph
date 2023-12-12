@@ -191,15 +191,24 @@ def sample_graph(
     sampling_kwargs={},
 ):
     cupy.random.seed(seed)
+    train_df, test_df = label_df.random_split([train_perc, 1-train_perc], random_state=seed, shuffle=True)
+    val_df, test_df = label_df.random_split([val_perc, 1-val_perc], random_state=seed, shuffle=True)
 
     total_time = 0.0
     for epoch in range(num_epochs):
-        train_df, test_df = label_df.random_split([train_perc, 1-train_perc], random_state=seed, shuffle=True)
-        val_df, test_df = label_df.random_split([val_perc, 1-val_perc], random_state=seed, shuffle=True)
+        steps = [("train", train_df), ("test", test_df)]
+        if epoch == num_epochs - 1:
+            steps.append(('val', val_df))
 
-        for step, batch_df in [("train", train_df), ("test", test_df), ("val", val_df)]:
-            output_sample_path = os.path.join(output_path, f"epoch={epoch}", f"{step}", "samples")
+        for step, batch_df in steps:
+            batch_df = batch_df.sample(frac=1.0, random_state=seed)
+
+            if step == 'val':
+                output_sample_path = os.path.join(output_path, "val", "samples")
+            else:
+                output_sample_path = os.path.join(output_path, f"epoch={epoch}", f"{step}", "samples")
             os.makedirs(output_sample_path)
+            
             sampler = BulkSampler(
                 batch_size=batch_size,
                 output_path=output_sample_path,

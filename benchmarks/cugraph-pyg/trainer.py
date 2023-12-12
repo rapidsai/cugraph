@@ -33,6 +33,10 @@ def extend_tensor(t: Union[List[int], torch.Tensor], l:int):
 
 class Trainer:
     @property
+    def rank(self):
+        raise NotImplementedError()
+
+    @property
     def model(self):
         raise NotImplementedError()
     
@@ -52,7 +56,7 @@ class Trainer:
     def num_epochs(self) -> int:
         raise NotImplementedError()
     
-    def get_loader(self, epoch: int):
+    def get_loader(self, epoch: int=0, stage='train'):
         raise NotImplementedError()
 
     def train(self):
@@ -75,7 +79,7 @@ class PyGTrainer(Trainer):
 
         for epoch in range(self.num_epochs):
             with td.algorithms.join.Join([self.model, self.optimizer]):
-                for iter_i, data in enumerate(self.get_loader(epoch)):
+                for iter_i, data in enumerate(self.get_loader(epoch=epoch, stage='train')):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
@@ -105,7 +109,7 @@ class PyGTrainer(Trainer):
                         time_backward_iter = time_backward / num_batches
                         
                         total_time_iter = (time.perf_counter() - start_time) / num_batches
-                        logger.info(f"iteration {iter_i}")
+                        logger.info(f"epoch {epoch}, iteration {iter_i}")
                         logger.info(f"num sampled nodes: {num_sampled_nodes}")
                         logger.info(f"num sampled edges: {num_sampled_edges}")
                         logger.info(f"time forward: {time_forward_iter}")
@@ -158,10 +162,71 @@ class PyGTrainer(Trainer):
                     time_backward += end_time_backward - start_time_backward
             
             end_time = time.perf_counter()
-            # FIXME add test, validation steps
+            
+            # test
+            from torchmetrics import Accuracy
+            acc = Accuracy(task="multiclass", num_classes=self.dataset.num_labels).cuda()
+
+            with td.algorithms.join.Join([self.model, self.optimizer]):
+                if self.rank == 0:
+                    acc_sum = 0.0
+                    with torch.no_grad():
+                        for i, batch in enumerate(self.get_loader(epoch=epoch, stage='test')):                                                    
+                            num_sampled_nodes = sum([
+                                torch.tensor(n)
+                                for n in batch.num_sampled_nodes_dict.values()
+                            ])
+                            num_sampled_edges = sum([
+                                torch.tensor(e)
+                                for e in batch.num_sampled_edges_dict.values()
+                            ])
+                            batch_size = num_sampled_nodes[0]
+                            
+                            batch = batch.to_homogeneous().cuda()
+
+                            batch.y = batch.y.to(torch.long)
+                            out = self.model.module(
+                                batch.x,
+                                batch.edge_index,
+                                num_sampled_nodes,
+                                num_sampled_edges,
+                            )
+                            acc_sum += acc(out[:batch_size].softmax(dim=-1),
+                                        batch.y[:batch_size])
+                    print(f"Accuracy: {acc_sum/(i) * 100.0:.4f}%", )
+                
+            td.barrier()
         
+        with td.algorithms.join.Join([self.model, self.optimizer]):
+            if self.rank == 0:
+                acc_sum = 0.0
+                with torch.no_grad():
+                    for i, batch in enumerate(self.get_loader(epoch=epoch, stage='val')):                                                    
+                        num_sampled_nodes = sum([
+                            torch.tensor(n)
+                            for n in batch.num_sampled_nodes_dict.values()
+                        ])
+                        num_sampled_edges = sum([
+                            torch.tensor(e)
+                            for e in batch.num_sampled_edges_dict.values()
+                        ])
+                        batch_size = num_sampled_nodes[0]
+                        
+                        batch = batch.to_homogeneous().cuda()
+
+                        batch.y = batch.y.to(torch.long)
+                        out = self.model.module(
+                            batch.x,
+                            batch.edge_index,
+                            num_sampled_nodes,
+                            num_sampled_edges,
+                        )
+                        acc_sum += acc(out[:batch_size].softmax(dim=-1),
+                                    batch.y[:batch_size])
+                print(f"Validation Accuracy: {acc_sum/(i) * 100.0:.4f}%", )
+
         stats = {
-            'Loss': total_loss,
+            'Accuracy': (acc_sum/(i) * 100.0) if self.rank==0 else 0.0,
             '# Batches': num_batches,
             'Loader Time': time_loader + time_feature_additional,
             'Forward Time': time_forward,

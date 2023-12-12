@@ -38,7 +38,11 @@ class PyGCuGraphTrainer(PyGTrainer):
         self.__sample_dir = sample_dir
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
-      
+
+    @property
+    def rank(self):
+        return self.__rank
+
     @property
     def model(self):
         return self.__model
@@ -55,15 +59,18 @@ class PyGCuGraphTrainer(PyGTrainer):
     def num_epochs(self) -> int:
         return self.__num_epochs
 
-    def get_loader(self, epoch:int) -> int:
-        # FIXME suppor test, val
+    def get_loader(self, epoch:int=0, stage='train') -> int:
         # TODO support online sampling
+        if stage == 'val':
+            path = os.path.join(self.__sample_dir, 'val', 'samples')
+        else:
+            path = os.path.join(self.__sample_dir, f'epoch={epoch}', stage, 'samples')
         return BulkSampleLoader(
             self.data,
             self.data,
             None, # FIXME get input nodes properly
-            directory=os.path.join(self.__sample_dir, f'epoch={epoch}', 'samples'),
-            input_files=self.get_input_files(epoch),
+            directory=path,
+            input_files=self.get_input_files(path),
             **self.__loader_kwargs,
         )
 
@@ -133,8 +140,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         
         return model
     
-    def get_input_files(self, epoch=0):
-        path = os.path.join(self.__sample_dir, f'epoch={epoch}', 'samples')
+    def get_input_files(self, path):
         file_list = np.array(
             os.listdir(path)
         )

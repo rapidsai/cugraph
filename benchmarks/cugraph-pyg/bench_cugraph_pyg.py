@@ -104,7 +104,7 @@ def parse_args():
     parser.add_argument(
         "--framework",
         type=str,
-        help="The framework to test (cuGraph or Native)",
+        help="The framework to test (PyG, cuGraphPyG)",
         required=True,
     )
 
@@ -180,7 +180,7 @@ def main(args):
         load_edge_index=(args.framework=="Native"),
     )
 
-    if args.framework == "Native":
+    if args.framework == "PyG":
         trainer = PyGNativeTrainer(
             model=args.model,
             dataset=dataset,
@@ -193,7 +193,7 @@ def main(args):
             num_neighbors=[int(f) for f in args.fanout.split('_')],
             batch_size=args.batch_size,
         )
-    elif args.framework == "cuGraph":
+    elif args.framework == "cuGraphPyG":
         trainer = PyGCuGraphTrainer(
             model=args.model,
             dataset=dataset,
