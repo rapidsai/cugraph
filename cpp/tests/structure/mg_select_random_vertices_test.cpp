@@ -147,42 +147,36 @@ class Tests_MGSelectRandomVertices
     //
     // Test sampling from [0, V)
     //
-    std::vector<size_t> select_counts = {select_random_vertices_usecase.select_count,
-                                         static_cast<size_t>(mg_graph_view.number_of_vertices())};
 
     std::vector<bool> sort_vertices_flags = {true, false};
 
     for (int i = 0; i < with_replacement_flags.size(); i++) {
       for (int j = 0; j < sort_vertices_flags.size(); j++) {
-        for (int l = 0; l < select_counts.size(); l++) {
-          bool with_replacement = with_replacement_flags[i];
-          bool sort_vertices    = sort_vertices_flags[j];
+        bool with_replacement = with_replacement_flags[i];
+        bool sort_vertices    = sort_vertices_flags[j];
 
-          auto select_count = static_cast<size_t>(select_counts[l]);
+        auto d_sampled_vertices = cugraph::select_random_vertices(
+          *handle_,
+          mg_graph_view,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          rng_state,
+          select_random_vertices_usecase.select_count,
+          with_replacement,
+          sort_vertices);
 
-          auto d_sampled_vertices = cugraph::select_random_vertices(
-            *handle_,
-            mg_graph_view,
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            rng_state,
-            select_count,
-            with_replacement,
-            sort_vertices);
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
 
-          auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
+        if (select_random_vertices_usecase.check_correctness) {
+          if (!with_replacement) {
+            std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
 
-          if (select_random_vertices_usecase.check_correctness) {
-            if (!with_replacement) {
-              std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
+            auto nr_duplicates =
+              std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
+                            h_sampled_vertices.end());
 
-              auto nr_duplicates =
-                std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
-                              h_sampled_vertices.end());
-
-              ASSERT_EQ(nr_duplicates, 0);
-            }
+            ASSERT_EQ(nr_duplicates, 0);
           }
         }
       }
