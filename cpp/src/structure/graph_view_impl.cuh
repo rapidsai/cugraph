@@ -51,6 +51,8 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
+#include <cuda/functional>
+
 #include <algorithm>
 #include <cstdint>
 #include <type_traits>
@@ -159,14 +161,14 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_hypersparse_first - major_range_first),
                       local_degrees.begin(),
-                      [offsets, masks] __device__(auto i) {
+                      cuda::proclaim_return_type<edge_t>([offsets, masks] __device__(auto i) {
                         auto local_degree = offsets[i + 1] - offsets[i];
                         if (masks) {
                           local_degree = static_cast<edge_t>(
                             detail::count_set_bits(*masks, offsets[i], local_degree));
                         }
                         return local_degree;
-                      });
+                      }));
     if (use_dcs) {
       auto dcs_nzd_vertices     = (*edge_partition_dcs_nzd_vertices)[i];
       auto dcs_nzd_vertex_count = (*edge_partition_dcs_nzd_vertex_counts)[i];

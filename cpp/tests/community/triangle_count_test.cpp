@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -232,7 +232,7 @@ class Tests_TriangleCount
       for (size_t i = 0; i < h_cugraph_vertices.size(); ++i) {
         auto v     = h_cugraph_vertices[i];
         auto count = h_cugraph_triangle_counts[i];
-        ASSERT_TRUE(count == h_reference_triangle_counts[v])
+        ASSERT_EQ(count, h_reference_triangle_counts[v])
           << "Triangle count values do not match with the reference values.";
       }
     }
