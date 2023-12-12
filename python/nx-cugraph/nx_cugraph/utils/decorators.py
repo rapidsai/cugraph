@@ -15,6 +15,7 @@ from __future__ import annotations
 from functools import partial, update_wrapper
 from textwrap import dedent
 
+import networkx as nx
 from networkx.utils.decorators import nodes_or_number, not_implemented_for
 
 from nx_cugraph.interface import BackendInterface
@@ -47,10 +48,18 @@ class networkx_algorithm:
         *,
         name: str | None = None,
         extra_params: dict[str, str] | str | None = None,
+        nodes_or_number: list[int] | int | None = None,
     ):
         if func is None:
-            return partial(networkx_algorithm, name=name, extra_params=extra_params)
+            return partial(
+                networkx_algorithm,
+                name=name,
+                extra_params=extra_params,
+                nodes_or_number=nodes_or_number,
+            )
         instance = object.__new__(cls)
+        if nodes_or_number is not None and nx.__version__[:3] > "3.2":
+            func = nx.utils.decorators.nodes_or_number(nodes_or_number)(func)
         # update_wrapper sets __wrapped__, which will be used for the signature
         update_wrapper(instance, func)
         instance.__defaults__ = func.__defaults__
@@ -76,6 +85,8 @@ class networkx_algorithm:
         setattr(BackendInterface, instance.name, instance)
         # Set methods so they are in __dict__
         instance._can_run = instance._can_run
+        if nodes_or_number is not None and nx.__version__[:3] <= "3.2":
+            instance = nx.utils.decorators.nodes_or_number(nodes_or_number)(instance)
         return instance
 
     def _can_run(self, func):

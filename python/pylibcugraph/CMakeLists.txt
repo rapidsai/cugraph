@@ -38,7 +38,6 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
-option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 if(NOT USE_CUGRAPH_OPS)
@@ -59,22 +58,14 @@ if (NOT cugraph_FOUND)
   set(BUILD_TESTS OFF)
   set(BUILD_CUGRAPH_MG_TESTS OFF)
   set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
+  set(CUDA_STATIC_RUNTIME ON)
+  set(USE_RAFT_STATIC ON)
+  set(CUGRAPH_COMPILE_RAFT_LIB ON)
+  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
+  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
+  set(ALLOW_CLONE_CUGRAPH_OPS ON)
 
-  set(_exclude_from_all "")
-  if(CUGRAPH_BUILD_WHEELS)
-    # Statically link dependencies if building wheels
-    set(CUDA_STATIC_RUNTIME ON)
-    set(USE_RAFT_STATIC ON)
-    set(CUGRAPH_COMPILE_RAFT_LIB ON)
-    set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
-    set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
-    set(ALLOW_CLONE_CUGRAPH_OPS ON)
-
-    # Don't install the cuML C++ targets into wheels
-    set(_exclude_from_all EXCLUDE_FROM_ALL)
-  endif()
-
-  add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
+  add_subdirectory(../../cpp cugraph-cpp EXCLUDE_FROM_ALL)
 
   set(cython_lib_dir pylibcugraph)
   install(TARGETS cugraph DESTINATION ${cython_lib_dir})
