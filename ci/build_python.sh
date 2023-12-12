@@ -19,7 +19,7 @@ echo "${version}" > VERSION
 rapids-logger "Begin py build"
 
 package_dir="python"
-for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do 
+for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do
   underscore_package_name=$(echo "${package_name}" | tr "-" "_")
   sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" "${package_dir}/${package_name}/${underscore_package_name}/_version.py"
 done
@@ -84,5 +84,11 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --channel pytorch-nightly \
     conda/recipes/cugraph-dgl
 fi
+
+rapids-conda-retry mambabuild \
+  --no-test \
+  --channel "${CPP_CHANNEL}" \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/cugraph-equivariant
 
 rapids-upload-conda-to-s3 python

@@ -14,17 +14,18 @@
 import pytest
 import torch
 
+
 @pytest.fixture
 def example_scatter_data():
     src_feat = torch.Tensor([3, 1, 0, 1, 1, 2])
     dst_indices = torch.Tensor([0, 1, 2, 2, 3, 1])
 
     results = {
-        "sum": torch.Tensor([3., 3., 1., 1.]),
-        "mean": torch.Tensor([3., 1.5, 0.5, 1.]),
-        "prod": torch.Tensor([3., 2., 0., 1.]),
-        "amax": torch.Tensor([3., 2., 1., 1.]),
-        "amin": torch.Tensor([3., 1., 0., 1.]),
+        "sum": torch.Tensor([3.0, 3.0, 1.0, 1.0]),
+        "mean": torch.Tensor([3.0, 1.5, 0.5, 1.0]),
+        "prod": torch.Tensor([3.0, 2.0, 0.0, 1.0]),
+        "amax": torch.Tensor([3.0, 2.0, 1.0, 1.0]),
+        "amin": torch.Tensor([3.0, 1.0, 0.0, 1.0]),
     }
 
     return src_feat, dst_indices, results

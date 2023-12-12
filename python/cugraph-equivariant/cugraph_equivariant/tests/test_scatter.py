@@ -15,6 +15,7 @@ import pytest
 import torch
 from cugraph_equivariant.utils import scatter_reduce
 
+
 @pytest.mark.parametrize("reduce", ["sum", "mean", "prod", "amax", "amin"])
 def test_scatter_reduce(example_scatter_data, reduce):
     device = torch.device("cuda:0")
