@@ -37,7 +37,7 @@ import re
 import os
 import gc
 from time import sleep, perf_counter
-from math import ceil, log
+from math import ceil
 
 import pandas as pd
 import numpy as np
@@ -185,46 +185,57 @@ def sample_graph(
     seeds_per_call=400000,
     batches_per_partition=100,
     fanout=[5, 5, 5],
+    num_epochs=1,
+    train_perc=0.7,
+    val_perc=0.5,
     sampling_kwargs={},
 ):
     cupy.random.seed(seed)
 
-    sampler = BulkSampler(
-        batch_size=batch_size,
-        output_path=output_path,
-        graph=G,
-        fanout_vals=fanout,
-        with_replacement=False,
-        random_state=seed,
-        seeds_per_call=seeds_per_call,
-        batches_per_partition=batches_per_partition,
-        log_level=logging.INFO,
-        **sampling_kwargs,
-    )
+    total_time = 0.0
+    for epoch in range(num_epochs):
+        train_df, test_df = label_df.random_split([train_perc, 1-train_perc], random_state=seed, shuffle=True)
+        val_df, test_df = label_df.random_split([val_perc, 1-val_perc], random_state=seed, shuffle=True)
 
-    n_workers = len(default_client().scheduler_info()["workers"])
+        for step, batch_df in [("train", train_df), ("test", test_df), ("val", val_df)]:
+            output_sample_path = os.path.join(output_path, f"epoch={epoch}", f"{step}", "samples")
+            os.makedirs(output_sample_path)
+            sampler = BulkSampler(
+                batch_size=batch_size,
+                output_path=output_sample_path,
+                graph=G,
+                fanout_vals=fanout,
+                with_replacement=False,
+                random_state=seed,
+                seeds_per_call=seeds_per_call,
+                batches_per_partition=batches_per_partition,
+                log_level=logging.INFO,
+                **sampling_kwargs,
+            )
 
-    meta = cudf.DataFrame(
-        {"node": cudf.Series(dtype="int64"), "batch": cudf.Series(dtype="int32")}
-    )
+            n_workers = len(default_client().scheduler_info()["workers"])
 
-    batch_df = label_df.map_partitions(
-        _make_batch_ids, batch_size, n_workers, meta=meta
-    )
-    # batch_df = batch_df.sort_values(by='node')
+            meta = cudf.DataFrame(
+                {"node": cudf.Series(dtype="int64"), "batch": cudf.Series(dtype="int32")}
+            )
 
-    # should always persist the batch dataframe or performance may be suboptimal
-    batch_df = batch_df.persist()
+            batch_df = batch_df.map_partitions(
+                _make_batch_ids, batch_size, n_workers, meta=meta
+            )
 
-    del label_df
-    print("created batches")
+            # should always persist the batch dataframe or performance may be suboptimal
+            batch_df = batch_df.persist()
 
-    start_time = perf_counter()
-    sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
-    sampler.flush()
-    end_time = perf_counter()
-    print("flushed all batches")
-    return end_time - start_time
+            print("created batches")
+
+            start_time = perf_counter()
+            sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
+            sampler.flush()
+            end_time = perf_counter()
+            print("flushed all batches")
+            total_time += end_time - start_time
+
+    return total_time
 
 
 def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor: int = 1):
@@ -419,7 +430,7 @@ def load_disk_dataset(
 
             gc.collect()
 
-    node_labels_df = dask_cudf.concat(list(node_labels.values()))
+    node_labels_df = dask_cudf.concat(list(node_labels.values())).reset_index(drop=True)
 
     del node_labels
     gc.collect()
@@ -447,7 +458,7 @@ def benchmark_cugraph_bulk_sampling(
     num_labels=256,
     labeled_percentage=0.001,
     add_edge_types=False,
-    epoch=0,
+    num_epochs=1,
 ):
     """
     Entry point for the benchmark.
@@ -482,8 +493,8 @@ def benchmark_cugraph_bulk_sampling(
         Defaults to False.
     sampling_target_framework: str
         The framework to sample for.
-    epoch: int
-        The number of the current epoch.
+    num_epochs: int
+        The number of epochs to sample for.
     """
     
     logger = logging.getLogger('__main__')
@@ -532,12 +543,8 @@ def benchmark_cugraph_bulk_sampling(
     output_subdir = os.path.join(
         output_path,
         f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}",
-        f"epoch={epoch}",
     )
     os.makedirs(output_subdir)
-
-    output_sample_path = os.path.join(output_subdir, "samples")
-    os.makedirs(output_sample_path)
 
     if sampling_target_framework == "cugraph_dgl_csr":
         sampling_kwargs = {
@@ -565,7 +572,8 @@ def benchmark_cugraph_bulk_sampling(
     execution_time, allocation_counts = sample_graph(
         G=G,
         label_df=dask_label_df,
-        output_path=output_sample_path,
+        output_path=output_subdir,
+        num_epochs=num_epochs,
         seed=seed,
         batch_size=batch_size,
         seeds_per_call=seeds_per_call,
@@ -766,53 +774,52 @@ if __name__ == "__main__":
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
-                    for epoch in range(args.num_epochs):
-                        logger.info(f"dataset: {dataset}")
-                        logger.info(f"batch size: {batch_size}")
-                        logger.info(f"fanout: {fanout}")
-                        logger.info(f"seeds_per_call: {seeds_per_call}")
-                        logger.info(f"epoch: {epoch}")
+                    logger.info(f"dataset: {dataset}")
+                    logger.info(f"batch size: {batch_size}")
+                    logger.info(f"fanout: {fanout}")
+                    logger.info(f"seeds_per_call: {seeds_per_call}")
+                    logger.info(f"num epochs: {args.num_epochs}")
 
-                        try:
-                            stats_d = {}
-                            (
-                                num_input_edges,
-                                input_to_peak_ratio,
-                                output_to_peak_ratio,
-                                input_memory_per_worker,
-                                peak_allocation_across_workers,
-                            ) = benchmark_cugraph_bulk_sampling(
-                                dataset=dataset,
-                                output_path=args.output_root,
-                                epoch=epoch,
-                                seed=args.random_seed,
-                                batch_size=batch_size,
-                                seeds_per_call=seeds_per_call,
-                                fanout=fanout,
-                                sampling_target_framework=args.sampling_target_framework,
-                                dataset_dir=args.dataset_root,
-                                reverse_edges=args.reverse_edges,
-                                replication_factor=replication_factor,
-                            )
-                            stats_d["dataset"] = dataset
-                            stats_d["num_input_edges"] = num_input_edges
-                            stats_d["batch_size"] = batch_size
-                            stats_d["fanout"] = fanout
-                            stats_d["seeds_per_call"] = seeds_per_call
-                            stats_d["input_memory_per_worker"] = sizeof_fmt(
-                                input_memory_per_worker
-                            )
-                            stats_d["peak_allocation_across_workers"] = sizeof_fmt(
-                                peak_allocation_across_workers
-                            )
-                            stats_d["input_to_peak_ratio"] = input_to_peak_ratio
-                            stats_d["output_to_peak_ratio"] = output_to_peak_ratio
-                            stats_ls.append(stats_d)
-                        except Exception as e:
-                            warnings.warn("An Exception Occurred!")
-                            print(e)
-                            traceback.print_exc()
-                        sleep(10)
+                    try:
+                        stats_d = {}
+                        (
+                            num_input_edges,
+                            input_to_peak_ratio,
+                            output_to_peak_ratio,
+                            input_memory_per_worker,
+                            peak_allocation_across_workers,
+                        ) = benchmark_cugraph_bulk_sampling(
+                            dataset=dataset,
+                            output_path=args.output_root,
+                            num_epochs=args.num_epochs,
+                            seed=args.random_seed,
+                            batch_size=batch_size,
+                            seeds_per_call=seeds_per_call,
+                            fanout=fanout,
+                            sampling_target_framework=args.sampling_target_framework,
+                            dataset_dir=args.dataset_root,
+                            reverse_edges=args.reverse_edges,
+                            replication_factor=replication_factor,
+                        )
+                        stats_d["dataset"] = dataset
+                        stats_d["num_input_edges"] = num_input_edges
+                        stats_d["batch_size"] = batch_size
+                        stats_d["fanout"] = fanout
+                        stats_d["seeds_per_call"] = seeds_per_call
+                        stats_d["input_memory_per_worker"] = sizeof_fmt(
+                            input_memory_per_worker
+                        )
+                        stats_d["peak_allocation_across_workers"] = sizeof_fmt(
+                            peak_allocation_across_workers
+                        )
+                        stats_d["input_to_peak_ratio"] = input_to_peak_ratio
+                        stats_d["output_to_peak_ratio"] = output_to_peak_ratio
+                        stats_ls.append(stats_d)
+                    except Exception as e:
+                        warnings.warn("An Exception Occurred!")
+                        print(e)
+                        traceback.print_exc()
+                    sleep(10)
 
         stats_df = pd.DataFrame(
             stats_ls,
