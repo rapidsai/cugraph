@@ -141,7 +141,7 @@ class Tests_MGSelectRandomVertices
 
             std::sort(h_given_set.begin(), h_given_set.end());
             if (sort_vertices) {
-              std::is_sorted(h_sampled_vertices.begin(), h_sampled_vertices.end());
+              assert(std::is_sorted(h_sampled_vertices.begin(), h_sampled_vertices.end()));
             } else {
               std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
             }
@@ -186,7 +186,7 @@ class Tests_MGSelectRandomVertices
               ASSERT_EQ(nr_duplicates, 0);
             }
             if (sort_vertices) {
-              std::is_sorted(h_sampled_vertices.begin(), h_sampled_vertices.end());
+              assert(std::is_sorted(h_sampled_vertices.begin(), h_sampled_vertices.end()));
             }
 
             auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
