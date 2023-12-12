@@ -191,24 +191,30 @@ def sample_graph(
     sampling_kwargs={},
 ):
     cupy.random.seed(seed)
-    train_df, test_df = label_df.random_split([train_perc, 1-train_perc], random_state=seed, shuffle=True)
-    val_df, test_df = label_df.random_split([val_perc, 1-val_perc], random_state=seed, shuffle=True)
+    train_df, test_df = label_df.random_split(
+        [train_perc, 1 - train_perc], random_state=seed, shuffle=True
+    )
+    val_df, test_df = label_df.random_split(
+        [val_perc, 1 - val_perc], random_state=seed, shuffle=True
+    )
 
     total_time = 0.0
     for epoch in range(num_epochs):
         steps = [("train", train_df), ("test", test_df)]
         if epoch == num_epochs - 1:
-            steps.append(('val', val_df))
+            steps.append(("val", val_df))
 
         for step, batch_df in steps:
             batch_df = batch_df.sample(frac=1.0, random_state=seed)
 
-            if step == 'val':
+            if step == "val":
                 output_sample_path = os.path.join(output_path, "val", "samples")
             else:
-                output_sample_path = os.path.join(output_path, f"epoch={epoch}", f"{step}", "samples")
+                output_sample_path = os.path.join(
+                    output_path, f"epoch={epoch}", f"{step}", "samples"
+                )
             os.makedirs(output_sample_path)
-            
+
             sampler = BulkSampler(
                 batch_size=batch_size,
                 output_path=output_sample_path,
@@ -225,7 +231,10 @@ def sample_graph(
             n_workers = len(default_client().scheduler_info()["workers"])
 
             meta = cudf.DataFrame(
-                {"node": cudf.Series(dtype="int64"), "batch": cudf.Series(dtype="int32")}
+                {
+                    "node": cudf.Series(dtype="int64"),
+                    "batch": cudf.Series(dtype="int32"),
+                }
             )
 
             batch_df = batch_df.map_partitions(
@@ -505,8 +514,8 @@ def benchmark_cugraph_bulk_sampling(
     num_epochs: int
         The number of epochs to sample for.
     """
-    
-    logger = logging.getLogger('__main__')
+
+    logger = logging.getLogger("__main__")
     logger.info(str(dataset))
     if dataset[0:4] == "rmat":
         (
@@ -748,7 +757,7 @@ def get_args():
 # call __main__ function
 if __name__ == "__main__":
     logging.basicConfig()
-    logger = logging.getLogger('__main__')
+    logger = logging.getLogger("__main__")
     logger.setLevel(logging.INFO)
 
     args = get_args()
@@ -766,14 +775,14 @@ if __name__ == "__main__":
     seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(",")]
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
-    logger.info('starting dask client')
+    logger.info("starting dask client")
     client, cluster = start_dask_client()
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    logger.info('dask client started')
+    logger.info("dask client started")
     for dataset in datasets:
-        m = re.match(r'(\w+)\[([0-9]+)\]', dataset)
+        m = re.match(r"(\w+)\[([0-9]+)\]", dataset)
         if m:
             replication_factor = int(m.groups()[1])
             dataset = m.groups()[0]

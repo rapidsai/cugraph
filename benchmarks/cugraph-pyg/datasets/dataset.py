@@ -14,8 +14,9 @@
 import torch
 from typing import Dict, Tuple
 
+
 class Dataset:
-    @property 
+    @property
     def edge_index_dict(self) -> Dict[Tuple[str, str, str], Dict[str, torch.Tensor]]:
         raise NotImplementedError()
 
@@ -26,15 +27,15 @@ class Dataset:
     @property
     def y_dict(self) -> Dict[str, torch.Tensor]:
         raise NotImplementedError()
-    
+
     @property
     def train_dict(self) -> Dict[str, torch.Tensor]:
         raise NotImplementedError()
-    
+
     @property
     def test_dict(self) -> Dict[str, torch.Tensor]:
         raise NotImplementedError()
-    
+
     @property
     def val_dict(self) -> Dict[str, torch.Tensor]:
         raise NotImplementedError()
@@ -42,13 +43,13 @@ class Dataset:
     @property
     def num_input_features(self) -> int:
         raise NotImplementedError()
-    
+
     @property
     def num_labels(self) -> int:
         raise NotImplementedError()
 
     def num_nodes(self, node_type: str) -> int:
         raise NotImplementedError()
-    
+
     def num_edges(self, edge_type: Tuple[str, str, str]) -> int:
         raise NotImplementedError()
