@@ -7,8 +7,6 @@ source rapids-env-update
 
 rapids-print-env
 
-CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
-
 version=$(rapids-generate-version)
 git_commit=$(git rev-parse HEAD)
 export RAPIDS_PACKAGE_VERSION=${version}
@@ -24,7 +22,6 @@ done
 
 rapids-conda-retry mambabuild \
   --no-test \
-  --channel "${CPP_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph-equivariant
 
