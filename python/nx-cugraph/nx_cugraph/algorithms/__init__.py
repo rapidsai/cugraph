@@ -15,13 +15,13 @@ from . import (
     centrality,
     community,
     components,
-    shortest_paths,
     link_analysis,
+    shortest_paths,
 )
 from .bipartite import complete_bipartite_graph
 from .centrality import *
 from .components import *
 from .core import *
 from .isolate import *
-from .shortest_paths import *
 from .link_analysis import *
+from .shortest_paths import *
