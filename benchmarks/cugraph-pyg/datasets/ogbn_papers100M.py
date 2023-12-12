@@ -108,7 +108,7 @@ class OGBNPapers100MDataset(Dataset):
                 full_path = os.path.join(node_type_path, 'node_feat.npy')
             else:
                 full_path = os.path.join(node_type_path, f'node_feat_{self.__replication_factor}x.npy')
-            
+
             self.__disk_x = {'paper': np.load(
                 full_path,
                 mmap_mode='r'
