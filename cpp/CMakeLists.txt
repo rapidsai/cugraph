@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.12.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 24.02.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -424,7 +424,7 @@ add_library(cugraph_c
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
-	src/c_api/hierarchical_clustering_result.cpp
+        src/c_api/hierarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
         src/c_api/capi_helper.cu
         src/c_api/legacy_spectral.cpp
