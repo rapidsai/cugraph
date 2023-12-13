@@ -19,34 +19,31 @@ from torch_geometric.utils.trim_to_layer import TrimToLayer
 import torch.nn as nn
 import torch.nn.functional as F
 
-def extend_tensor(t: torch.Tensor, l:int):
-    return torch.concat([
-        t,
-        torch.zeros(
-            l - len(t),
-            dtype=t.dtype,
-            device=t.device
-        )
-    ])
+
+def extend_tensor(t: torch.Tensor, l: int):
+    return torch.concat([t, torch.zeros(l - len(t), dtype=t.dtype, device=t.device)])
+
 
 class CuGraphSAGE(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(CuGraphSAGEConv(in_channels, hidden_channels, aggr='mean'))
+        self.convs.append(CuGraphSAGEConv(in_channels, hidden_channels, aggr="mean"))
         for _ in range(num_layers - 2):
-            conv = CuGraphSAGEConv(hidden_channels, hidden_channels, aggr='mean')
+            conv = CuGraphSAGEConv(hidden_channels, hidden_channels, aggr="mean")
             self.convs.append(conv)
-        
-        self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr='mean'))
+
+        self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr="mean"))
 
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
         if isinstance(edge, torch.Tensor):
             edge = list(
-                CuGraphSAGEConv.to_csc(edge.cuda(), (x.shape[0], num_sampled_nodes.sum()))
+                CuGraphSAGEConv.to_csc(
+                    edge.cuda(), (x.shape[0], num_sampled_nodes.sum())
+                )
             )
         else:
             edge = edge.csr()
@@ -55,7 +52,7 @@ class CuGraphSAGE(nn.Module):
         x = x.cuda().to(torch.float32)
 
         for i, conv in enumerate(self.convs):
-            if i > 0:                
+            if i > 0:
                 new_num_edges = edge[1][-2]
                 edge[0] = edge[0].narrow(
                     dim=0,
@@ -63,22 +60,15 @@ class CuGraphSAGE(nn.Module):
                     length=new_num_edges,
                 )
                 edge[1] = edge[1].narrow(
-                    dim=0,
-                    start=0,
-                    length=edge[1].size(0) - num_sampled_nodes[-i-1]
+                    dim=0, start=0, length=edge[1].size(0) - num_sampled_nodes[-i - 1]
                 )
                 edge[2] = x.shape[0]
-            
+
             x = conv(x, edge)
 
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
-        x = x.narrow(
-            dim=0,
-            start=0,
-            length=num_sampled_nodes[0]
-        )
+        x = x.narrow(dim=0, start=0, length=num_sampled_nodes[0])
 
         return x
-

@@ -29,6 +29,7 @@ from torch_geometric.loader import NeighborLoader
 import gc
 import os
 
+
 def pyg_num_workers(world_size):
     num_workers = None
     if hasattr(os, "sched_getaffinity"):
@@ -40,8 +41,18 @@ def pyg_num_workers(world_size):
         num_workers = os.cpu_count() / (2 * world_size)
     return int(num_workers)
 
+
 class PyGNativeTrainer(PyGTrainer):
-    def __init__(self, dataset, model='GraphSAGE', device=0, rank=0, world_size=1, num_epochs=1, **kwargs):
+    def __init__(
+        self,
+        dataset,
+        model="GraphSAGE",
+        device=0,
+        rank=0,
+        world_size=1,
+        num_epochs=1,
+        **kwargs,
+    ):
         self.__dataset = dataset
         self.__device = device
         self.__data = None
@@ -62,66 +73,76 @@ class PyGNativeTrainer(PyGTrainer):
     @property
     def data(self):
         import logging
-        logger = logging.getLogger('PyGNativeTrainer')
-        logger.info('getting data')
-        
+
+        logger = logging.getLogger("PyGNativeTrainer")
+        logger.info("getting data")
+
         if self.__data is None:
             self.__data = HeteroData()
 
             for node_type, x in self.__dataset.x_dict.items():
-                logger.debug(f'getting x for {node_type}')
+                logger.debug(f"getting x for {node_type}")
                 self.__data[node_type].x = x
-                self.__data[node_type]['num_nodes'] = self.__dataset.num_nodes(node_type)
-            
+                self.__data[node_type]["num_nodes"] = self.__dataset.num_nodes(
+                    node_type
+                )
+
             for node_type, y in self.__dataset.y_dict.items():
-                logger.debug(f'getting y for {node_type}')
-                self.__data[node_type]['y'] = y
-            
+                logger.debug(f"getting y for {node_type}")
+                self.__data[node_type]["y"] = y
+
             for node_type, train in self.__dataset.train_dict.items():
-                logger.debug(f'getting train for {node_type}')
-                self.__data[node_type]['train'] = train
-            
+                logger.debug(f"getting train for {node_type}")
+                self.__data[node_type]["train"] = train
+
             for node_type, test in self.__dataset.test_dict.items():
-                logger.debug(f'getting test for {node_type}')
-                self.__data[node_type]['test'] = test
-            
+                logger.debug(f"getting test for {node_type}")
+                self.__data[node_type]["test"] = test
+
             for node_type, val in self.__dataset.val_dict.items():
-                logger.debug(f'getting val for {node_type}')
-                self.__data[node_type]['val'] = val
+                logger.debug(f"getting val for {node_type}")
+                self.__data[node_type]["val"] = val
 
             for can_edge_type, ei in self.__dataset.edge_index_dict.items():
-                logger.info('converting to csc...')
-                ei['dst'] = index2ptr(ei['dst'], self.__dataset.num_nodes(can_edge_type[2]))
+                logger.info("converting to csc...")
+                ei["dst"] = index2ptr(
+                    ei["dst"], self.__dataset.num_nodes(can_edge_type[2])
+                )
 
-                logger.info('updating data structure...')
+                logger.info("updating data structure...")
                 self.__data.put_edge_index(
-                    layout='csc',
+                    layout="csc",
                     edge_index=list(ei.values()),
                     edge_type=can_edge_type,
-                    size=(self.__dataset.num_nodes(can_edge_type[0]), self.__dataset.num_nodes(can_edge_type[2])),
-                    is_sorted=True
+                    size=(
+                        self.__dataset.num_nodes(can_edge_type[0]),
+                        self.__dataset.num_nodes(can_edge_type[2]),
+                    ),
+                    is_sorted=True,
                 )
                 gc.collect()
 
         return self.__data
-    
+
     @property
     def optimizer(self):
-        return ZeroRedundancyOptimizer(self.model.parameters(), torch.optim.Adam, lr=0.01)
-    
+        return ZeroRedundancyOptimizer(
+            self.model.parameters(), torch.optim.Adam, lr=0.01
+        )
+
     @property
     def num_epochs(self) -> int:
         return self.__num_epochs
 
     def get_loader(self, epoch: int):
         import logging
-        logger = logging.getLogger('PyGNativeTrainer')
-        logger.info(f'Getting loader for epoch {epoch}')
+
+        logger = logging.getLogger("PyGNativeTrainer")
+        logger.info(f"Getting loader for epoch {epoch}")
 
         input_nodes_dict = {
             node_type: np.array_split(
-                np.arange(len(train_mask))[train_mask],
-                self.__world_size
+                np.arange(len(train_mask))[train_mask], self.__world_size
             )[self.__rank]
             for node_type, train_mask in self.__dataset.train_dict.items()
         }
@@ -138,30 +159,34 @@ class PyGNativeTrainer(PyGTrainer):
             input_nodes=input_nodes,
             is_sorted=True,
             disjoint=False,
-            num_workers=pyg_num_workers(self.__world_size), # FIXME change this
+            num_workers=pyg_num_workers(self.__world_size),  # FIXME change this
             persistent_workers=True,
-            **self.__loader_kwargs # batch size, num neighbors, replace, shuffle, etc.
+            **self.__loader_kwargs,  # batch size, num neighbors, replace, shuffle, etc.
         )
 
-        logger.info('done creating loader')
+        logger.info("done creating loader")
         return loader
-    
-    def get_model(self, name='GraphSAGE'):
-        if name != 'GraphSAGE':
+
+    def get_model(self, name="GraphSAGE"):
+        if name != "GraphSAGE":
             raise ValueError("only GraphSAGE is currently supported")
 
         num_input_features = self.__dataset.num_input_features
         num_output_features = self.__dataset.num_labels
-        num_layers = len(self.__loader_kwargs['num_neighbors'])
+        num_layers = len(self.__loader_kwargs["num_neighbors"])
 
         with torch.cuda.device(self.__device):
-            model = GraphSAGE(
-                in_channels=num_input_features,
-                hidden_channels=64,
-                out_channels=num_output_features,
-                num_layers=num_layers,
-            ).to(torch.float32).to(self.__device)
+            model = (
+                GraphSAGE(
+                    in_channels=num_input_features,
+                    hidden_channels=64,
+                    out_channels=num_output_features,
+                    num_layers=num_layers,
+                )
+                .to(torch.float32)
+                .to(self.__device)
+            )
             model = ddp(model, device_ids=[self.__device])
-            print('done creating model')
-        
+            print("done creating model")
+
         return model

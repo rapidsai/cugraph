@@ -37,7 +37,6 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
-    _chunk_lst,
 )
 from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
@@ -350,7 +349,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        #ddf = delayed(ddf)
+        # ddf = delayed(ddf)
         # FIXME delete this once the hang is fixed
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
@@ -358,22 +357,22 @@ class simpleDistributedGraphImpl:
         del ddf
 
         delayed_tasks_d = {
-                    w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
-                        Comms.get_session_id(),
-                        edata,
-                        graph_props,
-                        src_col_name,
-                        dst_col_name,
-                        store_transposed,
-                        self.vertex_type,
-                        self.weight_type,
-                        self.edge_id_type,
-                        self.edge_type_id_type,
-                    )
-                    for w, edata in persisted_keys_d.items()
+            w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
+                Comms.get_session_id(),
+                edata,
+                graph_props,
+                src_col_name,
+                dst_col_name,
+                store_transposed,
+                self.vertex_type,
+                self.weight_type,
+                self.edge_id_type,
+                self.edge_type_id_type,
+            )
+            for w, edata in persisted_keys_d.items()
         }
         del persisted_keys_d
-        
+
         self._plc_graph = {
             w: _client.compute(
                 delayed_task, workers=w, allow_other_workers=False, pure=False
@@ -381,7 +380,7 @@ class simpleDistributedGraphImpl:
             for w, delayed_task in delayed_tasks_d.items()
         }
         wait(list(self._plc_graph.values()))
-        
+
         del delayed_tasks_d
         gc.collect()
         _client.run(gc.collect)

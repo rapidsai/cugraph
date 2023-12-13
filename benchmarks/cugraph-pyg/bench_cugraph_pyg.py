@@ -28,13 +28,14 @@ from datasets import OGBNPapers100MDataset
 
 from cugraph.testing.mg_utils import enable_spilling
 
-def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool=False) -> None:
+
+def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool = False) -> None:
     import cupy
     import rmm
     from pynvml.smi import nvidia_smi
 
     smi = nvidia_smi.getInstance()
-    pool_size=16e9 # FIXME calculate this
+    pool_size = 16e9  # FIXME calculate this
 
     rmm.reinitialize(
         devices=[rank],
@@ -48,10 +49,11 @@ def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool=False) -> None:
             " The default allocator will be used instead."
         )
         # FIXME somehow get the pytorch allocator to work
-        #from rmm.allocators.torch import rmm_torch_allocator
-        #torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+        # from rmm.allocators.torch import rmm_torch_allocator
+        # torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
 
     from rmm.allocators.cupy import rmm_cupy_allocator
+
     cupy.cuda.set_allocator(rmm_cupy_allocator)
 
     cupy.cuda.Device(rank).use()
@@ -59,6 +61,7 @@ def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool=False) -> None:
 
     # Pytorch training worker initialization
     torch.distributed.init_process_group(backend="nccl")
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -104,7 +107,7 @@ def parse_args():
     parser.add_argument(
         "--framework",
         type=str,
-        help="The framework to test (cuGraph or Native)",
+        help="The framework to test (PyG, cuGraphPyG)",
         required=True,
     )
 
@@ -117,7 +120,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--replication_factor',
+        "--replication_factor",
         type=int,
         default=1,
         help="The replication factor for the dataset",
@@ -125,14 +128,14 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--dataset_dir',
+        "--dataset_dir",
         type=str,
         help="The directory where datasets are stored",
         required=True,
     )
 
     parser.add_argument(
-        '--train_split',
+        "--train_split",
         type=float,
         help="The percentage of the labeled data to use for training.  The remainder is used for testing/validation.",
         default=0.8,
@@ -140,7 +143,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--val_split',
+        "--val_split",
         type=float,
         help="The percentage of the testing/validation data to allocate for validation.",
         default=0.5,
@@ -152,35 +155,40 @@ def parse_args():
 
 def main(args):
     import logging
+
     logging.basicConfig(
         level=logging.INFO,
     )
-    logger = logging.getLogger('bench_cugraph_pyg')
+    logger = logging.getLogger("bench_cugraph_pyg")
     logger.setLevel(logging.INFO)
 
-    local_rank = int(os.environ['LOCAL_RANK'])
+    local_rank = int(os.environ["LOCAL_RANK"])
     global_rank = int(os.environ["RANK"])
 
-    init_pytorch_worker(local_rank, use_rmm_torch_allocator=(args.framework=="cuGraph"))
+    init_pytorch_worker(
+        local_rank, use_rmm_torch_allocator=(args.framework == "cuGraph")
+    )
     enable_spilling()
-    print(f'worker initialized')
+    print(f"worker initialized")
     dist.barrier()
 
     # Have to import here to avoid creating CUDA context
     from trainers_cugraph import PyGCuGraphTrainer
     from trainers_native import PyGNativeTrainer
 
-    world_size = int(os.environ['SLURM_JOB_NUM_NODES']) * int(os.environ['SLURM_GPUS_PER_NODE'])
+    world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * int(
+        os.environ["SLURM_GPUS_PER_NODE"]
+    )
 
     dataset = OGBNPapers100MDataset(
         replication_factor=args.replication_factor,
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
-        load_edge_index=(args.framework=="Native"),
+        load_edge_index=(args.framework == "Native"),
     )
 
-    if args.framework == "Native":
+    if args.framework == "PyG":
         trainer = PyGNativeTrainer(
             model=args.model,
             dataset=dataset,
@@ -190,10 +198,10 @@ def main(args):
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
-            num_neighbors=[int(f) for f in args.fanout.split('_')],
+            num_neighbors=[int(f) for f in args.fanout.split("_")],
             batch_size=args.batch_size,
         )
-    elif args.framework == "cuGraph":
+    elif args.framework == "cuGraphPyG":
         trainer = PyGCuGraphTrainer(
             model=args.model,
             dataset=dataset,
@@ -204,7 +212,7 @@ def main(args):
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
-            num_neighbors=[int(f) for f in args.fanout.split('_')],
+            num_neighbors=[int(f) for f in args.fanout.split("_")],
             batch_size=args.batch_size,
         )
     else:
@@ -213,10 +221,10 @@ def main(args):
     stats = trainer.train()
     logger.info(stats)
 
-    with open(f'{args.output_file}[{global_rank}]', 'w') as f:
+    with open(f"{args.output_file}[{global_rank}]", "w") as f:
         json.dump(stats, f)
+
 
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-
