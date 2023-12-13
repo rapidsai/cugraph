@@ -63,9 +63,7 @@ fi
 # EXITCODE for the script.
 set +e
 
-if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
-    echo "WARNING: skipping C++ tests on Pascal GPU arch."
-elif hasArg "--run-cpp-tests"; then
+if hasArg "--run-cpp-tests"; then
     echo "C++ gtests for cuGraph (single-GPU only)..."
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
         test_name=$(basename $gt)
