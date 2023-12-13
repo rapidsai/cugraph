@@ -374,10 +374,10 @@ dependencies:
           - cython>=3.0.0
       - output_types: conda
         packages:
-          - scikit-build-core >=0.7.0
+          - scikit-build-core>=0.7.0
       - output_types: [pyproject, requirements]
         packages:
-          - scikit-build-core[pyproject] >=0.7.0
+          - scikit-build-core[pyproject]>=0.7.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
