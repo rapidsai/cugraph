@@ -551,6 +551,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
     ###############################################################################################
+    # - Ktruss tests --------------------------------------------------------------------------
+    ConfigureTest(KTRUSS_TEST community/ktruss_test.cpp)
+
+    ###############################################################################################
     # - MG INDUCED SUBGRAPH tests -----------------------------------------------------------------
     ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST structure/mg_induced_subgraph_test.cu)
 
