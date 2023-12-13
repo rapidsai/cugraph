@@ -1978,6 +1978,26 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
+/*
+ * @brief Compute ktruss.
+ *
+ * Extract the ktruss subgraph of a graph
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param k The desired k to be used for extracting the k-truss subgraph
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void ktruss(raft::handle_t const& handle,
+            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+            vertex_t k,
+            bool do_expensive_check = false);
+
 /**
  * @brief     Compute Jaccard similarity coefficient
  *
