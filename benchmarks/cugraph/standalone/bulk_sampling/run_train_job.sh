@@ -10,13 +10,13 @@
 #SBATCH --exclusive 
 
 export CONTAINER_IMAGE="/gpfs/fs1/projects/sw_rapids/users/abarghi/dlfw_12_5_23.squash"
-export SCRIPTS_DIR=${pwd}
+export SCRIPTS_DIR=$(pwd)
 export LOGS_DIR="/gpfs/fs1/projects/sw_rapids/users/abarghi/logs"
 export SAMPLES_DIR="/gpfs/fs1/projects/sw_rapids/users/abarghi/samples"
 export DATASETS_DIR="/gpfs/fs1/projects/sw_rapids/users/abarghi/datasets"
 
 export BATCH_SIZE=512
-export FANOUT="10, 10, 10"
+export FANOUT="10_10_10"
 export REPLICATION_FACTOR=1
 
 export RAPIDS_NO_INITIALIZE=1
@@ -37,11 +37,13 @@ echo Num Nodes: $nnodes
 gpus_per_node=$SLURM_GPUS_PER_NODE
 echo Num GPUs Per Node: $gpus_per_node
 
+set -e
+
 # Generate samples
 srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-    bash /project/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts"
+    bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts"
 
 # Train
 srun \
@@ -53,10 +55,12 @@ srun \
         --rdzv-id $RANDOM \
         --rdzv-backend c10d \
         --rdzv-endpoint $head_node_ip:29500 \
-        /project/bench_cugraph_pyg.py \
+        /scripts/bench_cugraph_training.py \
             --output_file "/logs/output.txt" \
-            --framework "cuGraph" \
+            --framework "cuGraphPyG" \
             --dataset_dir "/datasets" \
-            --sample_dir "/samples/ogbn_papers100M["$REPLICATION_FACTOR"]_b"$BATCH_SIZE"_f["$FANOUT"]" \
+            --sample_dir "/samples" \
+            --batch_size $BATCH_SIZE \
+            --fanout $FANOUT \
             --replication_factor $REPLICATION_FACTOR
 

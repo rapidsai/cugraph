@@ -22,6 +22,8 @@ export RAPIDS_NO_INITIALIZE=1
 export CUDF_SPILL=1
 export LIBCUDF_CUFILE_POLICY="OFF"
 
+PATCH_CUGRAPH=1
+
 export SCHEDULER_FILE=$SCHEDULER_FILE
 export LOGS_DIR=$LOGS_DIR
 
@@ -45,7 +47,7 @@ else
 fi
 
 echo "properly waiting for workers to connect"
-NUM_GPUS=${echo $(SLURM_JOB_NUM_NODES)"*"$(SLURM_GPUS_PER_NODE) | bc}
+NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['SLURM_GPUS_PER_NODE']))")
 handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \
                     --num-expected-workers ${NUM_GPUS} \
                     --scheduler-file-path ${SCHEDULER_FILE}

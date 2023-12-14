@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument(
         "--fanout",
         type=str,
-        default="10, 10, 10",
+        default="10_10_10",
         help="Fanout",
         required=False,
     )
@@ -184,6 +184,8 @@ def main(args):
         load_edge_index=(args.framework == "Native"),
     )
 
+    fanout = [int(f) for f in args.fanout.split("_")]
+
     if args.framework == "PyG":
         from trainers_pyg import PyGNativeTrainer
         trainer = PyGNativeTrainer(
@@ -195,10 +197,14 @@ def main(args):
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
-            num_neighbors=[int(f) for f in args.fanout.split(", ")],
+            num_neighbors=fanout,
             batch_size=args.batch_size,
         )
     elif args.framework == "cuGraphPyG":
+        sample_dir = os.path.join(
+            args.sample_dir,
+            f'ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f[{fanout}]'
+        )
         from trainers_cugraph_pyg import PyGCuGraphTrainer
         trainer = PyGCuGraphTrainer(
             model=args.model,
@@ -210,11 +216,11 @@ def main(args):
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
-            num_neighbors=[int(f) for f in args.fanout.split(", ")],
+            num_neighbors=fanout,
             batch_size=args.batch_size,
         )
     else:
-        raise ValueError("unsuported framework")
+        raise ValueError("unsupported framework")
 
     stats = trainer.train()
     logger.info(stats)
