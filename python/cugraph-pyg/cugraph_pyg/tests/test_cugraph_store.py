@@ -365,9 +365,19 @@ def test_get_input_nodes(karate_gnn):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N)
 
-    node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
+    input_node_info = torch_geometric.loader.utils.get_input_nodes(
         (cugraph_store, cugraph_store), "type0"
     )
+
+    # PyG 2.4
+    if len(input_node_info) == 2:
+        node_type, input_nodes = input_node_info
+    # PyG 2.5
+    elif len(input_node_info) == 3:
+        node_type, input_nodes, input_id = input_node_info
+    # Invalid
+    else:
+        raise ValueError("Invalid output from get_input_nodes")
 
     assert node_type == "type0"
     assert input_nodes.tolist() == torch.arange(17, dtype=torch.int32).tolist()
