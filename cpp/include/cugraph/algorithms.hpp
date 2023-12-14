@@ -792,12 +792,13 @@ void ecg(raft::handle_t const& handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
- *
  * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph             Input graph object
- * @param[in]  edge_weight_view  View object holding edge weights for @p graph_view.
  * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object
+ * @param[in]  edge_weight_view  View object holding edge weights for @p graph_view.
+ * @param[in]  min_weight        Minimum edge weight to use in the final call of the clustering
+ *                               algorithm if an edge does not appear in any of the ensemble runs.
+ * @param[in]  ensemble_size     The ensemble size parameter
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
  * @param[in]  threshold         (optional) threshold for convergence at each level (default
  * 1e-7)

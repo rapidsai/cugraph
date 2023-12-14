@@ -48,6 +48,17 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 {
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
+  CUGRAPH_EXPECTS(min_weight >= weight_t{0.0},
+                  "Invalid input arguments: min_weight must be positive");
+  CUGRAPH_EXPECTS(ensemble_size >= 1,
+                  "Invalid input arguments: ensemble_size must be a non-zero integer");
+  CUGRAPH_EXPECTS(
+    threshold > 0.0 && threshold <= 1.0,
+    "Invalid input arguments: threshold must be a positive number in range [0.0, 1.0]");
+  CUGRAPH_EXPECTS(
+    resolution > 0.0 && resolution <= 1.0,
+    "Invalid input arguments: resolution must be a positive number in range [0.0, 1.0]");
+
   edge_src_property_t<graph_view_t, vertex_t> src_cluster_assignments(handle, graph_view);
   edge_dst_property_t<graph_view_t, vertex_t> dst_cluster_assignments(handle, graph_view);
   edge_property_t<graph_view_t, weight_t> modified_edge_weights(handle, graph_view);
@@ -80,7 +91,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
       src_cluster_assignments.view(),
       dst_cluster_assignments.view(),
       modified_edge_weights.view(),
-      [] __device__(auto src, auto dst, auto src_property, auto dst_property, auto edge_property) {
+      [] __device__(auto, auto, auto src_property, auto dst_property, auto edge_property) {
         return edge_property + (src_property == dst_property);
       },
       modified_edge_weights.mutable_view());
@@ -92,8 +103,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
     view_concat(*edge_weight_view, modified_edge_weights.view()),
-    [min_weight, ensemble_size] __device__(
-      auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto edge_properties) {
+    [min_weight, ensemble_size = static_cast<weight_t>(ensemble_size)] __device__(
+      auto, auto, thrust::nullopt_t, thrust::nullopt_t, auto edge_properties) {
       auto e_weight    = thrust::get<0>(edge_properties);
       auto e_frequency = thrust::get<1>(edge_properties);
       return min_weight + (e_weight - min_weight) * e_frequency / ensemble_size;
@@ -101,7 +112,6 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     modified_edge_weights.mutable_view());
 
   std::tie(max_level, modularity) =
-
     cugraph::louvain(handle,
                      std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
                      graph_view,

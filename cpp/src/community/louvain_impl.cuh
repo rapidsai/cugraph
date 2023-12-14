@@ -20,13 +20,12 @@
 
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
-#include <prims/update_edge_src_dst_property.cuh>
-// FIXME: Only outstanding items preventing this becoming a .hpp file
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
@@ -116,17 +115,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         auto const comm_size = comm.get_size();
         auto const comm_rank = comm.get_rank();
 
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-        std::cout << "A. comm_rank: " << comm_rank << " size: " << random_cluster_assignments.size()
-                  << std::endl;
-
         std::vector<size_t> tx_value_counts(comm_size);
         std::fill(tx_value_counts.begin(),
                   tx_value_counts.end(),
                   random_cluster_assignments.size() / comm_size);
 
-        std::vector<vertex_t> h_random_numbers;
+        std::vector<vertex_t> h_random_gpu_ranks;
         {
           rmm::device_uvector<vertex_t> d_random_numbers(
             random_cluster_assignments.size() % comm_size, handle.get_stream());
@@ -137,16 +131,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                                vertex_t{comm_size},
                                                *rng_state);
 
-          h_random_numbers.resize(d_random_numbers.size());
+          h_random_gpu_ranks.resize(d_random_numbers.size());
 
-          raft::update_host(h_random_numbers.data(),
+          raft::update_host(h_random_gpu_ranks.data(),
                             d_random_numbers.data(),
                             d_random_numbers.size(),
                             handle.get_stream());
         }
 
         for (int i = 0; i < static_cast<int>(random_cluster_assignments.size() % comm_size); i++) {
-          tx_value_counts[h_random_numbers[i]]++;
+          tx_value_counts[h_random_gpu_ranks[i]]++;
         }
 
         std::tie(random_cluster_assignments, std::ignore) =
@@ -154,11 +148,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                   random_cluster_assignments.begin(),
                                   tx_value_counts,
                                   handle.get_stream());
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-        std::cout << "B. comm_rank: " << comm_rank << " size: " << random_cluster_assignments.size()
-                  << std::endl;
 
         // shuffle/permute locally again
         random_numbers.resize(random_cluster_assignments.size(), handle.get_stream());
@@ -174,15 +163,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                             random_numbers.end(),
                             random_cluster_assignments.begin());
 
-        // find out how many elements current GPU needs to send to other GPUs
+        // take care of deficits and extras numbers
 
         vertex_t nr_extras = static_cast<vertex_t>(random_cluster_assignments.size()) -
                              current_graph_view.local_vertex_partition_range_size();
         vertex_t nr_deficits = nr_extras >= 0 ? 0 : -nr_extras;
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        std::cout << "rank: " << comm_rank << " extras: " << nr_extras
-                  << " nr_deficits: " << nr_deficits << std::endl;
 
         auto extra_cluster_ids = cugraph::detail::device_allgatherv(
           handle,
@@ -192,56 +177,18 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
               current_graph_view.local_vertex_partition_range_size(),
             nr_extras > 0 ? nr_extras : 0));
 
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if (current_graph_view.local_vertex_partition_range_size() < 50)
-          raft::print_device_vector(
-            "extra_cluster_ids:", extra_cluster_ids.data(), extra_cluster_ids.size(), std::cout);
-
         random_cluster_assignments.resize(current_graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
-
         auto deficits =
           cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
 
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        std::cout << "rank: " << comm_rank << " #deficits_global = " << deficits.size()
-                  << std::endl;
-
         std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        std::cout << std::endl;
-        if (comm_rank == 0)
-          std::for_each(
-            deficits.begin(), deficits.end(), [](const int& n) { std::cout << n << " "; });
-        std::cout << std::endl;
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        std::cout << std::endl;
-        if (comm_rank == 1)
-          std::for_each(
-            deficits.begin(), deficits.end(), [](const int& n) { std::cout << n << "--"; });
-        std::cout << std::endl;
 
         raft::copy(random_cluster_assignments.data() +
                      current_graph_view.local_vertex_partition_range_size() - nr_deficits,
                    extra_cluster_ids.begin() + deficits[comm_rank],
                    nr_deficits,
                    handle.get_stream());
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if (current_graph_view.local_vertex_partition_range_size() < 50)
-          raft::print_device_vector("copied_extras:",
-                                    random_cluster_assignments.data() +
-                                      current_graph_view.local_vertex_partition_range_size() -
-                                      nr_deficits,
-                                    nr_deficits,
-                                    std::cout);
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-        std::cout << "C. comm_rank: " << comm_rank << " size: " << random_cluster_assignments.size()
-                  << std::endl;
       }
 
       assert(random_cluster_assignments.size() ==
@@ -474,7 +421,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
 
-  std::cout << "returning dendrogram " << std::endl;
   return detail::louvain(
     handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 }
@@ -513,8 +459,6 @@ std::pair<size_t, weight_t> louvain(
     handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
-
-  std::cout << "returning mod: " << modularity << std::endl;
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
