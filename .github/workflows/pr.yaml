@@ -27,6 +27,7 @@ jobs:
       - wheel-tests-nx-cugraph
       - devcontainer
       - conda-python-build-cugraph-equivariant
+      - wheel-build-cugraph-equivariant
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@branch-24.02
   checks:
@@ -134,6 +135,12 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_nx-cugraph.sh
+  wheel-build-cugraph-equivariant:
+    secrets: inherit
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
+    with:
+      build_type: pull-request
+      script: ci/build_wheel_cugraph-equivariant.sh
   devcontainer:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-24.02

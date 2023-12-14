@@ -22,9 +22,7 @@ requirements:
   host:
     - python
   run:
-    - e3nn >=0.5.1
     - pylibcugraphops ={{ minor_version }}
-    - pytorch >=2.0
     - python
 
 tests:
