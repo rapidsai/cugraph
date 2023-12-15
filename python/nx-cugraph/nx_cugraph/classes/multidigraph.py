@@ -33,3 +33,11 @@ class MultiDiGraph(MultiGraph, DiGraph):
     @classmethod
     def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
         return nx.MultiDiGraph
+
+    ##########################
+    # NetworkX graph methods #
+    ##########################
+
+    @networkx_api
+    def to_undirected(self, reciprocal=False, as_view=False):
+        raise NotImplementedError

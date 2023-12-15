@@ -24,4 +24,5 @@ from .components import *
 from .core import *
 from .isolate import *
 from .link_analysis import *
+from .reciprocity import *
 from .shortest_paths import *
