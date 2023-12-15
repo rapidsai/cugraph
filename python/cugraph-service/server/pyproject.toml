@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cugraph-service-server"
-dynamic = ["version", "entry-points"]
+dynamic = ["version"]
 description = "cuGraph Service server"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -38,6 +38,9 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
+
+[project.scripts]
+cugraph-service-server = "cugraph_service_server.__main__:main"
 
 [project.optional-dependencies]
 test = [

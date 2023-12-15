@@ -41,7 +41,7 @@ endif()
 # cuhornet currently doesn't support
 #
 # >= 90
-set(supported_archs "60" "62" "70" "72" "75" "80" "86" "89" "90")
+set(supported_archs "70" "72" "75" "80" "86" "89" "90")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
