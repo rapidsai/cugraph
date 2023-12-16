@@ -106,7 +106,7 @@ class GATv2Conv(BaseConv):
                 self.in_feats_dst, num_heads * out_feats, bias=bias
             )
 
-        self.attn = nn.Parameter(torch.Tensor(num_heads * out_feats))
+        self.attn = nn.Parameter(torch.empty(num_heads * out_feats))
 
         if edge_feats is not None:
             self.lin_edge = nn.Linear(edge_feats, num_heads * out_feats, bias=False)
@@ -114,9 +114,9 @@ class GATv2Conv(BaseConv):
             self.register_parameter("lin_edge", None)
 
         if bias and concat:
-            self.bias = nn.Parameter(torch.Tensor(num_heads, out_feats))
+            self.bias = nn.Parameter(torch.empty(num_heads, out_feats))
         elif bias and not concat:
-            self.bias = nn.Parameter(torch.Tensor(out_feats))
+            self.bias = nn.Parameter(torch.empty(out_feats))
         else:
             self.register_buffer("bias", None)
 

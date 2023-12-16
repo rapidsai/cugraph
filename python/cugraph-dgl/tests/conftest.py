@@ -13,6 +13,7 @@
 
 import pytest
 
+import dgl
 import torch
 
 from cugraph.testing.mg_utils import (
@@ -58,3 +59,10 @@ class SparseGraphData1:
 @pytest.fixture
 def sparse_graph_1():
     return SparseGraphData1()
+
+
+@pytest.fixture
+def dgl_graph_1():
+    src = torch.tensor([0, 1, 0, 2, 3, 0, 4, 0, 5, 0, 6, 7, 0, 8, 9])
+    dst = torch.tensor([1, 9, 2, 9, 9, 4, 9, 5, 9, 6, 9, 9, 8, 9, 0])
+    return dgl.graph((src, dst))
