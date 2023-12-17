@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -29,14 +29,11 @@ class GATv2Conv(BaseConv):
 
     Parameters
     ----------
-    in_feats : int, or pair of ints
-        Input feature size; i.e, the number of dimensions of :math:`h_i^{(l)}`.
-        If the layer is to be applied to a unidirectional bipartite graph, `in_feats`
-        specifies the input feature size on both the source and destination nodes.
-        If a scalar is given, the source and destination node feature size
-        would take the same value.
+    in_feats : int or (int, int)
+        Input feature size. A pair denotes feature sizes of source and
+        destination nodes.
     out_feats : int
-        Output feature size; i.e, the number of dimensions of :math:`h_i^{(l+1)}`.
+        Output feature size.
     num_heads : int
         Number of heads in Multi-Head Attention.
     feat_drop : float, optional
@@ -58,17 +55,15 @@ class GATv2Conv(BaseConv):
         input graph. By setting ``True``, it will suppress the check and let the
         users handle it by themselves. Defaults: ``False``.
     bias : bool, optional
-        If set to :obj:`False`, the layer will not learn
-        an additive bias. (default: :obj:`True`)
+        If True, learns a bias term. Defaults: ``True``.
     share_weights : bool, optional
-        If set to :obj:`True`, the same matrix for :math:`W_{left}` and
-        :math:`W_{right}` in the above equations, will be applied to the source
-        and the target node of every edge. (default: :obj:`False`)
+        If ``True``, the same matrix will be applied to the source and the
+        destination node features. Defaults: ``False``.
     """
 
     def __init__(
         self,
-        in_feats: Union[int, Tuple[int, int]],
+        in_feats: Union[int, tuple[int, int]],
         out_feats: int,
         num_heads: int,
         feat_drop: float = 0.0,
@@ -81,16 +76,22 @@ class GATv2Conv(BaseConv):
         share_weights: bool = False,
     ):
         super().__init__()
+
+        if isinstance(in_feats, int):
+            self.in_feats_src = self.in_feats_dst = in_feats
+        else:
+            self.in_feats_src, self.in_feats_dst = in_feats
         self.in_feats = in_feats
         self.out_feats = out_feats
-        self.in_feats_src, self.in_feats_dst = dgl.utils.expand_as_pair(in_feats)
         self.num_heads = num_heads
         self.feat_drop = nn.Dropout(feat_drop)
         self.concat = concat
         self.edge_feats = edge_feats
         self.negative_slope = negative_slope
+        self.residual = residual
         self.allow_zero_in_degree = allow_zero_in_degree
         self.share_weights = share_weights
+        self.bias = bias
 
         self.lin_src = nn.Linear(self.in_feats_src, num_heads * out_feats, bias=bias)
         if share_weights:
@@ -106,29 +107,27 @@ class GATv2Conv(BaseConv):
                 self.in_feats_dst, num_heads * out_feats, bias=bias
             )
 
-        self.attn = nn.Parameter(torch.empty(num_heads * out_feats))
+        self.attn_weights = nn.Parameter(torch.empty(num_heads * out_feats))
 
         if edge_feats is not None:
             self.lin_edge = nn.Linear(edge_feats, num_heads * out_feats, bias=False)
         else:
             self.register_parameter("lin_edge", None)
 
-        if bias and concat:
-            self.bias = nn.Parameter(torch.empty(num_heads, out_feats))
-        elif bias and not concat:
-            self.bias = nn.Parameter(torch.empty(out_feats))
-        else:
-            self.register_buffer("bias", None)
-
-        self.residual = residual and self.in_feats_dst != out_feats * num_heads
-        if self.residual:
-            self.lin_res = nn.Linear(
-                self.in_feats_dst, num_heads * out_feats, bias=bias
-            )
+        out_dim = num_heads * out_feats if concat else out_feats
+        if residual:
+            if self.in_feats_dst != out_dim:
+                self.lin_res = nn.Linear(self.in_feats_dst, out_dim, bias=bias)
+            else:
+                self.lin_res = nn.Identity()
         else:
             self.register_buffer("lin_res", None)
 
         self.reset_parameters()
+
+    def set_allow_zero_in_degree(self, set_value):
+        r"""Set allow_zero_in_degree flag."""
+        self.allow_zero_in_degree = set_value
 
     def reset_parameters(self):
         r"""Reinitialize learnable parameters."""
@@ -137,7 +136,7 @@ class GATv2Conv(BaseConv):
         nn.init.xavier_normal_(self.lin_dst.weight, gain=gain)
 
         nn.init.xavier_normal_(
-            self.attn.view(-1, self.num_heads, self.out_feats), gain=gain
+            self.attn_weights.view(-1, self.num_heads, self.out_feats), gain=gain
         )
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
@@ -145,13 +144,10 @@ class GATv2Conv(BaseConv):
         if self.lin_res is not None:
             self.lin_res.reset_parameters()
 
-        if self.bias is not None:
-            nn.init.zeros_(self.bias)
-
     def forward(
         self,
         g: Union[SparseGraph, dgl.DGLHeteroGraph],
-        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
@@ -225,7 +221,7 @@ class GATv2Conv(BaseConv):
 
         out = ops_torch.operators.mha_gat_v2_n2n(
             nfeat,
-            self.attn,
+            self.attn_weights,
             _graph,
             num_heads=self.num_heads,
             activation="LeakyReLU",
@@ -242,8 +238,5 @@ class GATv2Conv(BaseConv):
             if not self.concat:
                 res = res.mean(dim=1)
             out = out + res
-
-        if self.bias is not None:
-            out = out + self.bias
 
         return out

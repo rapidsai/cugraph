@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -29,7 +29,7 @@ class GATConv(BaseConv):
 
     Parameters
     ----------
-    in_feats : int or tuple
+    in_feats : int or (int, int)
         Input feature size. A pair denotes feature sizes of source and
         destination nodes.
     out_feats : int
@@ -92,7 +92,7 @@ class GATConv(BaseConv):
 
     def __init__(
         self,
-        in_feats: Union[int, Tuple[int, int]],
+        in_feats: Union[int, tuple[int, int]],
         out_feats: int,
         num_heads: int,
         feat_drop: float = 0.0,
@@ -104,9 +104,13 @@ class GATConv(BaseConv):
         bias: bool = True,
     ):
         super().__init__()
+
+        if isinstance(in_feats, int):
+            self.in_feats_src = self.in_feats_dst = in_feats
+        else:
+            self.in_feats_src, self.in_feats_dst = in_feats
         self.in_feats = in_feats
         self.out_feats = out_feats
-        self.in_feats_src, self.in_feats_dst = dgl.utils.expand_as_pair(in_feats)
         self.num_heads = num_heads
         self.feat_drop = nn.Dropout(feat_drop)
         self.concat = concat
@@ -179,7 +183,7 @@ class GATConv(BaseConv):
     def forward(
         self,
         g: Union[SparseGraph, dgl.DGLHeteroGraph],
-        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
