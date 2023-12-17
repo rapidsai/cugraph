@@ -100,16 +100,16 @@ class RelGraphConv(BaseConv):
         self.self_loop = self_loop
         if regularizer is None:
             self.W = nn.Parameter(
-                torch.Tensor(num_rels + dim_self_loop, in_feats, out_feats)
+                torch.empty(num_rels + dim_self_loop, in_feats, out_feats)
             )
             self.coeff = None
         elif regularizer == "basis":
             if num_bases is None:
                 raise ValueError('Missing "num_bases" for basis regularization.')
             self.W = nn.Parameter(
-                torch.Tensor(num_bases + dim_self_loop, in_feats, out_feats)
+                torch.empty(num_bases + dim_self_loop, in_feats, out_feats)
             )
-            self.coeff = nn.Parameter(torch.Tensor(num_rels, num_bases))
+            self.coeff = nn.Parameter(torch.empty(num_rels, num_bases))
             self.num_bases = num_bases
         else:
             raise ValueError(
@@ -119,7 +119,7 @@ class RelGraphConv(BaseConv):
         self.regularizer = regularizer
 
         if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_feats))
+            self.bias = nn.Parameter(torch.empty(out_feats))
         else:
             self.register_parameter("bias", None)
 

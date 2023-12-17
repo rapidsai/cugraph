@@ -15,7 +15,6 @@ import pytest
 
 from cugraph_dgl.nn.conv.base import SparseGraph
 from cugraph_dgl.nn import SAGEConv as CuGraphSAGEConv
-from .common import create_graph1
 
 dgl = pytest.importorskip("dgl", reason="DGL not available")
 torch = pytest.importorskip("torch", reason="PyTorch not available")
@@ -26,21 +25,19 @@ ATOL = 1e-6
 @pytest.mark.parametrize("aggr", ["mean", "pool"])
 @pytest.mark.parametrize("bias", [False, True])
 @pytest.mark.parametrize("bipartite", [False, True])
-@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("idx_type", [torch.int32, torch.int64])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
 def test_sageconv_equality(
-    aggr, bias, bipartite, idtype_int, max_in_degree, to_block, sparse_format
+    dgl_graph_1, aggr, bias, bipartite, idx_type, max_in_degree, to_block, sparse_format
 ):
     from dgl.nn.pytorch import SAGEConv
 
     torch.manual_seed(12345)
-    kwargs = {"aggregator_type": aggr, "bias": bias}
-    g = create_graph1().to("cuda")
+    device = torch.device("cuda:0")
+    g = dgl_graph_1.to(device).astype(idx_type)
 
-    if idtype_int:
-        g = g.int()
     if to_block:
         g = dgl.to_block(g)
 
@@ -49,12 +46,12 @@ def test_sageconv_equality(
     if bipartite:
         in_feats = (5, 3)
         feat = (
-            torch.rand(size[0], in_feats[0], requires_grad=True).cuda(),
-            torch.rand(size[1], in_feats[1], requires_grad=True).cuda(),
+            torch.rand(size[0], in_feats[0], requires_grad=True).to(device),
+            torch.rand(size[1], in_feats[1], requires_grad=True).to(device),
         )
     else:
         in_feats = 5
-        feat = torch.rand(size[0], in_feats).cuda()
+        feat = torch.rand(size[0], in_feats).to(device)
     out_feats = 2
 
     if sparse_format == "coo":
@@ -65,18 +62,19 @@ def test_sageconv_equality(
         offsets, indices, _ = g.adj_tensors("csc")
         sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets, formats="csc")
 
-    conv1 = SAGEConv(in_feats, out_feats, **kwargs).cuda()
-    conv2 = CuGraphSAGEConv(in_feats, out_feats, **kwargs).cuda()
+    kwargs = {"aggregator_type": aggr, "bias": bias}
+    conv1 = SAGEConv(in_feats, out_feats, **kwargs).to(device)
+    conv2 = CuGraphSAGEConv(in_feats, out_feats, **kwargs).to(device)
 
     in_feats_src = conv2.in_feats_src
     with torch.no_grad():
-        conv2.lin.weight.data[:, :in_feats_src] = conv1.fc_neigh.weight.data
-        conv2.lin.weight.data[:, in_feats_src:] = conv1.fc_self.weight.data
+        conv2.lin.weight[:, :in_feats_src].copy_(conv1.fc_neigh.weight)
+        conv2.lin.weight[:, in_feats_src:].copy_(conv1.fc_self.weight)
         if bias:
-            conv2.lin.bias.data[:] = conv1.fc_self.bias.data
+            conv2.lin.bias.copy_(conv1.fc_self.bias)
         if aggr == "pool":
-            conv2.pre_lin.weight.data[:] = conv1.fc_pool.weight.data
-            conv2.pre_lin.bias.data[:] = conv1.fc_pool.bias.data
+            conv2.pre_lin.weight.copy_(conv1.fc_pool.weight)
+            conv2.pre_lin.bias.copy_(conv1.fc_pool.bias)
 
     out1 = conv1(g, feat)
     if sparse_format is not None:
@@ -85,7 +83,7 @@ def test_sageconv_equality(
         out2 = conv2(g, feat, max_in_degree=max_in_degree)
     assert torch.allclose(out1, out2, atol=ATOL)
 
-    grad_out = torch.rand_like(out1)
+    grad_out = torch.randn_like(out1)
     out1.backward(grad_out)
     out2.backward(grad_out)
     assert torch.allclose(

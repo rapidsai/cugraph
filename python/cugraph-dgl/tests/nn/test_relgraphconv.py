@@ -15,7 +15,6 @@ import pytest
 
 from cugraph_dgl.nn.conv.base import SparseGraph
 from cugraph_dgl.nn import RelGraphConv as CuGraphRelGraphConv
-from .common import create_graph1
 
 dgl = pytest.importorskip("dgl", reason="DGL not available")
 torch = pytest.importorskip("torch", reason="PyTorch not available")
@@ -23,7 +22,7 @@ torch = pytest.importorskip("torch", reason="PyTorch not available")
 ATOL = 1e-6
 
 
-@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("idx_type", [torch.int32, torch.int64])
 @pytest.mark.parametrize("max_in_degree", [None, 8])
 @pytest.mark.parametrize("num_bases", [1, 2, 5])
 @pytest.mark.parametrize("regularizer", [None, "basis"])
@@ -31,7 +30,8 @@ ATOL = 1e-6
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
 def test_relgraphconv_equality(
-    idtype_int,
+    dgl_graph_1,
+    idx_type,
     max_in_degree,
     num_bases,
     regularizer,
@@ -42,6 +42,12 @@ def test_relgraphconv_equality(
     from dgl.nn.pytorch import RelGraphConv
 
     torch.manual_seed(12345)
+    device = torch.device("cuda:0")
+    g = dgl_graph_1.to(device).astype(idx_type)
+
+    if to_block:
+        g = dgl.to_block(g)
+
     in_feat, out_feat, num_rels = 10, 2, 3
     args = (in_feat, out_feat, num_rels)
     kwargs = {
@@ -50,16 +56,10 @@ def test_relgraphconv_equality(
         "bias": False,
         "self_loop": self_loop,
     }
-    g = create_graph1().to("cuda")
-    g.edata[dgl.ETYPE] = torch.randint(num_rels, (g.num_edges(),)).cuda()
 
-    if idtype_int:
-        g = g.int()
-    if to_block:
-        g = dgl.to_block(g)
-
+    g.edata[dgl.ETYPE] = torch.randint(num_rels, (g.num_edges(),)).to(device)
     size = (g.num_src_nodes(), g.num_dst_nodes())
-    feat = torch.rand(g.num_src_nodes(), in_feat).cuda()
+    feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
 
     if sparse_format == "coo":
         sg = SparseGraph(
@@ -76,18 +76,18 @@ def test_relgraphconv_equality(
             size=size, src_ids=indices, cdst_ids=offsets, values=etypes, formats="csc"
         )
 
-    conv1 = RelGraphConv(*args, **kwargs).cuda()
-    conv2 = CuGraphRelGraphConv(*args, **kwargs, apply_norm=False).cuda()
+    conv1 = RelGraphConv(*args, **kwargs).to(device)
+    conv2 = CuGraphRelGraphConv(*args, **kwargs, apply_norm=False).to(device)
 
     with torch.no_grad():
         if self_loop:
-            conv2.W.data[:-1] = conv1.linear_r.W.data
-            conv2.W.data[-1] = conv1.loop_weight.data
+            conv2.W[:-1].copy_(conv1.linear_r.W)
+            conv2.W[-1].copy_(conv1.loop_weight)
         else:
-            conv2.W.data = conv1.linear_r.W.data.detach().clone()
+            conv2.W.copy_(conv1.linear_r.W)
 
         if regularizer is not None:
-            conv2.coeff.data = conv1.linear_r.coeff.data.detach().clone()
+            conv2.coeff.copy_(conv1.linear_r.coeff)
 
     out1 = conv1(g, feat, g.edata[dgl.ETYPE])
 
@@ -98,7 +98,7 @@ def test_relgraphconv_equality(
 
     assert torch.allclose(out1, out2, atol=ATOL)
 
-    grad_out = torch.rand_like(out1)
+    grad_out = torch.randn_like(out1)
     out1.backward(grad_out)
     out2.backward(grad_out)
 

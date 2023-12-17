@@ -15,7 +15,6 @@ import pytest
 
 from cugraph_dgl.nn.conv.base import SparseGraph
 from cugraph_dgl.nn import TransformerConv
-from .common import create_graph1
 
 dgl = pytest.importorskip("dgl", reason="DGL not available")
 torch = pytest.importorskip("torch", reason="PyTorch not available")
@@ -26,27 +25,25 @@ ATOL = 1e-6
 @pytest.mark.parametrize("beta", [False, True])
 @pytest.mark.parametrize("bipartite_node_feats", [False, True])
 @pytest.mark.parametrize("concat", [False, True])
-@pytest.mark.parametrize("idtype_int", [False, True])
-@pytest.mark.parametrize("num_heads", [1, 2, 3, 4])
+@pytest.mark.parametrize("idx_type", [torch.int32, torch.int64])
+@pytest.mark.parametrize("num_heads", [1, 3, 4])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("use_edge_feats", [False, True])
 @pytest.mark.parametrize("sparse_format", ["coo", "csc", None])
 def test_transformerconv(
+    dgl_graph_1,
     beta,
     bipartite_node_feats,
     concat,
-    idtype_int,
+    idx_type,
     num_heads,
     to_block,
     use_edge_feats,
     sparse_format,
 ):
     torch.manual_seed(12345)
-    device = "cuda"
-    g = create_graph1().to(device)
-
-    if idtype_int:
-        g = g.int()
+    device = torch.device("cuda:0")
+    g = dgl_graph_1.to(device).astype(idx_type)
 
     if to_block:
         g = dgl.to_block(g)
@@ -92,5 +89,5 @@ def test_transformerconv(
     else:
         out = conv(g, nfeat, efeat)
 
-    grad_out = torch.rand_like(out)
+    grad_out = torch.randn_like(out)
     out.backward(grad_out)

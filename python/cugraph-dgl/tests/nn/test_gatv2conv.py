@@ -76,7 +76,12 @@ def test_gatv2conv_equality(
         sg = SparseGraph(size=size, src_ids=indices, cdst_ids=offsets, formats="csc")
 
     args = (in_feats, out_feats, num_heads)
-    kwargs = {"bias": False, "allow_zero_in_degree": True, "residual": residual, "share_weights": mode=="share_weights"}
+    kwargs = {
+        "bias": False,
+        "allow_zero_in_degree": True,
+        "residual": residual,
+        "share_weights": mode == "share_weights",
+    }
 
     conv1 = GATv2Conv(*args, **kwargs).to(device)
     conv2 = CuGraphGATv2Conv(*args, **kwargs).to(device)
