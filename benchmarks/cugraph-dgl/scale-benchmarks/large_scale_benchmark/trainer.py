@@ -80,11 +80,12 @@ def log_batch(
     time_start,
     loader_time_iter,
     epoch,
+    rank,
 ):
     time_forward_iter = time_forward / num_batches
     time_backward_iter = time_backward / num_batches
     total_time_iter = (time.perf_counter() - time_start) / num_batches
-    logger.info(f"epoch {epoch}, iteration {iter_i}")
+    logger.info(f"epoch {epoch}, iteration {iter_i}, rank {rank}")
     logger.info(f"time forward: {time_forward_iter}")
     logger.info(f"time backward: {time_backward_iter}")
     logger.info(f"loader time: {loader_time_iter}")
@@ -92,7 +93,7 @@ def log_batch(
 
 
 def train_epoch(
-    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger
+    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger, rank
 ):
     """
     Train the model for one epoch.
@@ -104,6 +105,7 @@ def train_epoch(
         num_classes: The number of classes.
         time_d: A dictionary of times.
         logger: The logger to use.
+        rank: Total rank
     """
     model = model.train()
     time_feature_indexing = time_d["time_feature_indexing"]
@@ -167,7 +169,7 @@ def train_epoch(
         end_time_backward = time.perf_counter()
         time_backward += end_time_backward - start_time_backward
 
-        if iter_i % 10 == 0:
+        if iter_i % 50 == 0:
             log_batch(
                 logger=logger,
                 iter_i=iter_i,
@@ -177,6 +179,7 @@ def train_epoch(
                 time_start=time_start,
                 loader_time_iter=loader_time_iter,
                 epoch=epoch,
+                rank=rank,
             )
 
     time_d["time_loader"] += time_loader
@@ -227,6 +230,7 @@ class DGLTrainer(Trainer):
         }
         total_batches = 0
         for epoch in range(self.num_epochs):
+            start_time = time.perf_counter()
             with td.algorithms.join.Join([self.model, self.optimizer]):
                 num_batches, total_loss = train_epoch(
                     model=self.model,
@@ -237,11 +241,17 @@ class DGLTrainer(Trainer):
                     epoch=epoch,
                     time_d=time_d,
                     logger=logger,
+                    rank=self.rank,
                 )
                 total_batches = total_batches + num_batches
             end_time = time.perf_counter()
+            epoch_time_taken = end_time - start_time
+            print(
+                f"RANK: {self.rank} Total time taken for training epoch {epoch} = {epoch_time_taken}",
+                flush=True,
+            )
+            print("---" * 30)
             td.barrier()
-
             with td.algorithms.join.Join([self.model, self.optimizer]):
                 # val
                 if self.rank == 0:
@@ -267,7 +277,7 @@ class DGLTrainer(Trainer):
                     print(f"Test  Accuracy: {validation_acc:.4f}%")
                 else:
                     test_acc = 0.0
-
+        test_acc = float(test_acc)
         stats = {
             "Accuracy": test_acc if self.rank == 0 else 0.0,
             "# Batches": total_batches,
