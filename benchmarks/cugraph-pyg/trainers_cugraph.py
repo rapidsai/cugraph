@@ -28,7 +28,7 @@ import gc
 import os
 
 
-class PyGCuGraphTrainer(PyGTrainer):
+class DGLCuGraphTrainer(PyGTrainer):
     def __init__(
         self,
         dataset,

@@ -10,12 +10,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+
+os.environ["LIBCUDF_CUFILE_POLICY"] = "KVIKIO"
+os.environ["KVIKIO_NTHREADS"] = "32"
+os.environ["RAPIDS_NO_INITIALIZE"] = "1"
 
 from trainer import DGLTrainer
 from models_cugraph import CuGraphSAGE
 
 import torch
 import numpy as np
+import warnings
 
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.nn.parallel import DistributedDataParallel as ddp
@@ -27,7 +33,7 @@ import gc
 import os
 
 
-def get_dataloader(input_files, total_num_nodes, sparse_format, return_type):
+def get_dataloader(input_file_paths, total_num_nodes, sparse_format, return_type):
     print("Creating dataloader", flush=True)
     st = time.time()
     dataset = HomogenousBulkSamplerDataset(
@@ -36,8 +42,7 @@ def get_dataloader(input_files, total_num_nodes, sparse_format, return_type):
         sparse_format=sparse_format,
         return_type=return_type,
     )
-
-    dataset.set_input_files(input_file_paths=input_files)
+    dataset.set_input_files(input_file_paths=input_file_paths)
     dataloader = torch.utils.data.DataLoader(
         dataset, collate_fn=lambda x: x, shuffle=False, num_workers=0, batch_size=None
     )
@@ -92,13 +97,13 @@ class DGLCuGraphTrainer(DGLTrainer):
 
     def get_loader(self, epoch: int = 0, stage="train") -> int:
         # TODO support online sampling
-        if stage == "val":
-            path = os.path.join(self.__sample_dir, "val", "samples")
+        if stage in ["val", "test"]:
+            path = os.path.join(self.__sample_dir, stage, "samples")
         else:
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
 
         dataloader = get_dataloader(
-            input_files=get_input_files(path),
+            input_file_paths=self.get_input_files(path),
             total_num_nodes=None,
             sparse_format="csc",
             return_type="cugraph_dgl.nn.SparseGraph",
@@ -138,10 +143,10 @@ class DGLCuGraphTrainer(DGLTrainer):
                 logger.debug(f"getting val for {node_type}")
                 fs.add_data(val, node_type, "val")
 
-            # TODO support online sampling if the edge index is provided
-            num_edges_dict = self.__dataset.edge_index_dict
-            if not isinstance(list(num_edges_dict.values())[0], int):
-                num_edges_dict = {k: len(v) for k, v in num_edges_dict}
+            # # TODO support online sampling if the edge index is provided
+            # num_edges_dict = self.__dataset.edge_index_dict
+            # if not isinstance(list(num_edges_dict.values())[0], int):
+            #     num_edges_dict = {k: len(v) for k, v in num_edges_dict}
 
             self.__data = fs
         return self.__data
@@ -161,17 +166,20 @@ class DGLCuGraphTrainer(DGLTrainer):
                     hidden_channels=64,
                     out_channels=num_output_features,
                     num_layers=num_layers,
+                    model_backend="cugraph_dgl",
                 )
                 .to(torch.float32)
                 .to(self.__device)
             )
-
-            model = ddp(model, device_ids=[self.__device])
+            # TODO: Fix for distributed models
+            if torch.distributed.is_initialized():
+                model = ddp(model, device_ids=[self.__device])
+            else:
+                warnings.warn("Distributed training is not available")
             print("done creating model")
 
         return model
 
     def get_input_files(self, path):
-        file_list = np.array(os.listdir(path))
-
+        file_list = [entry.path for entry in os.scandir(path)]
         return np.array_split(file_list, self.__world_size)[self.__rank]

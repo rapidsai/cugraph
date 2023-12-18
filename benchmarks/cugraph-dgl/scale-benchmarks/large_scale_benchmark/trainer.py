@@ -52,16 +52,22 @@ class Trainer:
         raise NotImplementedError()
 
 
-def get_features(input_nodes, output_nodes, X, Y):
-    x = X[input_nodes.to(X.device)]
+def get_features(input_nodes, output_nodes, feature_store, key="paper"):
+    if isinstance(input_nodes, dict):
+        input_nodes = input_nodes[key]
     if isinstance(output_nodes, dict):
-        output_nodes = output_nodes["paper"]
+        output_nodes = output_nodes[key]
 
-    if isinstance(Y, dict):
-        Y = Y["paper"]["y"]
+    # TODO: Fix below
+    # Adding based on assumption that cpu features
+    # and gpu index is not supported yet
 
-    output_nodes = output_nodes.to(Y.device)
-    y = Y[output_nodes]
+    if feature_store.backend == "torch":
+        input_nodes = input_nodes.to("cpu")
+        output_nodes = output_nodes.to("cpu")
+
+    x = feature_store.get_data(indices=input_nodes, type_name=key, feat_name="x")
+    y = feature_store.get_data(indices=output_nodes, type_name=key, feat_name="y")
     return x, y
 
 
@@ -85,7 +91,21 @@ def log_batch(
     logger.info(f"total time: {total_time_iter}")
 
 
-def train_epoch(model, optimizer, loader, X, Y, epoch, num_classes, time_d, logger):
+def train_epoch(
+    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger
+):
+    """
+    Train the model for one epoch.
+        model: The model to train.
+        optimizer: The optimizer to use.
+        loader: The loader to use.
+        data: cuGraph.gnn.FeatueStore
+        epoch: The epoch number.
+        num_classes: The number of classes.
+        time_d: A dictionary of times.
+        logger: The logger to use.
+    """
+    model = model.train()
     time_feature_indexing = time_d["time_feature_indexing"]
     time_feature_transfer = time_d["time_feature_transfer"]
     time_forward = time_d["time_forward"]
@@ -102,7 +122,7 @@ def train_epoch(model, optimizer, loader, X, Y, epoch, num_classes, time_d, logg
         loader_time_iter = time.perf_counter() - end_time_backward
         time_loader += loader_time_iter
         feature_indexing_time_start = time.perf_counter()
-        x, y_true = get_features(input_nodes, output_nodes, X, Y)
+        x, y_true = get_features(input_nodes, output_nodes, feature_store=feature_store)
         additional_feature_time_end = time.perf_counter()
         time_feature_indexing += (
             additional_feature_time_end - feature_indexing_time_start
@@ -147,7 +167,7 @@ def train_epoch(model, optimizer, loader, X, Y, epoch, num_classes, time_d, logg
         end_time_backward = time.perf_counter()
         time_backward += end_time_backward - start_time_backward
 
-        if iter_i % 20 == 0:
+        if iter_i % 10 == 0:
             log_batch(
                 logger=logger,
                 iter_i=iter_i,
@@ -159,11 +179,38 @@ def train_epoch(model, optimizer, loader, X, Y, epoch, num_classes, time_d, logg
                 epoch=epoch,
             )
 
-    time_d["time_loader"] = time_loader
-    time_d["time_feature_indexing"] = time_feature_indexing
-    time_d["time_feature_transfer"] = time_feature_transfer
-    time_d["time_forward"] = time_forward
-    time_d["time_backward"] = time_backward
+    time_d["time_loader"] += time_loader
+    time_d["time_feature_indexing"] += time_feature_indexing
+    time_d["time_feature_transfer"] += time_feature_transfer
+    time_d["time_forward"] += time_forward
+    time_d["time_backward"] += time_backward
+
+    return num_batches, total_loss
+
+
+def get_accuracy(model, loader, feature_store, num_classes):
+    from torchmetrics import Accuracy
+
+    acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
+    model = model.eval()
+    acc_sum = 0.0
+    with torch.no_grad():
+        for iter_i, (input_nodes, output_nodes, blocks) in enumerate(loader):
+            x, y_true = get_features(
+                input_nodes, output_nodes, feature_store=feature_store
+            )
+            x = x.to("cuda")
+            y_true = y_true.to("cuda")
+
+            out = model(blocks, x)
+            batch_size = out.shape[0]
+            acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
+        # TODO: Dont know why we are averaging on batch size
+        num_batches = iter_i
+        print(
+            f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
+        )
+    return acc_sum / (num_batches) * 100.0
 
 
 class DGLTrainer(Trainer):
@@ -178,109 +225,56 @@ class DGLTrainer(Trainer):
             "time_forward": 0.0,
             "time_backward": 0.0,
         }
+        total_batches = 0
         for epoch in range(self.num_epochs):
             with td.algorithms.join.Join([self.model, self.optimizer]):
-                train_epoch(
+                num_batches, total_loss = train_epoch(
                     model=self.model,
                     optimizer=self.optimizer,
                     loader=self.get_loader(epoch=epoch, stage="train"),
-                    X=self.data.x,
-                    Y=self.data.y,
+                    feature_store=self.data,
                     num_classes=self.dataset.num_labels,
                     epoch=epoch,
                     time_d=time_d,
                     logger=logger,
                 )
-
+                total_batches = total_batches + num_batches
             end_time = time.perf_counter()
             td.barrier()
 
-        # test
-        # from torchmetrics import Accuracy
+            with td.algorithms.join.Join([self.model, self.optimizer]):
+                # val
+                if self.rank == 0:
+                    validation_acc = get_accuracy(
+                        model=self.model,
+                        loader=self.get_loader(epoch=epoch, stage="val"),
+                        feature_store=self.data,
+                        num_classes=self.dataset.num_labels,
+                    )
+                    print(f"Validation Accuracy: {validation_acc:.4f}%")
+                else:
+                    validation_acc = 0.0
 
-        # acc = Accuracy(
-        #     task="multiclass", num_classes=self.dataset.num_labels
-        # ).cuda()
+            # test:
+            with td.algorithms.join.Join([self.model, self.optimizer]):
+                if self.rank == 0:
+                    test_acc = get_accuracy(
+                        model=self.model,
+                        loader=self.get_loader(epoch=epoch, stage="test"),
+                        feature_store=self.data,
+                        num_classes=self.dataset.num_labels,
+                    )
+                    print(f"Test  Accuracy: {validation_acc:.4f}%")
+                else:
+                    test_acc = 0.0
 
-        # with td.algorithms.join.Join([self.model, self.optimizer]):
-        #     if self.rank == 0:
-        #         acc_sum = 0.0
-        #         with torch.no_grad():
-        #             for i, batch in enumerate(
-        #                 self.get_loader(epoch=epoch, stage="test")
-        #             ):
-        #                 num_sampled_nodes = sum(
-        #                     [
-        #                         torch.tensor(n)
-        #                         for n in batch.num_sampled_nodes_dict.values()
-        #                     ]
-        #                 )
-        #                 num_sampled_edges = sum(
-        #                     [
-        #                         torch.tensor(e)
-        #                         for e in batch.num_sampled_edges_dict.values()
-        #                     ]
-        #                 )
-        #                 batch_size = num_sampled_nodes[0]
-
-        #                 batch = batch.to_homogeneous().cuda()
-
-        #                 batch.y = batch.y.to(torch.long)
-        #                 out = self.model.module(
-        #                     batch.x,
-        #                     batch.edge_index,
-        #                     num_sampled_nodes,
-        #                     num_sampled_edges,
-        #                 )
-        #                 acc_sum += acc(
-        #                     out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-        #                 )
-        #         print(
-        #             f"Accuracy: {acc_sum/(i) * 100.0:.4f}%",
-        #         )
-
-        # with td.algorithms.join.Join([self.model, self.optimizer]):
-        #     if self.rank == 0:
-        #         acc_sum = 0.0
-        #         with torch.no_grad():
-        #             for i, batch in enumerate(
-        #                 self.get_loader(epoch=epoch, stage="val")
-        #             ):
-        #                 num_sampled_nodes = sum(
-        #                     [
-        #                         torch.tensor(n)
-        #                         for n in batch.num_sampled_nodes_dict.values()
-        #                     ]
-        #                 )
-        #                 num_sampled_edges = sum(
-        #                     [
-        #                         torch.tensor(e)
-        #                         for e in batch.num_sampled_edges_dict.values()
-        #                     ]
-        #                 )
-        #                 batch_size = num_sampled_nodes[0]
-
-        #                 batch = batch.to_homogeneous().cuda()
-
-        #                 batch.y = batch.y.to(torch.long)
-        #                 out = self.model.module(
-        #                     batch.x,
-        #                     batch.edge_index,
-        #                     num_sampled_nodes,
-        #                     num_sampled_edges,
-        #                 )
-        #                 acc_sum += acc(
-        #                     out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-        #                 )
-        #         print(
-        #             f"Validation Accuracy: {acc_sum/(i) * 100.0:.4f}%",
-        #         )
-
-        # stats = {
-        #     "Accuracy": (acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
-        #     "# Batches": num_batches,
-        #     "Loader Time": time_loader + time_feature_additional,
-        #     "Forward Time": time_forward,
-        #     "Backward Time": time_backward,
-        # }
+        stats = {
+            "Accuracy": test_acc if self.rank == 0 else 0.0,
+            "# Batches": total_batches,
+            "Loader Time": time_d["time_loader"],
+            "Feature Time": time_d["time_feature_indexing"]
+            + time_d["time_feature_transfer"],
+            "Forward Time": time_d["time_forward"],
+            "Backward Time": time_d["time_backward"],
+        }
         return stats

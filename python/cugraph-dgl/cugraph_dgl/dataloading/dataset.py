@@ -205,9 +205,9 @@ def _set_input_files(
     if (input_directory is not None) and (input_file_paths is not None):
         raise ValueError("Only one of input_directory or input_file_paths must be set")
 
-    if input_file_paths:
+    if input_file_paths is not None:
         dataset_obj._input_files = input_file_paths
-    if input_directory:
+    if input_directory is not None:
         dataset_obj._input_files = [fp.path for fp in os.scandir(input_directory)]
     dataset_obj._batch_to_fn_d = get_batch_to_fn_d(dataset_obj._input_files)
     dataset_obj.num_batches = len(dataset_obj._batch_to_fn_d)
