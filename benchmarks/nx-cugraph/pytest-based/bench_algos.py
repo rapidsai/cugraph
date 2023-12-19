@@ -214,8 +214,11 @@ def get_graph_obj_for_benchmark(graph_obj, backend_wrapper):
     Given a Graph object and a backend name, return a converted Graph or the
     original Graph object based on the backend to use.
 
-    This is used since some backend names are actually used as descriptions for
-    combinations of backends and converted/non-converted graphs.
+    This is needed because some backend names are actually used as descriptions
+    for combinations of backends and converted/non-converted graphs.  For
+    example, a benchmark may specify the "cugraph-preconverted" backend, which
+    is not an installed backend but instead refers to the "cugraph" backend
+    passed a NX Graph that has been converted to a nx-cugraph Graph object.
     """
     G = graph_obj
     if backend_wrapper.backend_name == "cugraph-preconverted":
@@ -425,7 +428,6 @@ def bench_single_source_shortest_path_length(benchmark, graph_obj, backend_wrapp
         warmup_rounds=warmup_rounds,
     )
     assert type(result) is dict
-    # print(f"\n{node=}\n{result=}")
 
 
 def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapper):
@@ -434,7 +436,7 @@ def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapp
     node = max(degrees, key=lambda t: t[1])[0]
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
 
-    # Ensure the benchmark time include computation of each result from the
+    # Ensure the benchmark time includes computation of each result from the
     # returned generator
     def run_generator(*args, **kwargs):
         func = backend_wrapper(nx.single_target_shortest_path_length)
