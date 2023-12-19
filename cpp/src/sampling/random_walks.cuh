@@ -52,6 +52,8 @@
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
 
+#include <cuda/functional>
+
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <limits>
@@ -378,7 +380,8 @@ struct random_walker_t {
 
     // scatter d_src_init_v to coalesced vertex vector:
     //
-    auto dlambda = [stride = max_depth_] __device__(auto indx) { return indx * stride; };
+    auto dlambda = cuda::proclaim_return_type<index_t>(
+      [stride = max_depth_] __device__(auto indx) { return indx * stride; });
 
     // use the transform iterator as map:
     //
@@ -539,10 +542,11 @@ struct random_walker_t {
 
     // delta = ptr_d_sizes[indx] - 1
     //
-    auto dlambda = [stride, ptr_d_sizes, ptr_d_coalesced] __device__(auto indx) {
-      auto delta = ptr_d_sizes[indx] - 1;
-      return ptr_d_coalesced[indx * stride + delta];
-    };
+    auto dlambda = cuda::proclaim_return_type<vertex_t>(
+      [stride, ptr_d_sizes, ptr_d_coalesced] __device__(auto indx) {
+        auto delta = ptr_d_sizes[indx] - 1;
+        return ptr_d_coalesced[indx * stride + delta];
+      });
 
     // use the transform iterator as map:
     //
@@ -587,10 +591,11 @@ struct random_walker_t {
   {
     index_t const* ptr_d_sizes = original::raw_const_ptr(d_sizes);
 
-    auto dlambda = [stride, adjust, ptr_d_sizes] __device__(auto indx) {
-      auto delta = ptr_d_sizes[indx] - adjust - 1;
-      return indx * stride + delta;
-    };
+    auto dlambda =
+      cuda::proclaim_return_type<index_t>([stride, adjust, ptr_d_sizes] __device__(auto indx) {
+        auto delta = ptr_d_sizes[indx] - adjust - 1;
+        return indx * stride + delta;
+      });
 
     // use the transform iterator as map:
     //

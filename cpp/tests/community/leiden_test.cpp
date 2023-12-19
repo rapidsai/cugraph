@@ -79,39 +79,19 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    // "FIXME": remove this check once we drop support for Pascal
-    //
-    // Calling leiden on Pascal will throw an exception, we'll check that
-    // this is the behavior while we still support Pascal (device_prop.major < 7)
-    //
-    cudaDeviceProp device_prop;
-    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Leiden");
     }
 
-    if (device_prop.major < 7) {
-      EXPECT_THROW(leiden(graph_view,
-                          edge_weight_view,
-                          graph_view.local_vertex_partition_range_size(),
-                          leiden_usecase.max_level_,
-                          leiden_usecase.resolution_,
-                          leiden_usecase.check_correctness_,
-                          leiden_usecase.expected_level_,
-                          leiden_usecase.expected_modularity_),
-                   cugraph::logic_error);
-    } else {
-      leiden(graph_view,
-             edge_weight_view,
-             graph_view.local_vertex_partition_range_size(),
-             leiden_usecase.max_level_,
-             leiden_usecase.resolution_,
-             leiden_usecase.check_correctness_,
-             leiden_usecase.expected_level_,
-             leiden_usecase.expected_modularity_);
-    }
+    leiden(graph_view,
+           edge_weight_view,
+           graph_view.local_vertex_partition_range_size(),
+           leiden_usecase.max_level_,
+           leiden_usecase.resolution_,
+           leiden_usecase.check_correctness_,
+           leiden_usecase.expected_level_,
+           leiden_usecase.expected_modularity_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
