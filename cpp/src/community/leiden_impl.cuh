@@ -568,17 +568,17 @@ void flatten_leiden_dendrogram(raft::handle_t const& handle,
   leiden_partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, clustering, dendrogram.num_levels());
 
-  rmm::device_uvector<vertex_t> unique_cluster_ids(graph_view.number_of_vertices(),
+  rmm::device_uvector<vertex_t> unique_cluster_ids(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
                clustering,
-               clustering + graph_view.number_of_vertices(),
+               clustering + graph_view.local_vertex_partition_range_size(),
                unique_cluster_ids.begin());
 
   remove_duplicates<vertex_t, multi_gpu>(handle, unique_cluster_ids);
 
   relabel_cluster_ids<vertex_t, multi_gpu>(
-    handle, unique_cluster_ids, clustering, graph_view.number_of_vertices());
+    handle, unique_cluster_ids, clustering, graph_view.local_vertex_partition_range_size());
 }
 
 }  // namespace detail

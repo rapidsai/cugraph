@@ -432,7 +432,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   // 1. check input arguments
 
   auto const num_vertices = graph_view.number_of_vertices();
-  auto const num_edges    = graph_view.number_of_edges();
+  auto const num_edges    = graph_view.compute_number_of_edges(handle);
 
   CUGRAPH_EXPECTS(num_vertices != 0 || (origins.size() == 0 && destinations.size() == 0),
                   "Invalid input argument: the input graph is empty but origins.size() > 0 or "
@@ -1049,7 +1049,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   auto const num_vertices = graph_view.number_of_vertices();
-  auto const num_edges    = graph_view.number_of_edges();
+  auto const num_edges    = graph_view.compute_number_of_edges(handle);
 
   weight_t average_vertex_degree =
     static_cast<weight_t>(num_edges) / static_cast<weight_t>(num_vertices);

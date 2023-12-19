@@ -31,7 +31,11 @@ def k_truss(G, k):
     if is_nx := isinstance(G, nx.Graph):
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     if nxcg.number_of_selfloops(G) > 0:
-        raise nx.NetworkXError(
+        if nx.__version__[:3] <= "3.2":
+            exc_class = nx.NetworkXError
+        else:
+            exc_class = nx.NetworkXNotImplemented
+        raise exc_class(
             "Input graph has self loops which is not permitted; "
             "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
         )
