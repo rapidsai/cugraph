@@ -27,7 +27,7 @@ __Other Packages__:
 * cython
 * setuputils3
 * scikit-learn
-* scikit-build
+* scikit-build-core
 * nanobind>=0.2.0
 
 ## Building wholegraph

@@ -10,6 +10,12 @@ export CMAKE_GENERATOR=Ninja
 rapids-print-env
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
+LIBRMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1404 cpp)
+RMM_CHANNEL=$(rapids-get-pr-conda-artifact rmm 1404 python)
+LIBCUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14576 cpp)
+CUDF_CHANNEL=$(rapids-get-pr-conda-artifact cudf 14576 python)
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 2049 cpp)
+RAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 2049 python)
 
 version=$(rapids-generate-version)
 git_commit=$(git rev-parse HEAD)
@@ -19,7 +25,7 @@ echo "${version}" > VERSION
 rapids-logger "Begin py build"
 
 package_dir="python"
-for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do 
+for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do
   underscore_package_name=$(echo "${package_name}" | tr "-" "_")
   sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" "${package_dir}/${package_name}/${underscore_package_name}/_version.py"
 done
@@ -29,11 +35,23 @@ done
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   conda/recipes/pylibcugraph
 
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph
 
@@ -44,6 +62,12 @@ rapids-conda-retry mambabuild \
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${RMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${CUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/nx-cugraph
 
@@ -68,6 +92,12 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
   rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
+    --channel "${LIBRMM_CHANNEL}" \
+    --channel "${RMM_CHANNEL}" \
+    --channel "${LIBCUDF_CHANNEL}" \
+    --channel "${CUDF_CHANNEL}" \
+    --channel "${LIBRAFT_CHANNEL}" \
+    --channel "${RAFT_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
     --channel pyg \
     --channel pytorch \
@@ -78,6 +108,12 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
   rapids-conda-retry mambabuild \
     --no-test \
     --channel "${CPP_CHANNEL}" \
+    --channel "${LIBRMM_CHANNEL}" \
+    --channel "${RMM_CHANNEL}" \
+    --channel "${LIBCUDF_CHANNEL}" \
+    --channel "${CUDF_CHANNEL}" \
+    --channel "${LIBRAFT_CHANNEL}" \
+    --channel "${RAFT_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
     --channel dglteam \
     --channel pytorch \
