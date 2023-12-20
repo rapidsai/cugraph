@@ -142,8 +142,8 @@ rapids_cpm_init()
 ###
 # Linking to the `raft::raft` target implicitly links cugraph targets to the
 # following public header-only  raft dependencies:
+# * CCCL
 # * RMM
-# * Thrust
 # * GTest/GMock
 #
 # The CMakeLists.txt for each of these projects are properly configured
@@ -153,16 +153,14 @@ rapids_cpm_init()
 # lags behind.
 ###
 
-# Need to make sure rmm is found before cuco so that rmm patches the libcudacxx
-# directory to be found by cuco.
+# Need CCCL, then rmm, then cuCollections, then RAFT.
+# This ensures that libraries can be overridden for testing.
+include(cmake/thirdparty/get_cccl.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
 rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
-               INSTALL_EXPORT_SET  cugraph-exports)
-# Putting this before raft to override RAFT from pulling them in.
-include(cmake/thirdparty/get_libcudacxx.cmake)
+               INSTALL_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
-
 include(cmake/thirdparty/get_raft.cmake)
 
 if(USE_CUGRAPH_OPS)
