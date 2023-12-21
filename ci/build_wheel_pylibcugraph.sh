@@ -3,6 +3,6 @@
 
 set -euo pipefail
 
-export SKBUILD_CONFIGURE_OPTIONS="-DDETECT_CONDA_ENV=OFF -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/"
+export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/"
 
 ./ci/build_wheel.sh pylibcugraph python/pylibcugraph
