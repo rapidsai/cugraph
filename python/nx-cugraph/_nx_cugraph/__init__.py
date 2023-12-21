@@ -29,8 +29,14 @@ _info = {
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "ancestors",
         "barbell_graph",
         "betweenness_centrality",
+        "bfs_edges",
+        "bfs_layers",
+        "bfs_predecessors",
+        "bfs_successors",
+        "bfs_tree",
         "bull_graph",
         "caveman_graph",
         "chvatal_graph",
@@ -44,6 +50,8 @@ _info = {
         "davis_southern_women_graph",
         "degree_centrality",
         "desargues_graph",
+        "descendants",
+        "descendants_at_distance",
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
@@ -53,6 +61,7 @@ _info = {
         "from_pandas_edgelist",
         "from_scipy_sparse_array",
         "frucht_graph",
+        "generic_bfs_edges",
         "heawood_graph",
         "hits",
         "house_graph",
@@ -99,9 +108,14 @@ _info = {
     "extra_docstrings": {
         # BEGIN: extra_docstrings
         "betweenness_centrality": "`weight` parameter is not yet supported.",
+        "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_successors": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_tree": "`sort_neighbors` parameter is not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
+        "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
