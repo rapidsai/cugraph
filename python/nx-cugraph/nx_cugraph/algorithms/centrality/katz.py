@@ -26,7 +26,7 @@ __all__ = ["katz_centrality"]
 
 
 @not_implemented_for("multigraph")
-@networkx_algorithm(extra_params=_dtype_param)
+@networkx_algorithm(extra_params=_dtype_param, plc="katz_centrality")
 def katz_centrality(
     G,
     alpha=0.1,

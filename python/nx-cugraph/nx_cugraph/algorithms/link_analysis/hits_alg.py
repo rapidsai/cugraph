@@ -32,7 +32,8 @@ __all__ = ["hits"]
             "The edge attribute to use as the edge weight."
         ),
         **_dtype_param,
-    }
+    },
+    plc="hits",
 )
 def hits(
     G,

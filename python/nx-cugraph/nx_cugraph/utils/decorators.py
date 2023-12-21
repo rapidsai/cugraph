@@ -41,6 +41,7 @@ class networkx_algorithm:
     name: str
     extra_doc: str | None
     extra_params: dict[str, str] | None
+    _plc_names: set[str] | None
 
     def __new__(
         cls,
@@ -49,6 +50,7 @@ class networkx_algorithm:
         name: str | None = None,
         extra_params: dict[str, str] | str | None = None,
         nodes_or_number: list[int] | int | None = None,
+        plc: str | set[str] | None = None,
     ):
         if func is None:
             return partial(
@@ -56,6 +58,7 @@ class networkx_algorithm:
                 name=name,
                 extra_params=extra_params,
                 nodes_or_number=nodes_or_number,
+                plc=plc,
             )
         instance = object.__new__(cls)
         if nodes_or_number is not None and nx.__version__[:3] > "3.2":
@@ -74,6 +77,12 @@ class networkx_algorithm:
                 f"extra_params must be dict, str, or None; got {type(extra_params)}"
             )
         instance.extra_params = extra_params
+        if plc is None or isinstance(plc, set):
+            instance._plc_names = plc
+        elif isinstance(plc, str):
+            instance._plc_names = {plc}
+        else:
+            raise TypeError(f"plc argument must be str, set, or None; got {type(plc)}")
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = (
             dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None
@@ -91,6 +100,11 @@ class networkx_algorithm:
 
     def _can_run(self, func):
         """Set the `can_run` attribute to the decorated function."""
+        if not func.__name__.startswith("_"):
+            raise ValueError(
+                "The name of the function used by `_can_run` must begin with '_'; "
+                f"got: {func.__name__!r}"
+            )
         self.can_run = func
 
     def __call__(self, /, *args, **kwargs):

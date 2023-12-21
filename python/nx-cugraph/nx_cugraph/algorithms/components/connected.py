@@ -57,7 +57,7 @@ def _(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components")
 def connected_components(G):
     G = _to_undirected_graph(G)
     if G.src_indices.size == 0:
@@ -86,7 +86,7 @@ def connected_components(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components")
 def is_connected(G):
     G = _to_undirected_graph(G)
     if len(G) == 0:
@@ -110,7 +110,7 @@ def is_connected(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components")
 def node_connected_component(G, n):
     # We could also do plain BFS from n
     G = _to_undirected_graph(G)

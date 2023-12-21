@@ -26,7 +26,9 @@ from nx_cugraph.utils import (
 __all__ = ["pagerank"]
 
 
-@networkx_algorithm(extra_params=_dtype_param)
+@networkx_algorithm(
+    extra_params=_dtype_param, plc={"pagerank", "personalized_pagerank"}
+)
 def pagerank(
     G,
     alpha=0.85,
@@ -97,7 +99,7 @@ def pagerank(
 
 
 @pagerank._can_run
-def pagerank(
+def _(
     G,
     alpha=0.85,
     personalization=None,

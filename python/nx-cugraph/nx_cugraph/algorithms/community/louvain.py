@@ -35,7 +35,8 @@ __all__ = ["louvain_communities"]
             "Upper limit of the number of macro-iterations (max: 500)."
         ),
         **_dtype_param,
-    }
+    },
+    plc="louvain",
 )
 def louvain_communities(
     G,
