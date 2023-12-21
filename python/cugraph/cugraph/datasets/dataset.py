@@ -18,6 +18,7 @@ import os
 import pandas as pd
 import cugraph.dask as dcg
 from pathlib import Path
+import urllib.request
 from cugraph.structure.graph_classes import Graph
 
 
@@ -140,31 +141,8 @@ class Dataset:
 
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
-            df = cudf.read_csv(url)
             self._path = self._dl_path.path / filename
-            df.to_csv(self._path, index=False)
-
-        else:
-            raise RuntimeError(
-                f"The directory {self._dl_path.path.absolute()}" "does not exist"
-            )
-        return self._path
-
-    def __download_dask_csv(self, url):
-        """
-        Downloads the .csv file from url to the current download path
-        (self._dl_path) via multiple GPUs, updates self._path with the
-        full path to the downloaded file, and returns the latest value
-        of self._path.
-        """
-        self._dl_path.path.mkdir(parents=True, exist_ok=True)
-
-        filename = self.metadata["name"] + self.metadata["file_type"]
-        if self._dl_path.path.is_dir():
-            blocksize = dcg.get_chunksize(url)
-            ddf = dask_cudf.read_csv(path=url, blocksize=blocksize)
-            self._path = self._dl_path.path / filename
-            ddf.to_csv(self._path, index=False)
+            urllib.request.urlretrieve(url, str(self._path))
 
         else:
             raise RuntimeError(
@@ -249,7 +227,7 @@ class Dataset:
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
-                    full_path = self.__download_dask_csv(self.metadata["url"])
+                    full_path = self.__download_csv(self.metadata["url"])
                 else:
                     raise RuntimeError(
                         f"The datafile {full_path} does not"
@@ -476,35 +454,7 @@ def download_all(force=False):
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:
-                    df = cudf.read_csv(meta["url"])
-                    df.to_csv(save_to, index=False)
-
-
-def download_dask_all(force=False):
-    """
-    Looks in `metadata` directory and downloads all datafiles from the the URLs
-    provided in each YAML file via multiple GPUs.
-
-    Parameters
-    force : Boolean (default=False)
-        Overwrite any existing copies of datafiles.
-    """
-    default_download_dir.path.mkdir(parents=True, exist_ok=True)
-
-    meta_path = Path(__file__).parent.absolute() / "metadata"
-    for file in meta_path.iterdir():
-        meta = None
-        if file.suffix == ".yaml":
-            with open(meta_path / file, "r") as metafile:
-                meta = yaml.safe_load(metafile)
-
-            if "url" in meta:
-                filename = meta["name"] + meta["file_type"]
-                save_to = default_download_dir.path / filename
-                if not save_to.is_file() or force:
-                    blocksize = dcg.get_chunksize(meta["url"])
-                    ddf = dask_cudf.read_csv(path=meta["url"], blocksize=blocksize)
-                    ddf.to_csv(save_to, index=False)
+                    urllib.request.urlretrieve(meta["url"], str(save_to))
 
 
 def set_download_dir(path):
