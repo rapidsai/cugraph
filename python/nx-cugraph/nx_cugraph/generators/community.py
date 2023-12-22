@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def caveman_graph(l, k):  # noqa: E741
     l = _ensure_int(l)  # noqa: E741
     k = _ensure_int(k)

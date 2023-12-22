@@ -37,6 +37,7 @@ __all__ = ["louvain_communities"]
         **_dtype_param,
     },
     plc="louvain",
+    version_added="23.10",
 )
 def louvain_communities(
     G,

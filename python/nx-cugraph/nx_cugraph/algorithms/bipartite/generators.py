@@ -24,7 +24,7 @@ __all__ = [
 ]
 
 
-@networkx_algorithm(nodes_or_number=[0, 1])
+@networkx_algorithm(nodes_or_number=[0, 1], version_added="23.12")
 def complete_bipartite_graph(n1, n2, create_using=None):
     graph_class, inplace = _create_using_class(create_using)
     if graph_class.is_directed():

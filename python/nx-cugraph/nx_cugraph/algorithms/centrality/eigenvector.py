@@ -26,7 +26,9 @@ __all__ = ["eigenvector_centrality"]
 
 
 @not_implemented_for("multigraph")
-@networkx_algorithm(extra_params=_dtype_param, plc="eigenvector_centrality")
+@networkx_algorithm(
+    extra_params=_dtype_param, plc="eigenvector_centrality", version_added="23.12"
+)
 def eigenvector_centrality(
     G, max_iter=100, tol=1.0e-6, nstart=None, weight=None, *, dtype=None
 ):

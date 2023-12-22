@@ -34,6 +34,7 @@ __all__ = ["hits"]
         **_dtype_param,
     },
     plc="hits",
+    version_added="23.12",
 )
 def hits(
     G,

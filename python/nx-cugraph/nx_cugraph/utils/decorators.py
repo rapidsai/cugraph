@@ -41,6 +41,7 @@ class networkx_algorithm:
     name: str
     extra_doc: str | None
     extra_params: dict[str, str] | None
+    version_added: str
     _plc_names: set[str] | None
 
     def __new__(
@@ -51,6 +52,7 @@ class networkx_algorithm:
         extra_params: dict[str, str] | str | None = None,
         nodes_or_number: list[int] | int | None = None,
         plc: str | set[str] | None = None,
+        version_added: str,
     ):
         if func is None:
             return partial(
@@ -59,6 +61,7 @@ class networkx_algorithm:
                 extra_params=extra_params,
                 nodes_or_number=nodes_or_number,
                 plc=plc,
+                version_added=version_added,
             )
         instance = object.__new__(cls)
         if nodes_or_number is not None and nx.__version__[:3] > "3.2":
@@ -83,6 +86,7 @@ class networkx_algorithm:
             instance._plc_names = {plc}
         else:
             raise TypeError(f"plc argument must be str, set, or None; got {type(plc)}")
+        instance.version_added = version_added
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = (
             dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None

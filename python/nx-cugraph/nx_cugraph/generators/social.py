@@ -25,7 +25,7 @@ __all__ = [
 ]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def davis_southern_women_graph():
     # fmt: off
     src_indices = cp.array(
@@ -88,7 +88,7 @@ def davis_southern_women_graph():
     )
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def florentine_families_graph():
     # fmt: off
     src_indices = cp.array(
@@ -114,7 +114,7 @@ def florentine_families_graph():
     return nxcg.Graph.from_coo(15, src_indices, dst_indices, id_to_key=nodes)
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def karate_club_graph():
     # fmt: off
     src_indices = cp.array(
@@ -175,7 +175,7 @@ def karate_club_graph():
     )
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def les_miserables_graph():
     # fmt: off
     src_indices = cp.array(

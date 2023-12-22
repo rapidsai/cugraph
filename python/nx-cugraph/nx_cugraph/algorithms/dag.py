@@ -45,11 +45,11 @@ def _ancestors_and_descendants(G, source, *, is_ancestors):
     return G._nodearray_to_set(node_ids[mask])
 
 
-@networkx_algorithm(plc="bfs")
+@networkx_algorithm(plc="bfs", version_added="24.02")
 def descendants(G, source):
     return _ancestors_and_descendants(G, source, is_ancestors=False)
 
 
-@networkx_algorithm(plc="bfs")
+@networkx_algorithm(plc="bfs", version_added="24.02")
 def ancestors(G, source):
     return _ancestors_and_descendants(G, source, is_ancestors=True)

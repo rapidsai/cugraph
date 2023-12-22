@@ -27,7 +27,9 @@ __all__ = ["pagerank"]
 
 
 @networkx_algorithm(
-    extra_params=_dtype_param, plc={"pagerank", "personalized_pagerank"}
+    extra_params=_dtype_param,
+    plc={"pagerank", "personalized_pagerank"},
+    version_added="23.12",
 )
 def pagerank(
     G,

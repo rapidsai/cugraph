@@ -16,7 +16,7 @@ from nx_cugraph.utils import networkx_algorithm
 __all__ = ["number_of_selfloops"]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def number_of_selfloops(G):
     G = _to_graph(G)
     is_selfloop = G.src_indices == G.dst_indices

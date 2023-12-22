@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def from_pandas_edgelist(
     df,
     source="source",
@@ -120,7 +120,7 @@ def from_pandas_edgelist(
     return G
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def from_scipy_sparse_array(
     A, parallel_edges=False, create_using=None, edge_attribute="weight"
 ):
