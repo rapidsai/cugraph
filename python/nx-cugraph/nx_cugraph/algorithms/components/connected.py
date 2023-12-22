@@ -30,7 +30,7 @@ __all__ = [
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components")
 def number_connected_components(G):
     return sum(1 for _ in connected_components(G))
     # PREFERRED IMPLEMENTATION, BUT PLC DOES NOT HANDLE ISOLATED VERTICES WELL
