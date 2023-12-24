@@ -39,6 +39,24 @@ concat = itertools.chain.from_iterable
 REQUIRED = ...
 
 
+def _iterate_values(graph, adj, is_dicts, func):
+    # Using `dict.values` is faster and is the common case, but it doesn't always work
+    if is_dicts is not False:
+        it = concat(map(dict.values, adj.values()))
+        if graph is not None and graph.is_multigraph():
+            it = concat(map(dict.values, it))
+        try:
+            return func(it), True
+        except TypeError:
+            if is_dicts is True:
+                raise
+    # May not be regular dicts
+    it = concat(x.values() for x in adj.values())
+    if graph is not None and graph.is_multigraph():
+        it = concat(x.values() for x in it)
+    return func(it), False
+
+
 def from_networkx(
     graph: nx.Graph,
     edge_attrs: AttrKey | dict[AttrKey, EdgeValue | None] | None = None,
@@ -152,6 +170,7 @@ def from_networkx(
     if isinstance(adj, nx.classes.coreviews.FilterAdjacency):
         adj = {k: dict(v) for k, v in adj.items()}
 
+    is_dicts = None
     N = len(adj)
     if (
         not preserve_edge_attrs
@@ -162,12 +181,9 @@ def from_networkx(
         # Either we weren't asked to preserve edge attributes, or there are no edges
         edge_attrs = None
     elif preserve_edge_attrs:
-        # Using comprehensions should be just as fast starting in Python 3.11
-        it = concat(map(dict.values, adj.values()))
-        if graph.is_multigraph():
-            it = concat(map(dict.values, it))
-        # PERF: should we add `filter(None, ...)` to remove empty data dicts?
-        attr_sets = set(map(frozenset, it))
+        attr_sets, is_dicts = _iterate_values(
+            graph, adj, is_dicts, lambda it: set(map(frozenset, it))
+        )
         attrs = frozenset.union(*attr_sets)
         edge_attrs = dict.fromkeys(attrs, REQUIRED)
         if len(attr_sets) > 1:
@@ -207,10 +223,9 @@ def from_networkx(
                 del edge_attrs[attr]
             # Else some edges have attribute (default already None)
         else:
-            it = concat(map(dict.values, adj.values()))
-            if graph.is_multigraph():
-                it = concat(map(dict.values, it))
-            attr_sets = set(map(required.intersection, it))
+            attr_sets, is_dicts = _iterate_values(
+                graph, adj, is_dicts, lambda it: set(map(required.intersection, it))
+            )
             for attr in required - frozenset.union(*attr_sets):
                 # No edges have these attributes
                 del edge_attrs[attr]
@@ -269,17 +284,19 @@ def from_networkx(
         dst_iter = map(key_to_id.__getitem__, dst_iter)
     if graph.is_multigraph():
         dst_indices = np.fromiter(dst_iter, index_dtype)
-        num_multiedges = np.fromiter(
-            map(len, concat(map(dict.values, adj.values()))), index_dtype
+        num_multiedges, is_dicts = _iterate_values(
+            None, adj, is_dicts, lambda it: np.fromiter(map(len, it), index_dtype)
         )
         # cp.repeat is slow to use here, so use numpy instead
         dst_indices = cp.array(np.repeat(dst_indices, num_multiedges))
         # Determine edge keys and edge ids for multigraphs
-        edge_keys = list(concat(concat(map(dict.values, adj.values()))))
-        edge_indices = cp.fromiter(
-            concat(map(range, map(len, concat(map(dict.values, adj.values()))))),
-            index_dtype,
-        )
+        if is_dicts:
+            edge_keys = list(concat(concat(map(dict.values, adj.values()))))
+            it = concat(map(dict.values, adj.values()))
+        else:
+            edge_keys = list(concat(concat(x.values() for x in adj.values())))
+            it = concat(x.values() for x in adj.values())
+        edge_indices = cp.fromiter(concat(map(range, map(len, it))), index_dtype)
         if edge_keys == edge_indices.tolist():
             edge_keys = None  # Prefer edge_indices
     else:
@@ -323,19 +340,21 @@ def from_networkx(
                 edge_masks[edge_attr] = cp.fromiter(iter_mask, bool)
                 edge_values[edge_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
+            elif edge_default is REQUIRED:
+                if dtype is None:
+
+                    def func(it, edge_attr=edge_attr):
+                        return cp.array(list(map(op.itemgetter(edge_attr), it)))
+
+                else:
+
+                    def func(it, edge_attr=edge_attr, dtype=dtype):
+                        return cp.fromiter(map(op.itemgetter(edge_attr), it), dtype)
+
+                edge_value, is_dicts = _iterate_values(graph, adj, is_dicts, func)
+                edge_values[edge_attr] = edge_value
             else:
-                if edge_default is REQUIRED:
-                    # Using comprehensions should be fast starting in Python 3.11
-                    # iter_values = (
-                    #     edgedata[edge_attr]
-                    #     for rowdata in adj.values()
-                    #     for edgedata in rowdata.values()
-                    # )
-                    it = concat(map(dict.values, adj.values()))
-                    if graph.is_multigraph():
-                        it = concat(map(dict.values, it))
-                    iter_values = map(op.itemgetter(edge_attr), it)
-                elif graph.is_multigraph():
+                if graph.is_multigraph():
                     iter_values = (
                         edgedata.get(edge_attr, edge_default)
                         for rowdata in adj.values()
@@ -352,7 +371,7 @@ def from_networkx(
                     edge_values[edge_attr] = cp.array(list(iter_values))
                 else:
                     edge_values[edge_attr] = cp.fromiter(iter_values, dtype)
-                # if vals.ndim > 1: ...
+            # if vals.ndim > 1: ...
 
     # cp.repeat is slow to use here, so use numpy instead
     src_indices = np.repeat(

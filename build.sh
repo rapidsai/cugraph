@@ -69,7 +69,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -v                         - verbose build mode
    -g                         - build for debug
    -n                         - do not install after a successful build (does not affect Python packages)
-   --pydevelop                - use setup.py develop instead of install
+   --pydevelop                - install the Python packages in editable mode
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    --without_cugraphops       - do not build algos that require cugraph-ops
@@ -187,14 +187,18 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e"
+    PYTHON_ARGS_FOR_INSTALL="${PYTHON_ARGS_FOR_INSTALL} -e"
 fi
 
-# Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
 SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
-  if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
-      SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS} -DFIND_CUGRAPH_CPP=ON"
-  fi
+
+# Replace spaces with semicolons in SKBUILD_EXTRA_CMAKE_ARGS
+SKBUILD_EXTRA_CMAKE_ARGS=$(echo ${SKBUILD_EXTRA_CMAKE_ARGS} | sed 's/ /;/g')
+
+# Append `-DFIND_CUGRAPH_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
+if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
+    SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DFIND_CUGRAPH_CPP=ON"
+fi
 
 # If clean or uninstall targets given, run them prior to any other steps
 if hasArg uninstall; then
@@ -213,8 +217,7 @@ if hasArg uninstall; then
     if [ -e ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt ]; then
         xargs rm -f < ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
     fi
-    # uninstall cugraph and pylibcugraph installed from a prior "setup.py
-    # install"
+    # uninstall cugraph and pylibcugraph installed from a prior install
     # FIXME: if multiple versions of these packages are installed, this only
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
@@ -226,10 +229,6 @@ if hasArg clean; then
     # Ignore errors for clean since missing files, etc. are not failures
     set +e
     # remove artifacts generated inplace
-    # FIXME: ideally the "setup.py clean" command would be used for this, but
-    # currently running any setup.py command has side effects (eg. cloning
-    # repos).
-    # (cd ${REPODIR}/python && python setup.py clean)
     if [[ -d ${REPODIR}/python ]]; then
         cleanPythonDir ${REPODIR}/python
     fi
@@ -317,24 +316,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
-        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
-        # install -e" command, resulting in a broken editable wheel. Continue
-        # to use "setup.py bdist_ext --inplace" for a develop build until
-        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
-        if hasArg --pydevelop; then
-            cd ${REPODIR}/python/pylibcugraph
-            python setup.py build_ext \
-                   --inplace \
-                   -- \
-                   -DFIND_CUGRAPH_CPP=ON \
-                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
-                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
-                   -- \
-                   -j${PARALLEL_LEVEL:-1}
-            cd -
-        fi
-        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
@@ -344,24 +326,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
-        # FIXME: skbuild with setuptools>=64 has a bug when called from a "pip
-        # install -e" command, resulting in a broken editable wheel. Continue
-        # to use "setup.py bdist_ext --inplace" for a develop build until
-        # https://github.com/scikit-build/scikit-build/issues/981 is closed.
-        if hasArg --pydevelop; then
-            cd ${REPODIR}/python/cugraph
-            python setup.py build_ext \
-                   --inplace \
-                   -- \
-                   -DFIND_CUGRAPH_CPP=ON \
-                   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
-                   -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
-                   -- \
-                   -j${PARALLEL_LEVEL:-1}
-            cd -
-        fi
-        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi

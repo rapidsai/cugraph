@@ -13,6 +13,7 @@
 
 from .gat_conv import GATConv
 from .gatv2_conv import GATv2Conv
+from .hetero_gat_conv import HeteroGATConv
 from .rgcn_conv import RGCNConv
 from .sage_conv import SAGEConv
 from .transformer_conv import TransformerConv
@@ -20,6 +21,7 @@ from .transformer_conv import TransformerConv
 __all__ = [
     "GATConv",
     "GATv2Conv",
+    "HeteroGATConv",
     "RGCNConv",
     "SAGEConv",
     "TransformerConv",

@@ -80,6 +80,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   if (num_vertices == 0) { return std::make_tuple(diff_sum, final_iteration_count); }
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
+  auto tolerance = static_cast<result_t>(graph_view.number_of_vertices()) * epsilon;
 
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
@@ -171,7 +172,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     std::swap(prev_hubs, curr_hubs);
     iter++;
 
-    if (diff_sum < epsilon) {
+    if (diff_sum < tolerance) {
       break;
     } else if (iter >= max_iterations) {
       CUGRAPH_FAIL("HITS failed to converge.");

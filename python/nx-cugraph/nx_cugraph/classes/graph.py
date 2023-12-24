@@ -458,6 +458,24 @@ class Graph:
                 return False
         return bool(((self.src_indices == u) & (self.dst_indices == v)).any())
 
+    def _neighbors(self, n: NodeKey) -> cp.ndarray[NodeValue]:
+        if n not in self:
+            hash(n)  # To raise TypeError if appropriate
+            raise nx.NetworkXError(
+                f"The node {n} is not in the {self.__class__.__name__.lower()}."
+            )
+        if self.key_to_id is not None:
+            n = self.key_to_id[n]
+        nbrs = self.dst_indices[self.src_indices == n]
+        if self.is_multigraph():
+            nbrs = cp.unique(nbrs)
+        return nbrs
+
+    @networkx_api
+    def neighbors(self, n: NodeKey) -> Iterator[NodeKey]:
+        nbrs = self._neighbors(n)
+        return iter(self._nodeiter_to_iter(nbrs.tolist()))
+
     @networkx_api
     def has_node(self, n: NodeKey) -> bool:
         return n in self
@@ -700,6 +718,11 @@ class Graph:
         if self.key_to_id is None:
             return node_ids.tolist()
         return list(self._nodeiter_to_iter(node_ids.tolist()))
+
+    def _list_to_nodearray(self, nodes: list[NodeKey]) -> cp.ndarray[IndexValue]:
+        if (key_to_id := self.key_to_id) is not None:
+            nodes = [key_to_id[node] for node in nodes]
+        return cp.array(nodes, dtype=index_dtype)
 
     def _nodearray_to_set(self, node_ids: cp.ndarray[IndexValue]) -> set[NodeKey]:
         if self.key_to_id is None:
