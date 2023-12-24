@@ -54,10 +54,10 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                   "Invalid input arguments: ensemble_size must be a non-zero integer");
   CUGRAPH_EXPECTS(
     threshold > 0.0 && threshold <= 1.0,
-    "Invalid input arguments: threshold must be a positive number in range [0.0, 1.0]");
+    "Invalid input arguments: threshold must be a positive number in range (0.0, 1.0]");
   CUGRAPH_EXPECTS(
     resolution > 0.0 && resolution <= 1.0,
-    "Invalid input arguments: resolution must be a positive number in range [0.0, 1.0]");
+    "Invalid input arguments: resolution must be a positive number in range (0.0, 1.0]");
 
   edge_src_property_t<graph_view_t, vertex_t> src_cluster_assignments(handle, graph_view);
   edge_dst_property_t<graph_view_t, vertex_t> dst_cluster_assignments(handle, graph_view);

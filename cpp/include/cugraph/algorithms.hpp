@@ -594,7 +594,10 @@ std::pair<size_t, weight_t> louvain(
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
  * @param[in]  handle                Library handle (RAFT)
  * @param[in]  graph_view            Input graph view object
@@ -791,6 +794,11 @@ void ecg(raft::handle_t const& handle,
  * information.
  *
  * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
  * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
