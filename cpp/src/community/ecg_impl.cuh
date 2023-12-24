@@ -120,8 +120,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                      max_level,
                      threshold,
                      resolution);
-  // Compute final modularity using original edge weights
 
+  // Compute final modularity using original edge weights
   weight_t total_edge_weight =
     cugraph::compute_total_edge_weight(handle, graph_view, *edge_weight_view);
 
