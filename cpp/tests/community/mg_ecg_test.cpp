@@ -96,11 +96,11 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
 
     weight_t sg_modularity{-1.0};
 
-    auto sg_graph_view = sg_graph.view();
-    auto sg_edge_weight_view =
-      sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
-
     if (comm_rank == 0) {
+      auto sg_graph_view = sg_graph.view();
+      auto sg_edge_weight_view =
+        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
       std::tie(std::ignore, std::ignore, sg_modularity) = cugraph::ecg(handle,
                                                                        rng_state,
                                                                        sg_graph_view,
