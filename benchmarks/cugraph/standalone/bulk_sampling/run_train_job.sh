@@ -3,13 +3,13 @@
 #SBATCH -A datascience_rapids_workflows
 #SBATCH -p batch_short_dgx1_m2 
 #SBATCH -J papers:trainingPyG 
-#SBATCH -N 2 
+#SBATCH -N 1
 #SBATCH --gpus-per-node 8 
-#SBATCH -t 00:18:00 
+#SBATCH -t 00:06:00 
 #SBATCH --nv-meta ml-model.rapids-nightlies 
 #SBATCH --exclusive 
 
-export CONTAINER_IMAGE="/gpfs/fs1/projects/sw_rapids/users/abarghi/dlfw_12_5_23.squash"
+export CONTAINER_IMAGE="/gpfs/fs1/projects/sw_rapids/users/abarghi/dlfw_patched.squash"
 export SCRIPTS_DIR=$(pwd)
 export LOGS_DIR="/gpfs/fs1/projects/sw_rapids/users/abarghi/logs"
 export SAMPLES_DIR="/gpfs/fs1/projects/sw_rapids/users/abarghi/samples"
@@ -40,10 +40,10 @@ echo Num GPUs Per Node: $gpus_per_node
 set -e
 
 # Generate samples
-srun \
-    --container-image $CONTAINER_IMAGE \
-    --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-    bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts"
+#srun \
+#    --container-image $CONTAINER_IMAGE \
+#    --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
+#    bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts"
 
 # Train
 srun \

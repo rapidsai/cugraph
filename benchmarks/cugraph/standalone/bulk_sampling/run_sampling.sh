@@ -46,6 +46,17 @@ else
     ${MG_UTILS_DIR}/run-dask-process.sh workers &
 fi
 
+if [[ $PATCH_CUGRAPH == 1 ]]; then
+    mkdir /opt/cugraph-patch
+    git clone https://github.com/alexbarghi-nv/cugraph -b dlfw-patch-24.01 /opt/cugraph-patch
+    
+    rm /opt/rapids/cugraph/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py
+    cp /opt/cugraph-patch/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py /opt/rapids/cugraph/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py
+    rm /usr/local/lib/python3.10/dist-packages/cugraph/structure/graph_implementation/simpleDistributedGraph.py
+    cp /opt/cugraph-patch/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py /usr/local/lib/python3.10/dist-packages/cugraph/structure/graph_implementation/simpleDistributedGraph.py
+
+fi
+
 echo "properly waiting for workers to connect"
 NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['SLURM_GPUS_PER_NODE']))")
 handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \

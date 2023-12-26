@@ -73,6 +73,11 @@ class PyGCuGraphTrainer(PyGTrainer):
         return self.__num_epochs
 
     def get_loader(self, epoch: int = 0, stage="train") -> int:
+        import logging
+        logger = logging.getLogger("PyGCuGraphTrainer")
+
+        logger.info(f"getting loader for epoch {epoch}, {stage} stage")
+
         # TODO support online sampling
         if stage == "val":
             path = os.path.join(self.__sample_dir, "val", "samples")
@@ -86,6 +91,8 @@ class PyGCuGraphTrainer(PyGTrainer):
             input_files=self.get_input_files(path),
             **self.__loader_kwargs,
         )
+
+        logger.info(f"got loader successfully on rank {self.rank}")
 
     @property
     def data(self):
@@ -130,6 +137,8 @@ class PyGCuGraphTrainer(PyGTrainer):
                 num_edges_dict,
                 num_nodes_dict,
             )
+
+        logger.info(f"got data successfully on rank {self.rank}")
 
         return self.__data
 

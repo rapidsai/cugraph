@@ -14,7 +14,10 @@
 import torch
 
 from torch_geometric.nn import SAGEConv
-from torch_geometric.utils.trim_to_layer import TrimToLayer
+try:
+    from torch_geometric.utils.trim_to_layer import TrimToLayer
+except ModuleNotFoundError:
+    from torch_geometric.utils._trim_to_layer import TrimToLayer
 
 import torch.nn as nn
 import torch.nn.functional as F

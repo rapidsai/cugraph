@@ -203,13 +203,13 @@ def main(args):
     elif args.framework == "cuGraphPyG":
         sample_dir = os.path.join(
             args.sample_dir,
-            f'ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f[{fanout}]'
+            f'ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}'
         )
         from trainers_cugraph_pyg import PyGCuGraphTrainer
         trainer = PyGCuGraphTrainer(
             model=args.model,
             dataset=dataset,
-            sample_dir=args.sample_dir,
+            sample_dir=sample_dir,
             device=local_rank,
             rank=global_rank,
             world_size=world_size,
@@ -222,6 +222,7 @@ def main(args):
     else:
         raise ValueError("unsupported framework")
 
+    logger.info(f"Trainer ready on rank {global_rank}")
     stats = trainer.train()
     logger.info(stats)
 

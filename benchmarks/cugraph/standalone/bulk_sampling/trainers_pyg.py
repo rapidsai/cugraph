@@ -19,6 +19,7 @@ from models_pyg import GraphSAGE
 import torch
 import numpy as np
 
+import torch.distributed as td
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.nn.parallel import DistributedDataParallel as ddp
 
@@ -28,7 +29,7 @@ from torch_geometric.loader import NeighborLoader
 
 import gc
 import os
-
+import time
 
 def pyg_num_workers(world_size):
     num_workers = None
@@ -47,6 +48,7 @@ class PyGTrainer(Trainer):
         import logging
 
         logger = logging.getLogger("PyGTrainer")
+        logger.info("Entered train loop")
 
         total_loss = 0.0
         num_batches = 0
@@ -63,6 +65,8 @@ class PyGTrainer(Trainer):
                 for iter_i, data in enumerate(
                     self.get_loader(epoch=epoch, stage="train")
                 ):
+                    logger.info(f"epoch {epoch}, iteration {iter_i}")
+
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
