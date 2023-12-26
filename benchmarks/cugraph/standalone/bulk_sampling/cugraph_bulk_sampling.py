@@ -704,9 +704,9 @@ def get_args():
     parser.add_argument(
         "--fanouts",
         type=str,
-        help='Semicolon separated list of fanouts (i.e. "10, 25;5, 5, 5")',
+        help='Comma separated list of fanouts (i.e. "10_25,5_5_5")',
         required=False,
-        default='"10, 25;10, 10, 10"',
+        default="10_10_10",
     )
 
     parser.add_argument(
@@ -768,7 +768,7 @@ if __name__ == "__main__":
         )
 
     fanouts = [
-        [int(f) for f in fanout.split(", ")] for fanout in args.fanouts.split(";")
+        [int(f) for f in fanout.split("_")] for fanout in args.fanouts.split(",")
     ]
     datasets = args.datasets.split(",")
     batch_sizes = [int(b) for b in args.batch_sizes.split(",")]
