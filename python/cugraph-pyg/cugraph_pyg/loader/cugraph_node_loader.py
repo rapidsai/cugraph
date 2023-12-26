@@ -452,7 +452,8 @@ class EXPERIMENTAL__BulkSampleLoader:
         start_time_feature = perf_counter()
         # Create a PyG HeteroData object, loading the required features
         if self.__coo:
-            out = torch_geometric.loader.utils.filter_custom_hetero_store(
+            pyg_filter_fn = torch_geometric.loader.utils.filter_custom_hetero_store if hasattr(torch_geometric.loader.utils, 'filter_custom_hetero_store') else torch_geometric.loader.utils.filter_custom_store
+            out = pyg_filter_fn(
                 self.__feature_store,
                 self.__graph_store,
                 sampler_output.node,
