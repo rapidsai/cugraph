@@ -129,3 +129,23 @@ INFO:numba.cuda.cudadrv.driver:init
 INFO:numba.cuda.cudadrv.driver:init
 INFO:numba.cuda.cudadrv.driver:init
 INFO:numba.cuda.cudadrv.driver:init
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** STEP 1595551.1 ON rno1-m02-b08-dgx1-016 CANCELLED AT 2023-12-26T10:31:18 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 1595551 ON rno1-m02-b08-dgx1-016 CANCELLED AT 2023-12-26T10:31:18 DUE TO TIME LIMIT ***
+[2023-12-26 10:31:18,437] torch.distributed.elastic.agent.server.api: [WARNING] Received Signals.SIGTERM death signal, shutting down workers
+[2023-12-26 10:31:18,437] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158391 closing signal SIGTERM
+[2023-12-26 10:31:18,438] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158392 closing signal SIGTERM
+[2023-12-26 10:31:18,439] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158393 closing signal SIGTERM
+[2023-12-26 10:31:18,439] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158394 closing signal SIGTERM
+[2023-12-26 10:31:18,440] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158395 closing signal SIGTERM
+[2023-12-26 10:31:18,440] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158396 closing signal SIGTERM
+[2023-12-26 10:31:18,440] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158397 closing signal SIGTERM
+[2023-12-26 10:31:18,441] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158398 closing signal SIGTERM
+[2023-12-26 10:31:18,473] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158391 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158392 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158393 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158394 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158395 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158396 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158397 closing signal SIGTERM
+[2023-12-26 10:31:18,474] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3158398 closing signal SIGTERM

@@ -83,7 +83,8 @@ class PyGCuGraphTrainer(PyGTrainer):
             path = os.path.join(self.__sample_dir, "val", "samples")
         else:
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
-        return BulkSampleLoader(
+        
+        loader = BulkSampleLoader(
             self.data,
             self.data,
             None,  # FIXME get input nodes properly
@@ -93,6 +94,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         )
 
         logger.info(f"got loader successfully on rank {self.rank}")
+        return loader
 
     @property
     def data(self):
