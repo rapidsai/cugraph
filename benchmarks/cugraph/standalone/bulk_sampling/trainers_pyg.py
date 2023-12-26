@@ -13,6 +13,7 @@
 
 
 from trainer import Trainer
+from trainer import extend_tensor
 from datasets import OGBNPapers100MDataset
 from models_pyg import GraphSAGE
 
@@ -22,6 +23,7 @@ import numpy as np
 import torch.distributed as td
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.nn.parallel import DistributedDataParallel as ddp
+import torch.nn.functional as F
 
 from torch_geometric.utils.sparse import index2ptr
 from torch_geometric.data import HeteroData
@@ -237,7 +239,7 @@ class PyGTrainer(Trainer):
                 )
 
         stats = {
-            "Accuracy": (acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
+            "Accuracy": float(acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
             "# Batches": num_batches,
             "Loader Time": time_loader + time_feature_additional,
             "Forward Time": time_forward,
