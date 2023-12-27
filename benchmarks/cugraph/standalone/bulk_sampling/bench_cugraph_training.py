@@ -67,6 +67,14 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
+        "--gpus_per_node",
+        type=int,
+        default=8,
+        help="# GPUs per node",
+        required=False,
+    )
+
+    parser.add_argument(
         "--num_epochs",
         type=int,
         default=1,
@@ -172,9 +180,7 @@ def main(args):
     print(f"worker initialized")
     dist.barrier()
 
-    world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * int(
-        os.environ["SLURM_GPUS_PER_NODE"]
-    )
+    world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * args.gpus_per_node
 
     dataset = OGBNPapers100MDataset(
         replication_factor=args.replication_factor,

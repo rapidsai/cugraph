@@ -67,18 +67,16 @@ class PyGTrainer(Trainer):
                 for iter_i, data in enumerate(
                     self.get_loader(epoch=epoch, stage="train")
                 ):
-                    logger.info(f"epoch {epoch}, iteration {iter_i}")
-
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
                     additional_feature_time_start = time.perf_counter()
 
                     num_sampled_nodes = sum(
-                        [torch.tensor(n) for n in data.num_sampled_nodes_dict.values()]
+                        [torch.as_tensor(n) for n in data.num_sampled_nodes_dict.values()]
                     )
                     num_sampled_edges = sum(
-                        [torch.tensor(e) for e in data.num_sampled_edges_dict.values()]
+                        [torch.as_tensor(e) for e in data.num_sampled_edges_dict.values()]
                     )
 
                     # FIXME find a way to get around this and not have to call extend_tensor
