@@ -23,7 +23,6 @@ from sklearn.model_selection import train_test_split
 import gc
 import os
 
-# TODO automatically generate this dataset and splits
 class OGBNPapers100MDataset(Dataset):
     def __init__(
         self,
@@ -42,6 +41,86 @@ class OGBNPapers100MDataset(Dataset):
         self.__train_split = train_split
         self.__val_split = val_split
         self.__load_edge_index = load_edge_index
+
+        self.__download_data()
+    
+    def __download_data(self):
+        import logging
+        logger = logging.getLogger('OGBNPapers100MDataset')
+        logger.info("Processing dataset...")
+
+        dataset_path = os.path.join(
+            self.__dataset_dir,
+            'ogbn_papers100M'
+        )
+
+        dataset = None
+        if not os.path.exists(dataset_path):
+            from ogb.nodeproppred import NodePropPredDataset
+            dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
+        
+        features_path = os.path.join(dataset_path, 'npy', 'paper')
+        os.makedirs(features_path, exist_ok=True)
+
+        logger.info("Processing node features...")
+        if self.__replication_factor == 1:
+            replication_path = os.path.join(features_path, "node_feat.npy")
+        else:
+            replication_path = os.path.join(
+                features_path, f"node_feat_{self.__replication_factor}x.npy"
+            )
+        if not os.path.exists(replication_path):
+            if dataset is None:
+                dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
+            
+            node_feat = dataset[0][0]['node_feat']
+            if self.__replication_factor != 1:
+                node_feat_replicated = np.concat(
+                    [node_feat]*self.__replication_factor
+                )
+                node_feat = node_feat_replicated
+            np.save(replication_path, node_feat)
+        
+        logger.info("Processing edge index...")
+        edge_index_parquet_path = os.path.join(dataset_path, 'parquet', 'paper__cites__paper')
+        os.makedirs(edge_index_parquet_path, exist_ok=True)
+
+        edge_index_parquet_file_path = os.path.join(edge_index_parquet_path, 'edge_index.parquet')
+        if not os.path.exists(edge_index_parquet_file_path):
+            if dataset is None:
+                dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
+            
+            edge_index = dataset[0][0]['edge_index']
+            eidf = pandas.DataFrame({
+                'src':edge_index[0],
+                'dst':edge_index[1]
+            })
+            eidf.to_parquet(edge_index_parquet_file_path)
+        
+        edge_index_npy_path = os.path.join(dataset_path, 'npy', 'paper__cites__paper')
+        os.makedirs(edge_index_npy_path)
+
+        edge_index_npy_file_path = os.path.join(edge_index_npy_path, 'edge_index.npy')
+        if not os.path.exists(edge_index_npy_file_path):
+            if dataset is None:
+                dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
+            
+            edge_index = dataset[0][0]['edge_index']
+            np.save(edge_index_npy_file_path, edge_index)
+        
+        logger.info("Processing labels...")
+        node_label_path = os.path.join(dataset_path, 'parquet', 'paper')
+        os.makedirs(node_label_path, exist_ok=True)
+
+        node_label_file_path = os.path.join(node_label_path, 'node_label.parquet')
+        if not os.path.exists(node_label_file_path):
+            if dataset is None:
+                dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
+
+            ldf = pandas.Series(dataset[0][1].T[0])
+            ldf = ldf[ldf>=0].reset_index().rename(columns={'index':'node', 0:'label'})
+            ldf.to_parquet(node_label_file_path)
+
 
     @property
     def edge_index_dict(
