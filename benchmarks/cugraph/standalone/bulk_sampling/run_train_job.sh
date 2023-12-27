@@ -16,6 +16,7 @@ export BATCH_SIZE=512
 export FANOUT="10_10_10"
 export REPLICATION_FACTOR=1
 export NUM_EPOCHS=1
+# options: PyG or cuGraphPyG
 export FRAMEWORK="cuGraphPyG"
 
 export RAPIDS_NO_INITIALIZE=1
