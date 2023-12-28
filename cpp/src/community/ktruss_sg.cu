@@ -23,9 +23,10 @@ template void ktruss(raft::handle_t const& handle,
                      int32_t k,
                      bool do_expensive_check);
 
+
 template void ktruss(raft::handle_t const& handle,
                      graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-                     int32_t k,
+                     int64_t k,
                      bool do_expensive_check);
 
 /*

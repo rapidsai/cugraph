@@ -1995,7 +1995,7 @@ void triangle_count(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void ktruss(raft::handle_t const& handle,
             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            vertex_t k,
+            edge_t counts,
             bool do_expensive_check = false);
 
 /**
