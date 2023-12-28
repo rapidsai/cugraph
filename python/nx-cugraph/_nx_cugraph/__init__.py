@@ -70,6 +70,7 @@ _info = {
         "in_degree_centrality",
         "is_connected",
         "is_isolate",
+        "is_weakly_connected",
         "isolates",
         "k_truss",
         "karate_club_graph",
@@ -85,6 +86,7 @@ _info = {
         "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
+        "number_weakly_connected_components",
         "octahedral_graph",
         "out_degree_centrality",
         "pagerank",
@@ -102,6 +104,7 @@ _info = {
         "truncated_tetrahedron_graph",
         "turan_graph",
         "tutte_graph",
+        "weakly_connected_components",
         "wheel_graph",
         # END: functions
     },

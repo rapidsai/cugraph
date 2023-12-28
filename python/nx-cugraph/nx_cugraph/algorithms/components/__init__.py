@@ -11,3 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .connected import *
+from .weakly_connected import *

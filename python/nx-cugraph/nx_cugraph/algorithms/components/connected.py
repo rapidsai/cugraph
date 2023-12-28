@@ -32,6 +32,11 @@ __all__ = [
 @not_implemented_for("directed")
 @networkx_algorithm
 def number_connected_components(G):
+    G = _to_undirected_graph(G)
+    return _number_connected_components(G)
+
+
+def _number_connected_components(G):
     return sum(1 for _ in connected_components(G))
     # PREFERRED IMPLEMENTATION, BUT PLC DOES NOT HANDLE ISOLATED VERTICES WELL
     # G = _to_undirected_graph(G)
@@ -60,6 +65,10 @@ def _(G):
 @networkx_algorithm
 def connected_components(G):
     G = _to_undirected_graph(G)
+    return _connected_components(G)
+
+
+def _connected_components(G):
     if G.src_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs (or isolated nodes) gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
@@ -89,6 +98,10 @@ def connected_components(G):
 @networkx_algorithm
 def is_connected(G):
     G = _to_undirected_graph(G)
+    return _is_connected(G)
+
+
+def _is_connected(G):
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
             "Connectivity is undefined for the null graph."
