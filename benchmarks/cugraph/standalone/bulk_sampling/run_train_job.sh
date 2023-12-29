@@ -4,7 +4,7 @@
 #SBATCH -p luna
 #SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSamplingPyG
 #SBATCH -N 1
-#SBATCH -t 00:22:00 
+#SBATCH -t 00:25:00 
 
 CONTAINER_IMAGE="/lustre/fsw/rapids/abarghi/dlfw_patched.squash"
 SCRIPTS_DIR=$(pwd)
