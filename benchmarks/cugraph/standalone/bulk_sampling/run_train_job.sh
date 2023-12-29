@@ -6,24 +6,20 @@
 #SBATCH -N 1
 #SBATCH -t 00:22:00 
 
-export CONTAINER_IMAGE="/lustre/fsw/rapids/abarghi/dlfw_patched.squash"
-export SCRIPTS_DIR=$(pwd)
-export LOGS_DIR="/lustre/fsw/rapids/abarghi/logs"
-export SAMPLES_DIR="/lustre/fsw/rapids/abarghi/samples"
-export DATASETS_DIR="/lustre/fsw/rapids/gnn_datasets"
+CONTAINER_IMAGE="/lustre/fsw/rapids/abarghi/dlfw_patched.squash"
+SCRIPTS_DIR=$(pwd)
+LOGS_DIR=${LOGS_DIR:=$(pwd)"/logs"}
+SAMPLES_DIR=${SAMPLES_DIR:=$(pwd)/samples}
+DATASETS_DIR=${DATASETS_DIR:=$(pwd)/datasets}
 
-export BATCH_SIZE=512
-export FANOUT="10_10_10"
-export REPLICATION_FACTOR=1
-export NUM_EPOCHS=1
+BATCH_SIZE=512
+FANOUT="10_10_10"
+NUM_EPOCHS=1
+REPLICATION_FACTOR=1
+
 # options: PyG or cuGraphPyG
-export FRAMEWORK="cuGraphPyG"
-
-export RAPIDS_NO_INITIALIZE=1
-export CUDF_SPILL=1
-export LIBCUDF_CUFILE_POLICY="KVIKIO"
-export KVIKIO_NTHREADS=64
-export GPUS_PER_NODE=8
+FRAMEWORK="cuGraphPyG"
+GPUS_PER_NODE=8
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
 nodes_array=($nodes)
@@ -54,6 +50,11 @@ fi
 srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
+    RAPIDS_NO_INITIALIZE=1 \
+    CUDF_SPILL=1 \
+    LIBCUDF_CUFILE_POLICY="KVIKIO" \
+    KVIKIO_NTHREADS=64 \
+    GPUS_PER_NODE=$gpus_per_node \
     torchrun \
         --nnodes $nnodes \
         --nproc-per-node $gpus_per_node \
