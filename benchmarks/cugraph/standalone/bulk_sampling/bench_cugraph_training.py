@@ -12,9 +12,13 @@
 # limitations under the License.
 
 
-import json
-import argparse
 import os
+os.environ['RAPIDS_NO_INITIALIZE'] = 1
+os.environ['CUDF_SPILL'] = 1
+os.environ['LIBCUDF_CUFILE_POLICY'] = "KVIKIO"
+os.environ['KVIKIO_NTHREADS'] = 64
+
+import argparse
 import json
 import warnings
 
