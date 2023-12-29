@@ -197,7 +197,7 @@ def main(args):
     fanout = [int(f) for f in args.fanout.split("_")]
 
     if args.framework == "PyG":
-        from trainers_pyg import PyGNativeTrainer
+        from trainers.pyg import PyGNativeTrainer
         trainer = PyGNativeTrainer(
             model=args.model,
             dataset=dataset,
@@ -215,7 +215,7 @@ def main(args):
             args.sample_dir,
             f'ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}'
         )
-        from trainers_cugraph_pyg import PyGCuGraphTrainer
+        from trainers.pyg import PyGCuGraphTrainer
         trainer = PyGCuGraphTrainer(
             model=args.model,
             dataset=dataset,

@@ -12,10 +12,10 @@
 # limitations under the License.
 
 
-from trainer import Trainer
-from trainer import extend_tensor
+from trainers import Trainer
+from trainers import extend_tensor
 from datasets import OGBNPapers100MDataset
-from models_pyg import GraphSAGE
+from models.pyg import GraphSAGE
 
 import torch
 import numpy as np
