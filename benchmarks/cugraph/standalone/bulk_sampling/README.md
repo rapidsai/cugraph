@@ -135,6 +135,9 @@ The dataset will be correctly preprocessed when you run training.  In case you h
 can also run preprocessing by running the training script on a single worker, which will avoid a timeout
 which crashes the script.
 
+The multi-GPU utilities are in `mg_utils` in the top level of the cuGraph repository.  You should either
+copy them to this directory or symlink to them before running the scripts.
+
 ### Arguments
 You will need to modify the bash scripts to run appopriately for your environment and
 desired training workflow.  The standard sbatch arguments are at the top of the script, such as
