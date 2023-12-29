@@ -186,7 +186,7 @@ def sample_graph(
     batches_per_partition=100,
     fanout=[5, 5, 5],
     num_epochs=1,
-    train_perc=0.7,
+    train_perc=0.8,
     val_perc=0.5,
     sampling_kwargs={},
 ):
@@ -586,7 +586,7 @@ def benchmark_cugraph_bulk_sampling(
             "include_hop_column": True,
         }
 
-    batches_per_partition = 400_000 // batch_size
+    batches_per_partition = 600_000 // batch_size
     execution_time, allocation_counts = sample_graph(
         G=G,
         label_df=dask_label_df,

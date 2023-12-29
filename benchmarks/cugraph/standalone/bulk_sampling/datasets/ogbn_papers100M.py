@@ -22,6 +22,7 @@ from sklearn.model_selection import train_test_split
 
 import gc
 import os
+import json
 
 class OGBNPapers100MDataset(Dataset):
     def __init__(
@@ -41,10 +42,8 @@ class OGBNPapers100MDataset(Dataset):
         self.__train_split = train_split
         self.__val_split = val_split
         self.__load_edge_index = load_edge_index
-
-        self.__download_data()
     
-    def __download_data(self):
+    def download(self):
         import logging
         logger = logging.getLogger('OGBNPapers100MDataset')
         logger.info("Processing dataset...")
@@ -53,6 +52,18 @@ class OGBNPapers100MDataset(Dataset):
             self.__dataset_dir,
             'ogbn_papers100M'
         )
+
+        meta_json_path = os.path.join(
+            dataset_path, 
+            'meta.json'
+        )
+        if not os.path.exists(meta_json_path):
+            j = {
+                'num_nodes': {'paper': 111059956},
+                'num_edges': {"paper__cites__paper": 1615685872},
+            }
+            with open(meta_json_path, 'w') as file:
+                json.dump(j, file)
 
         dataset = None
         if not os.path.exists(dataset_path):
@@ -71,6 +82,7 @@ class OGBNPapers100MDataset(Dataset):
             )
         if not os.path.exists(replication_path):
             if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
                 dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
             
             node_feat = dataset[0][0]['node_feat']
@@ -88,6 +100,7 @@ class OGBNPapers100MDataset(Dataset):
         edge_index_parquet_file_path = os.path.join(edge_index_parquet_path, 'edge_index.parquet')
         if not os.path.exists(edge_index_parquet_file_path):
             if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
                 dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
             
             edge_index = dataset[0][0]['edge_index']
@@ -98,11 +111,12 @@ class OGBNPapers100MDataset(Dataset):
             eidf.to_parquet(edge_index_parquet_file_path)
         
         edge_index_npy_path = os.path.join(dataset_path, 'npy', 'paper__cites__paper')
-        os.makedirs(edge_index_npy_path)
+        os.makedirs(edge_index_npy_path, exist_ok=True)
 
         edge_index_npy_file_path = os.path.join(edge_index_npy_path, 'edge_index.npy')
         if not os.path.exists(edge_index_npy_file_path):
             if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
                 dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
             
             edge_index = dataset[0][0]['edge_index']
@@ -115,6 +129,7 @@ class OGBNPapers100MDataset(Dataset):
         node_label_file_path = os.path.join(node_label_path, 'node_label.parquet')
         if not os.path.exists(node_label_file_path):
             if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
                 dataset = NodePropPredDataset(name='ogbn-papers100M', root=self.__dataset_dir)
 
             ldf = pandas.Series(dataset[0][1].T[0])
@@ -134,7 +149,7 @@ class OGBNPapers100MDataset(Dataset):
             if self.__load_edge_index:
                 npy_path = os.path.join(
                     self.__dataset_dir,
-                    "ogbn_papers100M_copy",
+                    "ogbn_papers100M",
                     "npy",
                     "paper__cites__paper",
                     "edge_index.npy",

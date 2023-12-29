@@ -49,6 +49,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         self.__sample_dir = sample_dir
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
+        self.__optimizer = None
 
     @property
     def rank(self):
@@ -64,9 +65,10 @@ class PyGCuGraphTrainer(PyGTrainer):
 
     @property
     def optimizer(self):
-        return ZeroRedundancyOptimizer(
-            self.model.parameters(), torch.optim.Adam, lr=0.01
-        )
+        if self.__optimizer is None:
+            self.__optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01,
+                                    weight_decay=0.0005)
+        return self.__optimizer
 
     @property
     def num_epochs(self) -> int:
@@ -89,7 +91,7 @@ class PyGCuGraphTrainer(PyGTrainer):
             self.data,
             None,  # FIXME get input nodes properly
             directory=path,
-            input_files=self.get_input_files(path),
+            input_files=self.get_input_files(path, epoch=epoch, stage=stage),
             **self.__loader_kwargs,
         )
 
@@ -169,7 +171,14 @@ class PyGCuGraphTrainer(PyGTrainer):
 
         return model
 
-    def get_input_files(self, path):
+    def get_input_files(self, path, epoch=0, stage='train'):
         file_list = np.array(os.listdir(path))
+        file_list.sort()
 
-        return np.array_split(file_list, self.__world_size)[self.__rank]
+        if stage == 'train':
+            splits = np.array_split(file_list, self.__world_size)
+            np.random.seed(epoch)
+            np.random.shuffle(splits)
+            return splits[self.rank]
+        else:
+            return file_list

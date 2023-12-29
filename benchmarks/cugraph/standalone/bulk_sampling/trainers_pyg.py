@@ -21,7 +21,6 @@ import torch
 import numpy as np
 
 import torch.distributed as td
-from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.nn.parallel import DistributedDataParallel as ddp
 import torch.nn.functional as F
 
@@ -63,7 +62,8 @@ class PyGTrainer(Trainer):
         end_time_backward = start_time
 
         for epoch in range(self.num_epochs):
-            with td.algorithms.join.Join([self.model, self.optimizer]):
+            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+                self.model.train()
                 for iter_i, data in enumerate(
                     self.get_loader(epoch=epoch, stage="train")
                 ):
@@ -112,6 +112,7 @@ class PyGTrainer(Trainer):
                     start_time_forward = time.perf_counter()
                     edge_index = data.edge_index if "edge_index" in data else data.adj_t
 
+                    self.optimizer.zero_grad()
                     y_pred = self.model(
                         x,
                         edge_index,
@@ -160,7 +161,8 @@ class PyGTrainer(Trainer):
                 task="multiclass", num_classes=self.dataset.num_labels
             ).cuda()
 
-            with td.algorithms.join.Join([self.model, self.optimizer]):
+            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+                self.model.eval()
                 if self.rank == 0:
                     acc_sum = 0.0
                     with torch.no_grad():
@@ -169,13 +171,13 @@ class PyGTrainer(Trainer):
                         ):
                             num_sampled_nodes = sum(
                                 [
-                                    torch.tensor(n)
+                                    torch.as_tensor(n)
                                     for n in batch.num_sampled_nodes_dict.values()
                                 ]
                             )
                             num_sampled_edges = sum(
                                 [
-                                    torch.tensor(e)
+                                    torch.as_tensor(e)
                                     for e in batch.num_sampled_edges_dict.values()
                                 ]
                             )
@@ -199,7 +201,8 @@ class PyGTrainer(Trainer):
 
             td.barrier()
 
-        with td.algorithms.join.Join([self.model, self.optimizer]):
+        with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            self.model.eval()
             if self.rank == 0:
                 acc_sum = 0.0
                 with torch.no_grad():
@@ -208,13 +211,13 @@ class PyGTrainer(Trainer):
                     ):
                         num_sampled_nodes = sum(
                             [
-                                torch.tensor(n)
+                                torch.as_tensor(n)
                                 for n in batch.num_sampled_nodes_dict.values()
                             ]
                         )
                         num_sampled_edges = sum(
                             [
-                                torch.tensor(e)
+                                torch.as_tensor(e)
                                 for e in batch.num_sampled_edges_dict.values()
                             ]
                         )
@@ -266,6 +269,11 @@ class PyGNativeTrainer(PyGTrainer):
         self.__world_size = world_size
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
+        self.__optimizer = None
+
+    @property
+    def rank(self):
+        return self.__rank
 
     @property
     def model(self):
@@ -331,25 +339,35 @@ class PyGNativeTrainer(PyGTrainer):
 
     @property
     def optimizer(self):
-        return ZeroRedundancyOptimizer(
-            self.model.parameters(), torch.optim.Adam, lr=0.01
-        )
+        if self.__optimizer is None:
+            self.__optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01,
+                                    weight_decay=0.0005)
+        return self.__optimizer
 
     @property
     def num_epochs(self) -> int:
         return self.__num_epochs
 
-    def get_loader(self, epoch: int):
+    def get_loader(self, epoch: int = 0, stage="train"):
         import logging
 
         logger = logging.getLogger("PyGNativeTrainer")
         logger.info(f"Getting loader for epoch {epoch}")
 
+        if stage == 'train':
+            mask_dict = self.__dataset.train_dict 
+        elif stage == 'test':
+            mask_dict = self.__dataset.test_dict
+        elif stage == 'val':
+            mask_dict = self.__dataset.val_dict
+        else:
+            raise ValueError(f"Invalid stage {stage}")
+
         input_nodes_dict = {
             node_type: np.array_split(
-                np.arange(len(train_mask))[train_mask], self.__world_size
+                np.arange(len(mask))[mask], self.__world_size
             )[self.__rank]
-            for node_type, train_mask in self.__dataset.train_dict.items()
+            for node_type, mask in mask_dict.items()
         }
 
         input_nodes = list(input_nodes_dict.items())

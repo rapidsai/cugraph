@@ -187,8 +187,12 @@ def main(args):
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
-        load_edge_index=(args.framework == "Native"),
+        load_edge_index=(args.framework == "PyG"),
     )
+
+    if global_rank == 0:
+        dataset.download()
+    dist.barrier()
 
     fanout = [int(f) for f in args.fanout.split("_")]
 
