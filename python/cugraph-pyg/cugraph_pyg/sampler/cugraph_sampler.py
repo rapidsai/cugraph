@@ -199,7 +199,6 @@ class EXPERIMENTAL__CuGraphSampler:
             # conversion required by cugraph api
             list(num_neighbors),
             replace,
-            with_edge_properties=True,
         )
 
         if self.__graph_store._is_delayed:

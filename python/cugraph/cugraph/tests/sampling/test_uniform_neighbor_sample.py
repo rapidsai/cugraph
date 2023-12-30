@@ -333,7 +333,6 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         start_list=start_df["seed"],
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         batch_id_list=start_df["batch"],
         return_offsets=return_offsets,
     )
@@ -393,7 +392,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         random_state=80,
     )
 
@@ -446,7 +444,6 @@ def test_uniform_neighbor_sample_empty_start_list():
         batch_id_list=cudf.Series([], dtype="int32"),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         random_state=32,
     )
 

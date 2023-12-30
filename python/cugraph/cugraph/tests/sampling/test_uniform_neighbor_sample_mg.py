@@ -353,7 +353,6 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         start_list=cudf.Series([0, 4], dtype="int64"),
         fanout_vals=[-1, -1],
         with_replacement=False,
-        with_edge_properties=True,
         batch_id_list=cudf.Series([0, 1], dtype="int32"),
         label_list=cudf.Series([0, 1], dtype="int32") if return_offsets else None,
         label_to_output_comm_rank=cudf.Series(dest_rank, dtype="int32")
@@ -447,7 +446,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -507,7 +505,6 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
         start_list=cudf.Series([0]),
         fanout_vals=[10, 25],
         with_replacement=with_replacement,
-        with_edge_properties=True,
         batch_id_list=cudf.Series([10], dtype="int32"),
     )
 
@@ -541,7 +538,6 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
         batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -608,7 +604,6 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         batch_id_list=input_batch,
         fanout_vals=[5, 5],
         with_replacement=False,
-        with_edge_properties=True,
     )
 
     for batch_id in range(max_batches):
