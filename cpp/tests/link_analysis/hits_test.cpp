@@ -229,7 +229,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         offsets.data(),
         indices.data(),
         unrenumbered_graph_view.number_of_vertices(),
-        unrenumbered_graph_view.number_of_edges(),
+        unrenumbered_graph_view.compute_number_of_edges(handle),
         maximum_iterations,
         (hits_usecase.check_initial_input) ? std::make_optional(initial_random_hubs.data())
                                            : std::nullopt,

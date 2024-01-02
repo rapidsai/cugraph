@@ -12,6 +12,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import os
 import sys
 
 import networkx as nx
@@ -246,7 +247,51 @@ class BackendInterface:
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
             key("test_efficiency.py:TestEfficiency.test_using_ego_graph"): maybe_oom,
+            key("test_dag.py:TestDAG.test_antichains"): maybe_oom,
+            key(
+                "test_lowest_common_ancestors.py:"
+                "TestDAGLCA.test_all_pairs_lca_pairs_without_lca"
+            ): maybe_oom,
+            key(
+                "test_lowest_common_ancestors.py:"
+                "TestMultiDiGraph_DAGLCA.test_all_pairs_lca_pairs_without_lca"
+            ): maybe_oom,
+            # These repeatedly call `bfs_layers`, which converts the graph every call
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph2_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph3_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph3_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph4_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_all_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_all_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_some_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestMultiGraphISOVF2pp."
+                "test_custom_multigraph3_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp_helpers.py:TestNodeOrdering."
+                "test_matching_order_all_branches"
+            ): too_slow,
         }
+        if os.environ.get("PYTEST_NO_SKIP", False):
+            skip.clear()
 
         for item in items:
             kset = set(item.keywords)

@@ -93,7 +93,7 @@ void sssp(raft::handle_t const& handle,
                 "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.number_of_vertices();
-  auto const num_edges    = push_graph_view.number_of_edges();
+  auto const num_edges    = push_graph_view.compute_number_of_edges(handle);
   if (num_vertices == 0) { return; }
 
   // implements the Near-Far Pile method in

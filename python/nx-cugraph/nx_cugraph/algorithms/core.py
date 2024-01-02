@@ -15,7 +15,12 @@ import networkx as nx
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
-from nx_cugraph.utils import _get_int_dtype, networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import (
+    _get_int_dtype,
+    index_dtype,
+    networkx_algorithm,
+    not_implemented_for,
+)
 
 __all__ = ["k_truss"]
 
@@ -31,7 +36,11 @@ def k_truss(G, k):
     if is_nx := isinstance(G, nx.Graph):
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     if nxcg.number_of_selfloops(G) > 0:
-        raise nx.NetworkXError(
+        if nx.__version__[:3] <= "3.2":
+            exc_class = nx.NetworkXError
+        else:
+            exc_class = nx.NetworkXNotImplemented
+        raise exc_class(
             "Input graph has self loops which is not permitted; "
             "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
         )
@@ -77,10 +86,8 @@ def k_truss(G, k):
         edge_values = {key: val[edge_indices] for key, val in G.edge_values.items()}
         edge_masks = {key: val[edge_indices] for key, val in G.edge_masks.items()}
     # Renumber step 2: edge indices
-    mapper = cp.zeros(len(G), src_indices.dtype)
-    mapper[node_indices] = cp.arange(node_indices.size, dtype=mapper.dtype)
-    src_indices = mapper[src_indices]
-    dst_indices = mapper[dst_indices]
+    src_indices = cp.searchsorted(node_indices, src_indices).astype(index_dtype)
+    dst_indices = cp.searchsorted(node_indices, dst_indices).astype(index_dtype)
     # Renumber step 3: node values
     node_values = {key: val[node_indices] for key, val in G.node_values.items()}
     node_masks = {key: val[node_indices] for key, val in G.node_masks.items()}
