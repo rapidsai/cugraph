@@ -27,7 +27,7 @@ __all__ = ["k_truss"]
 
 @not_implemented_for("directed")
 @not_implemented_for("multigraph")
-@networkx_algorithm(plc="k_truss_subgraph", version_added="23.12")
+@networkx_algorithm(is_incomplete=True, plc="k_truss_subgraph", version_added="23.12")
 def k_truss(G, k):
     """
     Currently raises `NotImplementedError` for graphs with more than one connected

@@ -30,6 +30,8 @@ __all__ = ["louvain_communities"]
 
 @not_implemented_for("directed")
 @networkx_algorithm(
+    is_incomplete=True,  # seed not supported; self-loops not supported
+    is_different=True,  # RNG different
     extra_params={
         "max_level : int, optional": (
             "Upper limit of the number of macro-iterations (max: 500)."

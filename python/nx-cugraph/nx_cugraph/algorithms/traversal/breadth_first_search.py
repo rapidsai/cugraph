@@ -57,7 +57,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     """`neighbors` and `sort_neighbors` parameters are not yet supported."""
     return bfs_edges(source, depth_limit=depth_limit)
@@ -68,7 +68,7 @@ def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     return neighbors is None and sort_neighbors is None
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -95,7 +95,7 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -149,7 +149,7 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_successors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -201,7 +201,7 @@ def bfs_layers(G, sources):
     return (G._nodearray_to_list(groups[key]) for key in range(len(groups)))
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)

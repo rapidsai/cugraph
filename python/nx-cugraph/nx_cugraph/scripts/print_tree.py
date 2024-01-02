@@ -42,6 +42,8 @@ def get_extra(
     version_added=False,
     plc=False,
     dispatch_name_if_different=False,
+    incomplete=False,
+    different=False,
 ):
     extra = []
     if networkx_path:
@@ -58,6 +60,10 @@ def get_extra(
         extra.append(v[:2] + "." + v[-2:])
     if plc and info.plc:
         extra.append(info.plc)
+    if incomplete and info.is_incomplete:
+        extra.append("is-incomplete")
+    if different and info.is_different:
+        extra.append("is-different")
     return extra
 
 
@@ -71,6 +77,8 @@ def create_tree(
     version_added=False,
     plc=False,
     dispatch_name_if_different=False,
+    incomplete=False,
+    different=False,
     prefix="",
 ):
     if path_to_info is None:
@@ -106,6 +114,8 @@ def main(
     version_added=False,
     plc=False,
     dispatch_name_if_different=True,
+    incomplete=False,
+    different=False,
     file=sys.stdout,
 ):
     if path_to_info is None:
@@ -116,6 +126,8 @@ def main(
         "version_added": version_added,
         "plc": plc,
         "dispatch_name_if_different": dispatch_name_if_different,
+        "incomplete": incomplete,
+        "different": different,
     }
     if by == "networkx_path":
         G = create_tree(path_to_info, by="networkx_path", **kwargs)
@@ -199,6 +211,16 @@ def get_argumentparser(add_help=True):
         action="store_true",
         help="Show the full networkx path in parentheses",
     )
+    parser.add_argument(
+        "--incomplete",
+        action="store_true",
+        help="Show which functions are incomplete",
+    )
+    parser.add_argument(
+        "--different",
+        action="store_true",
+        help="Show which functions are different",
+    )
     return parser
 
 
@@ -212,4 +234,6 @@ if __name__ == "__main__":
         version_added=args.version_added,
         plc=args.plc,
         dispatch_name_if_different=not args.dispatch_name_always,
+        incomplete=args.incomplete,
+        different=args.different,
     )

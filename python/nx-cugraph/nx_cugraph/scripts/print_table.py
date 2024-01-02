@@ -32,7 +32,10 @@ def get_path_to_name():
     }
 
 
-Info = namedtuple("Info", "networkx_path, dispatch_name, version_added, plc")
+Info = namedtuple(
+    "Info",
+    "networkx_path, dispatch_name, version_added, plc, is_incomplete, is_different",
+)
 
 
 def get_path_to_info(path_to_name=None, version_added_sep=".", plc_sep="/"):
@@ -44,14 +47,18 @@ def get_path_to_info(path_to_name=None, version_added_sep=".", plc_sep="/"):
         cufunc = getattr(BackendInterface, funcname)
         plc = plc_sep.join(sorted(cufunc._plc_names)) if cufunc._plc_names else ""
         version_added = cufunc.version_added.replace(".", version_added_sep)
-        rv[funcpath] = Info(funcpath, funcname, version_added, plc)
+        is_incomplete = cufunc.is_incomplete
+        is_different = cufunc.is_different
+        rv[funcpath] = Info(
+            funcpath, funcname, version_added, plc, is_incomplete, is_different
+        )
     return rv
 
 
 def main(path_to_info=None, *, file=sys.stdout):
     if path_to_info is None:
         path_to_info = get_path_to_info(version_added_sep=".")
-    lines = ["networkx_path,dispatch_name,version_added,plc"]
+    lines = ["networkx_path,dispatch_name,version_added,plc,is_incomplete,is_different"]
     lines.extend(",".join(info) for info in path_to_info.values())
     text = "\n".join(lines)
     print(text, file=file)

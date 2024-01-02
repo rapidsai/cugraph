@@ -18,7 +18,12 @@ from nx_cugraph.utils import _seed_to_int, networkx_algorithm
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 
 
-@networkx_algorithm(plc="betweenness_centrality", version_added="23.10")
+@networkx_algorithm(
+    is_incomplete=True,  # weight not supported
+    is_different=True,  # RNG with seed is different
+    plc="betweenness_centrality",
+    version_added="23.10",
+)
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
 ):
@@ -46,7 +51,12 @@ def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
     return weight is None
 
 
-@networkx_algorithm(plc="edge_betweenness_centrality", version_added="23.10")
+@networkx_algorithm(
+    is_incomplete=True,  # weight not supported
+    is_different=True,  # RNG with seed is different
+    plc="edge_betweenness_centrality",
+    version_added="23.10",
+)
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
     """`weight` parameter is not yet supported."""
     if weight is not None:
