@@ -26,6 +26,7 @@ jobs:
       - wheel-build-nx-cugraph
       - wheel-tests-nx-cugraph
       - wheel-build-cugraph-dgl
+      - wheel-tests-cugraph-dgl
       - wheel-build-cugraph-pyg
       - devcontainer
     secrets: inherit
@@ -136,6 +137,13 @@ jobs:
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph-dgl.sh
+  wheel-tests-cugraph-dgl:
+    needs: wheel-build-cugraph-dgl
+    secrets: inherit
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
+    with:
+      build_type: pull-request
+      script: ci/test_wheel_cugraph-dgl.sh
   wheel-build-cugraph-pyg:
     needs: wheel-tests-cugraph
     secrets: inherit
