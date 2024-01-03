@@ -100,6 +100,8 @@ def create_tree(
             version_added=version_added,
             plc=plc,
             dispatch_name_if_different=dispatch_name_if_different,
+            incomplete=incomplete,
+            different=different,
         )
         add_branch(G, path, extra=extra, skip=skip)
     return G
