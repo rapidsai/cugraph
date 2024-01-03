@@ -125,7 +125,6 @@ def parse_args():
 
     parser.add_argument(
         "--use_wholegraph",
-        type=bool,
         action="store_true",
         help="Whether to use WholeGraph feature storage",
         required=False,
@@ -194,12 +193,28 @@ def main(args):
 
     world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * args.gpus_per_node
 
+    if args.use_wholegraph:
+        # TODO support DGL too
+        # TODO support WG without cuGraph
+        if args.framework not in ["cuGraphPyG"]:
+            raise ValueError('WG feature store only supported with cuGraph backends')
+        from pylibwholegraph.torch.initialize import get_global_communicator, get_local_node_communicator
+
+        logger.info("initializing WG comms...")
+        wm_comm = get_global_communicator()
+        get_local_node_communicator()
+
+        wm_comm = wm_comm.wmb_comm
+        logger.info(f"rank {global_rank} successfully initialized WG comms")
+        wm_comm.barrier()
+
     dataset = OGBNPapers100MDataset(
         replication_factor=args.replication_factor,
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
         load_edge_index=(args.framework == "PyG"),
+        backend='wholegraph' if args.use_wholegraph else 'torch',
     )
 
     if global_rank == 0:

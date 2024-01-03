@@ -192,6 +192,8 @@ class FeatureStore:
             else:
                 return _cast_to_torch_tensor(feat_obj, **kwargs)
         elif backend == "wholegraph":
+            if isinstance(feat_obj, wgth.WholeMemoryEmbedding):
+                return feat_obj
             return _get_wg_embedding(feat_obj, **kwargs)
 
 
