@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,31 +11,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_primtypes_wrapper import Direction
-from cugraph.structure.number_map import NumberMap
-from cugraph.structure.symmetrize import symmetrize
-import cupy
-import cudf
+import gc
+from typing import Union
 import warnings
-import dask_cudf
+
+import cudf
 import cupy as cp
 import dask
-from typing import Union
+import dask_cudf
+from dask import delayed
+from dask.distributed import wait, default_client
 import numpy as np
-
 from pylibcugraph import (
     MGGraph,
     ResourceHandle,
     GraphProperties,
-)
-
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
 )
+
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.graph_primtypes_wrapper import Direction
+from cugraph.structure.number_map import NumberMap
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.dask.common.part_utils import (
+    get_persisted_df_worker_map,
+    persist_dask_df_equal_parts_per_worker,
+)
+from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
+from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
 
 
@@ -75,6 +79,12 @@ class simpleDistributedGraphImpl:
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
+        self.weight_column = None
+        self.vertex_columns = None
+        self.vertex_type = None
+        self.weight_type = None
+        self.edge_id_type = None
+        self.edge_type_id_type = None
 
     def _make_plc_graph(
         sID,
@@ -83,40 +93,69 @@ class simpleDistributedGraphImpl:
         src_col_name,
         dst_col_name,
         store_transposed,
-        num_edges,
+        vertex_type,
+        weight_type,
+        edge_id_type,
+        edge_type_id,
     ):
+        weights = None
+        edge_ids = None
+        edge_types = None
 
-        if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            values = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
-            if values.dtype == "int32":
-                values = values.astype("float32")
-            elif values.dtype == "int64":
-                values = values.astype("float64")
-        else:
-            # Some algos require the graph to be weighted
-            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+        num_arrays = len(edata_x)
+        if weight_type is not None:
+            weights = [
+                edata_x[i][simpleDistributedGraphImpl.edgeWeightCol]
+                for i in range(num_arrays)
+            ]
+            if weight_type == "int32":
+                weights = [w_array.astype("float32") for w_array in weights]
+            elif weight_type == "int64":
+                weights = [w_array.astype("float64") for w_array in weights]
 
-        if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
-                raise ValueError("Must provide both edge id and edge type")
+        if edge_id_type is not None:
+            edge_ids = [
+                edata_x[i][simpleDistributedGraphImpl.edgeIdCol]
+                for i in range(num_arrays)
+            ]
+            if vertex_type == "int64" and edge_id_type != "int64":
+                edge_ids = [e_id_array.astype("int64") for e_id_array in edge_ids]
+                warnings.warn(
+                    f"Vertex type is int64 but edge id type is {edge_ids[0].dtype}"
+                    ", automatically casting edge id type to int64. "
+                    "This may cause extra memory usage.  Consider passing"
+                    " a int64 list of edge ids instead."
+                )
+        if edge_type_id is not None:
+            edge_types = [
+                edata_x[i][simpleDistributedGraphImpl.edgeTypeCol]
+                for i in range(num_arrays)
+            ]
 
-            values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
-            values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
-        else:
-            values_id, values_etype = None, None
-
-        return MGGraph(
+        src_array = [edata_x[i][src_col_name] for i in range(num_arrays)]
+        dst_array = [edata_x[i][dst_col_name] for i in range(num_arrays)]
+        plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
-            src_array=edata_x[0][src_col_name],
-            dst_array=edata_x[0][dst_col_name],
-            weight_array=values,
-            edge_id_array=values_id,
-            edge_type_array=values_etype,
+            src_array=src_array if src_array else cudf.Series(dtype=vertex_type),
+            dst_array=dst_array if dst_array else cudf.Series(dtype=vertex_type),
+            weight_array=weights
+            if weights
+            else ([cudf.Series(dtype=weight_type)] if weight_type else None),
+            edge_id_array=edge_ids
+            if edge_ids
+            else ([cudf.Series(dtype=edge_id_type)] if edge_id_type else None),
+            edge_type_array=edge_types
+            if edge_types
+            else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
+            num_arrays=num_arrays,
             store_transposed=store_transposed,
-            num_edges=num_edges,
             do_expensive_check=False,
         )
+        del edata_x
+        gc.collect()
+
+        return plc_graph
 
     # Functions
     def __from_edgelist(
@@ -125,11 +164,13 @@ class simpleDistributedGraphImpl:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
     ):
-
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
@@ -157,12 +198,21 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
-
+        self.vertex_columns = ddf_columns.copy()
+        _client = default_client()
+        workers = _client.scheduler_info()["workers"]
+        # Repartition to 2 partitions per GPU for memory efficient process
+        input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
+            if weight is not None or edge_id is not None or edge_type is not None:
+                raise ValueError(
+                    "If specifying edge_attr, cannot specify weight/edge_id/edge_type"
+                )
             if isinstance(edge_attr, str):
-                edge_attr = [edge_attr]
+                weight = edge_attr
+                edge_attr = [weight]
             if not (set(edge_attr).issubset(set(input_ddf.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
@@ -175,14 +225,12 @@ class simpleDistributedGraphImpl:
                 value_col_names = [self.edgeWeightCol]
             elif len(edge_attr) == 3:
                 weight_col, id_col, type_col = edge_attr
-                input_ddf = input_ddf.rename(
-                    columns={
-                        weight_col: self.edgeWeightCol,
-                        id_col: self.edgeIdCol,
-                        type_col: self.edgeTypeCol,
-                    }
-                )
-
+                input_ddf = input_ddf[ddf_columns + [weight_col, id_col, type_col]]
+                input_ddf.columns = ddf_columns + [
+                    self.edgeWeightCol,
+                    self.edgeIdCol,
+                    self.edgeTypeCol,
+                ]
                 value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
             else:
                 raise ValueError("Only 1 or 3 values may be provided" "for edge_attr")
@@ -190,29 +238,47 @@ class simpleDistributedGraphImpl:
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
+            # FIXME: Drop the check in symmetrize.py as it is redundant
             if len(edge_attr) == 3:
                 if not self.properties.directed:
                     raise ValueError(
-                        "User-provided edge ids and edge "
+                        "User-provided edge ids and/or edge "
                         "types are not permitted for an "
                         "undirected graph."
                     )
 
+        else:
+            value_col_names = {}
+            if weight is not None:
+                value_col_names[weight] = self.edgeWeightCol
+                self.properties.weighted = True
+            if edge_id is not None:
+                value_col_names[edge_id] = self.edgeIdCol
+            if edge_type is not None:
+                value_col_names[edge_type] = self.edgeTypeCol
+
+            if len(value_col_names.keys()) > 0:
+                input_ddf = input_ddf.rename(columns=value_col_names)
+            value_col_names = list(value_col_names.values())
+
+        ddf_columns += value_col_names
+        input_ddf = input_ddf[ddf_columns]
+
+        if len(value_col_names) == 0:
+            source_col, dest_col = symmetrize(
+                input_ddf,
+                source,
+                destination,
+                multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed,
+            )
+            value_col = None
+        else:
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
                 source,
                 destination,
                 value_col_names,
-                multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed,
-            )
-
-        else:
-            input_ddf = input_ddf[ddf_columns]
-            source_col, dest_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed,
             )
@@ -227,11 +293,9 @@ class simpleDistributedGraphImpl:
             # Multi column dask_cudf dataframe
             input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
 
-        if edge_attr is not None:
-            input_ddf[self.edgeWeightCol] = value_col[self.edgeWeightCol]
-            if len(edge_attr) == 3:
-                input_ddf[self.edgeIdCol] = value_col[self.edgeIdCol]
-                input_ddf[self.edgeTypeCol] = value_col[self.edgeTypeCol]
+        if value_col is not None:
+            for vc in value_col_names:
+                input_ddf[vc] = value_col[vc]
 
         self.input_df = input_ddf
 
@@ -245,6 +309,7 @@ class simpleDistributedGraphImpl:
         self.properties.renumber = renumber
         self.source_columns = source
         self.destination_columns = destination
+        self.weight_column = weight
 
         # If renumbering is not enabled, this function will only create
         # the edgelist_df and not do any renumbering.
@@ -269,31 +334,52 @@ class simpleDistributedGraphImpl:
 
         ddf = self.edgelist.edgelist_df
 
-        num_edges = len(ddf)
-        edge_data = get_distributed_data(ddf)
+        # Get the edgelist dtypes
+        self.vertex_type = ddf[src_col_name].dtype
+        if simpleDistributedGraphImpl.edgeWeightCol in ddf.columns:
+            self.weight_type = ddf[simpleDistributedGraphImpl.edgeWeightCol].dtype
+        if simpleDistributedGraphImpl.edgeIdCol in ddf.columns:
+            self.edge_id_type = ddf[simpleDistributedGraphImpl.edgeIdCol].dtype
+        if simpleDistributedGraphImpl.edgeTypeCol in ddf.columns:
+            self.edge_type_id_type = ddf[simpleDistributedGraphImpl.edgeTypeCol].dtype
 
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
+        ddf = ddf.repartition(npartitions=len(workers) * 2)
+        workers = _client.scheduler_info()["workers"].keys()
+        persisted_keys_d = persist_dask_df_equal_parts_per_worker(
+            ddf, _client, return_type="dict"
+        )
+        del ddf
 
-        _client = default_client()
-        self._plc_graph = {
-            w: _client.submit(
-                simpleDistributedGraphImpl._make_plc_graph,
+        delayed_tasks_d = {
+            w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
                 edata,
                 graph_props,
                 src_col_name,
                 dst_col_name,
                 store_transposed,
-                num_edges,
-                workers=[w],
+                self.vertex_type,
+                self.weight_type,
+                self.edge_id_type,
+                self.edge_type_id_type,
             )
-            for w, edata in edge_data.worker_to_parts.items()
+            for w, edata in persisted_keys_d.items()
         }
-
-        wait(self._plc_graph)
+        del persisted_keys_d
+        self._plc_graph = {
+            w: _client.compute(
+                delayed_task, workers=w, allow_other_workers=False, pure=False
+            )
+            for w, delayed_task in delayed_tasks_d.items()
+        }
+        del delayed_tasks_d
+        run_gc_on_dask_cluster(_client)
+        wait(list(self._plc_graph.values()))
+        run_gc_on_dask_cluster(_client)
 
     @property
     def renumbered(self):
@@ -312,6 +398,8 @@ class simpleDistributedGraphImpl:
 
     def view_edge_list(self):
         """
+        FIXME: Should this also return the edge ids and types?
+
         Display the edge list. Compute it if needed.
         NOTE: If the graph is of type Graph() then the displayed undirected
         edges are the same as displayed by networkx Graph(), but the direction
@@ -342,7 +430,59 @@ class simpleDistributedGraphImpl:
         """
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-        return self.edgelist.edgelist_df
+
+        edgelist_df = self.input_df
+        is_string_dtype = False
+        is_multi_column = False
+        wgtCol = simpleDistributedGraphImpl.edgeWeightCol
+        if not self.properties.directed:
+            srcCol = self.source_columns
+            dstCol = self.destination_columns
+            if self.renumber_map.unrenumbered_id_type == "object":
+                # FIXME: Use the renumbered vertices instead and then un-renumber.
+                # This operation can be expensive.
+                is_string_dtype = True
+                edgelist_df = self.edgelist.edgelist_df
+                srcCol = self.renumber_map.renumbered_src_col_name
+                dstCol = self.renumber_map.renumbered_dst_col_name
+
+            if isinstance(srcCol, list):
+                srcCol = self.renumber_map.renumbered_src_col_name
+                dstCol = self.renumber_map.renumbered_dst_col_name
+                edgelist_df = self.edgelist.edgelist_df
+                # unrenumber before extracting the upper triangular part
+                if len(self.source_columns) == 1:
+                    edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
+                    edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+                else:
+                    is_multi_column = True
+
+            edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
+                [srcCol, dstCol]
+            ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
+
+            edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
+            if wgtCol in edgelist_df.columns:
+                # FIXME: This breaks if there are are multi edges as those will
+                # be dropped during the symmetrization step and the original 'weight'
+                # will be halved.
+                edgelist_df[wgtCol] /= 2
+
+        if is_string_dtype or is_multi_column:
+            # unrenumber the vertices
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+
+        if self.properties.renumbered:
+            edgelist_df = edgelist_df.rename(
+                columns=self.renumber_map.internal_to_external_col_names
+            )
+
+        # If there is no 'wgt' column, nothing will happen
+        edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})
+
+        self.properties.edge_count = len(edgelist_df)
+        return edgelist_df
 
     def delete_edge_list(self):
         """
@@ -361,23 +501,7 @@ class simpleDistributedGraphImpl:
         Get the number of nodes in the graph.
         """
         if self.properties.node_count is None:
-            if self.edgelist is not None:
-                if self.renumbered is True:
-                    src_col_name = self.renumber_map.renumbered_src_col_name
-                    dst_col_name = self.renumber_map.renumbered_dst_col_name
-                # FIXME: from_dask_cudf_edgelist() currently requires
-                # renumber=True for MG, so this else block will not be
-                # used. Should this else block be removed and added back when
-                # the restriction is removed?
-                else:
-                    src_col_name = "src"
-                    dst_col_name = "dst"
-
-                ddf = self.edgelist.edgelist_df[[src_col_name, dst_col_name]]
-                # ddf = self.edgelist.edgelist_df[["src", "dst"]]
-                self.properties.node_count = ddf.max().max().compute() + 1
-            else:
-                raise RuntimeError("Graph is Empty")
+            self.properties.node_count = len(self.nodes())
         return self.properties.node_count
 
     def number_of_nodes(self):
@@ -390,10 +514,16 @@ class simpleDistributedGraphImpl:
         """
         Get the number of edges in the graph.
         """
-        if self.edgelist is not None:
+
+        if directed_edges and self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
-        else:
-            raise RuntimeError("Graph is Empty")
+
+        if self.properties.edge_count is None:
+            if self.edgelist is not None:
+                self.view_edge_list()
+            else:
+                raise RuntimeError("Graph is Empty")
+        return self.properties.edge_count
 
     def in_degree(self, vertex_subset=None):
         """
@@ -692,6 +822,15 @@ class simpleDistributedGraphImpl:
                 the second vertex id of a pair, if an external vertex id
                 is defined by only one column
         """
+        _client = default_client()
+
+        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
+            return pylibcugraph_get_two_hop_neighbors(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                start_vertices=start_vertices,
+                do_expensive_check=False,
+            )
 
         if isinstance(start_vertices, int):
             start_vertices = [start_vertices]
@@ -713,20 +852,13 @@ class simpleDistributedGraphImpl:
                 )
                 start_vertices = start_vertices.astype(start_vertices_type)
 
-            start_vertices = get_distributed_data(start_vertices)
-            wait(start_vertices)
-            start_vertices = start_vertices.worker_to_parts
-
-        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
-            return pylibcugraph_get_two_hop_neighbors(
-                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-                graph=mg_graph_x,
-                start_vertices=start_vertices,
-                do_expensive_check=False,
+            n_workers = get_n_workers()
+            start_vertices = start_vertices.repartition(npartitions=n_workers)
+            start_vertices = persist_dask_df_equal_parts_per_worker(
+                start_vertices, _client
             )
+            start_vertices = get_persisted_df_worker_map(start_vertices, _client)
 
-        _client = default_client()
-        if start_vertices is not None:
             result = [
                 _client.submit(
                     _call_plc_two_hop_neighbors,
@@ -736,7 +868,7 @@ class simpleDistributedGraphImpl:
                     workers=[w],
                     allow_other_workers=False,
                 )
-                for w in Comms.get_workers()
+                for w in start_vertices.keys()
             ]
         else:
             result = [
@@ -763,7 +895,6 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
-        _client = default_client()
         cudf_result = [
             _client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
         ]
@@ -814,7 +945,6 @@ class simpleDistributedGraphImpl:
         def _call_plc_select_random_vertices(
             mg_graph_x, sID: bytes, random_state: int, num_vertices: int
         ) -> cudf.Series:
-
             cp_arrays = pylibcugraph_select_random_vertices(
                 graph=mg_graph_x,
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -830,7 +960,6 @@ class simpleDistributedGraphImpl:
             random_state: int,
             num_vertices: int,
         ) -> dask_cudf.Series:
-
             result = [
                 client.submit(
                     _call_plc_select_random_vertices,
@@ -977,19 +1106,8 @@ class simpleDistributedGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        if self.renumbered is True:
-            src_col_name = self.renumber_map.renumbered_src_col_name
-            dst_col_name = self.renumber_map.renumbered_dst_col_name
-            # FIXME: from_dask_cudf_edgelist() currently requires
-            # renumber=True for MG, so this else block will not be
-            # used. Should this else block be removed and added back when
-            # the restriction is removed?
-        else:
-            src_col_name = "src"
-            dst_col_name = "dst"
 
-        # return self.view_edge_list()[["src", "dst"]]
-        return self.view_edge_list()[[src_col_name, dst_col_name]]
+        return self.view_edge_list()[self.vertex_columns]
 
     def nodes(self):
         """
@@ -1001,23 +1119,26 @@ class simpleDistributedGraphImpl:
         a dataframe and do 'renumber_map.unrenumber' or 'G.unrenumber'
         """
 
-        if self.renumbered:
-            # FIXME: This relies on current implementation
-            #        of NumberMap, should not really expose
-            #        this, perhaps add a method to NumberMap
+        if self.edgelist is not None:
+            if self.renumbered:
+                # FIXME: This relies on current implementation
+                #        of NumberMap, should not really expose
+                #        this, perhaps add a method to NumberMap
 
-            df = self.renumber_map.implementation.ddf.drop(columns="global_id")
+                df = self.renumber_map.implementation.ddf.drop(columns="global_id")
 
-            if len(df.columns) > 1:
-                return df
+                if len(df.columns) > 1:
+                    return df
+                else:
+                    return df[df.columns[0]]
+
             else:
-                return df[df.columns[0]]
-
+                df = self.input_df
+                return dask_cudf.concat(
+                    [df[self.source_columns], df[self.destination_columns]]
+                ).drop_duplicates()
         else:
-            df = self.input_df
-            return dask_cudf.concat(
-                [df[self.source_columns], df[self.destination_columns]]
-            ).drop_duplicates()
+            raise RuntimeError("Graph is Empty")
 
     def neighbors(self, n):
         if self.edgelist is None:
