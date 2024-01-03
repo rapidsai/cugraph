@@ -124,6 +124,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--use_wholegraph",
+        type=bool,
+        action="store_true",
+        help="Whether to use WholeGraph feature storage",
+        required=False,
+    )
+
+    parser.add_argument(
         "--model",
         type=str,
         default="GraphSAGE",
