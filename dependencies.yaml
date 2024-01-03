@@ -165,6 +165,7 @@ files:
       table: project
     includes:
       - python_run_cugraph_dgl
+      - depends_on_pylibcugraphops
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
