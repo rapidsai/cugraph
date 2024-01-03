@@ -4,13 +4,17 @@
 #SBATCH -p luna
 #SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSamplingPyG
 #SBATCH -N 1
-#SBATCH -t 00:22:00 
+#SBATCH -t 00:25:00 
 
 CONTAINER_IMAGE="/lustre/fsw/rapids/abarghi/dlfw_patched.squash"
 SCRIPTS_DIR=$(pwd)
 LOGS_DIR=${LOGS_DIR:=$(pwd)"/logs"}
 SAMPLES_DIR=${SAMPLES_DIR:=$(pwd)/samples}
 DATASETS_DIR=${DATASETS_DIR:=$(pwd)/datasets}
+
+mkdir -p $LOGS_DIR
+mkdir -p $SAMPLES_DIR
+mkdir -p $DATASETS_DIR
 
 BATCH_SIZE=512
 FANOUT="10_10_10"
@@ -50,11 +54,6 @@ fi
 srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-    RAPIDS_NO_INITIALIZE=1 \
-    CUDF_SPILL=1 \
-    LIBCUDF_CUFILE_POLICY="KVIKIO" \
-    KVIKIO_NTHREADS=64 \
-    GPUS_PER_NODE=$gpus_per_node \
     torchrun \
         --nnodes $nnodes \
         --nproc-per-node $gpus_per_node \
