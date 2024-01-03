@@ -64,8 +64,9 @@ class PyGCuGraphTrainer(PyGTrainer):
     @property
     def optimizer(self):
         if self.__optimizer is None:
-            self.__optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01,
-                                    weight_decay=0.0005)
+            self.__optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=0.01, weight_decay=0.0005
+            )
         return self.__optimizer
 
     @property
@@ -74,6 +75,7 @@ class PyGCuGraphTrainer(PyGTrainer):
 
     def get_loader(self, epoch: int = 0, stage="train") -> int:
         import logging
+
         logger = logging.getLogger("PyGCuGraphTrainer")
 
         logger.info(f"getting loader for epoch {epoch}, {stage} stage")
@@ -83,7 +85,7 @@ class PyGCuGraphTrainer(PyGTrainer):
             path = os.path.join(self.__sample_dir, "val", "samples")
         else:
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
-        
+
         loader = BulkSampleLoader(
             self.data,
             self.data,
@@ -169,11 +171,11 @@ class PyGCuGraphTrainer(PyGTrainer):
 
         return model
 
-    def get_input_files(self, path, epoch=0, stage='train'):
+    def get_input_files(self, path, epoch=0, stage="train"):
         file_list = np.array(os.listdir(path))
         file_list.sort()
 
-        if stage == 'train':
+        if stage == "train":
             splits = np.array_split(file_list, self.__world_size)
             np.random.seed(epoch)
             np.random.shuffle(splits)

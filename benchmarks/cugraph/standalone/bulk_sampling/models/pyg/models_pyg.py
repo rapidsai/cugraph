@@ -14,6 +14,7 @@
 import torch
 
 from torch_geometric.nn import SAGEConv
+
 try:
     from torch_geometric.utils.trim_to_layer import TrimToLayer
 except ModuleNotFoundError:

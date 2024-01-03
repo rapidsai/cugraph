@@ -14,6 +14,7 @@
 import torch
 
 from cugraph_pyg.nn.conv import SAGEConv as CuGraphSAGEConv
+
 try:
     from torch_geometric.utils.trim_to_layer import TrimToLayer
 except ModuleNotFoundError:

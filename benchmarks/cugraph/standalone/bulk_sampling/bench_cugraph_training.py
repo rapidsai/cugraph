@@ -12,10 +12,11 @@
 # limitations under the License.
 
 import os
-os.environ['RAPIDS_NO_INITIALIZE'] = "1"
-os.environ['CUDF_SPILL'] = "1"
-os.environ['LIBCUDF_CUFILE_POLICY'] = "KVIKIO"
-os.environ['KVIKIO_NTHREADS'] = "64"
+
+os.environ["RAPIDS_NO_INITIALIZE"] = "1"
+os.environ["CUDF_SPILL"] = "1"
+os.environ["LIBCUDF_CUFILE_POLICY"] = "KVIKIO"
+os.environ["KVIKIO_NTHREADS"] = "64"
 
 import argparse
 import json
@@ -201,6 +202,7 @@ def main(args):
 
     if args.framework == "PyG":
         from trainers.pyg import PyGNativeTrainer
+
         trainer = PyGNativeTrainer(
             model=args.model,
             dataset=dataset,
@@ -216,9 +218,10 @@ def main(args):
     elif args.framework == "cuGraphPyG":
         sample_dir = os.path.join(
             args.sample_dir,
-            f'ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}'
+            f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
         )
         from trainers.pyg import PyGCuGraphTrainer
+
         trainer = PyGCuGraphTrainer(
             model=args.model,
             dataset=dataset,

@@ -32,6 +32,7 @@ import gc
 import os
 import time
 
+
 def pyg_num_workers(world_size):
     num_workers = None
     if hasattr(os, "sched_getaffinity"):
@@ -62,7 +63,9 @@ class PyGTrainer(Trainer):
         end_time_backward = start_time
 
         for epoch in range(self.num_epochs):
-            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            with td.algorithms.join.Join(
+                [self.model], divide_by_initial_world_size=False
+            ):
                 self.model.train()
                 for iter_i, data in enumerate(
                     self.get_loader(epoch=epoch, stage="train")
@@ -73,10 +76,16 @@ class PyGTrainer(Trainer):
                     additional_feature_time_start = time.perf_counter()
 
                     num_sampled_nodes = sum(
-                        [torch.as_tensor(n) for n in data.num_sampled_nodes_dict.values()]
+                        [
+                            torch.as_tensor(n)
+                            for n in data.num_sampled_nodes_dict.values()
+                        ]
                     )
                     num_sampled_edges = sum(
-                        [torch.as_tensor(e) for e in data.num_sampled_edges_dict.values()]
+                        [
+                            torch.as_tensor(e)
+                            for e in data.num_sampled_edges_dict.values()
+                        ]
                     )
 
                     # FIXME find a way to get around this and not have to call extend_tensor
@@ -161,7 +170,9 @@ class PyGTrainer(Trainer):
                 task="multiclass", num_classes=self.dataset.num_labels
             ).cuda()
 
-            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            with td.algorithms.join.Join(
+                [self.model], divide_by_initial_world_size=False
+            ):
                 self.model.eval()
                 if self.rank == 0:
                     acc_sum = 0.0
@@ -247,7 +258,6 @@ class PyGTrainer(Trainer):
             "Backward Time": time_backward,
         }
         return stats
-
 
 
 class PyGNativeTrainer(PyGTrainer):
@@ -340,8 +350,9 @@ class PyGNativeTrainer(PyGTrainer):
     @property
     def optimizer(self):
         if self.__optimizer is None:
-            self.__optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01,
-                                    weight_decay=0.0005)
+            self.__optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=0.01, weight_decay=0.0005
+            )
         return self.__optimizer
 
     @property
@@ -354,19 +365,19 @@ class PyGNativeTrainer(PyGTrainer):
         logger = logging.getLogger("PyGNativeTrainer")
         logger.info(f"Getting loader for epoch {epoch}")
 
-        if stage == 'train':
-            mask_dict = self.__dataset.train_dict 
-        elif stage == 'test':
+        if stage == "train":
+            mask_dict = self.__dataset.train_dict
+        elif stage == "test":
             mask_dict = self.__dataset.test_dict
-        elif stage == 'val':
+        elif stage == "val":
             mask_dict = self.__dataset.val_dict
         else:
             raise ValueError(f"Invalid stage {stage}")
 
         input_nodes_dict = {
-            node_type: np.array_split(
-                np.arange(len(mask))[mask], self.__world_size
-            )[self.__rank]
+            node_type: np.array_split(np.arange(len(mask))[mask], self.__world_size)[
+                self.__rank
+            ]
             for node_type, mask in mask_dict.items()
         }
 
