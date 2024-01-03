@@ -11,14 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.api_tools import experimental_warning_wrapper
+from cugraph_pyg.loader.cugraph_node_loader import CuGraphNeighborLoader
 
-from cugraph_pyg.loader.cugraph_node_loader import EXPERIMENTAL__CuGraphNeighborLoader
-
-CuGraphNeighborLoader = experimental_warning_wrapper(
-    EXPERIMENTAL__CuGraphNeighborLoader
-)
-
-from cugraph_pyg.loader.cugraph_node_loader import EXPERIMENTAL__BulkSampleLoader
-
-BulkSampleLoader = experimental_warning_wrapper(EXPERIMENTAL__BulkSampleLoader)
+from cugraph_pyg.loader.cugraph_node_loader import BulkSampleLoader

@@ -621,9 +621,25 @@ construct_graph(raft::handle_t const& handle,
 
   CUGRAPH_EXPECTS(d_src_v.size() <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
                   "Invalid template parameter: edge_t overflow.");
-  if (drop_self_loops) { remove_self_loops(handle, d_src_v, d_dst_v, d_weights_v); }
+  if (drop_self_loops) {
+    std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore) =
+      cugraph::remove_self_loops<vertex_t, edge_t, weight_t, int32_t>(handle,
+                                                                      std::move(d_src_v),
+                                                                      std::move(d_dst_v),
+                                                                      std::move(d_weights_v),
+                                                                      std::nullopt,
+                                                                      std::nullopt);
+  }
 
-  if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
+  if (drop_multi_edges) {
+    std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore) =
+      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(handle,
+                                                                       std::move(d_src_v),
+                                                                       std::move(d_dst_v),
+                                                                       std::move(d_weights_v),
+                                                                       std::nullopt,
+                                                                       std::nullopt);
+  }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
   std::optional<

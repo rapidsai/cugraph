@@ -40,6 +40,8 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 #include <optional>
 
 namespace cugraph {
@@ -1229,10 +1231,12 @@ renumber_and_compress_sampled_edgelist(
           auto pair_first       = thrust::make_zip_iterator((*compressed_label_indices).begin(),
                                                       (*compressed_hops).begin());
           auto value_pair_first = thrust::make_transform_iterator(
-            thrust::make_counting_iterator(size_t{0}), [num_hops] __device__(size_t i) {
-              return thrust::make_tuple(static_cast<label_index_t>(i / num_hops),
-                                        static_cast<int32_t>(i % num_hops));
-            });
+            thrust::make_counting_iterator(size_t{0}),
+            cuda::proclaim_return_type<thrust::tuple<label_index_t, int32_t>>(
+              [num_hops] __device__(size_t i) {
+                return thrust::make_tuple(static_cast<label_index_t>(i / num_hops),
+                                          static_cast<int32_t>(i % num_hops));
+              }));
           thrust::upper_bound(handle.get_thrust_policy(),
                               pair_first,
                               pair_first + (*compressed_label_indices).size(),

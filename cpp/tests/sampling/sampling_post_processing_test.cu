@@ -38,6 +38,8 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
+#include <cuda/functional>
+
 struct SamplingPostProcessing_Usecase {
   size_t num_labels{};
   size_t num_seeds_per_label{};
@@ -318,15 +320,16 @@ bool check_renumber_map_invariants(
 
     auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
       merged_vertices.begin(),
-      [sorted_org_vertices =
-         raft::device_span<vertex_t const>(sorted_org_vertices.data(), sorted_org_vertices.size()),
-       matching_renumbered_vertices = raft::device_span<vertex_t const>(
-         matching_renumbered_vertices.data(),
-         matching_renumbered_vertices.size())] __device__(vertex_t major) {
-        auto it = thrust::lower_bound(
-          thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
-        return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-      });
+      cuda::proclaim_return_type<vertex_t>(
+        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                 sorted_org_vertices.size()),
+         matching_renumbered_vertices = raft::device_span<vertex_t const>(
+           matching_renumbered_vertices.data(),
+           matching_renumbered_vertices.size())] __device__(vertex_t major) {
+          auto it = thrust::lower_bound(
+            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
+          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
+        }));
 
     thrust::reduce_by_key(handle.get_thrust_policy(),
                           sort_key_first,
@@ -1020,23 +1023,24 @@ class Tests_SamplingPostProcessing
                  ? this_label_output_edgelist_srcs.begin()
                  : this_label_output_edgelist_dsts.begin()) +
                 old_size,
-              [offsets = raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
-               nzd_vertices =
-                 renumbered_and_compressed_nzd_vertices
-                   ? thrust::make_optional<raft::device_span<vertex_t const>>(
-                       (*renumbered_and_compressed_nzd_vertices).data() + offset_start_offset,
-                       (offset_end_offset - offset_start_offset) - 1)
-                   : thrust::nullopt,
-               base_v] __device__(size_t i) {
-                auto idx = static_cast<size_t>(thrust::distance(
-                  offsets.begin() + 1,
-                  thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i)));
-                if (nzd_vertices) {
-                  return (*nzd_vertices)[idx];
-                } else {
-                  return base_v + static_cast<vertex_t>(idx);
-                }
-              });
+              cuda::proclaim_return_type<vertex_t>(
+                [offsets = raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
+                 nzd_vertices =
+                   renumbered_and_compressed_nzd_vertices
+                     ? thrust::make_optional<raft::device_span<vertex_t const>>(
+                         (*renumbered_and_compressed_nzd_vertices).data() + offset_start_offset,
+                         (offset_end_offset - offset_start_offset) - 1)
+                     : thrust::nullopt,
+                 base_v] __device__(size_t i) {
+                  auto idx = static_cast<size_t>(thrust::distance(
+                    offsets.begin() + 1,
+                    thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i)));
+                  if (nzd_vertices) {
+                    return (*nzd_vertices)[idx];
+                  } else {
+                    return base_v + static_cast<vertex_t>(idx);
+                  }
+                }));
             thrust::copy(handle.get_thrust_policy(),
                          renumbered_and_compressed_edgelist_minors.begin() + h_offsets[0],
                          renumbered_and_compressed_edgelist_minors.begin() + h_offsets.back(),

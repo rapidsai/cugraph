@@ -17,15 +17,14 @@ import networkx as nx
 import numpy as np
 
 from nx_cugraph.generators._utils import _create_using_class, _number_and_nodes
-from nx_cugraph.utils import index_dtype, networkx_algorithm, nodes_or_number
+from nx_cugraph.utils import index_dtype, networkx_algorithm
 
 __all__ = [
     "complete_bipartite_graph",
 ]
 
 
-@nodes_or_number([0, 1])
-@networkx_algorithm
+@networkx_algorithm(nodes_or_number=[0, 1])
 def complete_bipartite_graph(n1, n2, create_using=None):
     graph_class, inplace = _create_using_class(create_using)
     if graph_class.is_directed():

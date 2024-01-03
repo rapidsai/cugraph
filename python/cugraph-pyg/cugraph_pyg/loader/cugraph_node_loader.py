@@ -20,7 +20,7 @@ import warnings
 import cupy
 import cudf
 
-from cugraph.experimental.gnn import BulkSampler
+from cugraph.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
@@ -42,7 +42,7 @@ InputNodes = (
 )
 
 
-class EXPERIMENTAL__BulkSampleLoader:
+class BulkSampleLoader:
 
     __ex_parquet_file = re.compile(r"batch=([0-9]+)\-([0-9]+)\.parquet")
 
@@ -492,7 +492,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         return self
 
 
-class EXPERIMENTAL__CuGraphNeighborLoader:
+class CuGraphNeighborLoader:
     def __init__(
         self,
         data: Union[CuGraphStore, Tuple[CuGraphStore, CuGraphStore]],
@@ -541,7 +541,7 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         return self.__batch_size
 
     def __iter__(self):
-        self.current_loader = EXPERIMENTAL__BulkSampleLoader(
+        self.current_loader = BulkSampleLoader(
             self.__feature_store,
             self.__graph_store,
             self.__input_nodes,

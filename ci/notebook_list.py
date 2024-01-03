@@ -42,7 +42,6 @@ cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 # Not strictly true... however what we mean is
 # Pascal or earlier
 #
-pascal = False
 ampere = False
 device = cuda.get_current_device()
 
@@ -62,8 +61,6 @@ if runtype not in runtype_dict.keys():
 cc = getattr(device, "COMPUTE_CAPABILITY", None) or getattr(
     device, "compute_capability"
 )
-if cc[0] < 7:
-    pascal = True
 if cc[0] >= 8:
     ampere = True
 
@@ -89,10 +86,6 @@ for filename in glob.iglob("**/*.ipynb", recursive=True):
                     "currently automatable)",
                     file=sys.stderr,
                 )
-                skip = True
-                break
-            elif pascal and re.search("# Does not run on Pascal", line):
-                print(f"SKIPPING {filename} (does not run on Pascal)", file=sys.stderr)
                 skip = True
                 break
             elif ampere and re.search("# Does not run on Ampere", line):

@@ -284,3 +284,32 @@ def basic_pyg_graph_2():
     )
     size = (10, 10)
     return edge_index, size
+
+
+@pytest.fixture
+def sample_pyg_hetero_data():
+    torch.manual_seed(12345)
+    raw_data_dict = {
+        "v0": torch.randn(6, 3),
+        "v1": torch.randn(7, 2),
+        "v2": torch.randn(5, 4),
+        ("v2", "e0", "v1"): torch.tensor([[0, 2, 2, 4, 4], [4, 3, 6, 0, 1]]),
+        ("v1", "e1", "v1"): torch.tensor(
+            [[0, 2, 2, 2, 3, 5, 5], [4, 0, 4, 5, 3, 0, 1]]
+        ),
+        ("v0", "e2", "v0"): torch.tensor([[0, 2, 2, 3, 5, 5], [1, 1, 5, 1, 1, 2]]),
+        ("v1", "e3", "v2"): torch.tensor(
+            [[0, 1, 1, 2, 4, 5, 6], [1, 2, 3, 1, 2, 2, 2]]
+        ),
+        ("v0", "e4", "v2"): torch.tensor([[1, 1, 3, 3, 4, 4], [1, 4, 1, 4, 0, 3]]),
+    }
+
+    # create a nested dictionary to facilitate PyG's HeteroData construction
+    hetero_data_dict = {}
+    for key, value in raw_data_dict.items():
+        if isinstance(key, tuple):
+            hetero_data_dict[key] = {"edge_index": value}
+        else:
+            hetero_data_dict[key] = {"x": value}
+
+    return hetero_data_dict

@@ -301,8 +301,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                      sg_graph_view.local_edge_partition_view().offsets().begin(),
                      sg_graph_view.local_edge_partition_view().offsets().end(),
                      sg_offsets.begin());
-        rmm::device_uvector<vertex_t> sg_indices(sg_graph_view.number_of_edges(),
-                                                 handle_->get_stream());
+        rmm::device_uvector<vertex_t> sg_indices(
+          sg_graph_view.local_edge_partition_view().indices().size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      sg_graph_view.local_edge_partition_view().indices().begin(),
                      sg_graph_view.local_edge_partition_view().indices().end(),
@@ -324,8 +324,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
            with_replacement = prims_usecase.with_replacement,
            invalid_value =
              invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
-           property_transform = cugraph::test::detail::property_transform<vertex_t, property_t>{
-             hash_bin_count}] __device__(size_t i) {
+           property_transform =
+             cugraph::test::detail::vertex_property_transform<vertex_t, property_t>{
+               hash_bin_count}] __device__(size_t i) {
             auto v = *(frontier_vertex_first + i);
 
             // check sample_offsets

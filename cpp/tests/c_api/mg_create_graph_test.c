@@ -175,18 +175,18 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   int my_rank = cugraph_resource_handle_get_rank(handle);
   int comm_size = cugraph_resource_handle_get_comm_size(handle);
 
-  size_t local_num_vertices = (num_vertices + comm_size - 1) / comm_size;
+  size_t local_num_vertices = num_vertices / comm_size;
   size_t local_start_vertex = my_rank * local_num_vertices;
-  size_t local_num_edges = (num_edges + comm_size - 1) / comm_size;
+  size_t local_num_edges = num_edges / comm_size;
   size_t local_start_edge = my_rank * local_num_edges;
 
-  local_num_edges = (local_num_edges < (num_edges - local_start_edge)) ? local_num_edges : (num_edges - local_start_edge);
-  local_num_vertices = (local_num_vertices < (num_vertices - local_start_vertex)) ? local_num_vertices : (num_vertices - local_start_vertex);
+  local_num_edges = (my_rank != (comm_size - 1)) ? local_num_edges : (num_edges - local_start_edge);
+  local_num_vertices = (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
 
   for (size_t i = 0 ; i < num_local_arrays ; ++i) {
-    size_t vertex_count = (local_num_vertices + num_local_arrays - 1) / num_local_arrays;
+    size_t vertex_count = local_num_vertices / num_local_arrays;
     size_t vertex_start = i * vertex_count;
-    vertex_count = (vertex_count < (local_num_vertices - vertex_start)) ? vertex_count : (local_num_vertices - vertex_start);
+    vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
     
     ret_code =
       cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
@@ -363,18 +363,18 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   int my_rank = cugraph_resource_handle_get_rank(handle);
   int comm_size = cugraph_resource_handle_get_comm_size(handle);
 
-  size_t local_num_vertices = (num_vertices + comm_size - 1) / comm_size;
+  size_t local_num_vertices = num_vertices / comm_size;
   size_t local_start_vertex = my_rank * local_num_vertices;
-  size_t local_num_edges = (num_edges + comm_size - 1) / comm_size;
+  size_t local_num_edges = num_edges / comm_size;
   size_t local_start_edge = my_rank * local_num_edges;
 
-  local_num_edges = (local_num_edges < (num_edges - local_start_edge)) ? local_num_edges : (num_edges - local_start_edge);
-  local_num_vertices = (local_num_vertices < (num_vertices - local_start_vertex)) ? local_num_vertices : (num_vertices - local_start_vertex);
+  local_num_edges = (my_rank != (comm_size - 1)) ? local_num_edges : (num_edges - local_start_edge);
+  local_num_vertices = (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
 
   for (size_t i = 0 ; i < num_local_arrays ; ++i) {
     size_t vertex_count = (local_num_vertices + num_local_arrays - 1) / num_local_arrays;
     size_t vertex_start = i * vertex_count;
-    vertex_count = (vertex_count < (local_num_vertices - vertex_start)) ? vertex_count : (local_num_vertices - vertex_start);
+    vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
     
     ret_code =
       cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
