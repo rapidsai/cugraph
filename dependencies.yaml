@@ -166,6 +166,14 @@ files:
     includes:
       - python_run_cugraph_dgl
       - depends_on_pylibcugraphops
+  py_test_cugraph_dgl:
+    output: pyproject
+    pyproject_dir: python/cugraph-dgl
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
