@@ -229,36 +229,20 @@ template bool is_equal(raft::handle_t const& handle,
                        raft::device_span<int64_t const> span1,
                        raft::device_span<int64_t const> span2);
 
-template <typename data_t, bool multi_gpu>
+template <typename data_t>
 size_t count_values(raft::handle_t const& handle,
                     raft::device_span<data_t const> span,
                     data_t value)
 {
-  size_t local_count = thrust::count_if(
-    handle.get_thrust_policy(), span.begin(), span.end(), [value] __device__(data_t d) {
-      return d == value;
-    });
-
-  if constexpr (multi_gpu) {
-    local_count = cugraph::host_scalar_allreduce(
-      handle.get_comms(), local_count, raft::comms::op_t::SUM, handle.get_stream());
-  }
-
-  return local_count;
+  return thrust::count(handle.get_thrust_policy(), span.begin(), span.end(), value);
 }
 
-template size_t count_values<int32_t, false>(raft::handle_t const& handle,
-                                             raft::device_span<int32_t const> span,
-                                             int32_t value);
-template size_t count_values<int32_t, true>(raft::handle_t const& handle,
-                                            raft::device_span<int32_t const> span,
-                                            int32_t value);
-template size_t count_values<int64_t, false>(raft::handle_t const& handle,
-                                             raft::device_span<int64_t const> span,
-                                             int64_t value);
-template size_t count_values<int64_t, true>(raft::handle_t const& handle,
-                                            raft::device_span<int64_t const> span,
-                                            int64_t value);
+template size_t count_values<int32_t>(raft::handle_t const& handle,
+                                      raft::device_span<int32_t const> span,
+                                      int32_t value);
+template size_t count_values<int64_t>(raft::handle_t const& handle,
+                                      raft::device_span<int64_t const> span,
+                                      int64_t value);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -113,10 +113,15 @@ struct bfs_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_last(),
                                                  do_expensive_check_);
 
-      size_t invalid_count = cugraph::detail::count_values<vertex_t, multi_gpu>(
+      size_t invalid_count = cugraph::detail::count_values(
         handle_,
         raft::device_span<vertex_t const>{sources.data(), sources.size()},
-        cugraph::invalid_vertex_id<vertex_t>{});
+        cugraph::invalid_vertex_id<vertex_t>::value);
+
+      if constexpr (multi_gpu) {
+        invalid_count = cugraph::host_scalar_allreduce(
+          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
+      }
 
       if (invalid_count != 0) {
         mark_error(CUGRAPH_INVALID_INPUT, "Found invalid vertex in the input sources");
