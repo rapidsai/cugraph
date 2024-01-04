@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -217,10 +217,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                       std::move(edgelist_dsts),
                                       std::move(edgelist_weights),
                                       std::move(edgelist_edge_ids),
-                                      std::move(edgelist_edge_types),
-                                      properties_->is_symmetric
-                                        ? true /* keep minimum weight edges to maintain symmetry */
-                                        : false);
+                                      std::move(edgelist_edge_types));
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
