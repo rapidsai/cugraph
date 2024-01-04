@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +173,22 @@ template <typename data_t>
 bool is_equal(raft::handle_t const& handle,
               raft::device_span<data_t> span1,
               raft::device_span<data_t> span2);
+
+/**
+ * @brief Count the number of times a value appears in a span
+ *
+ * @tparam data_t type of data in span
+ * @tparam multi_gpu True if multi-GPU computation
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param span The span of data to compare
+ * @param value The value to count
+ * @return The count of how many instances of that value occur
+ */
+template <typename data_t, bool multi_gpu>
+size_t count_values(raft::handle_t const& handle,
+                    raft::device_span<data_t const> span,
+                    data_t value);
 
 }  // namespace detail
 }  // namespace cugraph
