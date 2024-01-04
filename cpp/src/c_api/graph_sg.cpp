@@ -200,7 +200,10 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                       std::move(edgelist_dsts),
                                       std::move(edgelist_weights),
                                       std::move(edgelist_edge_ids),
-                                      std::move(edgelist_edge_types));
+                                      std::move(edgelist_edge_types),
+                                      properties_->is_symmetric
+                                        ? true /* keep minimum weight edges to maintain symmetry */
+                                        : false);
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
