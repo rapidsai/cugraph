@@ -157,6 +157,25 @@ class OGBNPapers100MDataset(Dataset):
                 .rename(columns={"index": "node", 0: "label"})
             )
             ldf.to_parquet(node_label_file_path)
+    
+        # WholeGraph
+        wg_bin_file_path = os.path.join(dataset_path, "wgb", "paper")
+        if self.__replication_factor == 1:
+            wg_bin_rep_path = os.path.join(wg_bin_file_path, "node_feat.d")
+        else:
+            wg_bin_rep_path = os.path.join(wg_bin_file_path, f"node_feat_{self.__replication_factor}x.d")
+        
+        if not os.path.exists(wg_bin_rep_path):
+            os.makedirs(wg_bin_rep_path)
+            if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
+                dataset = NodePropPredDataset(
+                    name="ogbn-papers100M", root=self.__dataset_dir
+                )
+            node_feat = dataset[0][0]["node_feat"]
+            for k in range(self.__replication_factor):
+                node_feat.tofile(os.path.join(wg_bin_rep_path, f'{k:04d}.bin'))
+            
 
     @property
     def edge_index_dict(
