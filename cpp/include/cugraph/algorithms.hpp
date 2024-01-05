@@ -599,18 +599,22 @@ std::pair<size_t, weight_t> louvain(
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
- * @param[in]  handle                Library handle (RAFT)
- * @param[in]  graph_view            Input graph view object
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- *                                   communities. (default 1)
- *
- * @return                           a pair containing:
- *                                     1) unique pointer to dendrogram
- *                                     2) modularity of the returned clustering
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object.
+ * @param edge_weight_view       Optional view object holding edge weights for @p graph_view.
+ *                               If @pedge_weight_view.has_value() == false, edge weights
+ *                               are assumed to be 1.0.
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
+ * @return                       a pair containing:
+ *                                 1) unique pointer to dendrogram
+ *                                 2) modularity of the returned clustering
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -808,8 +812,7 @@ void ecg(raft::handle_t const& handle,
  *                               algorithm if an edge does not appear in any of the ensemble runs.
  * @param[in]  ensemble_size     The ensemble size parameter
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold         (optional) threshold for convergence at each level (default
- * 1e-7)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
  * @param[in]  resolution        (optional) The value of the resolution parameter to use.
  *                               Called gamma in the modularity formula, this changes the size
  *                               of the communities.  Higher resolutions lead to more smaller

@@ -165,9 +165,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
         // take care of deficits and extras numbers
 
-        vertex_t nr_extras = static_cast<vertex_t>(random_cluster_assignments.size()) -
-                             current_graph_view.local_vertex_partition_range_size();
-        vertex_t nr_deficits = nr_extras >= 0 ? 0 : -nr_extras;
+        int nr_extras = static_cast<int>(random_cluster_assignments.size()) -
+                        static_cast<int>(current_graph_view.local_vertex_partition_range_size());
+        int nr_deficits = nr_extras >= 0 ? 0 : -nr_extras;
 
         auto extra_cluster_ids = cugraph::detail::device_allgatherv(
           handle,
