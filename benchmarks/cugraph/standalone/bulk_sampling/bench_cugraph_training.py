@@ -169,6 +169,13 @@ def parse_args():
         required=False,
     )
 
+    parser.add_argument(
+        "--skip_download",
+        action="store_true",
+        help="Whether to skip downloading",
+        required=False,
+    )
+
     return parser.parse_args()
 
 
@@ -217,8 +224,10 @@ def main(args):
         backend='wholegraph' if args.use_wholegraph else 'torch',
     )
 
-    if global_rank == 0:
+    # Note: this does not generate WG files
+    if global_rank == 0 and not args.skip_download:
         dataset.download()
+    
     dist.barrier()
 
     fanout = [int(f) for f in args.fanout.split("_")]
@@ -257,6 +266,7 @@ def main(args):
             replace=False,
             num_neighbors=fanout,
             batch_size=args.batch_size,
+            backend='wholegraph' if args.use_wholegraph else 'torch',
         )
     else:
         raise ValueError("unsupported framework")

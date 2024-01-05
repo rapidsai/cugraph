@@ -249,7 +249,7 @@ class OGBNPapers100MDataset(Dataset):
                 node_type_path, f"node_feat_{self.__replication_factor}x.npy"
             )
 
-        self.__disk_x = {"paper": np.load(full_path, mmap_mode="r")}
+        self.__disk_x = {"paper": torch.as_tensor(np.load(full_path, mmap_mode="r"))}
     
     def __load_x_wg(self) -> None:
         node_type_path = os.path.join(
@@ -264,7 +264,7 @@ class OGBNPapers100MDataset(Dataset):
 
         x = wgth.create_embedding_from_filelist(
             wgth.get_global_communicator(),
-            "distributed", # TODO support other options
+            "chunked", # TODO support other options
             "cpu", # TODO support GPU
             file_list,
             torch.float32,
