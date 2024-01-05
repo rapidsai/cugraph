@@ -131,7 +131,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_nx-cugraph.sh
   wheel-build-cugraph-dgl:
-    needs: wheel-tests-cugraph
+    needs: wheel-build-cugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
     with:
@@ -145,7 +145,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_cugraph-dgl.sh
   wheel-build-cugraph-pyg:
-    needs: wheel-tests-cugraph
+    needs: wheel-build-cugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
     with:
