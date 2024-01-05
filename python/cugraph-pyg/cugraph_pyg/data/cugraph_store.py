@@ -1083,7 +1083,7 @@ class CuGraphStore:
 
         idx = attr.index
         if idx is not None:
-            if feature_backend in ["torch", 'wholegraph']:
+            if feature_backend in ["torch", "wholegraph"]:
                 if not isinstance(idx, torch.Tensor):
                     raise TypeError(
                         f"Type {type(idx)} invalid"
@@ -1243,12 +1243,14 @@ class CuGraphStore:
 
         return attr
 
-    def filter(self,
+    def filter(
+        self,
         format: str,
         node_dict: Dict[str, torch.Tensor],
         row_dict: Dict[str, torch.Tensor],
         col_dict: Dict[str, torch.Tensor],
-        edge_dict: Dict[str, Tuple[torch.Tensor]],) -> torch_geometric.data.HeteroData:
+        edge_dict: Dict[str, Tuple[torch.Tensor]],
+    ) -> torch_geometric.data.HeteroData:
         """
         Parameters
         ----------
@@ -1277,10 +1279,13 @@ class CuGraphStore:
                         is_sorted=True,
                     )
                 else:
-                    data[key].edge_index = torch.stack([
-                        row_dict[key],
-                        col_dict[key],
-                    ], dim=0,)
+                    data[key].edge_index = torch.stack(
+                        [
+                            row_dict[key],
+                            col_dict[key],
+                        ],
+                        dim=0,
+                    )
 
         required_attrs = []
         # To prevent copying multiple times, we use a cache;
@@ -1292,11 +1297,11 @@ class CuGraphStore:
                 attr.index = node_dict[attr.group_name]
                 if not isinstance(attr.index, torch.Tensor):
                     raise ValueError("Node index must be a tensor!")
-                if attr.index.is_cuda and device == 'cpu':
+                if attr.index.is_cuda and device == "cpu":
                     if attr.group_name not in node_dict_cpu:
                         node_dict_cpu[attr.group_name] = attr.index.cpu()
                     attr.index = node_dict_cpu[attr.group_name]
-                elif attr.index.is_cpu and device == 'cuda':
+                elif attr.index.is_cpu and device == "cuda":
                     node_dict_cpu[attr.group_name] = attr.index
                     node_dict[attr.group_name] = attr.index.cuda()
                     attr.index = node_dict[attr.group_name]

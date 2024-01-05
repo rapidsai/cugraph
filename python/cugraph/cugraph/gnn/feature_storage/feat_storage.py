@@ -181,11 +181,11 @@ class FeatureStore:
                 # TODO maybe add a warning here
                 indices = indices.cpu()
         return feat[indices]
-      
+
     def get_feature_list(self) -> list[str]:
         return {feat_name: feats.keys() for feat_name, feats in self.fd.items()}
 
-    def get_storage(self, type_name:str, feat_name:str) -> str:
+    def get_storage(self, type_name: str, feat_name: str) -> str:
         """
         Returns where the data is stored (cuda, cpu).
         Note: will return "cuda" for data managed by CUDA, even if
@@ -197,18 +197,20 @@ class FeatureStore:
             The node-type/edge-type to store data
         feat_name:
             The feature name to retrieve data for
-        
+
         Returns
         -------
         "cuda" for data managed by CUDA, otherwise "CPU".
         """
         feat = self.fd[feat_name][type_name]
-        if not isinstance(wgth, MissingModule) and isinstance(feat, wgth.WholeMemoryEmbedding):
-            return 'cuda'
+        if not isinstance(wgth, MissingModule) and isinstance(
+            feat, wgth.WholeMemoryEmbedding
+        ):
+            return "cuda"
         elif isinstance(feat, torch.Tensor):
-            return 'cpu' if feat.is_cpu else 'cuda'
+            return "cpu" if feat.is_cpu else "cuda"
         else:
-            return 'cpu'
+            return "cpu"
 
     @staticmethod
     def _cast_feat_obj_to_backend(feat_obj, backend: str, **kwargs):
