@@ -602,7 +602,7 @@ std::pair<size_t, weight_t> louvain(
  * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph_view        Input graph view object.
- * @param edge_weight_view       Optional view object holding edge weights for @p graph_view.
+ * @param[in]  edge_weight_view  Optional view object holding edge weights for @p graph_view.
  *                               If @pedge_weight_view.has_value() == false, edge weights
  *                               are assumed to be 1.0.
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
