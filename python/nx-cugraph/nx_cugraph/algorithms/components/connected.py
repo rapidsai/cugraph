@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,8 +36,8 @@ def number_connected_components(G):
     return _number_connected_components(G)
 
 
-def _number_connected_components(G):
-    return sum(1 for _ in connected_components(G))
+def _number_connected_components(G, symmetrize=None):
+    return sum(1 for _ in _connected_components(G, symmetrize=symmetrize))
     # PREFERRED IMPLEMENTATION, BUT PLC DOES NOT HANDLE ISOLATED VERTICES WELL
     # G = _to_undirected_graph(G)
     # unused_node_ids, labels = plc.weakly_connected_components(
@@ -68,13 +68,13 @@ def connected_components(G):
     return _connected_components(G)
 
 
-def _connected_components(G):
+def _connected_components(G, symmetrize=None):
     if G.src_indices.size == 0:
         # TODO: PLC doesn't handle empty graphs (or isolated nodes) gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     node_ids, labels = plc.weakly_connected_components(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(symmetrize=symmetrize),
         offsets=None,
         indices=None,
         weights=None,
@@ -84,7 +84,7 @@ def _connected_components(G):
     groups = _groupby(labels, node_ids)
     it = (G._nodearray_to_set(connected_ids) for connected_ids in groups.values())
     # TODO: PLC doesn't handle isolated vertices yet, so this is a temporary fix
-    isolates = _isolates(G)
+    isolates = _isolates(G, symmetrize=symmetrize)
     if isolates.size > 0:
         isolates = isolates[isolates > node_ids.max()]
         if isolates.size > 0:
@@ -101,12 +101,12 @@ def is_connected(G):
     return _is_connected(G)
 
 
-def _is_connected(G):
+def _is_connected(G, symmetrize=None):
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
             "Connectivity is undefined for the null graph."
         )
-    for community in connected_components(G):
+    for community in _connected_components(G, symmetrize=symmetrize):
         return len(community) == len(G)
     raise RuntimeError  # pragma: no cover
     # PREFERRED IMPLEMENTATION, BUT PLC DOES NOT HANDLE ISOLATED VERTICES WELL
