@@ -36,11 +36,12 @@ class PyGCuGraphTrainer(PyGTrainer):
         world_size=1,
         num_epochs=1,
         sample_dir=".",
-        backend='torch',
+        backend="torch",
         **kwargs,
     ):
         import logging
-        logger = logging.getLogger('PyGCuGraphTrainer')
+
+        logger = logging.getLogger("PyGCuGraphTrainer")
         logger.info("creating trainer")
         self.__data = None
         self.__device = device
@@ -115,8 +116,9 @@ class PyGCuGraphTrainer(PyGTrainer):
             fs = FeatureStore(backend=self.__backend)
             num_nodes_dict = {}
 
-            if self.__backend == 'wholegraph':
+            if self.__backend == "wholegraph":
                 from pylibwholegraph.torch.initialize import get_global_communicator
+
                 wm_comm = get_global_communicator()
                 wm_comm.barrier()
 
@@ -124,7 +126,7 @@ class PyGCuGraphTrainer(PyGTrainer):
                 logger.debug(f"getting x for {node_type}")
                 fs.add_data(x, node_type, "x")
                 num_nodes_dict[node_type] = self.__dataset.num_nodes(node_type)
-                if self.__backend == 'wholegraph':
+                if self.__backend == "wholegraph":
                     wm_comm.barrier()
 
             for node_type, y in self.__dataset.y_dict.items():
@@ -148,7 +150,7 @@ class PyGCuGraphTrainer(PyGTrainer):
             if not isinstance(list(num_edges_dict.values())[0], int):
                 num_edges_dict = {k: len(v) for k, v in num_edges_dict}
 
-            if self.__backend == 'wholegraph':
+            if self.__backend == "wholegraph":
                 wm_comm.barrier()
 
             self.__data = CuGraphStore(

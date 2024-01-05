@@ -204,8 +204,11 @@ def main(args):
         # TODO support DGL too
         # TODO support WG without cuGraph
         if args.framework not in ["cuGraphPyG"]:
-            raise ValueError('WG feature store only supported with cuGraph backends')
-        from pylibwholegraph.torch.initialize import get_global_communicator, get_local_node_communicator
+            raise ValueError("WG feature store only supported with cuGraph backends")
+        from pylibwholegraph.torch.initialize import (
+            get_global_communicator,
+            get_local_node_communicator,
+        )
 
         logger.info("initializing WG comms...")
         wm_comm = get_global_communicator()
@@ -221,13 +224,13 @@ def main(args):
         train_split=args.train_split,
         val_split=args.val_split,
         load_edge_index=(args.framework == "PyG"),
-        backend='wholegraph' if args.use_wholegraph else 'torch',
+        backend="wholegraph" if args.use_wholegraph else "torch",
     )
 
     # Note: this does not generate WG files
     if global_rank == 0 and not args.skip_download:
         dataset.download()
-    
+
     dist.barrier()
 
     fanout = [int(f) for f in args.fanout.split("_")]
@@ -266,7 +269,7 @@ def main(args):
             replace=False,
             num_neighbors=fanout,
             batch_size=args.batch_size,
-            backend='wholegraph' if args.use_wholegraph else 'torch',
+            backend="wholegraph" if args.use_wholegraph else "torch",
         )
     else:
         raise ValueError("unsupported framework")
