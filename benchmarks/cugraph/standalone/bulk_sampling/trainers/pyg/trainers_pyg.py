@@ -113,7 +113,9 @@ class PyGTrainer(Trainer):
                         logger.info(f"time forward: {time_forward_iter}")
                         logger.info(f"time backward: {time_backward_iter}")
                         logger.info(f"loader time: {loader_time_iter}")
-                        logger.info(f"feature transfer time: {time_feature_transfer / num_batches}")
+                        logger.info(
+                            f"feature transfer time: {time_feature_transfer / num_batches}"
+                        )
                         logger.info(f"total time: {total_time_iter}")
 
                     y_true = data.y
