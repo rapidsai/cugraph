@@ -18,6 +18,9 @@
 
 // #define TIMING
 
+// FIXME: Only outstanding items preventing this becoming a .hpp file
+#include <prims/update_edge_src_dst_property.cuh>
+
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
 #include <cugraph/detail/collect_comm_wrapper.hpp>
@@ -25,7 +28,6 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <prims/update_edge_src_dst_property.cuh>
 
 #include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
@@ -85,117 +87,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                           handle.get_stream());
 
     if (rng_state) {
-      rmm::device_uvector<vertex_t> random_cluster_assignments(
-        current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-      // generate as many number as #local_vertices on each GPU
-      detail::sequence_fill(handle.get_stream(),
-                            random_cluster_assignments.begin(),
-                            random_cluster_assignments.size(),
-                            current_graph_view.local_vertex_partition_range_first());
-
-      // shuffle/permute locally
-      rmm::device_uvector<float> random_numbers(random_cluster_assignments.size(),
-                                                handle.get_stream());
-
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           random_numbers.data(),
-                                           random_numbers.size(),
-                                           float{0.0},
-                                           float{1.0},
-                                           *rng_state);
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          random_numbers.begin(),
-                          random_numbers.end(),
-                          random_cluster_assignments.begin());
-
-      if constexpr (multi_gpu) {
-        // distribute shuffled/permuted numbers to other GPUs
-        auto& comm           = handle.get_comms();
-        auto const comm_size = comm.get_size();
-        auto const comm_rank = comm.get_rank();
-
-        std::vector<size_t> tx_value_counts(comm_size);
-        std::fill(tx_value_counts.begin(),
-                  tx_value_counts.end(),
-                  random_cluster_assignments.size() / comm_size);
-
-        std::vector<vertex_t> h_random_gpu_ranks;
-        {
-          rmm::device_uvector<vertex_t> d_random_numbers(
-            random_cluster_assignments.size() % comm_size, handle.get_stream());
-          cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                               d_random_numbers.data(),
-                                               d_random_numbers.size(),
-                                               vertex_t{0},
-                                               vertex_t{comm_size},
-                                               *rng_state);
-
-          h_random_gpu_ranks.resize(d_random_numbers.size());
-
-          raft::update_host(h_random_gpu_ranks.data(),
-                            d_random_numbers.data(),
-                            d_random_numbers.size(),
-                            handle.get_stream());
-        }
-
-        for (int i = 0; i < static_cast<int>(random_cluster_assignments.size() % comm_size); i++) {
-          tx_value_counts[h_random_gpu_ranks[i]]++;
-        }
-
-        std::tie(random_cluster_assignments, std::ignore) =
-          cugraph::shuffle_values(handle.get_comms(),
-                                  random_cluster_assignments.begin(),
-                                  tx_value_counts,
-                                  handle.get_stream());
-
-        // shuffle/permute locally again
-        random_numbers.resize(random_cluster_assignments.size(), handle.get_stream());
-
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             random_numbers.data(),
-                                             random_numbers.size(),
-                                             float{0.0},
-                                             float{1.0},
-                                             *rng_state);
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            random_numbers.begin(),
-                            random_numbers.end(),
-                            random_cluster_assignments.begin());
-
-        // take care of deficits and extras numbers
-
-        int nr_extras = static_cast<int>(random_cluster_assignments.size()) -
-                        static_cast<int>(current_graph_view.local_vertex_partition_range_size());
-        int nr_deficits = nr_extras >= 0 ? 0 : -nr_extras;
-
-        auto extra_cluster_ids = cugraph::detail::device_allgatherv(
-          handle,
-          comm,
-          raft::device_span<vertex_t const>(
-            random_cluster_assignments.data() +
-              current_graph_view.local_vertex_partition_range_size(),
-            nr_extras > 0 ? nr_extras : 0));
-
-        random_cluster_assignments.resize(current_graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
-        auto deficits =
-          cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
-
-        std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
-
-        raft::copy(random_cluster_assignments.data() +
-                     current_graph_view.local_vertex_partition_range_size() - nr_deficits,
-                   extra_cluster_ids.begin() + deficits[comm_rank],
-                   nr_deficits,
-                   handle.get_stream());
-      }
-
-      assert(random_cluster_assignments.size() ==
-             current_graph_view.local_vertex_partition_range_size());
-
-      assert(dendrogram->current_level_size() ==
-             current_graph_view.local_vertex_partition_range_size());
+      auto random_cluster_assignments = cugraph::detail::permute_range<vertex_t>(
+        handle,
+        *rng_state,
+        current_graph_view.local_vertex_partition_range_size(),
+        current_graph_view.local_vertex_partition_range_first(),
+        multi_gpu);
 
       raft::copy(dendrogram->current_level_begin(),
                  random_cluster_assignments.begin(),

@@ -541,25 +541,31 @@ weight_t hungarian(raft::handle_t const& handle,
  *    community hierarchies in large networks, J Stat Mech P10008 (2008),
  *    http://arxiv.org/abs/0803.0476
  *
- * @throws     cugraph::logic_error when an error occurs.
+ * @throws cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold             (optional) threshold for convergence at each level (default
- * 1e-7)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- *                                   communities. (default 1)
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object.
+ * @param[in]  edge_weight_view  Optional view object holding edge weights for @p graph_view.
+ *                               If @pedge_weight_view.has_value() == false, edge weights
+ *                               are assumed to be 1.0.
+  @param[out] clustering         Pointer to device array where the clustering should be stored
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
  *
- * @return                           a pair containing:
- *                                     1) number of levels of the returned clustering
- *                                     2) modularity of the returned clustering
+ * @return                       a pair containing:
+ *                                 1) number of levels of the returned clustering
+ *                                 2) modularity of the returned clustering
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

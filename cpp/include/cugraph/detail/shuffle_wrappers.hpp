@@ -16,6 +16,7 @@
 #pragma once
 
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
@@ -137,6 +138,27 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values);
+
+/**
+ * @brief Permute a range.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in]  rng_state The RngState instance holding pseudo-random number generator state.
+ * @param[in] local_range_size size of local range in the current GPU.
+ * @param[in] local_start start of the local range in the current GPU.
+ *
+ * @return permuted range.
+ */
+
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
+                                            raft::random::RngState& rng_state,
+                                            vertex_t local_range_size,
+                                            vertex_t local_start,
+                                            bool multi_gpu = false);
 
 /**
  * @brief Shuffle internal (i.e. renumbered) vertices to their local GPUs based on vertex
