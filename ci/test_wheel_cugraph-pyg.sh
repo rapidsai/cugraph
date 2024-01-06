@@ -21,6 +21,7 @@ if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
   rapids-logger "Installing PyTorch and PyG dependencies"
   PYTORCH_URL="https://download.pytorch.org/whl/cu118"
   rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
+  rapids-retry python -m pip install torch-geometric==2.4.0
   rapids-retry python -m pip install \
         pyg_lib \
         torch_scatter \
