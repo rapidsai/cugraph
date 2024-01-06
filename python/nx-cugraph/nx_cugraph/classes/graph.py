@@ -166,8 +166,9 @@ class Graph:
         # only if needed. Like src/dst_indices, the _node_ids array must be
         # maintained for the lifetime of the plc.SGGraph
         all_node_ids = cp.arange(new_graph._N, dtype=index_dtype)
-        isolates = cp.setdiff1d(cp.setdiff1d(all_node_ids, new_graph.src_indices),
-                                new_graph.dst_indices)
+        isolates = cp.setdiff1d(
+            cp.setdiff1d(all_node_ids, new_graph.src_indices), new_graph.dst_indices
+        )
         if len(isolates) > 0:
             new_graph._node_ids = all_node_ids
 
