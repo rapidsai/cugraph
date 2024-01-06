@@ -65,6 +65,7 @@ class Graph:
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
+    _node_ids: cp.ndarray[IndexValue] | None  # holds plc.SGGraph.vertices_array data
 
     # Used by graph._get_plc_graph
     _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
@@ -116,6 +117,7 @@ class Graph:
         new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
         new_graph._id_to_key = None if id_to_key is None else list(id_to_key)
         new_graph._N = op.index(N)  # Ensure N is integral
+        new_graph._node_ids = None
         new_graph.graph = new_graph.graph_attr_dict_factory()
         new_graph.graph.update(attr)
         size = new_graph.src_indices.size
@@ -405,6 +407,7 @@ class Graph:
         self.src_indices = cp.empty(0, self.src_indices.dtype)
         self.dst_indices = cp.empty(0, self.dst_indices.dtype)
         self._N = 0
+        self._node_ids = None
         self.key_to_id = None
         self._id_to_key = None
 
@@ -637,6 +640,18 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
+
+        # If the graph contains isolates, plc.SGGraph() must be passed a
+        # value for vertices_array that contains every vertex ID, since the
+        # src/dst_indices arrays will not contain IDs for isolates.
+        all_node_ids = cp.arange(self._N, dtype=index_dtype)
+        isolates = cp.setdiff1d(cp.setdiff1d(all_node_ids, src_indices), dst_indices)
+        if len(isolates) == 0:
+            all_node_ids = None
+        # like self.src/dst_indices, the _node_ids array must be maintained for
+        # the lifetime of the plc.SGGraph
+        self._node_ids = all_node_ids
+
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -649,6 +664,7 @@ class Graph:
             store_transposed=store_transposed,
             renumber=False,
             do_expensive_check=False,
+            vertices_array=self._node_ids,
         )
 
     def _sort_edge_indices(self, primary="src"):
