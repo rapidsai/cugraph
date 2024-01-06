@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -159,6 +159,18 @@ class Graph:
                     f"(got {new_graph.dst_indices.dtype.name})."
                 )
             new_graph.dst_indices = dst_indices
+
+        # If the graph contains isolates, plc.SGGraph() must be passed a value
+        # for vertices_array that contains every vertex ID, since the
+        # src/dst_indices arrays will not contain IDs for isolates. Create this
+        # only if needed. Like src/dst_indices, the _node_ids array must be
+        # maintained for the lifetime of the plc.SGGraph
+        all_node_ids = cp.arange(new_graph._N, dtype=index_dtype)
+        isolates = cp.setdiff1d(cp.setdiff1d(all_node_ids, new_graph.src_indices),
+                                new_graph.dst_indices)
+        if len(isolates) > 0:
+            new_graph._node_ids = all_node_ids
+
         return new_graph
 
     @classmethod
@@ -640,17 +652,6 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
-
-        # If the graph contains isolates, plc.SGGraph() must be passed a
-        # value for vertices_array that contains every vertex ID, since the
-        # src/dst_indices arrays will not contain IDs for isolates.
-        all_node_ids = cp.arange(self._N, dtype=index_dtype)
-        isolates = cp.setdiff1d(cp.setdiff1d(all_node_ids, src_indices), dst_indices)
-        if len(isolates) == 0:
-            all_node_ids = None
-        # like self.src/dst_indices, the _node_ids array must be maintained for
-        # the lifetime of the plc.SGGraph
-        self._node_ids = all_node_ids
 
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
