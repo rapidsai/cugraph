@@ -117,7 +117,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
         edge_src_centralities.view(),
         edge_dst_dummy_property_t{}.view(),
         edge_dummy_property_t{}.view(),
-        [] __device__(vertex_t, vertex_t, auto src_val, auto, auto) { return src_val * 1.0; },
+        [] __device__(vertex_t, vertex_t, auto src_val, auto, auto) { return src_val; },
         weight_t{0},
         reduce_op::plus<weight_t>{},
         centralities.begin());
