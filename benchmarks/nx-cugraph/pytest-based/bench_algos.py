@@ -147,6 +147,7 @@ def get_legacy_backend_wrapper(backend_name):
         # allow it to be called repeatedly.
         backends._registered_algorithms = {}
         actual_func = dispatch(func)  # returns the func the dispatcher picks
+
         def wrapper(*args, **kwargs):
             retval = actual_func(*args, **kwargs)
             if exhaust_returned_iterator:
@@ -164,6 +165,7 @@ def get_backend_wrapper(backend_name):
     "backend" kwarg on it.
     This is only supported for NetworkX >= 3.2
     """
+
     def wrap_callable_for_dispatch(func, exhaust_returned_iterator=False):
         def wrapper(*args, **kwargs):
             kwargs["backend"] = backend_name
@@ -439,8 +441,9 @@ def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapp
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
 
     result = benchmark.pedantic(
-        target=backend_wrapper(nx.single_target_shortest_path_length,
-                               exhaust_returned_iterator=True),
+        target=backend_wrapper(
+            nx.single_target_shortest_path_length, exhaust_returned_iterator=True
+        ),
         args=(G,),
         kwargs=dict(
             target=node,
