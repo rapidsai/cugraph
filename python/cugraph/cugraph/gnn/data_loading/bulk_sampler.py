@@ -31,7 +31,7 @@ import logging
 import time
 
 
-class EXPERIMENTAL__BulkSampler:
+class BulkSampler:
     """
     Performs sampling based on input seeds grouped into batches by
     a batch id.  Writes the output minibatches to parquet, with
@@ -158,7 +158,7 @@ class EXPERIMENTAL__BulkSampler:
         Examples
         --------
         >>> import cudf
-        >>> from cugraph.experimental.gnn import BulkSampler
+        >>> from cugraph.gnn import BulkSampler
         >>> from cugraph.datasets import karate
         >>> import tempfile
         >>> df = cudf.DataFrame({
