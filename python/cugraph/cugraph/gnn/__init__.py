@@ -12,3 +12,4 @@
 # limitations under the License.
 
 from .feature_storage.feat_storage import FeatureStore
+from .data_loading.bulk_sampler import BulkSampler

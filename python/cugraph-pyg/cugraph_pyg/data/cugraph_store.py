@@ -199,7 +199,7 @@ class CuGraphTensorAttr:
         return cls(*args, **kwargs)
 
 
-class EXPERIMENTAL__CuGraphStore:
+class CuGraphStore:
     """
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
