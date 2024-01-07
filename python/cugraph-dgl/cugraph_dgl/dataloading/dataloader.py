@@ -17,7 +17,7 @@ import cugraph_dgl
 import cupy as cp
 import cudf
 from cugraph.utilities.utils import import_optional
-from cugraph.experimental import BulkSampler
+from cugraph.gnn import BulkSampler
 from dask.distributed import default_client, Event
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
