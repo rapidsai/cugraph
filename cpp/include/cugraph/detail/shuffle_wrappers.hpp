@@ -147,8 +147,8 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in]  rng_state The RngState instance holding pseudo-random number generator state.
- * @param[in] local_range_size size of local range in the current GPU.
- * @param[in] local_start start of the local range in the current GPU.
+ * @param[in] local_range_size Size of local range assigned to this process.
+ * @param[in] local_start Start of local range assigned to this process.
  *
  * @return permuted range.
  */
