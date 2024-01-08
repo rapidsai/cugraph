@@ -235,6 +235,25 @@ def main(args):
             num_neighbors=fanout,
             batch_size=args.batch_size,
         )
+    elif args.framework == "cuGraphDGL":
+        sample_dir = os.path.join(
+            args.sample_dir,
+            f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
+        )
+        from trainers.dgl import DGLCuGraphTrainer
+        trainer = DGLCuGraphTrainer(
+            model=args.model,
+            dataset=dataset,
+            sample_dir=args.sample_dir,
+            device=local_rank,
+            rank=global_rank,
+            world_size=world_size,
+            num_epochs=args.num_epochs,
+            shuffle=True,
+            replace=False,
+            num_neighbors=[int(f) for f in args.fanout.split("_")],
+            batch_size=args.batch_size,
+        )
     else:
         raise ValueError("unsupported framework")
 
