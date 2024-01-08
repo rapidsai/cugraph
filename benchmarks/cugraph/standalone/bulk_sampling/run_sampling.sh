@@ -36,8 +36,6 @@ export CUDF_SPILL=1
 export LIBCUDF_CUFILE_POLICY="OFF"
 export GPUS_PER_NODE=8
 
-PATCH_CUGRAPH=1
-
 export SCHEDULER_FILE=$SCHEDULER_FILE
 export LOGS_DIR=$LOGS_DIR
 
@@ -58,17 +56,6 @@ if [[ $SLURM_NODEID == 0 ]]; then
     ${MG_UTILS_DIR}/run-dask-process.sh scheduler workers &
 else
     ${MG_UTILS_DIR}/run-dask-process.sh workers &
-fi
-
-if [[ $PATCH_CUGRAPH == 1 ]]; then
-    mkdir /opt/cugraph-patch
-    git clone https://github.com/alexbarghi-nv/cugraph -b dlfw-patch-24.01 /opt/cugraph-patch
-    
-    rm /opt/rapids/cugraph/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py
-    cp /opt/cugraph-patch/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py /opt/rapids/cugraph/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py
-    rm /usr/local/lib/python3.10/dist-packages/cugraph/structure/graph_implementation/simpleDistributedGraph.py
-    cp /opt/cugraph-patch/python/cugraph/cugraph/structure/graph_implementation/simpleDistributedGraph.py /usr/local/lib/python3.10/dist-packages/cugraph/structure/graph_implementation/simpleDistributedGraph.py
-
 fi
 
 echo "properly waiting for workers to connect"

@@ -18,7 +18,7 @@
 #SBATCH -N 1
 #SBATCH -t 00:25:00 
 
-CONTAINER_IMAGE="/lustre/fsw/rapids/abarghi/dlfw_patched.squash"
+CONTAINER_IMAGE=${CONTAINER_IMAGE:="please_specify_container"}
 SCRIPTS_DIR=$(pwd)
 LOGS_DIR=${LOGS_DIR:=$(pwd)"/logs"}
 SAMPLES_DIR=${SAMPLES_DIR:=$(pwd)/samples}
