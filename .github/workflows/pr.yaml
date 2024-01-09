@@ -101,7 +101,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
   wheel-build-cugraph:
-    needs: wheel-build-pylibcugraph
+    needs: wheel-tests-pylibcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
     with:
@@ -132,7 +132,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_nx-cugraph.sh
   wheel-build-cugraph-dgl:
-    needs: wheel-build-cugraph
+    needs: wheel-tests-cugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
     with:
@@ -147,7 +147,7 @@ jobs:
       script: ci/test_wheel_cugraph-dgl.sh
       matrix_filter: map(select(.ARCH == "amd64"))
   wheel-build-cugraph-pyg:
-    needs: wheel-build-cugraph
+    needs: wheel-tests-cugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
     with:
