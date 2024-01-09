@@ -172,7 +172,7 @@ struct extract_q_r {
 
 
 template <typename vertex_t, typename edge_t>
-struct triangle_counts_less_t {
+struct K-trusss_less_t {
   raft::device_span<vertex_t const> num_triangles{};
   edge_t k;
 
@@ -258,17 +258,20 @@ void k_truss(raft::handle_t const& handle,
 {
   using weight_t = float;  // dummy
 
-
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
-    "Invalid input arguments: triangle_count currently supports undirected graphs only.");
+    "Invalid input arguments: K-truss currently supports undirected graphs only.");
   CUGRAPH_EXPECTS(
     !graph_view.is_multigraph(),
-    "Invalid input arguments: triangle_count currently does not support multi-graphs.");
+    "Invalid input arguments: K-truss currently does not support multi-graphs.");
+  
+  if (do_expensive_check) {
+    // nothing to do
+  }
   
 
   // 2. Exclude self-loops (FIXME: better mask-out once we add masking support).
@@ -276,10 +279,6 @@ void k_truss(raft::handle_t const& handle,
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t>> edge_ids{std::nullopt};
-  // FIXME: Maybe should not be optional
-  std::optional<rmm::device_uvector<edge_t>> wgts{std::nullopt};
-  std::optional<rmm::device_uvector<edge_t>> wgts_{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
     auto [srcs, dsts] = extract_transform_e(handle,
