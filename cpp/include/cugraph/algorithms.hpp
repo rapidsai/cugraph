@@ -1979,9 +1979,9 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 /*
- * @brief Compute ktruss.
+ * @brief Compute k_truss.
  *
- * Extract the ktruss subgraph of a graph
+ * Extract the k_truss subgraph of a graph
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1993,9 +1993,9 @@ void triangle_count(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void ktruss(raft::handle_t const& handle,
+void k_truss(raft::handle_t const& handle,
             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            edge_t counts,
+            edge_t k,
             bool do_expensive_check = false);
 
 /**

@@ -40,16 +40,16 @@
 #include <vector>
 
 
-struct Ktruss_Usecase {
+struct KTruss_Usecase {
   int32_t k{10};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_Ktruss
-  : public ::testing::TestWithParam<std::tuple<Ktruss_Usecase, input_usecase_t>> {
+class Tests_KTruss
+  : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, input_usecase_t>> {
  public:
-  Tests_Ktruss() {}
+  Tests_KTruss() {}
 
   static void SetUpTestCase() {}
   static void TearDownTestCase() {}
@@ -59,13 +59,13 @@ class Tests_Ktruss
 
   template <typename vertex_t, typename edge_t>
   void run_current_test(
-    std::tuple<Ktruss_Usecase const&, input_usecase_t const&> const& param)
+    std::tuple<KTruss_Usecase const&, input_usecase_t const&> const& param)
   {
     constexpr bool renumber = false;
 
     using weight_t = float;
 
-    auto [ktruss_usecase, input_usecase] = param;
+    auto [k_truss_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
     HighResTimer hr_timer{};
@@ -91,13 +91,13 @@ class Tests_Ktruss
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Ktruss");
+      hr_timer.start("K-truss");
     }
 
-    cugraph::ktruss<vertex_t, edge_t, false>(
+    cugraph::k_truss<vertex_t, edge_t, false>(
       handle,
       graph_view,
-      ktruss_usecase.k,
+      k_truss_usecase.k,
       false);
 
     if (cugraph::test::g_perf) {
@@ -109,10 +109,10 @@ class Tests_Ktruss
   }
 };
 
-using Tests_Ktruss_File = Tests_Ktruss<cugraph::test::File_Usecase>;
+using Tests_KTruss_File = Tests_KTruss<cugraph::test::File_Usecase>;
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_Ktruss_File, CheckInt32Int32)
+TEST_P(Tests_KTruss_File, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t>(override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
@@ -120,10 +120,10 @@ TEST_P(Tests_Ktruss_File, CheckInt32Int32)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_Ktruss_File,
+  Tests_KTruss_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Ktruss_Usecase{2}),
+    ::testing::Values(KTruss_Usecase{2}),
     ::testing::Values(cugraph::test::File_Usecase("/home/nfs/jnke/debug_jaccard/cugraph/datasets/dummy.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

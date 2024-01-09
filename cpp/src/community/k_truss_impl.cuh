@@ -251,7 +251,7 @@ struct intersection_op_t {
 } // namespace
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void ktruss(raft::handle_t const& handle,
+void k_truss(raft::handle_t const& handle,
             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
             edge_t k,
             bool do_expensive_check)
