@@ -17,11 +17,14 @@ from . import (
     components,
     link_analysis,
     shortest_paths,
+    traversal,
 )
 from .bipartite import complete_bipartite_graph
 from .centrality import *
 from .components import *
 from .core import *
+from .dag import *
 from .isolate import *
 from .link_analysis import *
 from .shortest_paths import *
+from .traversal import *

@@ -165,6 +165,15 @@ files:
       table: project
     includes:
       - python_run_cugraph_dgl
+      - depends_on_pylibcugraphops
+  py_test_cugraph_dgl:
+    output: pyproject
+    pyproject_dir: python/cugraph-dgl
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -179,6 +188,15 @@ files:
       table: project
     includes:
       - python_run_cugraph_pyg
+      - depends_on_pylibcugraphops
+  py_test_cugraph_pyg:
+    output: pyproject
+    pyproject_dir: python/cugraph-pyg
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
@@ -372,7 +390,12 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - cython>=3.0.0
-          - scikit-build>=0.13.1
+      - output_types: conda
+        packages:
+          - scikit-build-core>=0.7.0
+      - output_types: [pyproject, requirements]
+        packages:
+          - scikit-build-core[pyproject]>=0.7.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]

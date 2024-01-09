@@ -28,7 +28,7 @@ from cugraph.testing.mg_utils import (
 )
 
 from cugraph.structure.symmetrize import symmetrize
-from cugraph.experimental.gnn import BulkSampler
+from cugraph.gnn import BulkSampler
 
 import cugraph
 

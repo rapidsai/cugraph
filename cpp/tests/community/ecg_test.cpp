@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -121,41 +121,29 @@ TEST(ecg, dolphin)
   cugraph::legacy::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
-  // "FIXME": remove this check once we drop support for Pascal
-  //
-  // Calling louvain on Pascal will throw an exception, we'll check that
-  // this is the behavior while we still support Pascal (device_prop.major < 7)
-  //
-  if (handle.get_device_properties().major < 7) {
-    EXPECT_THROW(
-      (cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data())),
-      cugraph::logic_error);
-  } else {
-    cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data());
+  cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data());
 
-    auto cluster_id = cugraph::test::to_host(handle, result_v);
+  auto cluster_id = cugraph::test::to_host(handle, result_v);
 
-    int max = *max_element(cluster_id.begin(), cluster_id.end());
-    int min = *min_element(cluster_id.begin(), cluster_id.end());
+  int max = *max_element(cluster_id.begin(), cluster_id.end());
+  int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-    ASSERT_EQ((min >= 0), 1);
+  ASSERT_EQ((min >= 0), 1);
 
-    std::set<int> cluster_ids;
-    for (auto c : cluster_id) {
-      cluster_ids.insert(c);
-    }
-
-    ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
-
-    float modularity{0.0};
-
-    cugraph::ext_raft::analyzeClustering_modularity(
-      graph_csr, max + 1, result_v.data(), &modularity);
-
-    float random_modularity{0.95 * 0.4962422251701355};
-
-    ASSERT_GT(modularity, random_modularity);
+  std::set<int> cluster_ids;
+  for (auto c : cluster_id) {
+    cluster_ids.insert(c);
   }
+
+  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
+
+  float modularity{0.0};
+
+  cugraph::ext_raft::analyzeClustering_modularity(graph_csr, max + 1, result_v.data(), &modularity);
+
+  float random_modularity{0.95 * 0.4962422251701355};
+
+  ASSERT_GT(modularity, random_modularity);
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
