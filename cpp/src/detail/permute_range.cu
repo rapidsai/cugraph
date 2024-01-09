@@ -70,7 +70,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    std::vector<size_t> tx_value_counts(comm_size, 0)
+    std::vector<size_t> tx_value_counts(comm_size, 0);
 
     {
       rmm::device_uvector<vertex_t> d_target_ranks(permuted_integers.size(), handle.get_stream());
