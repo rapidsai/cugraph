@@ -156,9 +156,10 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
                                             raft::random::RngState& rng_state,
-                                            vertex_t local_range_size,
                                             vertex_t local_start,
-                                            bool multi_gpu = false);
+                                            vertex_t local_range_size,
+                                            bool multi_gpu          = false,
+                                            bool do_expensive_check = false);
 
 /**
  * @brief Shuffle internal (i.e. renumbered) vertices to their local GPUs based on vertex

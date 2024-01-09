@@ -90,8 +90,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       auto random_cluster_assignments = cugraph::detail::permute_range<vertex_t>(
         handle,
         *rng_state,
-        current_graph_view.local_vertex_partition_range_size(),
         current_graph_view.local_vertex_partition_range_first(),
+        current_graph_view.local_vertex_partition_range_size(),
         multi_gpu);
 
       raft::copy(dendrogram->current_level_begin(),

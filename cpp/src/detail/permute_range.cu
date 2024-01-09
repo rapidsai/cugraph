@@ -38,11 +38,12 @@ namespace detail {
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
                                             raft::random::RngState& rng_state,
-                                            vertex_t local_range_size,
                                             vertex_t local_range_start,
-                                            bool multi_gpu)
+                                            vertex_t local_range_size,
+                                            bool multi_gpu,
+                                            bool do_expensive_check)
 {
-  if (multi_gpu) {
+  if (do_expensive_check && multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
@@ -69,8 +70,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    std::vector<size_t> tx_value_counts(comm_size);
-    std::fill(tx_value_counts.begin(), tx_value_counts.end(), 0);
+    std::vector<size_t> tx_value_counts(comm_size, 0)
 
     {
       rmm::device_uvector<vertex_t> d_target_ranks(permuted_integers.size(), handle.get_stream());
@@ -138,8 +138,14 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     // take care of deficits and extras numbers
     auto& comm           = handle.get_comms();
     auto const comm_rank = comm.get_rank();
-    int nr_extras = static_cast<int>(permuted_integers.size()) - static_cast<int>(local_range_size);
-    int nr_deficits = nr_extras >= 0 ? 0 : -nr_extras;
+
+    size_t nr_extras{0};
+    size_t nr_deficits{0};
+    if (permuted_integers.size() > static_cast<size_t>(local_range_size)) {
+      nr_extras = permuted_integers.size() - static_cast<size_t>(local_range_size);
+    } else {
+      nr_deficits = static_cast<size_t>(local_range_size) - permuted_integers.size();
+    }
 
     auto extra_cluster_ids = cugraph::detail::device_allgatherv(
       handle,
@@ -165,15 +171,17 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
 
 template rmm::device_uvector<int32_t> permute_range(raft::handle_t const& handle,
                                                     raft::random::RngState& rng_state,
-                                                    int32_t local_range_size,
                                                     int32_t local_range_start,
-                                                    bool multi_gpu);
+                                                    int32_t local_range_size,
+                                                    bool multi_gpu,
+                                                    bool do_expensive_check);
 
 template rmm::device_uvector<int64_t> permute_range(raft::handle_t const& handle,
                                                     raft::random::RngState& rng_state,
-                                                    int64_t local_range_size,
                                                     int64_t local_range_start,
-                                                    bool multi_gpu);
+                                                    int64_t local_range_size,
+                                                    bool multi_gpu,
+                                                    bool do_expensive_check);
 
 }  // namespace detail
 }  // namespace cugraph
