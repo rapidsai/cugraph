@@ -21,6 +21,7 @@ FANOUT=$2
 REPLICATION_FACTOR=$3
 SCRIPTS_DIR=$4
 NUM_EPOCHS=$5
+SAMPLING_FRAMEWORK=$6
 
 SAMPLES_DIR=/samples
 DATASET_DIR=/datasets
@@ -78,7 +79,8 @@ if [[ $SLURM_NODEID == 0 ]]; then
         --batch_sizes $BATCH_SIZE \
         --seeds_per_call_opts "524288" \
         --num_epochs $NUM_EPOCHS \
-        --random_seed 42 
+        --random_seed 42 \
+        --sampling_target_framework $SAMPLING_FRAMEWORK
 
     echo "DONE" > ${SAMPLES_DIR}/status.txt
 fi

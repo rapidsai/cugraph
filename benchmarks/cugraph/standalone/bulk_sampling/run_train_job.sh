@@ -33,7 +33,7 @@ FANOUT="10_10_10"
 NUM_EPOCHS=1
 REPLICATION_FACTOR=1
 
-# options: PyG or cuGraphPyG
+# options: PyG, cuGraphPyG, or cuGraphDGL
 FRAMEWORK="cuGraphPyG"
 GPUS_PER_NODE=8
 
@@ -59,7 +59,12 @@ if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
     srun \
         --container-image $CONTAINER_IMAGE \
         --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS
+        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg"
+elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
+    srun \
+        --container-image $CONTAINER_IMAGE \
+        --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
+        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr"
 fi
 
 # Train
