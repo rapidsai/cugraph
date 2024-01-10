@@ -33,11 +33,12 @@ if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
     -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
 
   rapids-logger "pytest cugraph-pyg (single GPU)"
+  pushd python/cugraph-pyg/cugraph_pyg
   python -m pytest \
     --cache-clear \
-    --ignore=tests/int \
     --ignore=tests/mg \
-    python/cugraph-pyg/cugraph_pyg/tests
+    tests
+  popd
 else
   rapids-logger "skipping cugraph-pyg wheel test on CUDA!=11.8"
 fi
