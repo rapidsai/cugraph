@@ -51,12 +51,15 @@ class networkx_algorithm:
         func=None,
         *,
         name: str | None = None,
+        # Extra parameter info that is added to NetworkX docstring
         extra_params: dict[str, str] | str | None = None,
+        # Applies `nodes_or_number` decorator compatibly across versions (3.3 changed)
         nodes_or_number: list[int] | int | None = None,
-        plc: str | set[str] | None = None,
-        version_added: str,
-        is_incomplete: bool = False,
-        is_different: bool = False,
+        # Metadata (for introspection only)
+        version_added: str,  # Required
+        is_incomplete: bool = False,  # See self.extra_doc for details if True
+        is_different: bool = False,  # See self.extra_doc for details if True
+        plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
     ):
         if func is None:
             return partial(
