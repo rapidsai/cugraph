@@ -22,7 +22,7 @@ import cupy
 import cugraph
 import dask_cudf
 from cugraph.datasets import karate, email_Eu_core
-from cugraph.experimental import BulkSampler
+from cugraph.gnn import BulkSampler
 from cugraph.utilities.utils import create_directory_with_overwrite
 
 

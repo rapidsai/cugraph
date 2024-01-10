@@ -36,6 +36,7 @@ def from_pandas_edgelist(
     graph_class, inplace = _create_using_class(create_using)
     src_array = df[source].to_numpy()
     dst_array = df[target].to_numpy()
+    # TODO: create renumbering helper function(s)
     # Renumber step 0: node keys
     nodes = np.unique(np.concatenate([src_array, dst_array]))
     N = nodes.size

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,7 @@ import pandas
 import pytest
 
 import cudf
+import dask_cudf
 from cugraph.structure import Graph
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
@@ -29,6 +30,7 @@ from cugraph.testing import (
     BENCHMARKING_DATASETS,
 )
 from cugraph import datasets
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
@@ -36,6 +38,7 @@ pytestmark = pytest.mark.sg
 
 ###############################################################################
 # Fixtures
+
 
 # module fixture - called once for this module
 @pytest.fixture(scope="module")
@@ -77,6 +80,7 @@ def setup(tmpdir):
 ###############################################################################
 # Helpers
 
+
 # check if there is a row where src == dst
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:
@@ -115,6 +119,7 @@ def is_symmetric(dataset):
 ###############################################################################
 # Tests
 
+
 # setting download_dir to None effectively re-initialized the default
 def test_env_var():
     os.environ["RAPIDS_DATASET_ROOT_DIR"] = "custom_storage_location"
@@ -150,9 +155,19 @@ def test_download(dataset):
     assert dataset.get_path().is_file()
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_download_dask(dask_client, dataset):
+    E = dataset.get_dask_edgelist(download=True)
+
+    assert E is not None
+    assert dataset.get_path().is_file()
+
+
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_reader(dataset):
-    # defaults to using cudf.read_csv
+    # defaults to using cudf
     E = dataset.get_edgelist(download=True)
 
     assert E is not None
@@ -171,15 +186,43 @@ def test_reader(dataset):
         dataset.get_edgelist(reader=None)
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_reader_dask(dask_client, dataset):
+    # using dask_cudf
+    E = dataset.get_dask_edgelist(download=True)
+
+    assert E is not None
+    assert isinstance(E, dask_cudf.core.DataFrame)
+    dataset.unload()
+
+
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
     E = dataset.get_edgelist(download=True)
     assert E is not None
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_dask_edgelist(dask_client, dataset):
+    E = dataset.get_dask_edgelist(download=True)
+    assert E is not None
+
+
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
     G = dataset.get_graph(download=True)
+    assert G is not None
+
+
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_dask_graph(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
     assert G is not None
 
 
@@ -207,6 +250,16 @@ def test_weights(dataset):
     assert not G.is_weighted()
 
 
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
+def test_weights_dask(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
+    assert G.is_weighted()
+    G = dataset.get_dask_graph(download=True, ignore_weights=True)
+    assert not G.is_weighted()
+
+
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
     G = dataset.get_graph(download=True)
@@ -215,6 +268,26 @@ def test_create_using(dataset):
     assert not G.is_directed()
     G = dataset.get_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
+
+    # using a non-Graph type should raise an error
+    with pytest.raises(TypeError):
+        dataset.get_graph(download=True, create_using=set)
+
+
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_create_using_dask(dask_client, dataset):
+    G = dataset.get_dask_graph(download=True)
+    assert not G.is_directed()
+    G = dataset.get_dask_graph(download=True, create_using=Graph)
+    assert not G.is_directed()
+    G = dataset.get_dask_graph(download=True, create_using=Graph(directed=True))
+    assert G.is_directed()
+
+    # using a non-Graph type should raise an error
+    with pytest.raises(TypeError):
+        dataset.get_dask_graph(download=True, create_using=set)
 
 
 def test_ctor_with_datafile():
