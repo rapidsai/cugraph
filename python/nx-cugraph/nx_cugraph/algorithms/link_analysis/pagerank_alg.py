@@ -27,8 +27,8 @@ __all__ = ["pagerank"]
 
 
 @networkx_algorithm(
-    is_incomplete=True,  # dangling not supported
     extra_params=_dtype_param,
+    is_incomplete=True,  # dangling not supported
     plc={"pagerank", "personalized_pagerank"},
     version_added="23.12",
 )

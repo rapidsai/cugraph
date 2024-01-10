@@ -33,7 +33,7 @@ def from_pandas_edgelist(
     create_using=None,
     edge_key=None,
 ):
-    """cudf.DataFrame inputs also supported."""
+    """cudf.DataFrame inputs also supported; value columns with str is unsuppported."""
     graph_class, inplace = _create_using_class(create_using)
     src_array = df[source].to_numpy()
     dst_array = df[target].to_numpy()

@@ -27,8 +27,8 @@ __all__ = ["katz_centrality"]
 
 @not_implemented_for("multigraph")
 @networkx_algorithm(
-    is_incomplete=True,  # nstart and normalized=False not supported
     extra_params=_dtype_param,
+    is_incomplete=True,  # nstart and normalized=False not supported
     plc="katz_centrality",
     version_added="23.12",
 )

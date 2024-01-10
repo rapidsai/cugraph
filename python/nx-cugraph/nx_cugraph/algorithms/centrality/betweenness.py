@@ -27,7 +27,7 @@ __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
 ):
-    """`weight` parameter is not yet supported."""
+    """`weight` parameter is not yet supported, and RNG with seed may be different."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
@@ -58,7 +58,7 @@ def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
     version_added="23.10",
 )
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
-    """`weight` parameter is not yet supported."""
+    """`weight` parameter is not yet supported, and RNG with seed may be different."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
