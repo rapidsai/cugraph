@@ -11,7 +11,7 @@ requires = [
 testpaths = ["cugraph_pyg/tests"]
 
 [project]
-name = "cugraph_pyg"
+name = "cugraph-pyg"
 dynamic = ["version"]
 description = "cugraph_pyg - PyG support for cuGraph massive-scale, ultra-fast GPU graph analytics."
 authors = [
