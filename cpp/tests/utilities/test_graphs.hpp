@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -633,12 +633,14 @@ construct_graph(raft::handle_t const& handle,
 
   if (drop_multi_edges) {
     std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore) =
-      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(handle,
-                                                                       std::move(d_src_v),
-                                                                       std::move(d_dst_v),
-                                                                       std::move(d_weights_v),
-                                                                       std::nullopt,
-                                                                       std::nullopt);
+      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
+        handle,
+        std::move(d_src_v),
+        std::move(d_dst_v),
+        std::move(d_weights_v),
+        std::nullopt,
+        std::nullopt,
+        is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);

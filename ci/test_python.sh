@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -230,7 +230,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # rmat is not tested because of multi-GPU testing
     pytest \
       --cache-clear \
-      --ignore=tests/int \
       --ignore=tests/mg \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
       --cov-config=../../.coveragerc \
