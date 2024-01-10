@@ -36,7 +36,6 @@ if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
   pushd python/cugraph-pyg/cugraph_pyg
   python -m pytest \
     --cache-clear \
-    --ignore=tests/int \
     --ignore=tests/mg \
     tests
   popd
