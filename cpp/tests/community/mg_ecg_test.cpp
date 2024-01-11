@@ -67,57 +67,6 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void compare_sg_results(
-    raft::handle_t const& handle,
-    raft::random::RngState& rng_state,
-    cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
-    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
-    rmm::device_uvector<vertex_t> const& cluster_ids,
-    weight_t min_weight,
-    size_t ensemble_size,
-    size_t max_level,
-    weight_t threshold,
-    weight_t resolution,
-    weight_t mg_modularity)
-  {
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-
-    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-      sg_edge_weights{std::nullopt};
-    std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-      *handle_,
-      mg_graph_view,
-      mg_edge_weight_view,
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      false);  // crate an SG graph with MG graph vertex IDs
-
-    weight_t sg_modularity{-1.0};
-
-    if (comm_rank == 0) {
-      auto sg_graph_view = sg_graph.view();
-      auto sg_edge_weight_view =
-        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
-
-      std::tie(std::ignore, std::ignore, sg_modularity) = cugraph::ecg(handle,
-                                                                       rng_state,
-                                                                       sg_graph_view,
-                                                                       sg_edge_weight_view,
-                                                                       min_weight,
-                                                                       ensemble_size,
-                                                                       max_level,
-                                                                       threshold,
-                                                                       resolution);
-    }
-    if (comm_rank == 0) {
-      // FIXME: SG and MG modularity values can differ by a few percent,
-      //  so we can't compare them for correctness check
-    }
-  }
-
-  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<Ecg_Usecase const&, input_usecase_t const&> const& param)
   {
     auto [ecg_usecase, input_usecase] = param;
@@ -154,16 +103,15 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     raft::random::RngState rng_state(seed);
 
-    auto [cluster_ids, mg_level, mg_modularity] =
-      cugraph::ecg<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                     rng_state,
-                                                     mg_graph_view,
-                                                     mg_edge_weight_view,
-                                                     ecg_usecase.min_weight_,
-                                                     ecg_usecase.ensemble_size_,
-                                                     ecg_usecase.max_level_,
-                                                     ecg_usecase.threshold_,
-                                                     ecg_usecase.resolution_);
+    cugraph::ecg<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                   rng_state,
+                                                   mg_graph_view,
+                                                   mg_edge_weight_view,
+                                                   ecg_usecase.min_weight_,
+                                                   ecg_usecase.ensemble_size_,
+                                                   ecg_usecase.max_level_,
+                                                   ecg_usecase.threshold_,
+                                                   ecg_usecase.resolution_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -171,21 +119,35 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
+    // Louvain and detail::permute_range are both tested, here we only make
+    // sure that SG and MG ECG calls work expected.
 
-    if (ecg_usecase.check_correctness_) {
-      SCOPED_TRACE("compare modularity input");
+    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+      sg_edge_weights{std::nullopt};
+    std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+      *handle_,
+      mg_graph_view,
+      mg_edge_weight_view,
+      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+      false);  // crate a SG graph with MG graph vertex IDs
 
-      compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
-                                                     rng_state,
-                                                     mg_graph_view,
-                                                     mg_edge_weight_view,
-                                                     cluster_ids,
-                                                     ecg_usecase.min_weight_,
-                                                     ecg_usecase.ensemble_size_,
-                                                     ecg_usecase.max_level_,
-                                                     ecg_usecase.threshold_,
-                                                     ecg_usecase.resolution_,
-                                                     mg_modularity);
+    auto const comm_rank = handle_->get_comms().get_rank();
+    if (comm_rank == 0) {
+      auto sg_graph_view = sg_graph.view();
+      auto sg_edge_weight_view =
+        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+      cugraph::ecg<vertex_t, edge_t, weight_t, false>(*handle_,
+                                                      rng_state,
+                                                      sg_graph_view,
+                                                      sg_edge_weight_view,
+                                                      ecg_usecase.min_weight_,
+                                                      ecg_usecase.ensemble_size_,
+                                                      ecg_usecase.max_level_,
+                                                      ecg_usecase.threshold_,
+                                                      ecg_usecase.resolution_);
     }
   }
 
