@@ -26,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = ["is_isolate", "isolates", "number_of_isolates"]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.10")
 def is_isolate(G, n):
     G = _to_graph(G)
     index = n if G.key_to_id is None else G.key_to_id[n]
@@ -61,13 +61,13 @@ def _isolates(G, symmetrize=None) -> cp.ndarray[IndexValue]:
     return cp.nonzero(_mark_isolates(G, symmetrize=symmetrize))[0]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.10")
 def isolates(G):
     G = _to_graph(G)
     return G._nodeiter_to_iter(iter(_isolates(G).tolist()))
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.10")
 def number_of_isolates(G):
     G = _to_graph(G)
     return _mark_isolates(G).sum().tolist()
