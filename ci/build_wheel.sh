@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -36,7 +36,7 @@ if ! rapids-is-release-build; then
     alpha_spec=',>=0.0.0a0'
 fi
 
-for dep in rmm cudf raft-dask pylibcugraph pylibraft ucx-py; do
+for dep in rmm cudf cugraph raft-dask pylibcugraph pylibcugraphops pylibraft ucx-py; do
     sed -r -i "s/${dep}==(.*)\"/${dep}${PACKAGE_CUDA_SUFFIX}==\1${alpha_spec}\"/g" ${pyproject_file}
 done
 
@@ -55,7 +55,9 @@ cd "${package_dir}"
 python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # pure-python packages should not have auditwheel run on them.
-if [[ ${package_name} == "nx-cugraph" ]]; then
+if [[ ${package_name} == "nx-cugraph" ]] || \
+   [[ ${package_name} == "cugraph-dgl" ]] || \
+   [[ ${package_name} == "cugraph-pyg" ]]; then
     RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 dist
 else
     mkdir -p final_dist
