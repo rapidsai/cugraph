@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -385,7 +385,7 @@ def test_get_input_nodes(karate_gnn, dask_client):
 def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
-    assert isinstance(cugraph_store._EXPERIMENTAL__CuGraphStore__graph._plc_graph, dict)
+    assert isinstance(cugraph_store._CuGraphStore__graph._plc_graph, dict)
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
