@@ -27,21 +27,21 @@ __all__ = [
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm
+@networkx_algorithm(version_added="24.02")
 def weakly_connected_components(G):
     G = _to_directed_graph(G)
     return _connected_components(G, symmetrize="union")
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm
+@networkx_algorithm(version_added="24.02")
 def number_weakly_connected_components(G):
     G = _to_directed_graph(G)
     return _number_connected_components(G, symmetrize="union")
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm
+@networkx_algorithm(version_added="24.02")
 def is_weakly_connected(G):
     G = _to_directed_graph(G)
     return _is_connected(G, symmetrize="union")
