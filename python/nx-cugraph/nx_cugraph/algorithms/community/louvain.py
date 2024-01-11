@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +35,11 @@ __all__ = ["louvain_communities"]
             "Upper limit of the number of macro-iterations (max: 500)."
         ),
         **_dtype_param,
-    }
+    },
+    is_incomplete=True,  # seed not supported; self-loops not supported
+    is_different=True,  # RNG different
+    plc="louvain",
+    version_added="23.10",
 )
 def louvain_communities(
     G,
@@ -47,7 +51,7 @@ def louvain_communities(
     max_level=None,
     dtype=None,
 ):
-    """`seed` parameter is currently ignored."""
+    """`seed` parameter is currently ignored, and self-loops are not yet supported."""
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
