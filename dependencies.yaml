@@ -197,6 +197,28 @@ files:
       key: test
     includes:
       - test_python_common
+  py_build_cugraph_equivariant:
+    output: pyproject
+    pyproject_dir: python/cugraph-equivariant
+    extras:
+      table: build-system
+    includes:
+      - python_build_wheel
+  py_run_cugraph_equivariant:
+    output: pyproject
+    pyproject_dir: python/cugraph-equivariant
+    extras:
+      table: project
+    includes:
+      - depends_on_pylibcugraphops
+  py_test_cugraph_equivariant:
+    output: pyproject
+    pyproject_dir: python/cugraph-equivariant
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
