@@ -11,12 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
 import torch
 from e3nn import o3
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 
 
-def test_tensor_product_conv_equivariance():
+@pytest.mark.parametrize(
+    "mlp_channels, mlp_fast_first_layer",
+    [[(3 * 10, 8, 8), True], [(7,), False], [None, False]],
+)
+def test_tensor_product_conv_equivariance(mlp_channels, mlp_fast_first_layer):
     torch.manual_seed(12345)
 
     in_irreps = o3.Irreps("10x0e + 10x1e")
@@ -24,7 +30,11 @@ def test_tensor_product_conv_equivariance():
     sh_irreps = o3.Irreps.spherical_harmonics(lmax=2)
 
     tp_conv = FullyConnectedTensorProductConv(
-        in_irreps=in_irreps, sh_irreps=sh_irreps, out_irreps=out_irreps
+        in_irreps=in_irreps,
+        sh_irreps=sh_irreps,
+        out_irreps=out_irreps,
+        mlp_channels=mlp_channels,
+        mlp_fast_first_layer=mlp_fast_first_layer,
     )
 
     num_src_nodes, num_dst_nodes = 9, 7
@@ -41,19 +51,31 @@ def test_tensor_product_conv_equivariance():
     )
     src_features = torch.randn(num_src_nodes, in_irreps.dim)
 
-    weights_tp = torch.randn(num_edges, tp_conv.tp.weight_numel)
-
     rot = o3.rand_matrix()
     D_in = tp_conv.in_irreps.D_from_matrix(rot)
     D_sh = tp_conv.sh_irreps.D_from_matrix(rot)
     D_out = tp_conv.out_irreps.D_from_matrix(rot)
 
+    if mlp_channels is None:
+        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel)
+        src_scalars = dst_scalars = None
+    else:
+        if mlp_fast_first_layer:
+            edge_emb = torch.randn(num_edges, tp_conv.num_scalars)
+            src_scalars = torch.randn(num_src_nodes, tp_conv.num_scalars)
+            dst_scalars = torch.randn(num_dst_nodes, tp_conv.num_scalars)
+        else:
+            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features)
+            src_scalars = dst_scalars = None
+
     # rotate before
     out_before = tp_conv(
         src_features=src_features @ D_in,
         edge_sh=edge_sh @ D_sh,
-        edge_emb=weights_tp,
+        edge_emb=edge_emb,
         graph=(edge_index, (num_src_nodes, num_dst_nodes)),
+        src_scalars=src_scalars,
+        dst_scalars=dst_scalars,
     )
 
     # rotate after
@@ -61,8 +83,10 @@ def test_tensor_product_conv_equivariance():
         tp_conv(
             src_features=src_features,
             edge_sh=edge_sh,
-            edge_emb=weights_tp,
+            edge_emb=edge_emb,
             graph=(edge_index, (num_src_nodes, num_dst_nodes)),
+            src_scalars=src_scalars,
+            dst_scalars=dst_scalars,
         )
         @ D_out
     )

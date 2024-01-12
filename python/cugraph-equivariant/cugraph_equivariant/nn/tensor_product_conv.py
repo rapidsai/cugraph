@@ -102,9 +102,9 @@ class FullyConnectedTensorProductConv(nn.Module):
         if mlp_fast_first_layer:
             assert mlp_channels is not None
             assert mlp_channels[0] % 3 == 0
-            self.n_scalars = int(mlp_channels[0] / 3)
+            self.num_scalars = int(mlp_channels[0] / 3)
         else:
-            self.n_scalars = None
+            self.num_scalars = None
         self.mlp_fast_first_layer = mlp_fast_first_layer
 
         if mlp_channels is not None:
@@ -113,8 +113,8 @@ class FullyConnectedTensorProductConv(nn.Module):
             for i in range(len(dims) - 1):
                 mlp.append(nn.Linear(dims[i], dims[i + 1]))
                 if mlp_activation is not None and i != len(dims) - 2:
-                    mlp.append(mlp_activation)
-            self.mlp = nn.Sequential(mlp)
+                    mlp.append(mlp_activation())
+            self.mlp = nn.Sequential(*mlp)
         else:
             self.mlp = None
 
@@ -153,11 +153,11 @@ class FullyConnectedTensorProductConv(nn.Module):
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
-            Shape: (num_src_nodes, n_scalars)
+            Shape: (num_src_nodes, num_scalars)
 
         dst_scalars: torch.Tensor, optional
             Scalar features of destination nodes.
-            Shape: (num_dst_nodes, n_scalars)
+            Shape: (num_dst_nodes, num_scalars)
 
         reduce : str, optional (default="mean")
             Reduction operator. Choose between "mean" and "sum".
@@ -176,9 +176,9 @@ class FullyConnectedTensorProductConv(nn.Module):
             assert self.tp.weight_numel == edge_emb.size(-1)
         else:
             if self.mlp_fast_first_layer:
-                assert edge_emb.size(-1) == self.n_scalars
-                assert src_scalars.size(-1) == self.n_scalars
-                assert dst_scalars.size(-1) == self.n_scalars
+                assert edge_emb.size(-1) == self.num_scalars
+                assert src_scalars.size(-1) == self.num_scalars
+                assert dst_scalars.size(-1) == self.num_scalars
             else:
                 assert self.mlp[0].in_features == edge_emb.size(-1)
 
