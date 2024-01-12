@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
  */
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/random/rng.cuh>
 
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -226,6 +228,21 @@ template bool is_equal(raft::handle_t const& handle,
 template bool is_equal(raft::handle_t const& handle,
                        raft::device_span<int64_t const> span1,
                        raft::device_span<int64_t const> span2);
+
+template <typename data_t>
+size_t count_values(raft::handle_t const& handle,
+                    raft::device_span<data_t const> span,
+                    data_t value)
+{
+  return thrust::count(handle.get_thrust_policy(), span.begin(), span.end(), value);
+}
+
+template size_t count_values<int32_t>(raft::handle_t const& handle,
+                                      raft::device_span<int32_t const> span,
+                                      int32_t value);
+template size_t count_values<int64_t>(raft::handle_t const& handle,
+                                      raft::device_span<int64_t const> span,
+                                      int64_t value);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -242,20 +242,9 @@ class BackendInterface:
                     )
 
         too_slow = "Too slow to run"
-        maybe_oom = "out of memory in CI"
         skip = {
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
-            key("test_efficiency.py:TestEfficiency.test_using_ego_graph"): maybe_oom,
-            key("test_dag.py:TestDAG.test_antichains"): maybe_oom,
-            key(
-                "test_lowest_common_ancestors.py:"
-                "TestDAGLCA.test_all_pairs_lca_pairs_without_lca"
-            ): maybe_oom,
-            key(
-                "test_lowest_common_ancestors.py:"
-                "TestMultiDiGraph_DAGLCA.test_all_pairs_lca_pairs_without_lca"
-            ): maybe_oom,
             # These repeatedly call `bfs_layers`, which converts the graph every call
             key(
                 "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph2_different_labels"

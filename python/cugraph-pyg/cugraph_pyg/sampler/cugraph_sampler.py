@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -216,7 +216,6 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 
     if renumber_map is None:
         raise ValueError("Renumbered input is expected for homogeneous graphs")
-
     node_type = graph_store.node_types[0]
     edge_type = graph_store.edge_types[0]
 

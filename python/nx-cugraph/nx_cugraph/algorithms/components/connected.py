@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +30,7 @@ __all__ = [
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def number_connected_components(G):
     return sum(1 for _ in connected_components(G))
     # PREFERRED IMPLEMENTATION, BUT PLC DOES NOT HANDLE ISOLATED VERTICES WELL
@@ -57,7 +57,7 @@ def _(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def connected_components(G):
     G = _to_undirected_graph(G)
     if G.src_indices.size == 0:
@@ -86,7 +86,7 @@ def connected_components(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def is_connected(G):
     G = _to_undirected_graph(G)
     if len(G) == 0:
@@ -110,7 +110,7 @@ def is_connected(G):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm
+@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def node_connected_component(G, n):
     # We could also do plain BFS from n
     G = _to_undirected_graph(G)
