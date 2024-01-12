@@ -1,5 +1,5 @@
 ﻿#=============================================================================
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -520,6 +520,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LEIDEN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
+
+    ###############################################################################################
+    # - MG ECG tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
