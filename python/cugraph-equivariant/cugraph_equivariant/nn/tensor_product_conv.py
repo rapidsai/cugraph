@@ -65,6 +65,14 @@ class FullyConnectedTensorProductConv(nn.Module):
 
     mlp_activation : callable, optional (default=torch.nn.GELU)
         Activation function in MLP.
+
+    mlp_fast_first_layer : bool, optional (default=False)
+        When enabled, for the first layer of MLP, the module performs GEMMs on
+        individual components (i.e., edge embeddings, scalar features of source
+        and destinations nodes) of the weights before indexing and concatenation,
+        leading to a lower complexity in most use cases. This option requires
+        users to explicitly pass in `src_scalars` and `dst_scalars` in
+        `forward()` call.
     """
 
     def __init__(
@@ -75,6 +83,7 @@ class FullyConnectedTensorProductConv(nn.Module):
         batch_norm: bool = True,
         mlp_channels: Optional[Sequence[int]] = None,
         mlp_activation: Optional[Callable[..., nn.Module]] = nn.GELU,
+        mlp_fast_first_layer: bool = False,
     ):
         super().__init__()
         self.in_irreps = in_irreps
@@ -89,6 +98,14 @@ class FullyConnectedTensorProductConv(nn.Module):
             )
 
         self.batch_norm = BatchNorm(out_irreps) if batch_norm else None
+
+        if mlp_fast_first_layer:
+            assert mlp_channels is not None
+            assert mlp_channels[0] % 3 == 0
+            self.n_scalars = int(mlp_channels[0] / 3)
+        else:
+            self.n_scalars = None
+        self.mlp_fast_first_layer = mlp_fast_first_layer
 
         if mlp_channels is not None:
             dims = list(mlp_channels) + [self.tp.weight_numel]
@@ -105,10 +122,10 @@ class FullyConnectedTensorProductConv(nn.Module):
         self,
         src_features: torch.Tensor,
         edge_sh: torch.Tensor,
-        edge_scalars: torch.Tensor,  # (n_edge, n_edge_scalars)
+        edge_emb: torch.Tensor,
         graph: tuple[torch.Tensor, tuple[int, int]],  # COO, (n_src, n_dst)
-        src_scalars: Optional[torch.Tensor] = None,  # (n_src, n_src_scalars)
-        dst_scalars: Optional[torch.Tensor] = None,  # (n_dst, n_dst_scalars)
+        src_scalars: Optional[torch.Tensor] = None,
+        dst_scalars: Optional[torch.Tensor] = None,
         reduce: str = "mean",
         edge_envelope: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
@@ -124,19 +141,30 @@ class FullyConnectedTensorProductConv(nn.Module):
             The spherical harmonic representations of the edge vectors.
             Shape: (num_edges, sh_irreps.dim)
 
-        edge_scalars: torch.Tensor
-            Edge embeddings.
-            Shape: (num_edges, self.tp.weight_numel) when the layer does not
-            contain MLP; (num_edges, self.mlp[0].in_features) when it does.
+        edge_emb: torch.Tensor
+            Edge embeddings that are fed into MLPs to generate tensor product weights.
+            Shape: (num_edges, dim), where `dim` should equal to:
+            - `tp.weight_numel` when the layer does not contain MLPs.
+            - `num_scalars` when `mlp_fast_first_layer` enabled.
+            - `mlp_channels[0]` otherwise.
 
         graph : Any
             The graph.
 
-        src_scalars:
-        dst_scalars:
+        src_scalars: torch.Tensor, optional
+            Scalar features of source nodes.
+            Shape: (num_src_nodes, n_scalars)
+
+        dst_scalars: torch.Tensor, optional
+            Scalar features of destination nodes.
+            Shape: (num_dst_nodes, n_scalars)
 
         reduce : str, optional (default="mean")
             Reduction operator. Choose between "mean" and "sum".
+
+        edge_envelope: torch.Tensor, optional
+            Edge envelope.
+            Shape: (num_edges,)
 
         Returns
         -------
@@ -145,9 +173,14 @@ class FullyConnectedTensorProductConv(nn.Module):
             Shape: (num_dst_nodes, out_irreps.dim)
         """
         if self.mlp is None:
-            assert self.tp.weight_numel == edge_scalars.size(-1)
+            assert self.tp.weight_numel == edge_emb.size(-1)
         else:
-            assert self.mlp[0].in_features == edge_scalars.size(-1)
+            if self.mlp_fast_first_layer:
+                assert edge_emb.size(-1) == self.n_scalars
+                assert src_scalars.size(-1) == self.n_scalars
+                assert dst_scalars.size(-1) == self.n_scalars
+            else:
+                assert self.mlp[0].in_features == edge_emb.size(-1)
 
         if reduce not in ["mean", "sum"]:
             raise ValueError(
@@ -157,12 +190,26 @@ class FullyConnectedTensorProductConv(nn.Module):
         (src, dst), (num_src_nodes, num_dst_nodes) = graph
 
         if self.mlp is not None:
-            tp_weights = self.mlp(edge_scalars)
+            if self.mlp_fast_first_layer:
+                w_edge, w_src, w_dst = torch.chunk(self.mlp[0].weight, chunks=3, dim=-1)
+                tp_weights = (
+                    edge_emb @ w_edge.T
+                    + (src_scalars @ w_src.T)[src]
+                    + (dst_scalars @ w_dst.T)[dst]
+                    + self.mlp[0].bias
+                )
+                tp_weights = self.mlp[1:](tp_weights)
+            else:
+                tp_weights = self.mlp(edge_emb)
         else:
-            tp_weights = edge_scalars
+            tp_weights = edge_emb
 
-        out_tp = self.tp(src_features[src], edge_sh, tp_weights)
-        out = scatter_reduce(out_tp, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
+        out = self.tp(src_features[src], edge_sh, tp_weights)
+
+        if edge_envelope is not None:
+            out = out * edge_envelope.view(-1, 1)
+
+        out = scatter_reduce(out, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
 
         if self.batch_norm:
             out = self.batch_norm(out)
