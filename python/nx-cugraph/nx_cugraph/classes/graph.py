@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,6 +65,7 @@ class Graph:
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
+    _node_ids: cp.ndarray[IndexValue] | None  # holds plc.SGGraph.vertices_array data
 
     # Used by graph._get_plc_graph
     _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
@@ -116,6 +117,7 @@ class Graph:
         new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
         new_graph._id_to_key = None if id_to_key is None else list(id_to_key)
         new_graph._N = op.index(N)  # Ensure N is integral
+        new_graph._node_ids = None
         new_graph.graph = new_graph.graph_attr_dict_factory()
         new_graph.graph.update(attr)
         size = new_graph.src_indices.size
@@ -157,6 +159,16 @@ class Graph:
                     f"(got {new_graph.dst_indices.dtype.name})."
                 )
             new_graph.dst_indices = dst_indices
+
+        # If the graph contains isolates, plc.SGGraph() must be passed a value
+        # for vertices_array that contains every vertex ID, since the
+        # src/dst_indices arrays will not contain IDs for isolates. Create this
+        # only if needed. Like src/dst_indices, the _node_ids array must be
+        # maintained for the lifetime of the plc.SGGraph
+        isolates = nxcg.algorithms.isolate._isolates(new_graph)
+        if len(isolates) > 0:
+            new_graph._node_ids = cp.arange(new_graph._N, dtype=index_dtype)
+
         return new_graph
 
     @classmethod
@@ -405,6 +417,7 @@ class Graph:
         self.src_indices = cp.empty(0, self.src_indices.dtype)
         self.dst_indices = cp.empty(0, self.dst_indices.dtype)
         self._N = 0
+        self._node_ids = None
         self.key_to_id = None
         self._id_to_key = None
 
@@ -637,6 +650,7 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
+
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -649,6 +663,7 @@ class Graph:
             store_transposed=store_transposed,
             renumber=False,
             do_expensive_check=False,
+            vertices_array=self._node_ids,
         )
 
     def _sort_edge_indices(self, primary="src"):
