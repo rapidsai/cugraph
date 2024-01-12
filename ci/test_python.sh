@@ -225,7 +225,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # rmat is not tested because of multi-GPU testing
     pytest \
       --cache-clear \
-      --ignore=tests/int \
       --ignore=tests/mg \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
       --cov-config=../../.coveragerc \

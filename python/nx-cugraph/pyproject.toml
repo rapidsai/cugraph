@@ -52,10 +52,18 @@ test = [
 Homepage = "https://github.com/rapidsai/cugraph"
 Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
+# "plugin" used in nx version < 3.2
 [project.entry-points."networkx.plugins"]
 cugraph = "nx_cugraph.interface:BackendInterface"
 
 [project.entry-points."networkx.plugin_info"]
+cugraph = "_nx_cugraph:get_info"
+
+# "backend" used in nx version >= 3.2
+[project.entry-points."networkx.backends"]
+cugraph = "nx_cugraph.interface:BackendInterface"
+
+[project.entry-points."networkx.backend_info"]
 cugraph = "_nx_cugraph:get_info"
 
 [tool.setuptools]

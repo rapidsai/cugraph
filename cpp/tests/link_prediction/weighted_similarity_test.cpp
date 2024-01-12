@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@
 
 struct Similarity_Usecase {
   bool use_weights{false};
-  bool check_correctness{true};
   size_t max_seeds{std::numeric_limits<size_t>::max()};
   size_t max_vertex_pairs_to_check{std::numeric_limits<size_t>::max()};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -293,7 +293,7 @@ INSTANTIATE_TEST_SUITE_P(
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
     //: 100}),
-    ::testing::Values(Similarity_Usecase{true, true, 20, 100}),
+    ::testing::Values(Similarity_Usecase{true, 20, 100, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -305,7 +305,7 @@ INSTANTIATE_TEST_SUITE_P(
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{true, true, 20, 100},
     //: Similarity_Usecase{false,true,20,100}),
-    ::testing::Values(Similarity_Usecase{true, true, 20, 100}),
+    ::testing::Values(Similarity_Usecase{true, 20, 100, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -319,7 +319,8 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
-    ::testing::Values(Similarity_Usecase{true, true}),
+    ::testing::Values(Similarity_Usecase{
+      true, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max(), true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -332,7 +333,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
-    ::testing::Values(Similarity_Usecase{true, false}),
+    ::testing::Values(Similarity_Usecase{
+      true, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max(), false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
