@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,12 @@ __all__ = ["katz_centrality"]
 
 
 @not_implemented_for("multigraph")
-@networkx_algorithm(extra_params=_dtype_param)
+@networkx_algorithm(
+    extra_params=_dtype_param,
+    is_incomplete=True,  # nstart and normalized=False not supported
+    plc="katz_centrality",
+    version_added="23.12",
+)
 def katz_centrality(
     G,
     alpha=0.1,

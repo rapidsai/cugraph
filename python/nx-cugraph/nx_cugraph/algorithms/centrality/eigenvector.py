@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,12 @@ __all__ = ["eigenvector_centrality"]
 
 
 @not_implemented_for("multigraph")
-@networkx_algorithm(extra_params=_dtype_param)
+@networkx_algorithm(
+    extra_params=_dtype_param,
+    is_incomplete=True,  # nstart not supported
+    plc="eigenvector_centrality",
+    version_added="23.12",
+)
 def eigenvector_centrality(
     G, max_iter=100, tol=1.0e-6, nstart=None, weight=None, *, dtype=None
 ):
