@@ -247,5 +247,39 @@ else
   rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
 fi
 
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+    # Reuse cugraph-dgl's test env for cugraph-equivariant
+    set +u
+    conda activate test_cugraph_dgl
+    set -u
+    pip install e3nn==0.5.1
+
+    rapids-print-env
+
+    rapids-logger "pytest cugraph-equivariant"
+    pushd python/cugraph-equivariant/cugraph_equivariant
+    pytest \
+      --cache-clear \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_dgl \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+  else
+    rapids-logger "skipping cugraph-equivariant pytest on ARM64"
+  fi
+else
+  rapids-logger "skipping cugraph-equivariant pytest on CUDA!=11.8"
+fi
+
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}

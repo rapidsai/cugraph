@@ -29,7 +29,6 @@ jobs:
       - wheel-tests-cugraph-dgl
       - wheel-build-cugraph-pyg
       - wheel-tests-cugraph-pyg
-      - conda-python-build-cugraph-equivariant
       - wheel-build-cugraph-equivariant
       - wheel-tests-cugraph-equivariant
       - devcontainer
@@ -59,12 +58,6 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-24.02
     with:
       build_type: pull-request
-  conda-python-build-cugraph-equivariant:
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-24.02
-    with:
-      build_type: pull-request
-      build_script: ci/build_python_cugraph-equivariant.sh
   conda-python-tests:
     needs: conda-python-build
     secrets: inherit
