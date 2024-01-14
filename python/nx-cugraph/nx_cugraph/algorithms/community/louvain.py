@@ -23,8 +23,6 @@ from nx_cugraph.utils import (
     not_implemented_for,
 )
 
-from ..isolate import _isolates
-
 __all__ = ["louvain_communities"]
 
 
@@ -56,7 +54,6 @@ def louvain_communities(
     seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
     if G.src_indices.size == 0:
-        # TODO: PLC doesn't handle empty graphs gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     if max_level is None:
         max_level = 500
@@ -76,14 +73,7 @@ def louvain_communities(
         do_expensive_check=False,
     )
     groups = _groupby(clusters, node_ids, groups_are_canonical=True)
-    rv = [set(G._nodearray_to_list(ids)) for ids in groups.values()]
-    # TODO: PLC doesn't handle isolated node_ids yet, so this is a temporary fix
-    isolates = _isolates(G)
-    if isolates.size > 0:
-        isolates = isolates[isolates > node_ids.max()]
-        if isolates.size > 0:
-            rv.extend({node} for node in G._nodearray_to_list(isolates))
-    return rv
+    return [set(G._nodearray_to_list(ids)) for ids in groups.values()]
 
 
 @louvain_communities._can_run
