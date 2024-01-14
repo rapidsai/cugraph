@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,18 @@
 
 // #define TIMING
 
+// FIXME: Only outstanding items preventing this becoming a .hpp file
+#include <prims/update_edge_src_dst_property.cuh>
+
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
-#include <prims/update_edge_src_dst_property.cuh>
-// FIXME: Only outstanding items preventing this becoming a .hpp file
+#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
@@ -44,6 +47,7 @@ void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& gr
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -82,11 +86,25 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
 
-    detail::sequence_fill(handle.get_stream(),
-                          dendrogram->current_level_begin(),
-                          dendrogram->current_level_size(),
-                          current_graph_view.local_vertex_partition_range_first());
+    if (rng_state) {
+      auto random_cluster_assignments = cugraph::detail::permute_range<vertex_t>(
+        handle,
+        *rng_state,
+        current_graph_view.local_vertex_partition_range_first(),
+        current_graph_view.local_vertex_partition_range_size(),
+        multi_gpu);
 
+      raft::copy(dendrogram->current_level_begin(),
+                 random_cluster_assignments.begin(),
+                 random_cluster_assignments.size(),
+                 handle.get_stream());
+
+    } else {
+      detail::sequence_fill(handle.get_stream(),
+                            dendrogram->current_level_begin(),
+                            dendrogram->current_level_size(),
+                            current_graph_view.local_vertex_partition_range_first());
+    }
     //
     //  Compute the vertex and cluster weights, these are different for each
     //  graph in the hierarchical decomposition
@@ -289,6 +307,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -298,7 +317,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
-  return detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
+
+  return detail::louvain(
+    handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -315,6 +336,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -330,8 +352,8 @@ std::pair<size_t, weight_t> louvain(
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
 
-  std::tie(dendrogram, modularity) =
-    detail::louvain(handle, graph_view, edge_weight_view, max_level, threshold, resolution);
+  std::tie(dendrogram, modularity) = detail::louvain(
+    handle, rng_state, graph_view, edge_weight_view, max_level, threshold, resolution);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 

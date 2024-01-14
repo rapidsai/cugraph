@@ -1,11 +1,13 @@
-# cuGraph Bulk Sampling
+# cuGraph Sampling Benchmarks
 
-## Overview
+## cuGraph Bulk Sampling
+
+### Overview
 The `cugraph_bulk_sampling.py` script runs the bulk sampler for a variety of datasets, including
 both generated (rmat) datasets and disk (ogbn_papers100M, etc.) datasets.  It can also load
 replicas of these datasets to create a larger benchmark (i.e. ogbn_papers100M x2).
 
-## Arguments
+### Arguments
 The script takes a variety of arguments to control sampling behavior.
 Required:
     --output_root
@@ -51,14 +53,8 @@ Optional:
         Seed for random number generation.
         Defaults to '62'
     
-    --persist
-        Whether to aggressively use persist() in dask to make the ETL steps (NOT PART OF SAMPLING) faster.
-        Will probably make this script finish sooner at the expense of memory usage, but won't affect
-        sampling time.
-        Changing this is not recommended unless you know what you are doing.
-        Defaults to False.
     
-## Input Format
+### Input Format
 The script expects its input data in the following format:
 ```
 <top level directory>
@@ -103,7 +99,7 @@ the parquet files.  It must have the following format:
 }
 ```
 
-## Output Meta
+### Output Meta
 The script, in addition to the samples, will also output a file named `output_meta.json`.
 This file contains various statistics about the sampling run, including the runtime,
 as well as information about the dataset and system that the samples were produced from.
@@ -111,6 +107,56 @@ as well as information about the dataset and system that the samples were produc
 This metadata file can be used to gather the results from the sampling and training stages
 together.
 
-## Other Notes
+### Other Notes
 For rmat datasets, you will need to generate your own bogus features in the training stage.
 Since that is trivial, that is not done in this sampling script.
+
+## cuGraph MNMG Training
+
+### Overview
+The script `run_train_job.sh` runs with the `sbatch` command to launch a series of slurm jobs.
+First, for a given number of epochs, the script will produce samples for a given graph.
+Then, the training process starts where samples are loaded and training iterations are
+processed.
+
+### Important Notes
+Downloading the dataset files before running the slurm jobs is highly recommended.  Even though
+the script will attempt to download the files if they are not available, this can often
+lead to a timeout which will crash the scripts.  This applies regardless of whether you are training
+with native PyG or cuGraph-PyG.  You can download data as follows:
+
+```
+from ogb.nodeproppred import NodePropPredDataset
+dataset = NodePropPredDataset('ogbn-papers100M', root='/home/username/datasets')
+```
+
+For datasets other than ogbn-papers100M, you follow the same process but only change the dataset name.
+The dataset will be correctly preprocessed when you run training.  In case you have a slow system, you
+can also run preprocessing by running the training script on a single worker, which will avoid a timeout
+which crashes the script.
+
+The multi-GPU utilities are in `mg_utils` in the top level of the cuGraph repository.  You should either
+copy them to this directory or symlink to them before running the scripts.
+
+### Arguments
+You will need to modify the bash scripts to run appopriately for your environment and
+desired training workflow.  The standard sbatch arguments are at the top of the script, such as
+job name, queue, etc.  These will need to be modified for your SLURM cluster.
+
+Next are arguments for the container image (required),
+and directories where the data and outputs are stored.  The directories default to subdirectories
+of the current working directory.  But if there is a high-throughput storage system available,
+using that storage for the samples and datasets is highly recommended.
+
+Next are standard GNN training arguments such as `FANOUT`, `BATCH_SIZE`, etc.  You can also set
+the number of training epochs here.  These are followed by the `REPLICATION_FACTOR` argument, which
+can be used to create replications of the dataset for scale testing purposes.
+
+The final two arguments are `FRAMEWORK` which can be either "cuGraphPyG" or "PyG", and `GPUS_PER_NODE`
+which must be set to the correct value, even if this is provided by a SLURM argument.  If `GPUS_PER_NODE`
+is not set to the correct number of GPUs, the script will hang indefinitely until it times out.  Mismatched
+GPUs per node is currently unsupported by this script but should be possible in practice.
+
+### Output
+The results of training will be outputted to the logs directory with an `output.txt` file for each worker.
+These will be overwritten upon each run.  Accuracy is only reported on rank 0.
