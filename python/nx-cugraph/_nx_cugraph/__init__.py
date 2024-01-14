@@ -70,6 +70,7 @@ _info = {
         "in_degree_centrality",
         "is_connected",
         "is_isolate",
+        "is_strongly_connected",
         "is_weakly_connected",
         "isolates",
         "k_truss",
@@ -86,6 +87,7 @@ _info = {
         "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
+        "number_strongly_connected_components",
         "number_weakly_connected_components",
         "octahedral_graph",
         "out_degree_centrality",
@@ -97,6 +99,7 @@ _info = {
         "single_source_shortest_path_length",
         "single_target_shortest_path_length",
         "star_graph",
+        "strongly_connected_components",
         "tadpole_graph",
         "tetrahedral_graph",
         "trivial_graph",
@@ -110,21 +113,21 @@ _info = {
     },
     "extra_docstrings": {
         # BEGIN: extra_docstrings
-        "betweenness_centrality": "`weight` parameter is not yet supported.",
+        "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
         "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
         "bfs_successors": "`sort_neighbors` parameter is not yet supported.",
         "bfs_tree": "`sort_neighbors` parameter is not yet supported.",
-        "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "edge_betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
-        "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
+        "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
         "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
         ),
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
-        "louvain_communities": "`seed` parameter is currently ignored.",
+        "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
         # END: extra_docstrings
     },
