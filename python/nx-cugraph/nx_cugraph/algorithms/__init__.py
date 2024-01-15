@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 from . import (
     bipartite,
     centrality,
+    cluster,
     community,
     components,
     link_analysis,
@@ -21,6 +22,7 @@ from . import (
 )
 from .bipartite import complete_bipartite_graph
 from .centrality import *
+from .cluster import *
 from .components import *
 from .core import *
 from .dag import *
