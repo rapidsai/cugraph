@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -541,30 +541,37 @@ weight_t hungarian(raft::handle_t const& handle,
  *    community hierarchies in large networks, J Stat Mech P10008 (2008),
  *    http://arxiv.org/abs/0803.0476
  *
- * @throws     cugraph::logic_error when an error occurs.
+ * @throws cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold             (optional) threshold for convergence at each level (default
- * 1e-7)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- *                                   communities. (default 1)
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object.
+ * @param[in]  edge_weight_view  Optional view object holding edge weights for @p graph_view.
+ *                               If @pedge_weight_view.has_value() == false, edge weights
+ *                               are assumed to be 1.0.
+  @param[out] clustering         Pointer to device array where the clustering should be stored
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
  *
- * @return                           a pair containing:
- *                                     1) number of levels of the returned clustering
- *                                     2) modularity of the returned clustering
+ * @return                       a pair containing:
+ *                                 1) number of levels of the returned clustering
+ *                                 2) modularity of the returned clustering
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -593,25 +600,33 @@ std::pair<size_t, weight_t> louvain(
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
- * @param[in]  handle                Library handle (RAFT)
- * @param[in]  graph_view            Input graph view object
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- *                                   communities. (default 1)
- *
- * @return                           a pair containing:
- *                                     1) unique pointer to dendrogram
- *                                     2) modularity of the returned clustering
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object.
+ * @param[in]  edge_weight_view  Optional view object holding edge weights for @p graph_view.
+ *                               If @pedge_weight_view.has_value() == false, edge weights
+ *                               are assumed to be 1.0.
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
+ * @return                       a pair containing:
+ *                                 1) unique pointer to dendrogram
+ *                                 2) modularity of the returned clustering
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
@@ -778,6 +793,55 @@ void ecg(raft::handle_t const& handle,
          weight_t min_weight,
          vertex_t ensemble_size,
          vertex_t* clustering);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object
+ * @param[in]  edge_weight_view  View object holding edge weights for @p graph_view.
+ * @param[in]  min_weight        Minimum edge weight to use in the final call of the clustering
+ *                               algorithm if an edge does not appear in any of the ensemble runs.
+ * @param[in]  ensemble_size     The ensemble size parameter
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
+ *
+ * @return                       a tuple containing:
+ *                                 1) Device vector containing clustering result
+ *                                 2) number of levels of the returned clustering
+ *                                 3) modularity of the returned clustering
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t min_weight,
+  size_t ensemble_size,
+  size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
+  weight_t resolution = weight_t{1});
 
 /**
  * @brief Generate edges in a minimum spanning forest of an undirected weighted graph.
