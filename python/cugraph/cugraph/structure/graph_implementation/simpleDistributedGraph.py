@@ -848,7 +848,9 @@ class simpleDistributedGraphImpl:
 
             start_vertices = start_vertices.astype(start_vertices_type)
 
-            def create_iterable_args(session_id, input_graph, start_vertices=None, npartitions=None):
+            def create_iterable_args(
+                session_id, input_graph, start_vertices=None, npartitions=None
+            ):
                 session_id_it = [session_id] * npartitions
                 graph_it = input_graph.values()
                 start_vertices = cp.array_split(start_vertices.values, npartitions)
@@ -860,10 +862,13 @@ class simpleDistributedGraphImpl:
 
             result = _client.map(
                 _call_plc_two_hop_neighbors,
-                    *create_iterable_args(
-                        Comms.get_session_id(), self._plc_graph, start_vertices, self._npartitions
-                    ),
-                    pure=False,
+                *create_iterable_args(
+                    Comms.get_session_id(),
+                    self._plc_graph,
+                    start_vertices,
+                    self._npartitions,
+                ),
+                pure=False,
             )
 
         else:
@@ -892,7 +897,8 @@ class simpleDistributedGraphImpl:
             return df
 
         cudf_result = [
-            _client.submit(convert_to_cudf, cp_arrays, pure=False) for cp_arrays in result
+            _client.submit(convert_to_cudf, cp_arrays, pure=False)
+            for cp_arrays in result
         ]
 
         wait(cudf_result)
