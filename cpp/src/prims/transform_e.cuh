@@ -426,28 +426,15 @@ void transform_e(raft::handle_t const& handle,
           edge_first + edge_partition_offsets[i + 1],
           [edge_partition,
            edge_partition_e_mask] __device__(thrust::tuple<vertex_t, vertex_t> edge) {
-            auto major = thrust::get<0>(edge);
-            auto minor = thrust::get<1>(edge);
-            vertex_t major_idx{};
-            auto major_hypersparse_first = edge_partition.major_hypersparse_first();
-            if (major_hypersparse_first) {
-              if (major < *major_hypersparse_first) {
-                major_idx = edge_partition.major_offset_from_major_nocheck(major);
-              } else {
-                auto major_hypersparse_idx =
-                  edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-                if (!major_hypersparse_idx) { return true; }
-                major_idx =
-                  edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
-                  *major_hypersparse_idx;
-              }
-            } else {
-              major_idx = edge_partition.major_offset_from_major_nocheck(major);
-            }
+            auto major     = thrust::get<0>(edge);
+            auto minor     = thrust::get<1>(edge);
+            auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+            if (!major_idx) { return true; }
             vertex_t const* indices{nullptr};
             edge_t edge_offset{};
             edge_t local_degree{};
-            thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
+            thrust::tie(indices, edge_offset, local_degree) =
+              edge_partition.local_edges(*major_idx);
             auto lower_it =
               thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
             if (*lower_it != minor) { return true; }
@@ -494,24 +481,16 @@ void transform_e(raft::handle_t const& handle,
         auto major = thrust::get<0>(edge);
         auto minor = thrust::get<1>(edge);
 
-        auto major_hypersparse_first = edge_partition.major_hypersparse_first();
-        auto major_offset            = edge_partition.major_offset_from_major_nocheck(major);
-        vertex_t major_idx{major_offset};
-
-        if ((major_hypersparse_first) && (major >= *major_hypersparse_first)) {
-          auto major_hypersparse_idx =
-            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-          assert(major_hypersparse_idx);
-          major_idx = edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
-                      *major_hypersparse_idx;
-        }
+        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+        auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
+        assert(major_idx);
 
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
 
         vertex_t const* indices{nullptr};
         edge_t edge_offset{};
         edge_t local_degree{};
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
+        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
         auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
         auto upper_it = thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
 

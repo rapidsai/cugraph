@@ -154,24 +154,11 @@ struct update_rx_major_local_degree_t {
     auto major =
       rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
                 offset_in_local_edge_partition];
-    vertex_t major_idx{0};
-    edge_t local_degree{0};
-    if (multi_gpu && (edge_partition.major_hypersparse_first() &&
-                      (major >= *(edge_partition.major_hypersparse_first())))) {
-      auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-      if (major_hypersparse_idx) {
-        major_idx =
-          (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-          *major_hypersparse_idx;
-        local_degree = edge_partition.local_degree(major_idx);
-      }
-    } else {
-      major_idx    = edge_partition.major_offset_from_major_nocheck(major);
-      local_degree = edge_partition.local_degree(major_idx);
-    }
+    auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
+    auto local_degree = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
     if (edge_partition_e_mask && (local_degree > edge_t{0})) {
-      auto local_offset = edge_partition.local_offset(major_idx);
+      auto local_offset = edge_partition.local_offset(*major_idx);
       local_degree      = static_cast<edge_t>(
         count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree));
     }
@@ -325,29 +312,11 @@ struct pick_min_degree_t {
     edge_t local_degree0{0};
     vertex_t major0 = thrust::get<0>(pair);
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
-      vertex_t major_idx{0};
-      if constexpr (multi_gpu) {
-        if (edge_partition.major_hypersparse_first() &&
-            (major0 >= *(edge_partition.major_hypersparse_first()))) {
-          auto major_hypersparse_idx =
-            edge_partition.major_hypersparse_idx_from_major_nocheck(major0);
-          if (major_hypersparse_idx) {
-            major_idx =
-              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-              *major_hypersparse_idx;
-            local_degree0 = edge_partition.local_degree(major_idx);
-          }
-        } else {
-          major_idx     = edge_partition.major_offset_from_major_nocheck(major0);
-          local_degree0 = edge_partition.local_degree(major_idx);
-        }
-      } else {
-        major_idx     = edge_partition.major_offset_from_major_nocheck(major0);
-        local_degree0 = edge_partition.local_degree(major_idx);
-      }
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major0);
+      local_degree0  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
       if (edge_partition_e_mask && (local_degree0 > edge_t{0})) {
-        auto local_offset = edge_partition.local_offset(major_idx);
+        auto local_offset = edge_partition.local_offset(*major_idx);
         local_degree0 =
           count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree0);
       }
@@ -360,29 +329,11 @@ struct pick_min_degree_t {
     edge_t local_degree1{0};
     vertex_t major1 = thrust::get<1>(pair);
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
-      vertex_t major_idx{0};
-      if constexpr (multi_gpu) {
-        if (edge_partition.major_hypersparse_first() &&
-            (major1 >= *(edge_partition.major_hypersparse_first()))) {
-          auto major_hypersparse_idx =
-            edge_partition.major_hypersparse_idx_from_major_nocheck(major1);
-          if (major_hypersparse_idx) {
-            major_idx =
-              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-              *major_hypersparse_idx;
-            local_degree1 = edge_partition.local_degree(major_idx);
-          }
-        } else {
-          major_idx     = edge_partition.major_offset_from_major_nocheck(major1);
-          local_degree1 = edge_partition.local_degree(major_idx);
-        }
-      } else {
-        major_idx     = edge_partition.major_offset_from_major_nocheck(major1);
-        local_degree1 = edge_partition.local_degree(major_idx);
-      }
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major1);
+      local_degree1  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
       if (edge_partition_e_mask && (local_degree1 > edge_t{0})) {
-        auto local_offset = edge_partition.local_offset(major_idx);
+        auto local_offset = edge_partition.local_offset(*major_idx);
         local_degree1 =
           count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree1);
       }
