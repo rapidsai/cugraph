@@ -35,11 +35,9 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
-    get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
 )
 from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
-from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
 
 
