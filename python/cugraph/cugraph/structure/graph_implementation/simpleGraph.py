@@ -298,7 +298,8 @@ class simpleGraphImpl:
             self._replicate_edgelist()
 
         self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+            value_col=value_col, store_transposed=store_transposed,
+            renumber=renumber, drop_multi_edges=self.properties.multi_edge,
         )
 
     def to_pandas_edgelist(
@@ -1084,6 +1085,7 @@ class simpleGraphImpl:
         value_col: Dict[str, cudf.DataFrame] = None,
         store_transposed: bool = False,
         renumber: bool = True,
+        drop_multi_edges: bool = False,
     ):
         """
         Parameters
@@ -1163,6 +1165,7 @@ class simpleGraphImpl:
             renumber=renumber,
             do_expensive_check=True,
             input_array_format=input_array_format,
+            drop_multi_edges=drop_multi_edges,
         )
 
     def to_directed(self, DiG, store_transposed=False):
