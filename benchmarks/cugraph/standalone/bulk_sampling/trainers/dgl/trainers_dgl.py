@@ -203,7 +203,7 @@ class DGLTrainer(Trainer):
         total_batches = 0
         for epoch in range(self.num_epochs):
             start_time = time.perf_counter()
-            with td.algorithms.join.Join([self.model, self.optimizer]):
+            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
                 num_batches, total_loss = train_epoch(
                     model=self.model,
                     optimizer=self.optimizer,
@@ -224,7 +224,7 @@ class DGLTrainer(Trainer):
             )
             print("---" * 30)
             td.barrier()
-            with td.algorithms.join.Join([self.model, self.optimizer]):
+            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
                 # val
                 if self.rank == 0:
                     validation_acc = get_accuracy(
@@ -238,7 +238,7 @@ class DGLTrainer(Trainer):
                     validation_acc = 0.0
 
             # test:
-            with td.algorithms.join.Join([self.model, self.optimizer]):
+            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
                 if self.rank == 0:
                     test_acc = get_accuracy(
                         model=self.model,

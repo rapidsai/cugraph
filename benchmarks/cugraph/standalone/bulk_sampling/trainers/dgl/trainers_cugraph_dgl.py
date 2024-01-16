@@ -68,6 +68,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         self.__sample_dir = sample_dir
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
+        self.__optimizer = None
 
     @property
     def rank(self):
@@ -101,7 +102,7 @@ class DGLCuGraphTrainer(DGLTrainer):
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
 
         dataloader = get_dataloader(
-            input_file_paths=self.get_input_files(path),
+            input_file_paths=self.get_input_files(path).tolist(),
             total_num_nodes=None,
             sparse_format="csc",
             return_type="cugraph_dgl.nn.SparseGraph",

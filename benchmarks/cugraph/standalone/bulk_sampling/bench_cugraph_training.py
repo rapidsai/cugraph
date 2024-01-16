@@ -16,7 +16,7 @@ import os
 os.environ["RAPIDS_NO_INITIALIZE"] = "1"
 os.environ["CUDF_SPILL"] = "1"
 os.environ["LIBCUDF_CUFILE_POLICY"] = "KVIKIO"
-os.environ["KVIKIO_NTHREADS"] = "64"
+os.environ["KVIKIO_NTHREADS"] = "8"
 
 import argparse
 import json
@@ -244,7 +244,7 @@ def main(args):
         trainer = DGLCuGraphTrainer(
             model=args.model,
             dataset=dataset,
-            sample_dir=args.sample_dir,
+            sample_dir=sample_dir,
             device=local_rank,
             rank=global_rank,
             world_size=world_size,
