@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -97,19 +97,15 @@ def symmetrize_ddf(dask_dataframe):
     return new_ddf
 
 
-def renumber_ddf(dask_df, persist=False):
+def renumber_ddf(dask_df):
     vertices = (
         dask_cudf.concat([dask_df["src"], dask_df["dst"]])
         .unique()
         .reset_index(drop=True)
     )
-    if persist:
-        vertices = vertices.persist()
 
     vertices.name = "v"
     vertices = vertices.reset_index().set_index("v").rename(columns={"index": "m"})
-    if persist:
-        vertices = vertices.persist()
 
     src = dask_df.merge(vertices, left_on="src", right_on="v", how="left").m.rename(
         "src"
@@ -170,7 +166,7 @@ def _replicate_df(
 
     if replication_factor > 1:
         for r in range(1, replication_factor):
-            df_replicated = original_df
+            df_replicated = original_df.copy()
             for col, offset in col_item_counts.items():
                 df_replicated[col] += offset * r
 
@@ -189,46 +185,75 @@ def sample_graph(
     seeds_per_call=400000,
     batches_per_partition=100,
     fanout=[5, 5, 5],
+    num_epochs=1,
+    train_perc=0.8,
+    val_perc=0.5,
     sampling_kwargs={},
 ):
     cupy.random.seed(seed)
-
-    sampler = BulkSampler(
-        batch_size=batch_size,
-        output_path=output_path,
-        graph=G,
-        fanout_vals=fanout,
-        with_replacement=False,
-        random_state=seed,
-        seeds_per_call=seeds_per_call,
-        batches_per_partition=batches_per_partition,
-        log_level=logging.INFO,
-        **sampling_kwargs,
+    train_df, test_df = label_df.random_split(
+        [train_perc, 1 - train_perc], random_state=seed, shuffle=True
+    )
+    val_df, test_df = label_df.random_split(
+        [val_perc, 1 - val_perc], random_state=seed, shuffle=True
     )
 
-    n_workers = len(default_client().scheduler_info()["workers"])
+    total_time = 0.0
+    for epoch in range(num_epochs):
+        steps = [("train", train_df), ("test", test_df)]
+        if epoch == num_epochs - 1:
+            steps.append(("val", val_df))
 
-    meta = cudf.DataFrame(
-        {"node": cudf.Series(dtype="int64"), "batch": cudf.Series(dtype="int32")}
-    )
+        for step, batch_df in steps:
+            batch_df = batch_df.sample(frac=1.0, random_state=seed)
 
-    batch_df = label_df.map_partitions(
-        _make_batch_ids, batch_size, n_workers, meta=meta
-    )
-    # batch_df = batch_df.sort_values(by='node')
+            if step == "val":
+                output_sample_path = os.path.join(output_path, "val", "samples")
+            else:
+                output_sample_path = os.path.join(
+                    output_path, f"epoch={epoch}", f"{step}", "samples"
+                )
+            os.makedirs(output_sample_path)
 
-    # should always persist the batch dataframe or performance may be suboptimal
-    batch_df = batch_df.persist()
+            sampler = BulkSampler(
+                batch_size=batch_size,
+                output_path=output_sample_path,
+                graph=G,
+                fanout_vals=fanout,
+                with_replacement=False,
+                random_state=seed,
+                seeds_per_call=seeds_per_call,
+                batches_per_partition=batches_per_partition,
+                log_level=logging.INFO,
+                **sampling_kwargs,
+            )
 
-    del label_df
-    print("created batches")
+            n_workers = len(default_client().scheduler_info()["workers"])
 
-    start_time = perf_counter()
-    sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
-    sampler.flush()
-    end_time = perf_counter()
-    print("flushed all batches")
-    return end_time - start_time
+            meta = cudf.DataFrame(
+                {
+                    "node": cudf.Series(dtype="int64"),
+                    "batch": cudf.Series(dtype="int32"),
+                }
+            )
+
+            batch_df = batch_df.map_partitions(
+                _make_batch_ids, batch_size, n_workers, meta=meta
+            )
+
+            # should always persist the batch dataframe or performance may be suboptimal
+            batch_df = batch_df.persist()
+
+            print("created batches")
+
+            start_time = perf_counter()
+            sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
+            sampler.flush()
+            end_time = perf_counter()
+            print("flushed all batches")
+            total_time += end_time - start_time
+
+    return total_time
 
 
 def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor: int = 1):
@@ -253,7 +278,6 @@ def generate_rmat_dataset(
     labeled_percentage=0.01,
     num_labels=256,
     reverse_edges=False,
-    persist=False,
     add_edge_types=False,
 ):
     """
@@ -282,12 +306,8 @@ def generate_rmat_dataset(
     dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
 
     dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
-    if persist:
-        dask_edgelist_df = dask_edgelist_df.persist()
 
     dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
-    if persist:
-        dask_edgelist_df = dask_edgelist_df.persist()
 
     if add_edge_types:
         dask_edgelist_df["etp"] = cupy.int32(
@@ -329,7 +349,6 @@ def load_disk_dataset(
     dataset_dir=".",
     reverse_edges=True,
     replication_factor=1,
-    persist=False,
     add_edge_types=False,
 ):
     from pathlib import Path
@@ -363,8 +382,6 @@ def load_disk_dataset(
         ]
 
         edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
-        if persist:
-            edge_index_dict = edge_index_dict.persist()
 
         if replication_factor > 1:
             edge_index_dict[can_edge_type] = edge_index_dict[
@@ -384,20 +401,12 @@ def load_disk_dataset(
                 ),
             )
 
-            if persist:
-                edge_index_dict[can_edge_type] = edge_index_dict[
-                    can_edge_type
-                ].persist()
-
         gc.collect()
 
         if reverse_edges:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(
                 columns={"src": "dst", "dst": "src"}
             )
-
-        if persist:
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
@@ -409,9 +418,6 @@ def load_disk_dataset(
         edge_count += len(edge_index_dict[can_edge_type])
 
     all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
-
-    if persist:
-        all_edges_df = all_edges_df.persist()
 
     del edge_index_dict
     gc.collect()
@@ -440,15 +446,9 @@ def load_disk_dataset(
                     meta=cudf.DataFrame({"node": cudf.Series(dtype="int64")}),
                 )
 
-                if persist:
-                    node_labels[node_type] = node_labels[node_type].persist()
-
             gc.collect()
 
-    node_labels_df = dask_cudf.concat(list(node_labels.values()))
-
-    if persist:
-        node_labels_df = node_labels_df.persist()
+    node_labels_df = dask_cudf.concat(list(node_labels.values())).reset_index(drop=True)
 
     del node_labels
     gc.collect()
@@ -475,8 +475,8 @@ def benchmark_cugraph_bulk_sampling(
     replication_factor=1,
     num_labels=256,
     labeled_percentage=0.001,
-    persist=False,
     add_edge_types=False,
+    num_epochs=1,
 ):
     """
     Entry point for the benchmark.
@@ -506,14 +506,17 @@ def benchmark_cugraph_bulk_sampling(
     labeled_percentage: float
         The percentage of the data that is labeled (only for rmat datasets)
         Defaults to 0.001 to match papers100M
-    persist: bool
-        Whether to aggressively persist data in dask in attempt to speed up ETL.
-        Defaults to False.
     add_edge_types: bool
         Whether to add edge types to the edgelist.
         Defaults to False.
+    sampling_target_framework: str
+        The framework to sample for.
+    num_epochs: int
+        The number of epochs to sample for.
     """
-    print(dataset)
+
+    logger = logging.getLogger("__main__")
+    logger.info(str(dataset))
     if dataset[0:4] == "rmat":
         (
             dask_edgelist_df,
@@ -527,7 +530,6 @@ def benchmark_cugraph_bulk_sampling(
             seed=seed,
             labeled_percentage=labeled_percentage,
             num_labels=num_labels,
-            persist=persist,
             add_edge_types=add_edge_types,
         )
 
@@ -543,27 +545,24 @@ def benchmark_cugraph_bulk_sampling(
             dataset_dir=dataset_dir,
             reverse_edges=reverse_edges,
             replication_factor=replication_factor,
-            persist=persist,
             add_edge_types=add_edge_types,
         )
 
     num_input_edges = len(dask_edgelist_df)
-    print(f"Number of input edges = {num_input_edges:,}")
+    logger.info(f"Number of input edges = {num_input_edges:,}")
 
     G = construct_graph(dask_edgelist_df)
     del dask_edgelist_df
-    print("constructed graph")
+    logger.info("constructed graph")
 
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
-    print(f"input memory: {input_memory}")
+    logger.info(f"input memory: {input_memory}")
 
     output_subdir = os.path.join(
-        output_path, f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}"
+        output_path,
+        f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}",
     )
     os.makedirs(output_subdir)
-
-    output_sample_path = os.path.join(output_subdir, "samples")
-    os.makedirs(output_sample_path)
 
     if sampling_target_framework == "cugraph_dgl_csr":
         sampling_kwargs = {
@@ -587,11 +586,12 @@ def benchmark_cugraph_bulk_sampling(
             "include_hop_column": True,
         }
 
-    batches_per_partition = 400_000 // batch_size
+    batches_per_partition = 600_000 // batch_size
     execution_time, allocation_counts = sample_graph(
         G=G,
         label_df=dask_label_df,
-        output_path=output_sample_path,
+        output_path=output_subdir,
+        num_epochs=num_epochs,
         seed=seed,
         batch_size=batch_size,
         seeds_per_call=seeds_per_call,
@@ -620,8 +620,8 @@ def benchmark_cugraph_bulk_sampling(
     with open(os.path.join(output_subdir, "output_meta.json"), "w") as f:
         json.dump(output_meta, f, indent="\t")
 
-    print("allocation counts b:")
-    print(allocation_counts.values())
+    logger.info("allocation counts b:")
+    logger.info(allocation_counts.values())
 
     (
         input_to_peak_ratio,
@@ -631,8 +631,8 @@ def benchmark_cugraph_bulk_sampling(
     ) = get_memory_statistics(
         allocation_counts=allocation_counts, input_memory=input_memory
     )
-    print(f"Number of edges in final graph = {G.number_of_edges():,}")
-    print("-" * 80)
+    logger.info(f"Number of edges in final graph = {G.number_of_edges():,}")
+    logger.info("-" * 80)
     return (
         num_input_edges,
         input_to_peak_ratio,
@@ -694,11 +694,19 @@ def get_args():
     )
 
     parser.add_argument(
+        "--num_epochs",
+        type=int,
+        help="Number of epochs to run for",
+        required=False,
+        default=1,
+    )
+
+    parser.add_argument(
         "--fanouts",
         type=str,
-        help="Comma separated list of fanouts (i.e. 10_25,5_5_5)",
+        help='Comma separated list of fanouts (i.e. "10_25,5_5_5")',
         required=False,
-        default="10_25",
+        default="10_10_10",
     )
 
     parser.add_argument(
@@ -743,28 +751,14 @@ def get_args():
         "--random_seed", type=int, help="Random seed", required=False, default=62
     )
 
-    parser.add_argument(
-        "--persist",
-        action="store_true",
-        help="Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.",
-        required=False,
-        default=False,
-    )
-
-    parser.add_argument(
-        "--add_edge_types",
-        action="store_true",
-        help="Adds edge types to the edgelist.  Required for PyG if not providing edge ids.",
-        required=False,
-        default=False,
-    )
-
     return parser.parse_args()
 
 
 # call __main__ function
 if __name__ == "__main__":
     logging.basicConfig()
+    logger = logging.getLogger("__main__")
+    logger.setLevel(logging.INFO)
 
     args = get_args()
     if args.sampling_target_framework not in ["cugraph_dgl_csr", None]:
@@ -781,29 +775,28 @@ if __name__ == "__main__":
     seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(",")]
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
-    client, cluster = start_dask_client(
-        dask_worker_devices=dask_worker_devices,
-        jit_unspill=False,
-        rmm_pool_size=28e9,
-        rmm_async=True,
-    )
+    logger.info("starting dask client")
+    client, cluster = start_dask_client()
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
+    logger.info("dask client started")
     for dataset in datasets:
-        if re.match(r"([A-z]|[0-9])+\[[0-9]+\]", dataset):
-            replication_factor = int(dataset[-2])
-            dataset = dataset[:-3]
+        m = re.match(r"(\w+)\[([0-9]+)\]", dataset)
+        if m:
+            replication_factor = int(m.groups()[1])
+            dataset = m.groups()[0]
         else:
             replication_factor = 1
 
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
-                    print(f"dataset: {dataset}")
-                    print(f"batch size: {batch_size}")
-                    print(f"fanout: {fanout}")
-                    print(f"seeds_per_call: {seeds_per_call}")
+                    logger.info(f"dataset: {dataset}")
+                    logger.info(f"batch size: {batch_size}")
+                    logger.info(f"fanout: {fanout}")
+                    logger.info(f"seeds_per_call: {seeds_per_call}")
+                    logger.info(f"num epochs: {args.num_epochs}")
 
                     try:
                         stats_d = {}
@@ -816,6 +809,7 @@ if __name__ == "__main__":
                         ) = benchmark_cugraph_bulk_sampling(
                             dataset=dataset,
                             output_path=args.output_root,
+                            num_epochs=args.num_epochs,
                             seed=args.random_seed,
                             batch_size=batch_size,
                             seeds_per_call=seeds_per_call,
@@ -824,8 +818,6 @@ if __name__ == "__main__":
                             dataset_dir=args.dataset_root,
                             reverse_edges=args.reverse_edges,
                             replication_factor=replication_factor,
-                            persist=args.persist,
-                            add_edge_types=args.add_edge_types,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
