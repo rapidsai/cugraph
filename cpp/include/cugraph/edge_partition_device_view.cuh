@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -339,6 +339,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return dcs_nzd_vertices_ ? thrust::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
                              : thrust::nullopt;
   }
+
   __host__ __device__ thrust::optional<vertex_t> dcs_nzd_vertex_count() const
   {
     return dcs_nzd_vertices_
