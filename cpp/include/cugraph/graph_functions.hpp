@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1005,9 +1005,14 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
 
 /**
- * @brief Remove all but one edge when a multi-edge exists.  Note that this function does not use
- *    stable methods.  When a multi-edge exists, one of the edges will remain, there is no
- *    guarantee on which one will remain.
+ * @brief Remove all but one edge when a multi-edge exists.
+ *
+ * When a multi-edge exists, one of the edges will remain. If @p keep_min_value_edge is false, an
+ * arbitrary edge will be selected among the edges in the multi-edge. If @p keep_min_value_edge is
+ * true, the edge with the minimum value will be selected. The edge weights will be first compared
+ * (if @p edgelist_weights.has_value() is true); edge IDs will be compared next (if @p
+ * edgelist_edge_ids.has_value() is true); and edge types (if @p edgelist_edge_types.has_value() is
+ * true) will compared last.
  *
  * In an MG context it is assumed that edges have been shuffled to the proper GPU,
  * in which case any multi-edges will be on the same GPU.
@@ -1024,6 +1029,11 @@ remove_self_loops(raft::handle_t const& handle,
  * @param edgelist_weights  Optional list of edge weights
  * @param edgelist_edge_ids  Optional list of edge ids
  * @param edgelist_edge_types  Optional list of edge types
+ * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
+ * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
+ * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
+ * edgelist_edge_types.has_value() is true. Setting this to true incurs performance overhead as this
+ * requires more comparisons.
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
  *    optional edge ids, optional edge types.
  */
@@ -1038,6 +1048,7 @@ remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                   bool keep_min_value_edge = false);
 
 }  // namespace cugraph

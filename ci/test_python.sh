@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -111,11 +111,6 @@ popd
 rapids-logger "pytest networkx using nx-cugraph backend"
 pushd python/nx-cugraph
 ./run_nx_tests.sh
-# Individually run tests that are skipped above b/c they may run out of memory
-PYTEST_NO_SKIP=True ./run_nx_tests.sh --cov-append -k "TestDAG and test_antichains"
-PYTEST_NO_SKIP=True ./run_nx_tests.sh --cov-append -k "TestMultiDiGraph_DAGLCA and test_all_pairs_lca_pairs_without_lca"
-PYTEST_NO_SKIP=True ./run_nx_tests.sh --cov-append -k "TestDAGLCA and test_all_pairs_lca_pairs_without_lca"
-PYTEST_NO_SKIP=True ./run_nx_tests.sh --cov-append -k "TestEfficiency and test_using_ego_graph"
 # run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
 # in case nx-cugraph failed to load but fallback mode allowed the run to pass.
 _coverage=$(coverage report|grep "^TOTAL")
@@ -230,7 +225,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # rmat is not tested because of multi-GPU testing
     pytest \
       --cache-clear \
-      --ignore=tests/int \
       --ignore=tests/mg \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
       --cov-config=../../.coveragerc \

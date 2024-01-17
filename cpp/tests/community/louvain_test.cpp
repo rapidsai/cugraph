@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -174,27 +174,39 @@ class Tests_Louvain
     weight_t modularity;
 
     if (resolution) {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle,
-                         graph_view,
-                         edge_weight_view,
-                         clustering_v.data(),
-                         max_level ? *max_level : size_t{100},
-                         threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
-                         static_cast<weight_t>(*resolution));
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        max_level ? *max_level : size_t{100},
+        threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
+        static_cast<weight_t>(*resolution));
     } else if (threshold) {
-      std::tie(level, modularity) = cugraph::louvain(handle,
-                                                     graph_view,
-                                                     edge_weight_view,
-                                                     clustering_v.data(),
-                                                     max_level ? *max_level : size_t{100},
-                                                     static_cast<weight_t>(*threshold));
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        max_level ? *max_level : size_t{100},
+        static_cast<weight_t>(*threshold));
     } else if (max_level) {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data(), *max_level);
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        *max_level);
     } else {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data());
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data());
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
