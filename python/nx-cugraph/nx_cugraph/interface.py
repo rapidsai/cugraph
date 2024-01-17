@@ -68,7 +68,12 @@ class BackendInterface:
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
 
-        xfail = {}
+        xfail = {
+            key(
+                "test_strongly_connected.py:"
+                "TestStronglyConnected.test_condensation_mapping_and_members"
+            ): "Strongly connected groups in different iteration order",
+        }
 
         from packaging.version import parse
 

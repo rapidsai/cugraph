@@ -592,6 +592,7 @@ class Graph:
         store_transposed: bool = False,
         switch_indices: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
+        symmetrize: str | None = None,
     ):
         if edge_array is not None or edge_attr is None:
             pass
@@ -650,12 +651,30 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
+        if symmetrize is not None:
+            if edge_array is not None:
+                raise NotImplementedError(
+                    "edge_array must be None when symmetrizing the graph"
+                )
+            N = self._N
+            # Upcast to int64 so indices don't overflow
+            src_dst = N * src_indices.astype(np.int64) + dst_indices
+            src_dst_T = src_indices + N * dst_indices.astype(np.int64)
+            if symmetrize == "union":
+                src_dst_new = cp.union1d(src_dst, src_dst_T)
+            elif symmetrize == "intersection":
+                src_dst_new = cp.intersect1d(src_dst, src_dst_T)
+            else:
+                raise ValueError(
+                    f'symmetrize must be "union" or "intersection"; got "{symmetrize}"'
+                )
+            src_indices, dst_indices = cp.divmod(src_dst_new, N, dtype=index_dtype)
 
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
-                is_multigraph=self.is_multigraph(),
-                is_symmetric=not self.is_directed(),
+                is_multigraph=self.is_multigraph() and symmetrize is None,
+                is_symmetric=not self.is_directed() or symmetrize is not None,
             ),
             src_or_offset_array=src_indices,
             dst_or_index_array=dst_indices,
