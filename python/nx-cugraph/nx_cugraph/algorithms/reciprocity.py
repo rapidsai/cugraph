@@ -71,7 +71,7 @@ def reciprocity(G, nodes=None):
 
 
 @not_implemented_for("undirected", "multigraph")
-@networkx_algorithm
+@networkx_algorithm(version_added="24.02")
 def overall_reciprocity(G):
     G = _to_directed_graph(G)
     if G.number_of_edges() == 0:
