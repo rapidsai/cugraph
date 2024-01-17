@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -631,6 +631,19 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
+  rmm::device_uvector<bool> has_edge(raft::handle_t const& handle,
+                                     /* (edge_srcs, edge_dsts) should be pre-shuffled */
+                                     raft::device_span<vertex_t const> edge_srcs,
+                                     raft::device_span<vertex_t const> edge_dsts,
+                                     bool do_expensive_check = false);
+
+  rmm::device_uvector<edge_t> compute_multiplicity(
+    raft::handle_t const& handle,
+    /* (edge_srcs, edge_dsts) should be pre-shuffled */
+    raft::device_span<vertex_t const> edge_srcs,
+    raft::device_span<vertex_t const> edge_dsts,
+    bool do_expensive_check = false);
+
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_srcs() const
@@ -927,6 +940,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
+
+  rmm::device_uvector<bool> has_edge(raft::handle_t const& handle,
+                                     raft::device_span<vertex_t const> edge_srcs,
+                                     raft::device_span<vertex_t const> edge_dsts,
+                                     bool do_expensive_check = false);
+
+  rmm::device_uvector<edge_t> compute_multiplicity(raft::handle_t const& handle,
+                                                   raft::device_span<vertex_t const> edge_srcs,
+                                                   raft::device_span<vertex_t const> edge_dsts,
+                                                   bool do_expensive_check = false);
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
