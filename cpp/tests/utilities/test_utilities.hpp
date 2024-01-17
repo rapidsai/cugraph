@@ -412,7 +412,7 @@ std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
 {
   std::optional<std::vector<T>> h_data{std::nullopt};
   if (data) {
-    h_data = to_hoast(handle, raft::device_span<T const>((*data).data(), (*data).size()));
+    h_data = to_host(handle, raft::device_span<T const>((*data).data(), (*data).size()));
   }
   return h_data;
 }
