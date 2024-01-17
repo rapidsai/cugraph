@@ -45,7 +45,9 @@ def reciprocity(G, nodes=None):
         edges_b_a = src_indices + N * dst_indices.astype(np.int64)
         # Find the matching edge identifiers in each list. The edge identifier
         # generation ensures the ID for A->B == the ID for B->A
-        recip_indices = cp.intersect1d(edges_a_b, edges_b_a,
+        recip_indices = cp.intersect1d(
+            edges_a_b,
+            edges_b_a,
             # assume_unique=True,  # cupy <= 12.2.0 also assumes sorted
         )
         num_selfloops = (src_indices == dst_indices).sum().tolist()
@@ -59,7 +61,9 @@ def reciprocity(G, nodes=None):
     # IDs in each list (see description above).
     edges_a_b = N * src_indices.astype(np.int64) + dst_indices
     edges_b_a = src_indices + N * dst_indices.astype(np.int64)
-    recip_indices = cp.intersect1d(edges_a_b, edges_b_a,
+    recip_indices = cp.intersect1d(
+        edges_a_b,
+        edges_b_a,
         # assume_unique=True,  # cupy <= 12.2.0 also assumes sorted
     )
     numer = cp.bincount(recip_indices // N, minlength=N)
@@ -80,7 +84,9 @@ def overall_reciprocity(G):
     # IDs in each list (see description in reciprocity()).
     edges_a_b = G._N * G.src_indices.astype(np.int64) + G.dst_indices
     edges_b_a = G.src_indices + G._N * G.dst_indices.astype(np.int64)
-    recip_indices = cp.intersect1d(edges_a_b, edges_b_a,
+    recip_indices = cp.intersect1d(
+        edges_a_b,
+        edges_b_a,
         # assume_unique=True,  # cupy <= 12.2.0 also assumes sorted
     )
     num_selfloops = (G.src_indices == G.dst_indices).sum().tolist()
