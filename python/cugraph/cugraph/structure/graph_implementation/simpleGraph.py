@@ -264,7 +264,7 @@ class simpleGraphImpl:
                 source,
                 destination,
                 edge_attr,
-                multi=True, # Deprecated parameter
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -279,7 +279,7 @@ class simpleGraphImpl:
                 elist,
                 source,
                 destination,
-                multi=True, # Deprecated parameter
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -298,8 +298,10 @@ class simpleGraphImpl:
             self._replicate_edgelist()
 
         self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed,
-            renumber=renumber, drop_multi_edges=self.properties.multi_edge,
+            value_col=value_col,
+            store_transposed=store_transposed,
+            renumber=renumber,
+            drop_multi_edges=self.properties.multi_edge,
         )
 
     def to_pandas_edgelist(

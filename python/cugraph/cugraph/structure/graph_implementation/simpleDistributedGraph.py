@@ -271,7 +271,7 @@ class simpleDistributedGraphImpl:
                 input_ddf,
                 source,
                 destination,
-                multi=True, # Deprecated parameter
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
             value_col = None
@@ -281,7 +281,7 @@ class simpleDistributedGraphImpl:
                 source,
                 destination,
                 value_col_names,
-                multi=True, # Deprecated parameter
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
