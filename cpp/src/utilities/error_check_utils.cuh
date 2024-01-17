@@ -20,20 +20,21 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/core/handle.hpp>
 #include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/count.h>
 #include <thrust/binary_search.h>
+#include <thrust/count.h>
 
 #include <vector>
 
 namespace cugraph {
 namespace detail {
 
-// check vertices in the pair are in [0, num_vertices) and belongs to one of the local edge partitions.
+// check vertices in the pair are in [0, num_vertices) and belongs to one of the local edge
+// partitions.
 template <typename vertex_t>
 struct is_invalid_input_vertex_pair_t {
   vertex_t num_vertices{};
