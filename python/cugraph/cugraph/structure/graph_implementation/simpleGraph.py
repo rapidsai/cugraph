@@ -264,7 +264,7 @@ class simpleGraphImpl:
                 source,
                 destination,
                 edge_attr,
-                multi=self.properties.multi_edge,
+                multi=True, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -279,7 +279,7 @@ class simpleGraphImpl:
                 elist,
                 source,
                 destination,
-                multi=self.properties.multi_edge,
+                multi=True, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -1102,6 +1102,8 @@ class simpleGraphImpl:
             Whether to renumber the vertices of the graph.
             Required if inputted vertex ids are not of
             int32 or int64 type.
+        drop_multi_edges: bool (default=False)
+            Whether to drop multi edges
         """
 
         if value_col is None:

@@ -15,6 +15,7 @@ from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
 from dask.distributed import default_client
+import warnings
 
 
 def symmetrize_df(
@@ -54,6 +55,7 @@ def symmetrize_df(
         Name of the column in the data frame containing the weight ids
 
     multi : bool, optional (default=False)
+        Deprecated.
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
@@ -84,6 +86,11 @@ def symmetrize_df(
     if multi:
         return result
     else:
+        warnings.warn(
+            "'multi' is deprecated as the removal of multi edges is "
+            "only supported when creating a multi-graph",
+            FutureWarning,
+        )
         vertex_col_name = src_name + dst_name
         result = result.groupby(by=[*vertex_col_name], as_index=False).min()
         return result
@@ -128,6 +135,7 @@ def symmetrize_ddf(
         Name of the column in the data frame containing the weight ids
 
     multi : bool, optional (default=False)
+        Deprecated.
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
@@ -167,6 +175,11 @@ def symmetrize_ddf(
     if multi:
         return result
     else:
+        warnings.warn(
+            "'multi' is deprecated as the removal of multi edges is "
+            "only supported when creating a multi-graph",
+            FutureWarning,
+        )
         vertex_col_name = src_name + dst_name
         result = _memory_efficient_drop_duplicates(
             result, vertex_col_name, len(workers)
@@ -208,6 +221,7 @@ def symmetrize(
         weights column name.
 
     multi : bool, optional (default=False)
+        Deprecated.
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 

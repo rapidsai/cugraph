@@ -97,6 +97,7 @@ class simpleDistributedGraphImpl:
         weight_type,
         edge_id_type,
         edge_type_id,
+        drop_multi_edges,
     ):
         weights = None
         edge_ids = None
@@ -151,6 +152,7 @@ class simpleDistributedGraphImpl:
             num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
+            drop_multi_edges=drop_multi_edges,
         )
         del edata_x
         gc.collect()
@@ -269,7 +271,7 @@ class simpleDistributedGraphImpl:
                 input_ddf,
                 source,
                 destination,
-                multi=self.properties.multi_edge,
+                multi=True, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
             value_col = None
@@ -279,7 +281,7 @@ class simpleDistributedGraphImpl:
                 source,
                 destination,
                 value_col_names,
-                multi=self.properties.multi_edge,
+                multi=True, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -366,6 +368,7 @@ class simpleDistributedGraphImpl:
                 self.weight_type,
                 self.edge_id_type,
                 self.edge_type_id_type,
+                self.properties.multi_edge,
             )
             for w, edata in persisted_keys_d.items()
         }
