@@ -70,6 +70,7 @@ _info = {
         "house_x_graph",
         "icosahedral_graph",
         "in_degree_centrality",
+        "is_bipartite",
         "is_connected",
         "is_isolate",
         "is_strongly_connected",

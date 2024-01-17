@@ -24,7 +24,7 @@ __all__ = [
 ]
 
 
-def _triangles(G, nodes):
+def _triangles(G, nodes, symmetrize=None):
     if nodes is not None:
         if is_single_node := (nodes in G):
             nodes = [nodes if G.key_to_id is None else G.key_to_id[nodes]]
@@ -37,7 +37,7 @@ def _triangles(G, nodes):
         return None, None, is_single_node
     node_ids, triangles = plc.triangle_count(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(symmetrize=symmetrize),
         start_list=nodes,
         do_expensive_check=False,
     )
