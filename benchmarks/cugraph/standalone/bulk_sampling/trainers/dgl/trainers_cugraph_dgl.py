@@ -96,13 +96,13 @@ class DGLCuGraphTrainer(DGLTrainer):
 
     def get_loader(self, epoch: int = 0, stage="train") -> int:
         # TODO support online sampling
-        if stage in ["val", "test"]:
+        if stage == "val":
             path = os.path.join(self.__sample_dir, stage, "samples")
         else:
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
 
         dataloader = get_dataloader(
-            input_file_paths=self.get_input_files(path).tolist(),
+            input_file_paths=self.get_input_files(path, epoch=epoch, stage=stage).tolist(),
             total_num_nodes=None,
             sparse_format="csc",
             return_type="cugraph_dgl.nn.SparseGraph",
@@ -179,6 +179,14 @@ class DGLCuGraphTrainer(DGLTrainer):
 
         return model
 
-    def get_input_files(self, path):
-        file_list = [entry.path for entry in os.scandir(path)]
-        return np.array_split(file_list, self.__world_size)[self.__rank]
+    def get_input_files(self, path, epoch=0, stage='train'):
+        file_list = np.array([f.path for f in os.scandir(path)])
+        file_list.sort()
+
+        if stage == "train":
+            splits = np.array_split(file_list, self.__world_size)
+            np.random.seed(epoch)
+            np.random.shuffle(splits)
+            return splits[self.rank]
+        else:
+            return file_list

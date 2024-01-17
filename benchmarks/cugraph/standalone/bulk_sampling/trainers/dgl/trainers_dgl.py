@@ -167,10 +167,10 @@ def get_accuracy(model, loader, feature_store, num_classes):
     from torchmetrics import Accuracy
 
     acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
-    model = model.eval()
     acc_sum = 0.0
     with torch.no_grad():
         for iter_i, (input_nodes, output_nodes, blocks) in enumerate(loader):
+            print('iteration: ', iter_i)
             x, y_true = get_features(
                 input_nodes, output_nodes, feature_store=feature_store
             )
@@ -180,7 +180,8 @@ def get_accuracy(model, loader, feature_store, num_classes):
             out = model(blocks, x)
             batch_size = out.shape[0]
             acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
-        # TODO: Dont know why we are averaging on batch size
+            print('acc_sum:', acc_sum)
+        
         num_batches = iter_i
         print(
             f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
@@ -203,6 +204,7 @@ class DGLTrainer(Trainer):
         total_batches = 0
         for epoch in range(self.num_epochs):
             start_time = time.perf_counter()
+            self.model.train()
             with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
                 num_batches, total_loss = train_epoch(
                     model=self.model,
@@ -224,34 +226,39 @@ class DGLTrainer(Trainer):
             )
             print("---" * 30)
             td.barrier()
+            self.model.eval()
             with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
-                # val
+                # test
                 if self.rank == 0:
-                    validation_acc = get_accuracy(
+                    with torch.no_grad():
+                        test_acc = get_accuracy(
+                            model=self.model,
+                            loader=self.get_loader(epoch=epoch, stage="test"),
+                            feature_store=self.data,
+                            num_classes=self.dataset.num_labels,
+                        )
+                    print(f"Accuracy: {test_acc:.4f}%")
+                else:
+                    test_acc = 0.0
+            td.barrier()
+        
+        # val:
+        self.model.eval()
+        with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            if self.rank == 0:
+                with torch.no_grad():
+                    val_acc = get_accuracy(
                         model=self.model,
                         loader=self.get_loader(epoch=epoch, stage="val"),
                         feature_store=self.data,
                         num_classes=self.dataset.num_labels,
                     )
-                    print(f"Validation Accuracy: {validation_acc:.4f}%")
-                else:
-                    validation_acc = 0.0
-
-            # test:
-            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
-                if self.rank == 0:
-                    test_acc = get_accuracy(
-                        model=self.model,
-                        loader=self.get_loader(epoch=epoch, stage="test"),
-                        feature_store=self.data,
-                        num_classes=self.dataset.num_labels,
-                    )
-                    print(f"Test  Accuracy: {validation_acc:.4f}%")
-                else:
-                    test_acc = 0.0
-        test_acc = float(test_acc)
+                print(f"Validation Accuracy: {val_acc:.4f}%")
+            else:
+                val_acc = 0.0
+        val_acc = float(val_acc)
         stats = {
-            "Accuracy": test_acc if self.rank == 0 else 0.0,
+            "Accuracy": val_acc if self.rank == 0 else 0.0,
             "# Batches": total_batches,
             "Loader Time": time_d["time_loader"],
             "Feature Time": time_d["time_feature_indexing"]
