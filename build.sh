@@ -18,7 +18,7 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-RAPIDS_VERSION=24.02
+RAPIDS_VERSION=24.04
 
 # Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
