@@ -143,7 +143,7 @@ You will need to modify the bash scripts to run appopriately for your environmen
 desired training workflow.  The standard sbatch arguments are at the top of the script, such as
 job name, queue, etc.  These will need to be modified for your SLURM cluster.
 
-Next are arguments for the container image (which is currently set to the current DLFW image),
+Next are arguments for the container image (required),
 and directories where the data and outputs are stored.  The directories default to subdirectories
 of the current working directory.  But if there is a high-throughput storage system available,
 using that storage for the samples and datasets is highly recommended.

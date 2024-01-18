@@ -150,10 +150,13 @@ class BulkSampleLoader:
                 self.__input_files = iter(input_files)
             return
 
-        input_node_info = torch_geometric.loader.utils.get_input_nodes(
-            (feature_store, graph_store),
-            input_nodes,
-            input_id=None,
+        # To accommodate DLFW/PyG 2.5
+        get_input_nodes = torch_geometric.loader.utils.get_input_nodes
+        get_input_nodes_kwargs = {}
+        if "input_id" in get_input_nodes.__annotations__:
+            get_input_nodes_kwargs["input_id"] = None
+        input_node_info = get_input_nodes(
+            (feature_store, graph_store), input_nodes, **get_input_nodes_kwargs
         )
 
         # PyG 2.4

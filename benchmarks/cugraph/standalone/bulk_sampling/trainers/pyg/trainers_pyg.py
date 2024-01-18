@@ -58,7 +58,7 @@ class PyGTrainer(Trainer):
         time_forward = 0.0
         time_backward = 0.0
         time_loader = 0.0
-        time_feature_additional = 0.0
+        time_feature_transfer = 0.0
         start_time = time.perf_counter()
         end_time_backward = start_time
 
@@ -73,7 +73,7 @@ class PyGTrainer(Trainer):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
-                    additional_feature_time_start = time.perf_counter()
+                    time_feature_transfer_start = time.perf_counter()
 
                     num_sampled_nodes = sum(
                         [
@@ -94,9 +94,9 @@ class PyGTrainer(Trainer):
                     num_sampled_edges = extend_tensor(num_sampled_edges, num_layers)
 
                     data = data.to_homogeneous().cuda()
-                    additional_feature_time_end = time.perf_counter()
-                    time_feature_additional += (
-                        additional_feature_time_end - additional_feature_time_start
+                    time_feature_transfer_end = time.perf_counter()
+                    time_feature_transfer += (
+                        time_feature_transfer_end - time_feature_transfer_start
                     )
 
                     num_batches += 1
@@ -113,6 +113,9 @@ class PyGTrainer(Trainer):
                         logger.info(f"time forward: {time_forward_iter}")
                         logger.info(f"time backward: {time_backward_iter}")
                         logger.info(f"loader time: {loader_time_iter}")
+                        logger.info(
+                            f"feature transfer time: {time_feature_transfer / num_batches}"
+                        )
                         logger.info(f"total time: {total_time_iter}")
 
                     y_true = data.y
@@ -253,7 +256,8 @@ class PyGTrainer(Trainer):
         stats = {
             "Accuracy": float(acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
             "# Batches": num_batches,
-            "Loader Time": time_loader + time_feature_additional,
+            "Loader Time": time_loader,
+            "Feature Transfer Time": time_feature_transfer,
             "Forward Time": time_forward,
             "Backward Time": time_backward,
         }
