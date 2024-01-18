@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,14 +41,25 @@ class networkx_algorithm:
     name: str
     extra_doc: str | None
     extra_params: dict[str, str] | None
+    version_added: str
+    is_incomplete: bool
+    is_different: bool
+    _plc_names: set[str] | None
 
     def __new__(
         cls,
         func=None,
         *,
         name: str | None = None,
+        # Extra parameter info that is added to NetworkX docstring
         extra_params: dict[str, str] | str | None = None,
+        # Applies `nodes_or_number` decorator compatibly across versions (3.3 changed)
         nodes_or_number: list[int] | int | None = None,
+        # Metadata (for introspection only)
+        version_added: str,  # Required
+        is_incomplete: bool = False,  # See self.extra_doc for details if True
+        is_different: bool = False,  # See self.extra_doc for details if True
+        plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
     ):
         if func is None:
             return partial(
@@ -56,6 +67,10 @@ class networkx_algorithm:
                 name=name,
                 extra_params=extra_params,
                 nodes_or_number=nodes_or_number,
+                plc=plc,
+                version_added=version_added,
+                is_incomplete=is_incomplete,
+                is_different=is_different,
             )
         instance = object.__new__(cls)
         if nodes_or_number is not None and nx.__version__[:3] > "3.2":
@@ -74,6 +89,15 @@ class networkx_algorithm:
                 f"extra_params must be dict, str, or None; got {type(extra_params)}"
             )
         instance.extra_params = extra_params
+        if plc is None or isinstance(plc, set):
+            instance._plc_names = plc
+        elif isinstance(plc, str):
+            instance._plc_names = {plc}
+        else:
+            raise TypeError(f"plc argument must be str, set, or None; got {type(plc)}")
+        instance.version_added = version_added
+        instance.is_incomplete = is_incomplete
+        instance.is_different = is_different
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = (
             dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None
@@ -91,6 +115,11 @@ class networkx_algorithm:
 
     def _can_run(self, func):
         """Set the `can_run` attribute to the decorated function."""
+        if not func.__name__.startswith("_"):
+            raise ValueError(
+                "The name of the function used by `_can_run` must begin with '_'; "
+                f"got: {func.__name__!r}"
+            )
         self.can_run = func
 
     def __call__(self, /, *args, **kwargs):
