@@ -531,7 +531,7 @@ class Graph:
     @networkx_api
     def to_undirected(self, as_view: bool = False) -> Graph:
         # Does deep copy in networkx
-        return self.copy(as_view)
+        return self._copy(as_view, self.to_undirected_class())
 
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
@@ -742,6 +742,11 @@ class Graph:
     _out_degrees_array = _degrees_array
 
     # Data conversions
+    def _nodekeys_to_nodearray(self, nodes: Iterable[NodeKey]) -> cp.array[IndexValue]:
+        if self.key_to_id is None:
+            return cp.fromiter(nodes, dtype=index_dtype)
+        return cp.fromiter(map(self.key_to_id.__getitem__, nodes), dtype=index_dtype)
+
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:
