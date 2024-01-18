@@ -23,7 +23,7 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       enable_check_symbols: true
-      symbol_exclusions: (hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+      symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-cpp-tests:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.04

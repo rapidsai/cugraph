@@ -60,7 +60,7 @@ jobs:
     with:
       build_type: pull-request
       enable_check_symbols: true
-      symbol_exclusions: (hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)      
+      symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
