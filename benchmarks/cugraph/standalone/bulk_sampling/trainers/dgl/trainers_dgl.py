@@ -159,6 +159,7 @@ def train_epoch(
 
 
 def get_accuracy(model, loader, feature_store, num_classes):
+    print("Computing accuracy...", flush=True)
     acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
     acc_sum = 0.0
     num_batches = 0
@@ -174,6 +175,12 @@ def get_accuracy(model, loader, feature_store, num_classes):
             batch_size = out.shape[0]
             acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
             num_batches += 1
+            if iter_i % 50 == 0:
+                print(
+                    f"Accuracy {iter_i}: {acc_sum/(num_batches) * 100.0:.4f}%",
+                    flush=True,
+                )
+
     num_batches = num_batches
     print(
         f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
