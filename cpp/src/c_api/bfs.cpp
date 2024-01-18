@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,6 +112,21 @@ struct bfs_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_first(),
                                                  graph_view.local_vertex_partition_range_last(),
                                                  do_expensive_check_);
+
+      size_t invalid_count = cugraph::detail::count_values(
+        handle_,
+        raft::device_span<vertex_t const>{sources.data(), sources.size()},
+        cugraph::invalid_vertex_id<vertex_t>::value);
+
+      if constexpr (multi_gpu) {
+        invalid_count = cugraph::host_scalar_allreduce(
+          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
+      }
+
+      if (invalid_count != 0) {
+        mark_error(CUGRAPH_INVALID_INPUT, "Found invalid vertex in the input sources");
+        return;
+      }
 
       cugraph::bfs<vertex_t, edge_t, multi_gpu>(
         handle_,
