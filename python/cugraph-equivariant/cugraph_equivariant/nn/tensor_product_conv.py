@@ -20,12 +20,11 @@ from e3nn.nn import BatchNorm
 
 from cugraph_equivariant.utils import scatter_reduce
 
-try:
-    from pylibcugraphops.equivariant import TensorProduct
-
-    HAS_TP_LIB = True
-except ImportError:
-    HAS_TP_LIB = False
+from pylibcugraphops.pytorch.operators import (
+    FusedFullyConnectedTensorProduct,
+    transpose_irrep_to_m_last,
+    transpose_irrep_to_channels_last,
+)
 
 
 class FullyConnectedTensorProductConv(nn.Module):
@@ -73,6 +72,33 @@ class FullyConnectedTensorProductConv(nn.Module):
         leading to a lower complexity in most use cases. This option requires
         users to explicitly pass in `src_scalars` and `dst_scalars` in
         `forward()` call.
+
+    use_e3nn_tp: bool, optional (default=False)
+        If `True`, use TensorProduct functions from e3nn.
+
+    Examples
+    --------
+    >>> # Case 1: MLP with the input layer having 6 channels and 2 hidden layers
+    >>> #         having 16 channels. edge_emb.size(1) must match the size of
+    >>> #         the input layer: 6
+    >>>
+    >>> conv1 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
+    >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU).cuda()
+    >>> out = conv1(src_features, edge_sh, edge_emb, graph)
+    >>>
+    >>> # Case 2: No MLP, edge_emb will be directly used as the tensor product weights
+    >>>
+    >>> conv2 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
+    >>>     mlp_channels=None).cuda()
+    >>> out = conv2(src_features, edge_sh, edge_emb, graph)
+    >>>
+    >>> # Case 3: Same as case 1 but with `mlp_fast_first_layer=True`. The scalar features
+    >>> # from edges, sources and destinations have to be passed in separately.
+    >>>
+    >>> conv3 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
+    >>>     mlp_channels=[6, 16, 16], mlp_fast_first_layer=True).cuda()
+    >>> out = conv3(src_features, edge_sh, edge_scalars, graph,
+    >>>     src_scalars=src_scalars, dst_scalars=dst_scalars)
     """
 
     def __init__(
@@ -84,18 +110,20 @@ class FullyConnectedTensorProductConv(nn.Module):
         mlp_channels: Optional[Sequence[int]] = None,
         mlp_activation: Optional[Callable[..., nn.Module]] = nn.GELU,
         mlp_fast_first_layer: bool = False,
+        use_e3nn_tp: bool = False,
     ):
         super().__init__()
         self.in_irreps = in_irreps
         self.out_irreps = out_irreps
         self.sh_irreps = sh_irreps
 
-        if HAS_TP_LIB:
-            self.tp = TensorProduct(str(in_irreps), str(sh_irreps), str(out_irreps))
-        else:
+        if use_e3nn_tp:
             self.tp = o3.FullyConnectedTensorProduct(
                 in_irreps, sh_irreps, out_irreps, shared_weights=False
             )
+        else:
+            self.tp = FusedFullyConnectedTensorProduct(in_irreps, sh_irreps, out_irreps)
+        self.use_e3nn_tp = use_e3nn_tp
 
         self.batch_norm = BatchNorm(out_irreps) if batch_norm else None
 
@@ -204,7 +232,13 @@ class FullyConnectedTensorProductConv(nn.Module):
         else:
             tp_weights = edge_emb
 
-        out = self.tp(src_features[src], edge_sh, tp_weights)
+        if not self.use_e3nn_tp:
+            out = self.tp(src_features[src], edge_sh, tp_weights)
+        else:
+            src_features = transpose_irrep_to_m_last(src_features, self.in_irreps)
+            edge_sh = transpose_irrep_to_m_last(edge_sh, self.sh_irreps)
+            out = self.tp(src_features[src], edge_sh, tp_weights)
+            out = transpose_irrep_to_channels_last(out, self.out_irreps)
 
         if edge_envelope is not None:
             out = out * edge_envelope.view(-1, 1)

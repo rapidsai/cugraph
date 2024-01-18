@@ -17,6 +17,8 @@ import torch
 from e3nn import o3
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 
+device = torch.device("cuda:0")
+
 
 @pytest.mark.parametrize(
     "mlp_channels, mlp_fast_first_layer",
@@ -35,37 +37,37 @@ def test_tensor_product_conv_equivariance(mlp_channels, mlp_fast_first_layer):
         out_irreps=out_irreps,
         mlp_channels=mlp_channels,
         mlp_fast_first_layer=mlp_fast_first_layer,
-    )
+    ).to(device)
 
     num_src_nodes, num_dst_nodes = 9, 7
     num_edges = 40
-    src = torch.randint(num_src_nodes, (num_edges,))
-    dst = torch.randint(num_dst_nodes, (num_edges,))
+    src = torch.randint(num_src_nodes, (num_edges,), device=device)
+    dst = torch.randint(num_dst_nodes, (num_edges,), device=device)
     edge_index = torch.vstack((src, dst))
 
-    src_pos = torch.randn(num_src_nodes, 3)
-    dst_pos = torch.randn(num_dst_nodes, 3)
+    src_pos = torch.randn(num_src_nodes, 3, device=device)
+    dst_pos = torch.randn(num_dst_nodes, 3, device=device)
     edge_vec = dst_pos[dst] - src_pos[src]
     edge_sh = o3.spherical_harmonics(
         tp_conv.sh_irreps, edge_vec, normalize=True, normalization="component"
-    )
-    src_features = torch.randn(num_src_nodes, in_irreps.dim)
+    ).to(device)
+    src_features = torch.randn(num_src_nodes, in_irreps.dim, device=device)
 
     rot = o3.rand_matrix()
-    D_in = tp_conv.in_irreps.D_from_matrix(rot)
-    D_sh = tp_conv.sh_irreps.D_from_matrix(rot)
-    D_out = tp_conv.out_irreps.D_from_matrix(rot)
+    D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device)
+    D_sh = tp_conv.sh_irreps.D_from_matrix(rot).to(device)
+    D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device)
 
     if mlp_channels is None:
-        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel)
+        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel, device=device)
         src_scalars = dst_scalars = None
     else:
         if mlp_fast_first_layer:
-            edge_emb = torch.randn(num_edges, tp_conv.num_scalars)
-            src_scalars = torch.randn(num_src_nodes, tp_conv.num_scalars)
-            dst_scalars = torch.randn(num_dst_nodes, tp_conv.num_scalars)
+            edge_emb = torch.randn(num_edges, tp_conv.num_scalars, device=device)
+            src_scalars = torch.randn(num_src_nodes, tp_conv.num_scalars, device=device)
+            dst_scalars = torch.randn(num_dst_nodes, tp_conv.num_scalars, device=device)
         else:
-            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features)
+            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device)
             src_scalars = dst_scalars = None
 
     # rotate before
