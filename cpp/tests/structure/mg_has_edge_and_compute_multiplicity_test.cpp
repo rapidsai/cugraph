@@ -91,6 +91,8 @@ class Tests_MGHasEdgeAndComputeMultiplicity
 
     auto mg_graph_view = mg_graph.view();
 
+    // 2. create an edge list to query
+
     raft::random::RngState rng_state{0};
     auto d_mg_edge_srcs = cugraph::select_random_vertices<vertex_t>(
       *handle_,
@@ -126,7 +128,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
                         std::nullopt,
                         mg_graph_view.vertex_partition_range_lasts());
 
-    // 2. run MG has_edge & compute_multiplicity
+    // 3. run MG has_edge & compute_multiplicity
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -164,10 +166,10 @@ class Tests_MGHasEdgeAndComputeMultiplicity
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 3. copmare SG & MG results
+    // 4. copmare SG & MG results
 
     if (has_edge_and_compute_multiplicity_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 4-1. aggregate MG results
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
@@ -205,7 +207,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        // 3-2. run SG count_self_loops & count_multi_edges
+        // 4-2. run SG count_self_loops & count_multi_edges
 
         auto d_sg_edge_exists = sg_graph_view.has_edge(
           *handle_,
@@ -220,7 +222,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
           raft::device_span<vertex_t const>(d_mg_aggregate_edge_dsts.data(),
                                             d_mg_aggregate_edge_dsts.size()));
 
-        // 3-3. compare
+        // 4-3. compare
 
         auto h_mg_aggregate_edge_exists =
           cugraph::test::to_host(*handle_, d_mg_aggregate_edge_exists);

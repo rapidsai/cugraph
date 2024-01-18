@@ -178,16 +178,16 @@ class Tests_HasEdgeAndComputeMultiplicity
       auto h_cugraph_edge_exists         = cugraph::test::to_host(handle, edge_exists);
       auto h_cugraph_edge_multiplicities = cugraph::test::to_host(handle, edge_multiplicities);
       std::vector<bool> h_reference_edge_exists(edge_srcs.size());
-      std::vector<bool> h_reference_edge_multiplicities(edge_srcs.size());
+      std::vector<edge_t> h_reference_edge_multiplicities(edge_srcs.size());
       for (size_t i = 0; i < edge_srcs.size(); ++i) {
         auto src      = h_unrenumbered_edge_srcs[i];
         auto dst      = h_unrenumbered_edge_dsts[i];
         auto major    = store_transposed ? dst : src;
         auto minor    = store_transposed ? src : dst;
         auto lower_it = std::lower_bound(
-          h_indices.begin() + h_offsets[i], h_indices.begin() + h_offsets[i + 1], minor);
+          h_indices.begin() + h_offsets[major], h_indices.begin() + h_offsets[major + 1], minor);
         auto upper_it = std::upper_bound(
-          h_indices.begin() + h_offsets[i], h_indices.begin() + h_offsets[i + 1], minor);
+          h_indices.begin() + h_offsets[major], h_indices.begin() + h_offsets[major + 1], minor);
         auto multiplicity                  = static_cast<edge_t>(std::distance(lower_it, upper_it));
         h_reference_edge_exists[i]         = multiplicity > 0 ? true : false;
         h_reference_edge_multiplicities[i] = multiplicity;

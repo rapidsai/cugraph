@@ -866,7 +866,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                             edge_partition.local_edges(*major_idx);
                           auto it = thrust::lower_bound(
                             thrust::seq, indices, indices + local_degree, minor);
-                          if (*it == minor) {
+                          if ((it != indices + local_degree) && *it == minor) {
                             if (edge_partition_e_mask) {
                               return (*edge_partition_e_mask)
                                 .get(local_edge_offset + thrust::distance(indices, it));
@@ -935,7 +935,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       thrust::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
       auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-      if (*it == minor) {
+      if ((it != indices + local_degree) && *it == minor) {
         if (edge_partition_e_mask) {
           return (*edge_partition_e_mask).get(local_edge_offset + thrust::distance(indices, it));
         } else {
