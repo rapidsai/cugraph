@@ -30,6 +30,7 @@ _info = {
     "functions": {
         # BEGIN: functions
         "ancestors",
+        "average_clustering",
         "barbell_graph",
         "betweenness_centrality",
         "bfs_edges",
@@ -41,6 +42,7 @@ _info = {
         "caveman_graph",
         "chvatal_graph",
         "circular_ladder_graph",
+        "clustering",
         "complete_bipartite_graph",
         "complete_graph",
         "complete_multipartite_graph",
@@ -68,6 +70,7 @@ _info = {
         "house_x_graph",
         "icosahedral_graph",
         "in_degree_centrality",
+        "is_bipartite",
         "is_connected",
         "is_isolate",
         "is_strongly_connected",
@@ -104,6 +107,8 @@ _info = {
         "strongly_connected_components",
         "tadpole_graph",
         "tetrahedral_graph",
+        "transitivity",
+        "triangles",
         "trivial_graph",
         "truncated_cube_graph",
         "truncated_tetrahedron_graph",
@@ -115,11 +120,13 @@ _info = {
     },
     "extra_docstrings": {
         # BEGIN: extra_docstrings
+        "average_clustering": "Directed graphs and `weight` parameter are not yet supported.",
         "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
         "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
         "bfs_successors": "`sort_neighbors` parameter is not yet supported.",
         "bfs_tree": "`sort_neighbors` parameter is not yet supported.",
+        "clustering": "Directed graphs and `weight` parameter are not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
@@ -131,6 +138,7 @@ _info = {
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
+        "transitivity": "Directed graphs are not yet supported.",
         # END: extra_docstrings
     },
     "extra_parameters": {

@@ -177,8 +177,16 @@ class DiGraph(Graph):
     # Private methods #
     ###################
 
-    def _in_degrees_array(self):
-        return cp.bincount(self.dst_indices, minlength=self._N)
+    def _in_degrees_array(self, *, ignore_selfloops=False):
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = self.src_indices != dst_indices
+            dst_indices = dst_indices[not_selfloops]
+        return cp.bincount(dst_indices, minlength=self._N)
 
-    def _out_degrees_array(self):
-        return cp.bincount(self.src_indices, minlength=self._N)
+    def _out_degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != self.dst_indices
+            src_indices = src_indices[not_selfloops]
+        return cp.bincount(src_indices, minlength=self._N)
