@@ -531,7 +531,7 @@ class Graph:
     @networkx_api
     def to_undirected(self, as_view: bool = False) -> Graph:
         # Does deep copy in networkx
-        return self.copy(as_view)
+        return self._copy(as_view, self.to_undirected_class())
 
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
@@ -732,18 +732,30 @@ class Graph:
         self.graph = graph
         return self
 
-    def _degrees_array(self):
-        if self.src_indices.size == 0:
+    def _degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != dst_indices
+            src_indices = src_indices[not_selfloops]
+            if self.is_directed():
+                dst_indices = dst_indices[not_selfloops]
+        if src_indices.size == 0:
             return cp.zeros(self._N, dtype=np.int64)
-        degrees = cp.bincount(self.src_indices, minlength=self._N)
+        degrees = cp.bincount(src_indices, minlength=self._N)
         if self.is_directed():
-            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+            degrees += cp.bincount(dst_indices, minlength=self._N)
         return degrees
 
     _in_degrees_array = _degrees_array
     _out_degrees_array = _degrees_array
 
     # Data conversions
+    def _nodekeys_to_nodearray(self, nodes: Iterable[NodeKey]) -> cp.array[IndexValue]:
+        if self.key_to_id is None:
+            return cp.fromiter(nodes, dtype=index_dtype)
+        return cp.fromiter(map(self.key_to_id.__getitem__, nodes), dtype=index_dtype)
+
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:
