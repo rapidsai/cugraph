@@ -175,17 +175,20 @@ def get_accuracy(model, loader, feature_store, num_classes):
             batch_size = out.shape[0]
             acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
             num_batches += 1
-            if iter_i % 50 == 0:
-                print(
-                    f"Accuracy {iter_i}: {acc_sum/(num_batches) * 100.0:.4f}%",
-                    flush=True,
-                )
 
     num_batches = num_batches
+
+    acc_sum = torch.tensor(float(acc_sum), dtype=torch.float32, device="cuda")
+    td.all_reduce(acc_sum, op=td.ReduceOp.SUM)
+    nb = torch.tensor(float(num_batches), dtype=torch.float32, device=acc_sum.device)
+    td.all_reduce(nb, op=td.ReduceOp.SUM)
+
+    acc = acc_sum / nb
+
     print(
-        f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
+        f"Accuracy: {acc * 100.0:.4f}%",
     )
-    return acc_sum / (num_batches) * 100.0
+    return acc * 100.0
 
 
 class DGLTrainer(Trainer):
@@ -230,34 +233,28 @@ class DGLTrainer(Trainer):
                 [self.model], divide_by_initial_world_size=False
             ):
                 # test
-                if self.rank == 0:
-                    test_acc = get_accuracy(
-                        model=self.model.module,
-                        loader=self.get_loader(epoch=epoch, stage="test"),
-                        feature_store=self.data,
-                        num_classes=self.dataset.num_labels,
-                    )
-                    print(f"Accuracy: {test_acc:.4f}%")
-                else:
-                    test_acc = 0.0
-            td.barrier()
+                test_acc = get_accuracy(
+                    model=self.model.module,
+                    loader=self.get_loader(epoch=epoch, stage="test"),
+                    feature_store=self.data,
+                    num_classes=self.dataset.num_labels,
+                )
+                print(f"Accuracy: {test_acc:.4f}%")
 
         # val:
         self.model.eval()
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
-            if self.rank == 0:
-                val_acc = get_accuracy(
-                    model=self.model.module,
-                    loader=self.get_loader(epoch=epoch, stage="val"),
-                    feature_store=self.data,
-                    num_classes=self.dataset.num_labels,
-                )
-                print(f"Validation Accuracy: {val_acc:.4f}%")
-            else:
-                val_acc = 0.0
+            val_acc = get_accuracy(
+                model=self.model.module,
+                loader=self.get_loader(epoch=epoch, stage="val"),
+                feature_store=self.data,
+                num_classes=self.dataset.num_labels,
+            )
+            print(f"Validation Accuracy: {val_acc:.4f}%")
+
         val_acc = float(val_acc)
         stats = {
-            "Accuracy": val_acc if self.rank == 0 else 0.0,
+            "Accuracy": val_acc,
             "# Batches": total_batches,
             "Loader Time": time_d["time_loader"],
             "Feature Time": time_d["time_feature_indexing"]

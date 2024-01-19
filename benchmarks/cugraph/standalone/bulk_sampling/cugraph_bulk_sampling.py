@@ -200,19 +200,20 @@ def sample_graph(
 
     total_time = 0.0
     for epoch in range(num_epochs):
-        steps = [("train", train_df), ("test", test_df)]
+        steps = [("train", train_df)]
         if epoch == num_epochs - 1:
             steps.append(("val", val_df))
+            steps.append(("test", test_df))
 
         for step, batch_df in steps:
             batch_df = batch_df.sample(frac=1.0, random_state=seed)
 
-            if step == "val":
-                output_sample_path = os.path.join(output_path, "val", "samples")
-            else:
+            if step == "train":
                 output_sample_path = os.path.join(
                     output_path, f"epoch={epoch}", f"{step}", "samples"
                 )
+            else:
+                output_sample_path = os.path.join(output_path, step, "samples")
             os.makedirs(output_sample_path)
 
             sampler = BulkSampler(
@@ -372,7 +373,7 @@ def load_disk_dataset(
         can_edge_type = tuple(edge_type.split("__"))
         edge_index_dict[can_edge_type] = dask_cudf.read_parquet(
             Path(parquet_path) / edge_type / "edge_index.parquet"
-        ).repartition(n_workers * 2)
+        ).repartition(npartitions=n_workers * 2)
 
         edge_index_dict[can_edge_type]["src"] += node_offsets_replicated[
             can_edge_type[0]
@@ -431,7 +432,7 @@ def load_disk_dataset(
         if os.path.exists(node_label_path):
             node_labels[node_type] = (
                 dask_cudf.read_parquet(node_label_path)
-                .repartition(n_workers)
+                .repartition(npartitions=n_workers)
                 .drop("label", axis=1)
                 .persist()
             )
@@ -574,7 +575,7 @@ def benchmark_cugraph_bulk_sampling(
             "use_legacy_names": False,
             "include_hop_column": False,
         }
-    else:
+    elif sampling_target_framework == "cugraph_pyg":
         # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.02)
         sampling_kwargs = {
             "deduplicate_sources": True,
@@ -585,6 +586,8 @@ def benchmark_cugraph_bulk_sampling(
             "use_legacy_names": False,
             "include_hop_column": True,
         }
+    else:
+        raise ValueError("Only cugraph_dgl_csr or cugraph_pyg are valid frameworks")
 
     batches_per_partition = 600_000 // batch_size
     execution_time, allocation_counts = sample_graph(
@@ -761,9 +764,9 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
 
     args = get_args()
-    if args.sampling_target_framework not in ["cugraph_dgl_csr", None]:
+    if args.sampling_target_framework not in ["cugraph_dgl_csr", "cugraph_pyg"]:
         raise ValueError(
-            "sampling_target_framework must be one of cugraph_dgl_csr or None",
+            "sampling_target_framework must be one of cugraph_dgl_csr or cugraph_pyg",
             "Other frameworks are not supported at this time.",
         )
 

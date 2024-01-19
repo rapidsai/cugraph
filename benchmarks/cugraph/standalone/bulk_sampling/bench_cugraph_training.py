@@ -241,6 +241,7 @@ def main(args):
             f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
         )
         from trainers.dgl import DGLCuGraphTrainer
+
         trainer = DGLCuGraphTrainer(
             model=args.model,
             dataset=dataset,

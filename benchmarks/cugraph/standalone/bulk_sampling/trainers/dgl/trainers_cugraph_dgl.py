@@ -13,10 +13,6 @@
 import os
 import time
 
-os.environ["LIBCUDF_CUFILE_POLICY"] = "KVIKIO"
-os.environ["KVIKIO_NTHREADS"] = "8"
-os.environ["RAPIDS_NO_INITIALIZE"] = "1"
-
 from .trainers_dgl import DGLTrainer
 from models.dgl import GraphSAGE
 
@@ -32,19 +28,26 @@ from cugraph.gnn import FeatureStore
 def get_dataloader(input_file_paths, total_num_nodes, sparse_format, return_type):
     print("Creating dataloader", flush=True)
     st = time.time()
-    dataset = HomogenousBulkSamplerDataset(
-        total_num_nodes,
-        edge_dir="in",
-        sparse_format=sparse_format,
-        return_type=return_type,
-    )
-    dataset.set_input_files(input_file_paths=input_file_paths)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, collate_fn=lambda x: x, shuffle=False, num_workers=0, batch_size=None
-    )
-    et = time.time()
-    print(f"Time to create dataloader = {et - st:.2f} seconds", flush=True)
-    return dataloader
+    if len(input_file_paths) > 0:
+        dataset = HomogenousBulkSamplerDataset(
+            total_num_nodes,
+            edge_dir="in",
+            sparse_format=sparse_format,
+            return_type=return_type,
+        )
+        dataset.set_input_files(input_file_paths=input_file_paths)
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            collate_fn=lambda x: x,
+            shuffle=False,
+            num_workers=0,
+            batch_size=None,
+        )
+        et = time.time()
+        print(f"Time to create dataloader = {et - st:.2f} seconds", flush=True)
+        return dataloader
+    else:
+        return []
 
 
 class DGLCuGraphTrainer(DGLTrainer):
@@ -96,10 +99,10 @@ class DGLCuGraphTrainer(DGLTrainer):
 
     def get_loader(self, epoch: int = 0, stage="train") -> int:
         # TODO support online sampling
-        if stage == "val":
-            path = os.path.join(self.__sample_dir, stage, "samples")
-        else:
+        if stage == "train":
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
+        else:
+            path = os.path.join(self.__sample_dir, stage, "samples")
 
         dataloader = get_dataloader(
             input_file_paths=self.get_input_files(
@@ -185,10 +188,8 @@ class DGLCuGraphTrainer(DGLTrainer):
         file_list = np.array([f.path for f in os.scandir(path)])
         file_list.sort()
 
-        if stage == "train":
-            splits = np.array_split(file_list, self.__world_size)
-            np.random.seed(epoch)
-            np.random.shuffle(splits)
-            return splits[self.rank]
-        else:
-            return file_list
+        splits = np.array_split(file_list, self.__world_size)
+        np.random.seed(epoch)
+        np.random.shuffle(splits)
+
+        return splits[self.rank]

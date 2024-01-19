@@ -81,10 +81,10 @@ class PyGCuGraphTrainer(PyGTrainer):
         logger.info(f"getting loader for epoch {epoch}, {stage} stage")
 
         # TODO support online sampling
-        if stage == "val":
-            path = os.path.join(self.__sample_dir, "val", "samples")
-        else:
+        if stage == "train":
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
+        else:
+            path = os.path.join(self.__sample_dir, stage, "samples")
 
         loader = BulkSampleLoader(
             self.data,
@@ -175,10 +175,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         file_list = np.array(os.listdir(path))
         file_list.sort()
 
-        if stage == "train":
-            splits = np.array_split(file_list, self.__world_size)
-            np.random.seed(epoch)
-            np.random.shuffle(splits)
-            return splits[self.rank]
-        else:
-            return file_list
+        splits = np.array_split(file_list, self.__world_size)
+        np.random.seed(epoch)
+        np.random.shuffle(splits)
+        return splits[self.rank]
