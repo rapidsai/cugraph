@@ -92,8 +92,9 @@ class FullyConnectedTensorProductConv(nn.Module):
     >>>     mlp_channels=None).cuda()
     >>> out = conv2(src_features, edge_sh, edge_emb, graph)
     >>>
-    >>> # Case 3: Same as case 1 but with `mlp_fast_first_layer=True`. The scalar features
-    >>> # from edges, sources and destinations have to be passed in separately.
+    >>> # Case 3: Same as case 1 but with `mlp_fast_first_layer=True`. The scalar
+    >>> #         features from edges, sources and destinations have to be passed
+    >>> #         in separately.
     >>>
     >>> conv3 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
     >>>     mlp_channels=[6, 16, 16], mlp_fast_first_layer=True).cuda()
