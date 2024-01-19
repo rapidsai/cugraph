@@ -42,7 +42,7 @@ def test_gatconv_equality(
     from dgl.nn.pytorch import GATConv
 
     torch.manual_seed(12345)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
     g = dgl_graph_1.to(device).astype(idx_type)
 
     if to_block:
@@ -146,7 +146,7 @@ def test_gatconv_edge_feats(
     use_edge_feats,
 ):
     torch.manual_seed(12345)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
     g = dgl_graph_1.to(device)
 
     if to_block:

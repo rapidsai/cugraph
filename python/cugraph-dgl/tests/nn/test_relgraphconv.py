@@ -42,7 +42,7 @@ def test_relgraphconv_equality(
     from dgl.nn.pytorch import RelGraphConv
 
     torch.manual_seed(12345)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
     g = dgl_graph_1.to(device).astype(idx_type)
 
     if to_block:
