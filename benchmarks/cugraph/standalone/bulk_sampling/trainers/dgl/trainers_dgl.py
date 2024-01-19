@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,18 +10,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import logging
 import torch
 import torch.distributed as td
 import torch.nn.functional as F
-from torch.nn.parallel import DistributedDataParallel as ddp
-
+from torchmetrics import Accuracy
 from trainers import Trainer
-
-from models.dgl import GraphSAGE
-
 import time
-import warnings
 
 
 def get_features(input_nodes, output_nodes, feature_store, key="paper"):
@@ -164,13 +159,12 @@ def train_epoch(
 
 
 def get_accuracy(model, loader, feature_store, num_classes):
-    from torchmetrics import Accuracy
-
+    print("Computing accuracy...", flush=True)
     acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
     acc_sum = 0.0
+    num_batches = 0
     with torch.no_grad():
         for iter_i, (input_nodes, output_nodes, blocks) in enumerate(loader):
-            print('iteration: ', iter_i)
             x, y_true = get_features(
                 input_nodes, output_nodes, feature_store=feature_store
             )
@@ -180,19 +174,22 @@ def get_accuracy(model, loader, feature_store, num_classes):
             out = model(blocks, x)
             batch_size = out.shape[0]
             acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
-            print('acc_sum:', acc_sum)
-        
-        num_batches = iter_i
-        print(
-            f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
-        )
+            num_batches += 1
+            if iter_i % 50 == 0:
+                print(
+                    f"Accuracy {iter_i}: {acc_sum/(num_batches) * 100.0:.4f}%",
+                    flush=True,
+                )
+
+    num_batches = num_batches
+    print(
+        f"Accuracy: {acc_sum/(num_batches) * 100.0:.4f}%",
+    )
     return acc_sum / (num_batches) * 100.0
 
 
 class DGLTrainer(Trainer):
     def train(self):
-        import logging
-
         logger = logging.getLogger("DGLTrainer")
         time_d = {
             "time_loader": 0.0,
@@ -205,7 +202,9 @@ class DGLTrainer(Trainer):
         for epoch in range(self.num_epochs):
             start_time = time.perf_counter()
             self.model.train()
-            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            with td.algorithms.join.Join(
+                [self.model], divide_by_initial_world_size=False
+            ):
                 num_batches, total_loss = train_epoch(
                     model=self.model,
                     optimizer=self.optimizer,
@@ -227,32 +226,32 @@ class DGLTrainer(Trainer):
             print("---" * 30)
             td.barrier()
             self.model.eval()
-            with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            with td.algorithms.join.Join(
+                [self.model], divide_by_initial_world_size=False
+            ):
                 # test
                 if self.rank == 0:
-                    with torch.no_grad():
-                        test_acc = get_accuracy(
-                            model=self.model,
-                            loader=self.get_loader(epoch=epoch, stage="test"),
-                            feature_store=self.data,
-                            num_classes=self.dataset.num_labels,
-                        )
+                    test_acc = get_accuracy(
+                        model=self.model.module,
+                        loader=self.get_loader(epoch=epoch, stage="test"),
+                        feature_store=self.data,
+                        num_classes=self.dataset.num_labels,
+                    )
                     print(f"Accuracy: {test_acc:.4f}%")
                 else:
                     test_acc = 0.0
             td.barrier()
-        
+
         # val:
         self.model.eval()
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
             if self.rank == 0:
-                with torch.no_grad():
-                    val_acc = get_accuracy(
-                        model=self.model,
-                        loader=self.get_loader(epoch=epoch, stage="val"),
-                        feature_store=self.data,
-                        num_classes=self.dataset.num_labels,
-                    )
+                val_acc = get_accuracy(
+                    model=self.model.module,
+                    loader=self.get_loader(epoch=epoch, stage="val"),
+                    feature_store=self.data,
+                    num_classes=self.dataset.num_labels,
+                )
                 print(f"Validation Accuracy: {val_acc:.4f}%")
             else:
                 val_acc = 0.0
@@ -267,5 +266,6 @@ class DGLTrainer(Trainer):
             "Backward Time": time_d["time_backward"],
         }
         return stats
+
 
 # For native DGL training, see benchmarks/cugraph-dgl/scale-benchmarks
