@@ -26,6 +26,6 @@ def is_bipartite(G):
     G = _to_graph(G)
     # Counting triangles may not be the fastest way to do this, but it is simple.
     node_ids, triangles, is_single_node = _triangles(
-        G, None, symmetrize="union" if G.is_directed else None
+        G, None, symmetrize="union" if G.is_directed() else None
     )
     return int(cp.count_nonzero(triangles)) == 0
