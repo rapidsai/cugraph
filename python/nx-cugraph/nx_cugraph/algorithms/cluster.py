@@ -70,8 +70,7 @@ def clustering(G, nodes=None, weight=None):
             return 0
         degree = int((G.src_indices == nodes).sum())
         return 2 * numer / (degree * (degree - 1))
-    # What about self-edges?
-    degrees = G._degrees_array()[node_ids]
+    degrees = G._degrees_array(ignore_selfloops=True)[node_ids]
     denom = degrees * (degrees - 1)
     results = 2 * triangles / denom
     results = cp.where(denom, results, 0)  # 0 where we divided by 0
@@ -91,8 +90,7 @@ def average_clustering(G, nodes=None, weight=None, count_zeros=True):
     node_ids, triangles, is_single_node = _triangles(G, nodes)
     if len(G) == 0:
         raise ZeroDivisionError
-    # What about self-edges?
-    degrees = G._degrees_array()[node_ids]
+    degrees = G._degrees_array(ignore_selfloops=True)[node_ids]
     if not count_zeros:
         mask = triangles != 0
         triangles = triangles[mask]
@@ -127,8 +125,7 @@ def transitivity(G):
     numer = int(triangles.sum())
     if numer == 0:
         return 0
-    # What about self-edges?
-    degrees = G._degrees_array()[node_ids]
+    degrees = G._degrees_array(ignore_selfloops=True)[node_ids]
     denom = int((degrees * (degrees - 1)).sum())
     return 2 * numer / denom
 
