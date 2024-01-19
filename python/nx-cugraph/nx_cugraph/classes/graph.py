@@ -732,10 +732,17 @@ class Graph:
         self.graph = graph
         return self
 
-    def _degrees_array(self):
-        degrees = cp.bincount(self.src_indices, minlength=self._N)
+    def _degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != dst_indices
+            src_indices = src_indices[not_selfloops]
+            if self.is_directed():
+                dst_indices = dst_indices[not_selfloops]
+        degrees = cp.bincount(src_indices, minlength=self._N)
         if self.is_directed():
-            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+            degrees += cp.bincount(dst_indices, minlength=self._N)
         return degrees
 
     _in_degrees_array = _degrees_array

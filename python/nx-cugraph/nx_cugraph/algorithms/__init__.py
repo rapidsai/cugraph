@@ -13,14 +13,16 @@
 from . import (
     bipartite,
     centrality,
+    cluster,
     community,
     components,
     link_analysis,
     shortest_paths,
     traversal,
 )
-from .bipartite import complete_bipartite_graph
+from .bipartite import complete_bipartite_graph, is_bipartite
 from .centrality import *
+from .cluster import *
 from .components import *
 from .core import *
 from .dag import *
