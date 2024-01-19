@@ -89,22 +89,21 @@ class Tests_HasEdgeAndComputeMultiplicity
     auto graph_view = graph.view();
 
     raft::random::RngState rng_state(0);
-    auto edge_srcs = cugraph::select_random_vertices<vertex_t>(
-      handle,
-      graph_view,
-      std::nullopt,
-      rng_state,
-      has_edge_and_compute_multiplicity_usecase.num_vertex_pairs,
-      true,
-      false);
-    auto edge_dsts = cugraph::select_random_vertices<vertex_t>(
-      handle,
-      graph_view,
-      std::nullopt,
-      rng_state,
-      has_edge_and_compute_multiplicity_usecase.num_vertex_pairs,
-      true,
-      false);
+    rmm::device_uvector<vertex_t> edge_srcs(
+      has_edge_and_compute_multiplicity_usecase.num_vertex_pairs, handle.get_stream());
+    rmm::device_uvector<vertex_t> edge_dsts(edge_srcs.size(), handle.get_stream());
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         edge_srcs.data(),
+                                         edge_srcs.size(),
+                                         vertex_t{0},
+                                         graph_view.number_of_vertices(),
+                                         rng_state);
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         edge_dsts.data(),
+                                         edge_dsts.size(),
+                                         vertex_t{0},
+                                         graph_view.number_of_vertices(),
+                                         rng_state);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

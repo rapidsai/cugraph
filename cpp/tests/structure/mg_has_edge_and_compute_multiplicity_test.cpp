@@ -68,6 +68,9 @@ class Tests_MGHasEdgeAndComputeMultiplicity
 
     HighResTimer hr_timer{};
 
+    auto const comm_rank = handle_->get_comms().get_rank();
+    auto const comm_size = handle_->get_comms().get_size();
+
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
@@ -93,40 +96,26 @@ class Tests_MGHasEdgeAndComputeMultiplicity
 
     // 2. create an edge list to query
 
-    raft::random::RngState rng_state{0};
-    auto d_mg_edge_srcs = cugraph::select_random_vertices<vertex_t>(
-      *handle_,
-      mg_graph_view,
-      std::nullopt,
-      rng_state,
-      has_edge_and_compute_multiplicity_usecase.num_vertex_pairs,
-      true,
-      false);
-    auto d_mg_edge_dsts = cugraph::select_random_vertices<vertex_t>(
-      *handle_,
-      mg_graph_view,
-      std::nullopt,
-      rng_state,
-      has_edge_and_compute_multiplicity_usecase.num_vertex_pairs,
-      true,
-      false);
-
-    std::tie(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs,
-             store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts,
-             std::ignore,
-             std::ignore,
-             std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        edge_type_id_t>(*handle_,
-                        store_transposed ? std::move(d_mg_edge_dsts) : std::move(d_mg_edge_srcs),
-                        store_transposed ? std::move(d_mg_edge_srcs) : std::move(d_mg_edge_dsts),
-                        std::nullopt,
-                        std::nullopt,
-                        std::nullopt,
-                        mg_graph_view.vertex_partition_range_lasts());
+    raft::random::RngState rng_state(comm_rank);
+    size_t num_vertex_pairs_this_gpu =
+      (has_edge_and_compute_multiplicity_usecase.num_vertex_pairs / comm_size) +
+      ((comm_rank < has_edge_and_compute_multiplicity_usecase.num_vertex_pairs % comm_size)
+         ? size_t{1}
+         : size_t{0});
+    rmm::device_uvector<vertex_t> d_mg_edge_srcs(num_vertex_pairs_this_gpu, handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_mg_edge_dsts(d_mg_edge_srcs.size(), handle_->get_stream());
+    cugraph::detail::uniform_random_fill(handle_->get_stream(),
+                                         d_mg_edge_srcs.data(),
+                                         d_mg_edge_srcs.size(),
+                                         vertex_t{0},
+                                         mg_graph_view.number_of_vertices(),
+                                         rng_state);
+    cugraph::detail::uniform_random_fill(handle_->get_stream(),
+                                         d_mg_edge_dsts.data(),
+                                         d_mg_edge_dsts.size(),
+                                         vertex_t{0},
+                                         mg_graph_view.number_of_vertices(),
+                                         rng_state);
 
     // 3. run MG has_edge & compute_multiplicity
 
