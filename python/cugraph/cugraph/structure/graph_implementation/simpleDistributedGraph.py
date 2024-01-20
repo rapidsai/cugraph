@@ -827,7 +827,7 @@ class simpleDistributedGraphImpl:
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
                 start_vertices=start_vertices,
-                do_expensive_check=True,
+                do_expensive_check=False,
             )
             return results_
 
