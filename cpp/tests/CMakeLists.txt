@@ -314,6 +314,11 @@ ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
               "structure/count_self_loops_and_multi_edges_test.cpp")
 
 ###################################################################################################
+# - Query edge existence and multiplicity tests ---------------------------------------------------
+ConfigureTest(HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+              "structure/has_edge_and_compute_multiplicity_test.cpp")
+
+###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
@@ -482,6 +487,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG Count self-loops and multi-edges tests -------------------------------------------------
     ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
           "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+
+    ###############################################################################################
+    # - MG Query edge existence and multiplicity tests --------------------------------------------
+    ConfigureTestMG(MG_HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+          "structure/mg_has_edge_and_compute_multiplicity_test.cpp")
 
     ###############################################################################################
     # - MG PAGERANK tests -------------------------------------------------------------------------
