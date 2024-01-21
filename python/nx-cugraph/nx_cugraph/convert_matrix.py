@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,8 @@ __all__ = [
 ]
 
 
-@networkx_algorithm
+# Value columns with string dtype is not supported
+@networkx_algorithm(is_incomplete=True, version_added="23.12")
 def from_pandas_edgelist(
     df,
     source="source",
@@ -32,7 +33,7 @@ def from_pandas_edgelist(
     create_using=None,
     edge_key=None,
 ):
-    """cudf.DataFrame inputs also supported."""
+    """cudf.DataFrame inputs also supported; value columns with str is unsuppported."""
     graph_class, inplace = _create_using_class(create_using)
     src_array = df[source].to_numpy()
     dst_array = df[target].to_numpy()
@@ -120,7 +121,7 @@ def from_pandas_edgelist(
     return G
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12")
 def from_scipy_sparse_array(
     A, parallel_edges=False, create_using=None, edge_attribute="weight"
 ):

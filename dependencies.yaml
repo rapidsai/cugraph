@@ -9,7 +9,8 @@ files:
       - checks
       - common_build
       - cpp_build
-      - cudatoolkit
+      - cuda
+      - cuda_version
       - docs
       - python_build_wheel
       - python_build_cythonize
@@ -37,19 +38,19 @@ files:
   docs:
     output: none
     includes:
-      - cudatoolkit
+      - cuda_version
       - docs
       - py_version
       - depends_on_pylibcugraphops
   test_cpp:
     output: none
     includes:
-      - cudatoolkit
+      - cuda_version
       - test_cpp
   test_notebooks:
     output: none
     includes:
-      - cudatoolkit
+      - cuda_version
       - py_version
       - test_notebook
       - test_python_common
@@ -57,7 +58,7 @@ files:
   test_python:
     output: none
     includes:
-      - cudatoolkit
+      - cuda_version
       - depends_on_cudf
       - py_version
       - test_python_common
@@ -273,33 +274,40 @@ dependencies:
       - output_types: [conda, requirements]
         packages:
           - pre-commit
-  cudatoolkit:
+  cuda_version:
     specific:
-      - output_types: [conda]
+      - output_types: conda
         matrices:
-          - matrix:
-              cuda: "12.0"
-            packages:
-              - cuda-version=12.0
-          - matrix:
-              cuda: "11.8"
-            packages:
-              - cuda-version=11.8
-              - cudatoolkit
-          - matrix:
-              cuda: "11.5"
-            packages:
-              - cuda-version=11.5
-              - cudatoolkit
-          - matrix:
-              cuda: "11.4"
-            packages:
-              - cuda-version=11.4
-              - cudatoolkit
           - matrix:
               cuda: "11.2"
             packages:
               - cuda-version=11.2
+          - matrix:
+              cuda: "11.4"
+            packages:
+              - cuda-version=11.4
+          - matrix:
+              cuda: "11.5"
+            packages:
+              - cuda-version=11.5
+          - matrix:
+              cuda: "11.8"
+            packages:
+              - cuda-version=11.8
+          - matrix:
+              cuda: "12.0"
+            packages:
+              - cuda-version=12.0
+  cuda:
+    specific:
+      - output_types: [conda]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+            packages:
+          - matrix:
+              cuda: "11.*"
+            packages:
               - cudatoolkit
   common_build:
     common:
@@ -344,9 +352,8 @@ dependencies:
             packages:
               - nvcc_linux-aarch64=11.8
           - matrix:
-              cuda: "12.0"
+              cuda: "12.*"
             packages:
-              - cuda-version=12.0
               - cuda-nvcc
   docs:
     common:

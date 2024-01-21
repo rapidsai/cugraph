@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2018-2023, NVIDIA CORPORATION.
+# Copyright (c) 2018-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -187,6 +187,7 @@ endif()
 
 set(CUGRAPH_SOURCES
     src/detail/shuffle_vertices.cu
+    src/detail/permute_range.cu
     src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
@@ -218,6 +219,8 @@ set(CUGRAPH_SOURCES
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
     src/community/leiden_mg.cu
+    src/community/ecg_sg.cu
+    src/community/ecg_mg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu

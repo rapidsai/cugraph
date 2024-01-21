@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,14 @@ struct abstract_functor {
 
   void unsupported()
   {
-    error_code_            = CUGRAPH_UNSUPPORTED_TYPE_COMBINATION;
-    error_->error_message_ = "Type Dispatcher executing unsupported combination of types";
+    mark_error(CUGRAPH_UNSUPPORTED_TYPE_COMBINATION,
+               "Type Dispatcher executing unsupported combination of types");
+  }
+
+  void mark_error(cugraph_error_code_t error_code, std::string const& error_message)
+  {
+    error_code_            = error_code;
+    error_->error_message_ = error_message;
   }
 };
 
