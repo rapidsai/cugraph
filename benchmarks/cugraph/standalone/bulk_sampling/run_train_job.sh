@@ -34,7 +34,7 @@ NUM_EPOCHS=1
 REPLICATION_FACTOR=1
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
-FRAMEWORK="cuGraphPyG"
+FRAMEWORK="cuGraphDGL"
 GPUS_PER_NODE=8
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
