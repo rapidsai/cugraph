@@ -47,6 +47,8 @@ def is_forest(G):
         node_ids = G._list_to_nodearray(list(components))
         # TODO: create utilities for creating subgraphs
         mask = cp.isin(G.src_indices, node_ids) & cp.isin(G.dst_indices, node_ids)
+        # A tree must have an edge count equal to the number of nodes minus the
+        # tree's root node.
         if is_directed:
             if int(cp.count_nonzero(mask)) != len(components) - 1:
                 return False
@@ -67,4 +69,6 @@ def is_tree(G):
         is_connected = nxcg.is_weakly_connected
     else:
         is_connected = nxcg.is_connected
+    # A tree must have an edge count equal to the number of nodes minus the
+    # tree's root node.
     return len(G) - 1 == G.number_of_edges() and is_connected(G)
