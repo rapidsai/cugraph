@@ -45,7 +45,7 @@ def _triangles(G, nodes, symmetrize=None):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(plc="triangle_count", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="triangle_count")
 def triangles(G, nodes=None):
     G = _to_undirected_graph(G)
     node_ids, triangles, is_single_node = _triangles(G, nodes)
@@ -57,9 +57,13 @@ def triangles(G, nodes=None):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(is_incomplete=True, plc="triangle_count", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="triangle_count")
 def clustering(G, nodes=None, weight=None):
     """Directed graphs and `weight` parameter are not yet supported."""
+    if weight is not None:
+        raise NotImplementedError(
+            "Weighted implementation of clustering not currently supported"
+        )
     G = _to_undirected_graph(G)
     node_ids, triangles, is_single_node = _triangles(G, nodes)
     if len(G) == 0:
@@ -83,9 +87,13 @@ def _(G, nodes=None, weight=None):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(is_incomplete=True, plc="triangle_count", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="triangle_count")
 def average_clustering(G, nodes=None, weight=None, count_zeros=True):
     """Directed graphs and `weight` parameter are not yet supported."""
+    if weight is not None:
+        raise NotImplementedError(
+            "Weighted implementation of average_clustering not currently supported"
+        )
     G = _to_undirected_graph(G)
     node_ids, triangles, is_single_node = _triangles(G, nodes)
     if len(G) == 0:
@@ -110,7 +118,7 @@ def _(G, nodes=None, weight=None, count_zeros=True):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(is_incomplete=True, plc="triangle_count", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="triangle_count")
 def transitivity(G):
     """Directed graphs are not yet supported."""
     G = _to_undirected_graph(G)
