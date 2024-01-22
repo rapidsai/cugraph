@@ -66,8 +66,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
+                        FORK       jameslamb
+                        PINNED_TAG "test-cuda-12.2"
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
