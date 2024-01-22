@@ -19,6 +19,7 @@ from . import (
     link_analysis,
     shortest_paths,
     traversal,
+    tree,
 )
 from .bipartite import complete_bipartite_graph, is_bipartite
 from .centrality import *
@@ -31,3 +32,4 @@ from .link_analysis import *
 from .reciprocity import *
 from .shortest_paths import *
 from .traversal import *
+from .tree.recognition import *
