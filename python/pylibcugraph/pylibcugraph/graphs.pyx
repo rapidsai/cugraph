@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,7 +64,7 @@ cdef class SGGraph(_GPUGraph):
         Object defining intended properties for the graph.
 
     src_or_offset_array : device array type
-        Device array containing either the vertex identifiers of the source of 
+        Device array containing either the vertex identifiers of the source of
         each directed edge if represented in COO format or the offset if
         CSR format. In the case of a COO, the order of the array corresponds to
         the ordering of the dst_or_index_array, where the ith item in
@@ -77,9 +77,14 @@ cdef class SGGraph(_GPUGraph):
         CSR format. In the case of a COO, The order of the array corresponds to
         the ordering of the src_offset_array, where the ith item in src_offset_array
         and the ith item in dst_index_array define the ith edge of the graph.
-    
+
     vertices_array : device array type
-        Device array containing the isolated vertices of the graph.
+        Device array containing all vertices of the graph. This array is
+        optional, but must be used if the graph contains isolated vertices
+        which cannot be represented in the src_or_offset_array and
+        dst_index_array arrays.  If specified, this array must contain every
+        vertex identifier, including vertex identifiers that are already
+        included in the src_or_offset_array and dst_index_array arrays.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
@@ -99,25 +104,25 @@ cdef class SGGraph(_GPUGraph):
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
-    
+
     edge_id_array : device array type
         Device array containing the edge ids of each directed edge.  Must match
         the ordering of the src/dst arrays.  Optional (may be null).  If
         provided, edge_type_array must also be provided.
-    
+
     edge_type_array : device array type
         Device array containing the edge types of each directed edge.  Must
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
         null).  If provided, edge_id_array must be provided.
-    
+
     input_array_format: str, optional (default='COO')
         Input representation used to construct a graph
             COO: arrays represent src_array and dst_array
             CSR: arrays represent offset_array and index_array
-    
+
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
-    
+
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
 
@@ -178,7 +183,7 @@ cdef class SGGraph(_GPUGraph):
         cdef cugraph_type_erased_device_array_view_t* srcs_or_offsets_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 src_or_offset_array
-            )  
+            )
         cdef cugraph_type_erased_device_array_view_t* dsts_or_indices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 dst_or_index_array
@@ -192,7 +197,7 @@ cdef class SGGraph(_GPUGraph):
             )
         self.edge_id_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
-            )  
+            )
         cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_type_array
@@ -237,7 +242,7 @@ cdef class SGGraph(_GPUGraph):
 
             assert_success(error_code, error_ptr,
                        "cugraph_sg_graph_create_from_csr()")
-        
+
         else:
             raise ValueError("invalid 'input_array_format'. Only "
                 "'COO' and 'CSR' format are supported."
@@ -282,7 +287,7 @@ cdef class MGGraph(_GPUGraph):
         each directed edge. The order of the array corresponds to the ordering
         of the src_array, where the ith item in src_array and the ith item in
         dst_array define the ith edge of the graph.
-    
+
     vertices_array : device array type
         Device array containing the isolated vertices of the graph.
 
@@ -295,12 +300,12 @@ cdef class MGGraph(_GPUGraph):
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
-    
+
     num_arrays : size_t
         Number of arrays.
-        
+
         If provided, all list of device arrays should be of the same size.
-    
+
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -309,15 +314,15 @@ cdef class MGGraph(_GPUGraph):
         Device array containing the edge ids of each directed edge.  Must match
         the ordering of the src/dst arrays.  Optional (may be null).  If
         provided, edge_type_array must also be provided.
-    
+
     edge_type_array : device array type
         Device array containing the edge types of each directed edge.  Must
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
         null).  If provided, edge_id_array must be provided.
-    
+
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
-    
+
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
     """
@@ -357,12 +362,12 @@ cdef class MGGraph(_GPUGraph):
             dst_array = [dst_array]
             if not any(dst_array):
                 dst_array = dst_array * num_arrays
-        
+
         if not isinstance(weight_array, list):
             weight_array = [weight_array]
             if not any(weight_array):
                 weight_array = weight_array * num_arrays
-        
+
         if not isinstance(edge_id_array, list):
             edge_id_array = [edge_id_array]
             if not any(edge_id_array):
@@ -372,7 +377,7 @@ cdef class MGGraph(_GPUGraph):
             edge_type_array = [edge_type_array]
             if not any(edge_type_array):
                 edge_type_array = edge_type_array * num_arrays
-        
+
         if not isinstance(vertices_array, list):
             vertices_array = [vertices_array]
             if not any(vertices_array):
@@ -394,7 +399,7 @@ cdef class MGGraph(_GPUGraph):
 
                 if edge_id_array is not None and len(edge_id_array[i]) != len(src_array[i]):
                     raise ValueError('Edge id array must be same length as edgelist')
-            
+
                 assert_CAI_type(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
@@ -421,7 +426,7 @@ cdef class MGGraph(_GPUGraph):
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 vertices_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array[i])                
+                    create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array[i])
 
             if weight_array[i] is not None:
                 if i == 0:

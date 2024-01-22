@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,7 +57,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     """`neighbors` and `sort_neighbors` parameters are not yet supported."""
     return bfs_edges(source, depth_limit=depth_limit)
@@ -68,7 +68,7 @@ def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     return neighbors is None and sort_neighbors is None
 
 
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -95,7 +95,7 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -149,7 +149,7 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_successors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -173,7 +173,7 @@ def _(G, source, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm
+@networkx_algorithm(plc="bfs", version_added="24.02")
 def bfs_layers(G, sources):
     G = _to_graph(G)
     if sources in G:
@@ -201,7 +201,7 @@ def bfs_layers(G, sources):
     return (G._nodearray_to_list(groups[key]) for key in range(len(groups)))
 
 
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
     G = _check_G_and_source(G, source)
@@ -227,7 +227,7 @@ def _(G, source, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm
+@networkx_algorithm(plc="bfs", version_added="24.02")
 def descendants_at_distance(G, source, distance):
     G = _check_G_and_source(G, source)
     if distance is None or distance < 0:
