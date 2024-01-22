@@ -327,10 +327,10 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
-          - libcugraphops==24.2.*
-          - libraft-headers==24.2.*
-          - libraft==24.2.*
-          - librmm==24.2.*
+          - libcugraphops==24.4.*
+          - libraft-headers==24.4.*
+          - libraft==24.4.*
+          - librmm==24.4.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -411,16 +411,16 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &dask rapids-dask-dependency==24.2.*
-          - &dask_cuda dask-cuda==24.2.*
+          - &dask rapids-dask-dependency==24.4.*
+          - &dask_cuda dask-cuda==24.4.*
           - &numba numba>=0.57
           - &numpy numpy>=1.21
-          - &ucx_py ucx-py==0.36.*
+          - &ucx_py ucx-py==0.37.*
       - output_types: conda
         packages:
           - aiohttp
           - fsspec>=0.6.0
-          - libcudf==24.2.*
+          - libcudf==24.4.*
           - requests
           - nccl>=2.9.9
           - ucx-proc=*=gpu
@@ -443,7 +443,7 @@ dependencies:
           - *numpy
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==24.2.*
+          - &cugraph cugraph==24.4.*
   python_run_cugraph_pyg:
     common:
       - output_types: [conda, pyproject]
@@ -471,7 +471,7 @@ dependencies:
       - output_types: pyproject
         packages:
           - *cugraph
-          - cugraph-service-client==24.2.*
+          - cugraph-service-client==24.4.*
   test_cpp:
     common:
       - output_types: conda
@@ -506,7 +506,7 @@ dependencies:
           - scikit-learn>=0.23.1
       - output_types: [conda]
         packages:
-          - pylibwholegraph==24.2.*
+          - pylibwholegraph==24.4.*
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
@@ -523,7 +523,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cugraph==24.2.*
+          - cugraph==24.4.*
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - dgl>=1.1.0.cu*
@@ -531,7 +531,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cugraph==24.2.*
+          - cugraph==24.4.*
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - pyg>=2.4.0
@@ -540,7 +540,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &rmm_conda rmm==24.2.*
+          - &rmm_conda rmm==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -561,7 +561,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &cudf_conda cudf==24.2.*
+          - &cudf_conda cudf==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -582,7 +582,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &dask_cudf_conda dask-cudf==24.2.*
+          - &dask_cudf_conda dask-cudf==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -603,7 +603,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibraft_conda pylibraft==24.2.*
+          - &pylibraft_conda pylibraft==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -624,7 +624,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &raft_dask_conda raft-dask==24.2.*
+          - &raft_dask_conda raft-dask==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -645,7 +645,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibcugraph_conda pylibcugraph==24.2.*
+          - &pylibcugraph_conda pylibcugraph==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -666,7 +666,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibcugraphops_conda pylibcugraphops==24.2.*
+          - &pylibcugraphops_conda pylibcugraphops==24.4.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
