@@ -29,9 +29,15 @@ __all__ = [
 @networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def number_connected_components(G):
     G = _to_undirected_graph(G)
+    return _number_connected_components(G)
+
+
+def _number_connected_components(G, symmetrize=None):
+    if G.src_indices.size == 0:
+        return len(G)
     unused_node_ids, labels = plc.weakly_connected_components(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(symmetrize=symmetrize),
         offsets=None,
         indices=None,
         weights=None,
@@ -54,11 +60,15 @@ def _(G):
 @networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def connected_components(G):
     G = _to_undirected_graph(G)
+    return _connected_components(G)
+
+
+def _connected_components(G, symmetrize=None):
     if G.src_indices.size == 0:
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     node_ids, labels = plc.weakly_connected_components(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(symmetrize=symmetrize),
         offsets=None,
         indices=None,
         weights=None,
@@ -73,13 +83,19 @@ def connected_components(G):
 @networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
 def is_connected(G):
     G = _to_undirected_graph(G)
+    return _is_connected(G)
+
+
+def _is_connected(G, symmetrize=None):
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
             "Connectivity is undefined for the null graph."
         )
+    if G.src_indices.size == 0:
+        return len(G) == 1
     unused_node_ids, labels = plc.weakly_connected_components(
         resource_handle=plc.ResourceHandle(),
-        graph=G._get_plc_graph(),
+        graph=G._get_plc_graph(symmetrize=symmetrize),
         offsets=None,
         indices=None,
         weights=None,
