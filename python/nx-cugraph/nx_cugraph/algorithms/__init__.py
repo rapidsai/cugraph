@@ -20,6 +20,7 @@ from . import (
     operators,
     shortest_paths,
     traversal,
+    tree,
 )
 from .bipartite import complete_bipartite_graph, is_bipartite
 from .centrality import *
@@ -33,3 +34,4 @@ from .operators import *
 from .reciprocity import *
 from .shortest_paths import *
 from .traversal import *
+from .tree.recognition import *
