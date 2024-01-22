@@ -31,10 +31,7 @@ def complement(G):
     # Alt (slower):
     # edges_full = np.arange(N * N)
     # edges_full = edges_full[(edges_full % (N + 1)).astype(bool)]
-    edges_full = (
-        cp.arange(1, N * (N - 1) + 1)
-        + (cp.arange(N - 1)[:, None] + cp.zeros(N, np.int64)).ravel()
-    )
+    edges_full = cp.arange(1, N * (N - 1) + 1) + cp.repeat(cp.arange(N - 1), N)
     edges_comp = cp.setdiff1d(
         edges_full,
         edges_a_b,
