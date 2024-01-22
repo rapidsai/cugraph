@@ -16,7 +16,7 @@ dependencies:
 - cmake>=3.26.4
 - cuda-nvcc
 - cuda-version=12.2
-- cudf==24.2.*
+- cudf==24.4.*
 - cupy>=12.0.0
 - cxx-compiler
 - cython>=3.0.0
