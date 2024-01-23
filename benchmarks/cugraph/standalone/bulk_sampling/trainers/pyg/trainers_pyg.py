@@ -45,6 +45,43 @@ def pyg_num_workers(world_size):
     return int(num_workers)
 
 
+def calc_accuracy(loader, model, num_classes):
+    from torchmetrics import Accuracy
+
+    acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
+
+    acc_sum = 0.0
+    num_batches = 0
+    with torch.no_grad():
+        for i, batch in enumerate(loader):
+            num_sampled_nodes = sum(
+                [torch.as_tensor(n) for n in batch.num_sampled_nodes_dict.values()]
+            )
+            num_sampled_edges = sum(
+                [torch.as_tensor(e) for e in batch.num_sampled_edges_dict.values()]
+            )
+            batch_size = num_sampled_nodes[0]
+
+            batch = batch.to_homogeneous().cuda()
+
+            batch.y = batch.y.to(torch.long)
+            out = model(
+                batch.x,
+                batch.edge_index,
+                num_sampled_nodes,
+                num_sampled_edges,
+            )
+            acc_sum += acc(out[:batch_size].softmax(dim=-1), batch.y[:batch_size])
+            num_batches += 1
+
+    acc_sum = torch.tensor(float(acc_sum), dtype=torch.float32, device="cuda")
+    td.all_reduce(acc_sum, op=td.ReduceOp.SUM)
+    nb = torch.tensor(float(num_batches), dtype=torch.float32, device=acc_sum.device)
+    td.all_reduce(nb, op=td.ReduceOp.SUM)
+
+    return acc_sum / nb
+
+
 class PyGTrainer(Trainer):
     def train(self):
         import logging
@@ -166,95 +203,33 @@ class PyGTrainer(Trainer):
 
             end_time = time.perf_counter()
 
-            # test
-            from torchmetrics import Accuracy
-
-            acc = Accuracy(
-                task="multiclass", num_classes=self.dataset.num_labels
-            ).cuda()
-
             with td.algorithms.join.Join(
                 [self.model], divide_by_initial_world_size=False
             ):
                 self.model.eval()
-                if self.rank == 0:
-                    acc_sum = 0.0
-                    with torch.no_grad():
-                        for i, batch in enumerate(
-                            self.get_loader(epoch=epoch, stage="test")
-                        ):
-                            num_sampled_nodes = sum(
-                                [
-                                    torch.as_tensor(n)
-                                    for n in batch.num_sampled_nodes_dict.values()
-                                ]
-                            )
-                            num_sampled_edges = sum(
-                                [
-                                    torch.as_tensor(e)
-                                    for e in batch.num_sampled_edges_dict.values()
-                                ]
-                            )
-                            batch_size = num_sampled_nodes[0]
+                loader = self.get_loader(epoch=epoch, stage="test")
+                num_classes = self.dataset.num_labels
 
-                            batch = batch.to_homogeneous().cuda()
+                acc = calc_accuracy(loader, self.model.module, num_classes)
 
-                            batch.y = batch.y.to(torch.long)
-                            out = self.model.module(
-                                batch.x,
-                                batch.edge_index,
-                                num_sampled_nodes,
-                                num_sampled_edges,
-                            )
-                            acc_sum += acc(
-                                out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-                            )
-                    print(
-                        f"Accuracy: {acc_sum/(i) * 100.0:.4f}%",
-                    )
-
-            td.barrier()
+            if self.rank == 0:
+                print(
+                    f"Accuracy: {acc * 100.0:.4f}%",
+                )
 
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
             self.model.eval()
-            if self.rank == 0:
-                acc_sum = 0.0
-                with torch.no_grad():
-                    for i, batch in enumerate(
-                        self.get_loader(epoch=epoch, stage="val")
-                    ):
-                        num_sampled_nodes = sum(
-                            [
-                                torch.as_tensor(n)
-                                for n in batch.num_sampled_nodes_dict.values()
-                            ]
-                        )
-                        num_sampled_edges = sum(
-                            [
-                                torch.as_tensor(e)
-                                for e in batch.num_sampled_edges_dict.values()
-                            ]
-                        )
-                        batch_size = num_sampled_nodes[0]
+            loader = self.get_loader(epoch=epoch, stage="val")
+            num_classes = self.dataset.num_labels
+            acc = calc_accuracy(loader, self.model.module, num_classes)
 
-                        batch = batch.to_homogeneous().cuda()
-
-                        batch.y = batch.y.to(torch.long)
-                        out = self.model.module(
-                            batch.x,
-                            batch.edge_index,
-                            num_sampled_nodes,
-                            num_sampled_edges,
-                        )
-                        acc_sum += acc(
-                            out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-                        )
-                print(
-                    f"Validation Accuracy: {acc_sum/(i) * 100.0:.4f}%",
-                )
+        if self.rank == 0:
+            print(
+                f"Validation Accuracy: {acc * 100.0:.4f}%",
+            )
 
         stats = {
-            "Accuracy": float(acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
+            "Accuracy": float(acc * 100.0),
             "# Batches": num_batches,
             "Loader Time": time_loader,
             "Feature Transfer Time": time_feature_transfer,
