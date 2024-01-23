@@ -230,8 +230,17 @@ def get_graph_obj_for_benchmark(graph_obj, backend_wrapper):
     return G
 
 
+def get_highest_degree_node(graph_obj):
+    degrees = graph_obj.degree()  # list of tuples of (node, degree)
+    return max(degrees, key=lambda t: t[1])[0]
+
+
 ################################################################################
 # Benchmarks
+def bench_from_networkx(benchmark, graph_obj):
+    benchmark(nxcg.from_networkx, graph_obj)
+
+
 # normalized_param_values = [True, False]
 # k_param_values = [10, 100]
 normalized_param_values = [True]
@@ -284,7 +293,7 @@ def bench_edge_betweenness_centrality(
 
 def bench_louvain_communities(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
-    # The cugraph backend for louvain_communities only supports undirected graphs
+    # DiGraphs are not supported
     if G.is_directed():
         G = G.to_undirected()
     result = benchmark.pedantic(
@@ -416,10 +425,8 @@ def bench_pagerank(benchmark, graph_obj, backend_wrapper):
 
 
 def bench_single_source_shortest_path_length(benchmark, graph_obj, backend_wrapper):
-    # Use the node with the highest degree
-    degrees = graph_obj.degree()  # list of tuples of (node, degree)
-    node = max(degrees, key=lambda t: t[1])[0]
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
 
     result = benchmark.pedantic(
         target=backend_wrapper(nx.single_source_shortest_path_length),
@@ -435,11 +442,8 @@ def bench_single_source_shortest_path_length(benchmark, graph_obj, backend_wrapp
 
 
 def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapper):
-    # Use the node with the highest degree
-    degrees = graph_obj.degree()  # list of tuples of (node, degree)
-    node = max(degrees, key=lambda t: t[1])[0]
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
-
+    node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
         target=backend_wrapper(
             nx.single_target_shortest_path_length, exhaust_returned_iterator=True
@@ -455,4 +459,345 @@ def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapp
     # exhaust_returned_iterator=True forces the result to a list, but is not
     # needed for this algo in NX 3.3+ which returns a dict instead of an
     # iterator. Forcing to a list does not change the benchmark timing.
+    assert type(result) is list
+
+
+def bench_ancestors_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.ancestors),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is set
+
+
+def bench_average_clustering_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    # DiGraphs are not supported by nx-cugraph
+    if G.is_directed():
+        G = G.to_undirected()
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.average_clustering),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is float
+
+
+def bench_generic_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.generic_bfs_edges, exhaust_returned_iterator=True),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.bfs_edges, exhaust_returned_iterator=True),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_bfs_layers_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.bfs_layers, exhaust_returned_iterator=True),
+        args=(G,),
+        kwargs=dict(
+            sources=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_bfs_predecessors_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.bfs_predecessors, exhaust_returned_iterator=True),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_bfs_successors_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.bfs_successors, exhaust_returned_iterator=True),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_bfs_tree_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.bfs_tree),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    # Check that this at least appears to be some kind of NX-like Graph
+    assert hasattr(result, "has_node")
+
+
+def bench_clustering_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    # DiGraphs are not supported by nx-cugraph
+    if G.is_directed():
+        G = G.to_undirected()
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.clustering),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is dict
+
+
+def bench_core_number_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    # DiGraphs are not supported by nx-cugraph
+    if G.is_directed():
+        G = G.to_undirected()
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.core_number),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is dict
+
+
+def bench_descendants_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.descendants),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is set
+
+
+def bench_descendants_at_distance_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.descendants_at_distance),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+            distance=1,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is set
+
+
+def bench_is_bipartite_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.is_bipartite),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is bool
+
+
+def bench_is_strongly_connected_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.is_strongly_connected),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is bool
+
+
+def bench_is_weakly_connected_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.is_weakly_connected),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is bool
+
+
+def bench_number_strongly_connected_components_2402(
+    benchmark, graph_obj, backend_wrapper
+):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.number_strongly_connected_components),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is int
+
+
+def bench_number_weakly_connected_components_2402(
+    benchmark, graph_obj, backend_wrapper
+):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.number_weakly_connected_components),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is int
+
+
+def bench_overall_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.overall_reciprocity),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is float
+
+
+def bench_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.reciprocity),
+        args=(G,),
+        kwargs=dict(
+            nodes=node,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is float
+
+
+def bench_strongly_connected_components_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(
+            nx.strongly_connected_components, exhaust_returned_iterator=True
+        ),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is list
+
+
+def bench_transitivity_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    # DiGraphs are not supported by nx-cugraph
+    if G.is_directed():
+        G = G.to_undirected()
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.transitivity),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is float
+
+
+def bench_triangles_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    # DiGraphs are not supported
+    if G.is_directed():
+        G = G.to_undirected()
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.triangles),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is dict
+
+
+def bench_weakly_connected_components_2402(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    result = benchmark.pedantic(
+        target=backend_wrapper(
+            nx.weakly_connected_components, exhaust_returned_iterator=True
+        ),
+        args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
     assert type(result) is list

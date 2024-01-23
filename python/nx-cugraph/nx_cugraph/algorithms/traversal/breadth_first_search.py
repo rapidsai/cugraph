@@ -60,7 +60,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
 @networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
 def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     """`neighbors` and `sort_neighbors` parameters are not yet supported."""
-    return bfs_edges(source, depth_limit=depth_limit)
+    return bfs_edges(G, source, depth_limit=depth_limit)
 
 
 @generic_bfs_edges._can_run
