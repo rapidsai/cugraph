@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable, Sequence
+from typing import Optional, Sequence, Union
 
 import torch
 from torch import nn
@@ -32,13 +32,15 @@ class FullyConnectedTensorProductConv(nn.Module):
         \sum_{b \in \mathcal{N}_a} Y\left(\hat{r}_{a b}\right)
         \otimes_{\psi_{a b}} \mathbf{h}_b
 
-    where the path weights :math:`\psi_{a b}` are from user input to the forward()
-    function. For example, they can be constructed from edge embeddings and
-    scalar features:
+    where the path weights :math:`\psi_{a b}` can be constructed from edge
+    embeddings and scalar features using an MLP:
 
     .. math::
         \psi_{a b} = \operatorname{MLP}
         \left(e_{a b}, \mathbf{h}_a^0, \mathbf{h}_b^0\right)
+
+    Users have the option to either directly input the weights or provide the
+    MLP parameters and scalar features from edges and nodes.
 
     Parameters
     ----------
@@ -58,19 +60,15 @@ class FullyConnectedTensorProductConv(nn.Module):
         A sequence of integers defining number of neurons in each layer in MLP
         before the output layer. If `None`, no MLP will be added.
 
-    mlp_activation : callable, optional (default=torch.nn.GELU)
-        Activation function in MLP.
+    mlp_activation : nn.Module or sequence of nn.Module, optional (default=nn.GELU())
+        A sequence of functions to be applied in between linear layers in MLP,
+        e.g., `nn.Sequential(nn.ReLU(), nn.Dropout(0.4))`.
 
-    mlp_fast_first_layer : bool, optional (default=False)
-        When enabled, for the first layer of MLP, the module performs GEMMs on
-        individual components (i.e., edge embeddings, scalar features of source
-        and destinations nodes) of the weights before indexing and concatenation,
-        leading to a lower complexity in most use cases. This option requires
-        users to explicitly pass in `src_scalars` and `dst_scalars` in
-        `forward()` call.
-
-    use_e3nn_tp: bool, optional (default=False)
-        If `True`, use TensorProduct functions from e3nn.
+    e3nn_compat_mode: bool, optional (default=False)
+        cugraph-ops and e3nn use different memory layout for Irreps-tensors.
+        The last (fastest moving) dimension is num_channels for cugraph-ops and
+        ir.dim for e3nn. When enabled, the input and output of this layer will
+        follow e3nn's memory layout.
 
     Examples
     --------
@@ -79,23 +77,23 @@ class FullyConnectedTensorProductConv(nn.Module):
     >>> #         the input layer: 6
     >>>
     >>> conv1 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
-    >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU).cuda()
+    >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU()).cuda()
     >>> out = conv1(src_features, edge_sh, edge_emb, graph)
     >>>
-    >>> # Case 2: No MLP, edge_emb will be directly used as the tensor product weights
+    >>> # Case 2: Same as case 1 but with the scalar features from edges, sources
+    >>> #         and destinations passed in separately.
     >>>
     >>> conv2 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
-    >>>     mlp_channels=None).cuda()
-    >>> out = conv2(src_features, edge_sh, edge_emb, graph)
-    >>>
-    >>> # Case 3: Same as case 1 but with `mlp_fast_first_layer=True`. The scalar
-    >>> #         features from edges, sources and destinations have to be passed
-    >>> #         in separately.
-    >>>
-    >>> conv3 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
-    >>>     mlp_channels=[6, 16, 16], mlp_fast_first_layer=True).cuda()
+    >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU()).cuda()
     >>> out = conv3(src_features, edge_sh, edge_scalars, graph,
     >>>     src_scalars=src_scalars, dst_scalars=dst_scalars)
+    >>>
+    >>> # Case 3: No MLP, edge_emb will be directly used as the tensor product weights
+    >>>
+    >>> conv3 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
+    >>>     mlp_channels=None).cuda()
+    >>> out = conv2(src_features, edge_sh, edge_emb, graph)
+
     """
 
     def __init__(
@@ -105,7 +103,7 @@ class FullyConnectedTensorProductConv(nn.Module):
         out_irreps: o3.Irreps,
         batch_norm: bool = True,
         mlp_channels: Optional[Sequence[int]] = None,
-        mlp_activation: Optional[Callable[..., nn.Module]] = nn.GELU,
+        mlp_activation: Union[nn.Module, Sequence[nn.Module]] = nn.GELU(),
         e3nn_compat_mode: bool = False,
     ):
         super().__init__()
@@ -120,13 +118,22 @@ class FullyConnectedTensorProductConv(nn.Module):
 
         self.batch_norm = BatchNorm(out_irreps) if batch_norm else None
 
+        if mlp_activation is None:
+            mlp_activation = []
+        elif hasattr(mlp_activation, "__len__") and hasattr(
+            mlp_activation, "__getitem__"
+        ):
+            mlp_activation = list(mlp_activation)
+        else:
+            mlp_activation = [mlp_activation]
+
         if mlp_channels is not None:
             dims = list(mlp_channels) + [self.tp.weight_numel]
             mlp = []
             for i in range(len(dims) - 1):
                 mlp.append(nn.Linear(dims[i], dims[i + 1]))
-                if mlp_activation is not None and i != len(dims) - 2:
-                    mlp.append(mlp_activation())
+                if i != len(dims) - 2:
+                    mlp.extend(mlp_activation)
             self.mlp = nn.Sequential(*mlp)
         else:
             self.mlp = None
@@ -156,10 +163,10 @@ class FullyConnectedTensorProductConv(nn.Module):
 
         edge_emb: torch.Tensor
             Edge embeddings that are fed into MLPs to generate tensor product weights.
-            Shape: (num_edges, dim), where `dim` should equal to:
+            Shape: (num_edges, dim), where `dim` should be:
             - `tp.weight_numel` when the layer does not contain MLPs.
-            - `num_scalars` when `mlp_fast_first_layer` enabled.
-            - `mlp_channels[0]` otherwise.
+            - num_edge_scalars, with the sum of num_[edge/src/dst]_scalars being
+              mlp_channels[0]
 
         graph : tuple
             A tuple that stores the graph information, with the first element being
@@ -168,11 +175,11 @@ class FullyConnectedTensorProductConv(nn.Module):
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
-            Shape: (num_src_nodes, num_scalars)
+            Shape: (num_src_nodes, num_src_scalars)
 
         dst_scalars: torch.Tensor, optional
             Scalar features of destination nodes.
-            Shape: (num_dst_nodes, num_scalars)
+            Shape: (num_dst_nodes, num_dst_scalars)
 
         reduce : str, optional (default="mean")
             Reduction operator. Choose between "mean" and "sum".
@@ -215,22 +222,23 @@ class FullyConnectedTensorProductConv(nn.Module):
         (src, dst), (num_src_nodes, num_dst_nodes) = graph
 
         if self.mlp is not None:
-            if src_scalars is not None and dst_scalars is not None:
+            if src_scalars is None and dst_scalars is None:
+                tp_weights = self.mlp(edge_emb)
+            else:
                 w_edge, w_src, w_dst = torch.split(
                     self.mlp[0].weight,
                     (edge_emb_size, src_scalars_size, dst_scalars_size),
                     dim=-1,
                 )
-                tp_weights = (
-                    edge_emb @ w_edge.T
-                    + (src_scalars @ w_src.T)[src]
-                    + (dst_scalars @ w_dst.T)[dst]
-                    + self.mlp[0].bias
-                )
+                tp_weights = edge_emb @ w_edge.T + self.mlp[0].bias
+
+                if src_scalars is not None:
+                    tp_weights += (src_scalars @ w_src.T)[src]
+
+                if dst_scalars is not None:
+                    tp_weights += (dst_scalars @ w_dst.T)[dst]
+
                 tp_weights = self.mlp[1:](tp_weights)
-            else:
-                assert src_scalars is None and dst_scalars is None
-                tp_weights = self.mlp(edge_emb)
         else:
             tp_weights = edge_emb
 
