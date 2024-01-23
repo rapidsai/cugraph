@@ -118,8 +118,11 @@ echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 # Ensure all algorithms were called by comparing covered lines to function lines.
 # Run our tests again (they're fast enough) to add their coverage, then create coverage.json
-pytest --cov=nx_cugraph --cov-append --cov-report=
-coverage json
+coverage report
+coverage report --data-file=.coverage
+pytest --cov=nx_cugraph --cov-append --data-file=.coverage
+coverage json --data-file=.coverage
+cat coverage.json
 python nx_cugraph/tests/ensure_algos_covered.py
 popd
 
