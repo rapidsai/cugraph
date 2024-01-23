@@ -15,6 +15,7 @@ import networkx as nx
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
     _get_int_dtype,
     index_dtype,
@@ -22,7 +23,34 @@ from nx_cugraph.utils import (
     not_implemented_for,
 )
 
-__all__ = ["k_truss"]
+__all__ = ["core_number", "k_truss"]
+
+
+@not_implemented_for("directed")
+@not_implemented_for("multigraph")
+@networkx_algorithm(is_incomplete=True, plc="core_number", version_added="24.02")
+def core_number(G):
+    """Directed graphs are not yet supported."""
+    G = _to_undirected_graph(G)
+    if len(G) == 0:
+        return {}
+    if nxcg.number_of_selfloops(G) > 0:
+        raise nx.NetworkXNotImplemented(
+            "Input graph has self loops which is not permitted; "
+            "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
+        )
+    node_ids, core_numbers = plc.core_number(
+        resource_handle=plc.ResourceHandle(),
+        graph=G._get_plc_graph(),
+        degree_type="bidirectional",
+        do_expensive_check=False,
+    )
+    return G._nodearrays_to_dict(node_ids, core_numbers)
+
+
+@core_number._can_run
+def _(G):
+    return not G.is_directed()
 
 
 @not_implemented_for("directed")
