@@ -639,13 +639,14 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         static_cast<od_idx_t>(origins.size()),
         cutoff,
         invalid_distance};
-      detail::call_e_op_t<thrust::tuple<vertex_t, od_idx_t>,
-                          weight_t,
-                          vertex_t,
-                          thrust::nullopt_t,
-                          thrust::nullopt_t,
-                          weight_t,
-                          e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
+      detail::transform_reduce_v_frontier_call_e_op_t<
+        thrust::tuple<vertex_t, od_idx_t>,
+        weight_t,
+        vertex_t,
+        thrust::nullopt_t,
+        thrust::nullopt_t,
+        weight_t,
+        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
         e_op_wrapper{e_op};
 
       auto new_frontier_tagged_vertex_buffer =
