@@ -28,13 +28,13 @@ mkdir -p $LOGS_DIR
 mkdir -p $SAMPLES_DIR
 mkdir -p $DATASETS_DIR
 
-BATCH_SIZE=512
+BATCH_SIZE=555
 FANOUT="10_10_10"
 NUM_EPOCHS=1
 REPLICATION_FACTOR=1
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
-FRAMEWORK="cuGraphDGL"
+FRAMEWORK="cuGraphPyG"
 GPUS_PER_NODE=8
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
