@@ -38,20 +38,27 @@ iterations = 1
 warmup_rounds = 1
 
 dataset_param_values = [
+    # name: karate, nodes: 34, edges: 156
     pytest.param(datasets.karate, marks=[pytest.mark.small, pytest.mark.undirected]),
+    # name: netscience, nodes: 1461, edges: 5484
     pytest.param(datasets.netscience, marks=[pytest.mark.small, pytest.mark.directed]),
+    # name: email-Eu-core, nodes: 1005, edges: 25571
     pytest.param(
         datasets.email_Eu_core, marks=[pytest.mark.small, pytest.mark.directed]
     ),
+    # name: cit-Patents, nodes: 3774768, edges: 16518948
     pytest.param(
         datasets.cit_patents, marks=[pytest.mark.medium, pytest.mark.directed]
     ),
+    # name: hollywood, nodes: 1139905, edges: 57515616
     pytest.param(
         datasets.hollywood, marks=[pytest.mark.medium, pytest.mark.undirected]
     ),
+    # name: soc-LiveJournal1, nodes: 4847571, edges: 68993773
     pytest.param(
         datasets.soc_livejournal, marks=[pytest.mark.medium, pytest.mark.directed]
     ),
+    # name: europe_osm, nodes: 50912018, edges: 54054660
     pytest.param(
         datasets.europe_osm, marks=[pytest.mark.large, pytest.mark.undirected]
     ),
@@ -462,7 +469,7 @@ def bench_single_target_shortest_path_length(benchmark, graph_obj, backend_wrapp
     assert type(result) is list
 
 
-def bench_ancestors_2402(benchmark, graph_obj, backend_wrapper):
+def bench_ancestors(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -478,7 +485,7 @@ def bench_ancestors_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is set
 
 
-def bench_average_clustering_2402(benchmark, graph_obj, backend_wrapper):
+def bench_average_clustering(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     # DiGraphs are not supported by nx-cugraph
     if G.is_directed():
@@ -493,7 +500,7 @@ def bench_average_clustering_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is float
 
 
-def bench_generic_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
+def bench_generic_bfs_edges(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -509,7 +516,7 @@ def bench_generic_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-def bench_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
+def bench_bfs_edges(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -525,7 +532,7 @@ def bench_bfs_edges_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-def bench_bfs_layers_2402(benchmark, graph_obj, backend_wrapper):
+def bench_bfs_layers(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -541,7 +548,7 @@ def bench_bfs_layers_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-def bench_bfs_predecessors_2402(benchmark, graph_obj, backend_wrapper):
+def bench_bfs_predecessors(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -557,7 +564,7 @@ def bench_bfs_predecessors_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-def bench_bfs_successors_2402(benchmark, graph_obj, backend_wrapper):
+def bench_bfs_successors(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -573,7 +580,7 @@ def bench_bfs_successors_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-def bench_bfs_tree_2402(benchmark, graph_obj, backend_wrapper):
+def bench_bfs_tree(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -590,7 +597,7 @@ def bench_bfs_tree_2402(benchmark, graph_obj, backend_wrapper):
     assert hasattr(result, "has_node")
 
 
-def bench_clustering_2402(benchmark, graph_obj, backend_wrapper):
+def bench_clustering(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     # DiGraphs are not supported by nx-cugraph
     if G.is_directed():
@@ -605,7 +612,7 @@ def bench_clustering_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is dict
 
 
-def bench_core_number_2402(benchmark, graph_obj, backend_wrapper):
+def bench_core_number(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     # DiGraphs are not supported by nx-cugraph
     if G.is_directed():
@@ -620,7 +627,7 @@ def bench_core_number_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is dict
 
 
-def bench_descendants_2402(benchmark, graph_obj, backend_wrapper):
+def bench_descendants(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -636,7 +643,7 @@ def bench_descendants_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is set
 
 
-def bench_descendants_at_distance_2402(benchmark, graph_obj, backend_wrapper):
+def bench_descendants_at_distance(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -653,7 +660,7 @@ def bench_descendants_at_distance_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is set
 
 
-def bench_is_bipartite_2402(benchmark, graph_obj, backend_wrapper):
+def bench_is_bipartite(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.is_bipartite),
@@ -665,7 +672,7 @@ def bench_is_bipartite_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is bool
 
 
-def bench_is_strongly_connected_2402(benchmark, graph_obj, backend_wrapper):
+def bench_is_strongly_connected(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.is_strongly_connected),
@@ -677,7 +684,7 @@ def bench_is_strongly_connected_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is bool
 
 
-def bench_is_weakly_connected_2402(benchmark, graph_obj, backend_wrapper):
+def bench_is_weakly_connected(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.is_weakly_connected),
@@ -689,9 +696,7 @@ def bench_is_weakly_connected_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is bool
 
 
-def bench_number_strongly_connected_components_2402(
-    benchmark, graph_obj, backend_wrapper
-):
+def bench_number_strongly_connected_components(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.number_strongly_connected_components),
@@ -703,9 +708,7 @@ def bench_number_strongly_connected_components_2402(
     assert type(result) is int
 
 
-def bench_number_weakly_connected_components_2402(
-    benchmark, graph_obj, backend_wrapper
-):
+def bench_number_weakly_connected_components(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.number_weakly_connected_components),
@@ -717,7 +720,7 @@ def bench_number_weakly_connected_components_2402(
     assert type(result) is int
 
 
-def bench_overall_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
+def bench_overall_reciprocity(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(nx.overall_reciprocity),
@@ -729,7 +732,7 @@ def bench_overall_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is float
 
 
-def bench_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
+def bench_reciprocity(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     node = get_highest_degree_node(graph_obj)
     result = benchmark.pedantic(
@@ -745,7 +748,7 @@ def bench_reciprocity_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is float
 
 
-def bench_strongly_connected_components_2402(benchmark, graph_obj, backend_wrapper):
+def bench_strongly_connected_components(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(
@@ -759,7 +762,7 @@ def bench_strongly_connected_components_2402(benchmark, graph_obj, backend_wrapp
     assert type(result) is list
 
 
-def bench_transitivity_2402(benchmark, graph_obj, backend_wrapper):
+def bench_transitivity(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     # DiGraphs are not supported by nx-cugraph
     if G.is_directed():
@@ -774,7 +777,7 @@ def bench_transitivity_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is float
 
 
-def bench_triangles_2402(benchmark, graph_obj, backend_wrapper):
+def bench_triangles(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     # DiGraphs are not supported
     if G.is_directed():
@@ -789,7 +792,7 @@ def bench_triangles_2402(benchmark, graph_obj, backend_wrapper):
     assert type(result) is dict
 
 
-def bench_weakly_connected_components_2402(benchmark, graph_obj, backend_wrapper):
+def bench_weakly_connected_components(benchmark, graph_obj, backend_wrapper):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
     result = benchmark.pedantic(
         target=backend_wrapper(
