@@ -20,11 +20,7 @@ from e3nn.nn import BatchNorm
 
 from cugraph_equivariant.utils import scatter_reduce
 
-from pylibcugraphops.pytorch.operators import (
-    FusedFullyConnectedTensorProduct,
-    transpose_irrep_to_m_last,
-    transpose_irrep_to_channels_last,
-)
+from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
 
 
 class FullyConnectedTensorProductConv(nn.Module):
@@ -110,31 +106,19 @@ class FullyConnectedTensorProductConv(nn.Module):
         batch_norm: bool = True,
         mlp_channels: Optional[Sequence[int]] = None,
         mlp_activation: Optional[Callable[..., nn.Module]] = nn.GELU,
-        mlp_fast_first_layer: bool = False,
-        use_e3nn_tp: bool = False,
+        e3nn_compat_mode: bool = False,
     ):
         super().__init__()
         self.in_irreps = in_irreps
         self.out_irreps = out_irreps
         self.sh_irreps = sh_irreps
+        self.e3nn_compat_mode = e3nn_compat_mode
 
-        if use_e3nn_tp:
-            self.tp = o3.FullyConnectedTensorProduct(
-                in_irreps, sh_irreps, out_irreps, shared_weights=False
-            )
-        else:
-            self.tp = FusedFullyConnectedTensorProduct(in_irreps, sh_irreps, out_irreps)
-        self.use_e3nn_tp = use_e3nn_tp
+        self.tp = FusedFullyConnectedTensorProduct(
+            in_irreps, sh_irreps, out_irreps, e3nn_compat_mode=e3nn_compat_mode
+        )
 
         self.batch_norm = BatchNorm(out_irreps) if batch_norm else None
-
-        if mlp_fast_first_layer:
-            assert mlp_channels is not None
-            assert mlp_channels[0] % 3 == 0
-            self.num_scalars = int(mlp_channels[0] / 3)
-        else:
-            self.num_scalars = None
-        self.mlp_fast_first_layer = mlp_fast_first_layer
 
         if mlp_channels is not None:
             dims = list(mlp_channels) + [self.tp.weight_numel]
@@ -152,7 +136,7 @@ class FullyConnectedTensorProductConv(nn.Module):
         src_features: torch.Tensor,
         edge_sh: torch.Tensor,
         edge_emb: torch.Tensor,
-        graph: tuple[torch.Tensor, tuple[int, int]],  # COO, (n_src, n_dst)
+        graph: tuple[torch.Tensor, tuple[int, int]],
         src_scalars: Optional[torch.Tensor] = None,
         dst_scalars: Optional[torch.Tensor] = None,
         reduce: str = "mean",
@@ -177,8 +161,10 @@ class FullyConnectedTensorProductConv(nn.Module):
             - `num_scalars` when `mlp_fast_first_layer` enabled.
             - `mlp_channels[0]` otherwise.
 
-        graph : Any
-            The graph.
+        graph : tuple
+            A tuple that stores the graph information, with the first element being
+            the adjacency matrix in COO, and the second element being its shape:
+            (num_src_nodes, num_dst_nodes).
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
@@ -201,26 +187,40 @@ class FullyConnectedTensorProductConv(nn.Module):
             Output node features.
             Shape: (num_dst_nodes, out_irreps.dim)
         """
+        edge_emb_size = edge_emb.size(-1)
+        src_scalars_size = 0 if src_scalars is None else src_scalars.size(-1)
+        dst_scalars_size = 0 if dst_scalars is None else dst_scalars.size(-1)
+
         if self.mlp is None:
-            assert self.tp.weight_numel == edge_emb.size(-1)
+            if self.tp.weight_numel != edge_emb_size:
+                raise RuntimeError(
+                    f"When MLP is not present, edge_emb's last dimension must "
+                    f"equal tp.weight_numel (but got {edge_emb_size} and "
+                    f"{self.tp.weight_numel})"
+                )
         else:
-            if self.mlp_fast_first_layer:
-                assert edge_emb.size(-1) == self.num_scalars
-                assert src_scalars.size(-1) == self.num_scalars
-                assert dst_scalars.size(-1) == self.num_scalars
-            else:
-                assert self.mlp[0].in_features == edge_emb.size(-1)
+            total_size = edge_emb_size + src_scalars_size + dst_scalars_size
+            if self.mlp[0].in_features != total_size:
+                raise RuntimeError(
+                    f"The size of MLP's input layer ({self.mlp[0].in_features}) "
+                    f"does not match the total number of scalar features from "
+                    f"edge_emb, src_scalars and dst_scalars ({total_size})"
+                )
 
         if reduce not in ["mean", "sum"]:
-            raise ValueError(
+            raise RuntimeError(
                 f"reduce argument must be either 'mean' or 'sum', got {reduce}."
             )
 
         (src, dst), (num_src_nodes, num_dst_nodes) = graph
 
         if self.mlp is not None:
-            if self.mlp_fast_first_layer:
-                w_edge, w_src, w_dst = torch.chunk(self.mlp[0].weight, chunks=3, dim=-1)
+            if src_scalars is not None and dst_scalars is not None:
+                w_edge, w_src, w_dst = torch.split(
+                    self.mlp[0].weight,
+                    (edge_emb_size, src_scalars_size, dst_scalars_size),
+                    dim=-1,
+                )
                 tp_weights = (
                     edge_emb @ w_edge.T
                     + (src_scalars @ w_src.T)[src]
@@ -229,17 +229,12 @@ class FullyConnectedTensorProductConv(nn.Module):
                 )
                 tp_weights = self.mlp[1:](tp_weights)
             else:
+                assert src_scalars is None and dst_scalars is None
                 tp_weights = self.mlp(edge_emb)
         else:
             tp_weights = edge_emb
 
-        if not self.use_e3nn_tp:
-            out = self.tp(src_features[src], edge_sh, tp_weights)
-        else:
-            src_features = transpose_irrep_to_m_last(src_features, self.in_irreps)
-            edge_sh = transpose_irrep_to_m_last(edge_sh, self.sh_irreps)
-            out = self.tp(src_features[src], edge_sh, tp_weights)
-            out = transpose_irrep_to_channels_last(out, self.out_irreps)
+        out = self.tp(src_features[src], edge_sh, tp_weights)
 
         if edge_envelope is not None:
             out = out * edge_envelope.view(-1, 1)

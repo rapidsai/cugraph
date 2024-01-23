@@ -20,11 +20,14 @@ from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 device = torch.device("cuda:0")
 
 
+@pytest.mark.parametrize("e3nn_compat_mode", [True, False])
 @pytest.mark.parametrize(
-    "mlp_channels, mlp_fast_first_layer",
-    [[(3 * 10, 8, 8), True], [(7,), False], [None, False]],
+    "mlp_channels, use_src_dst_scalars",
+    [[(30, 8, 8), True], [(7,), False], [None, False]],
 )
-def test_tensor_product_conv_equivariance(mlp_channels, mlp_fast_first_layer):
+def test_tensor_product_conv_equivariance(
+    mlp_channels, use_src_dst_scalars, e3nn_compat_mode
+):
     torch.manual_seed(12345)
 
     in_irreps = o3.Irreps("10x0e + 10x1e")
@@ -36,7 +39,7 @@ def test_tensor_product_conv_equivariance(mlp_channels, mlp_fast_first_layer):
         sh_irreps=sh_irreps,
         out_irreps=out_irreps,
         mlp_channels=mlp_channels,
-        mlp_fast_first_layer=mlp_fast_first_layer,
+        e3nn_compat_mode=e3nn_compat_mode,
     ).to(device)
 
     num_src_nodes, num_dst_nodes = 9, 7
@@ -62,10 +65,14 @@ def test_tensor_product_conv_equivariance(mlp_channels, mlp_fast_first_layer):
         edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel, device=device)
         src_scalars = dst_scalars = None
     else:
-        if mlp_fast_first_layer:
-            edge_emb = torch.randn(num_edges, tp_conv.num_scalars, device=device)
-            src_scalars = torch.randn(num_src_nodes, tp_conv.num_scalars, device=device)
-            dst_scalars = torch.randn(num_dst_nodes, tp_conv.num_scalars, device=device)
+        if use_src_dst_scalars:
+            edge_emb_size, src_scalars_size = 2, 1
+            dst_scalars_size = (
+                tp_conv.mlp[0].in_features - edge_emb_size - src_scalars_size
+            )
+            edge_emb = torch.randn(num_edges, edge_emb_size, device=device)
+            src_scalars = torch.randn(num_src_nodes, src_scalars_size, device=device)
+            dst_scalars = torch.randn(num_dst_nodes, dst_scalars_size, device=device)
         else:
             edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device)
             src_scalars = dst_scalars = None
