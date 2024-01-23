@@ -20,6 +20,8 @@ set -u
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 2092 cpp)
+
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}/
 mkdir -p "${RAPIDS_TESTS_DIR}"
 
@@ -27,6 +29,7 @@ rapids-print-env
 
 rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
+    --channel "${LIBRAFT_CHANNEL}" \
     libcugraph libcugraph_etl libcugraph-tests
 
 rapids-logger "Check GPU usage"

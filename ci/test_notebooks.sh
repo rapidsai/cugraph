@@ -24,9 +24,14 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
+LIBRAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 2092 cpp)
+RAFT_CHANNEL=$(rapids-get-pr-conda-artifact raft 2092 python)
+
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${RAFT_CHANNEL}" \
   libcugraph pylibcugraph cugraph
 
 NBTEST="$(realpath "$(dirname "$0")/utils/nbtest.sh")"
