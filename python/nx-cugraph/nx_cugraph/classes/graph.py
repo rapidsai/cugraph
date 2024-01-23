@@ -522,7 +522,7 @@ class Graph:
         if weight is not None:
             raise NotImplementedError
         # If no self-edges, then `self.src_indices.size // 2`
-        return int((self.src_indices <= self.dst_indices).sum())
+        return int(cp.count_nonzero(self.src_indices <= self.dst_indices))
 
     @networkx_api
     def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
@@ -732,10 +732,19 @@ class Graph:
         self.graph = graph
         return self
 
-    def _degrees_array(self):
-        degrees = cp.bincount(self.src_indices, minlength=self._N)
+    def _degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != dst_indices
+            src_indices = src_indices[not_selfloops]
+            if self.is_directed():
+                dst_indices = dst_indices[not_selfloops]
+        if src_indices.size == 0:
+            return cp.zeros(self._N, dtype=np.int64)
+        degrees = cp.bincount(src_indices, minlength=self._N)
         if self.is_directed():
-            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+            degrees += cp.bincount(dst_indices, minlength=self._N)
         return degrees
 
     _in_degrees_array = _degrees_array
