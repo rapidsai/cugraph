@@ -59,7 +59,7 @@ class networkx_algorithm:
         version_added: str,  # Required
         is_incomplete: bool = False,  # See self.extra_doc for details if True
         is_different: bool = False,  # See self.extra_doc for details if True
-        plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
+        _plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
     ):
         if func is None:
             return partial(
@@ -67,10 +67,10 @@ class networkx_algorithm:
                 name=name,
                 extra_params=extra_params,
                 nodes_or_number=nodes_or_number,
-                plc=plc,
                 version_added=version_added,
                 is_incomplete=is_incomplete,
                 is_different=is_different,
+                _plc=_plc,
             )
         instance = object.__new__(cls)
         if nodes_or_number is not None and nx.__version__[:3] > "3.2":
@@ -89,12 +89,14 @@ class networkx_algorithm:
                 f"extra_params must be dict, str, or None; got {type(extra_params)}"
             )
         instance.extra_params = extra_params
-        if plc is None or isinstance(plc, set):
-            instance._plc_names = plc
-        elif isinstance(plc, str):
-            instance._plc_names = {plc}
+        if _plc is None or isinstance(_plc, set):
+            instance._plc_names = _plc
+        elif isinstance(_plc, str):
+            instance._plc_names = {_plc}
         else:
-            raise TypeError(f"plc argument must be str, set, or None; got {type(plc)}")
+            raise TypeError(
+                f"_plc argument must be str, set, or None; got {type(_plc)}"
+            )
         instance.version_added = version_added
         instance.is_incomplete = is_incomplete
         instance.is_different = is_different
