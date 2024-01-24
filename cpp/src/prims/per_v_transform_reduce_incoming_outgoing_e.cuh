@@ -16,6 +16,7 @@
 #pragma once
 
 #include <detail/graph_partition_utils.cuh>
+#include <prims/detail/prim_functors.cuh>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
 #include <prims/reduce_op.cuh>
@@ -62,40 +63,6 @@ namespace cugraph {
 namespace detail {
 
 int32_t constexpr per_v_transform_reduce_e_kernel_block_size = 512;
-
-template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionEdgeValueInputWrapper,
-          typename EdgeOp>
-struct per_v_transform_reduce_call_e_op_t {
-  edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                               typename GraphViewType::edge_type,
-                               GraphViewType::is_multi_gpu> const& edge_partition{};
-  EdgePartitionSrcValueInputWrapper const& edge_partition_src_value_input{};
-  EdgePartitionDstValueInputWrapper const& edge_partition_dst_value_input{};
-  EdgePartitionEdgeValueInputWrapper const& edge_partition_e_value_input{};
-  EdgeOp const& e_op{};
-  typename GraphViewType::vertex_type major{};
-  typename GraphViewType::vertex_type major_offset{};
-  typename GraphViewType::vertex_type const* indices{nullptr};
-  typename GraphViewType::edge_type edge_offset{};
-
-  __device__ auto operator()(typename GraphViewType::edge_type i) const
-  {
-    auto minor        = indices[i];
-    auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-    auto src          = GraphViewType::is_storage_transposed ? minor : major;
-    auto dst          = GraphViewType::is_storage_transposed ? major : minor;
-    auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-    auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-    return e_op(src,
-                dst,
-                edge_partition_src_value_input.get(src_offset),
-                edge_partition_dst_value_input.get(dst_offset),
-                edge_partition_e_value_input.get(edge_offset + i));
-  }
-};
 
 template <typename vertex_t,
           typename edge_t,
@@ -222,19 +189,19 @@ __global__ void per_v_transform_reduce_e_hypersparse(
     thrust::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_idx));
 
-    auto call_e_op = per_v_transform_reduce_call_e_op_t<GraphViewType,
-                                                        EdgePartitionSrcValueInputWrapper,
-                                                        EdgePartitionDstValueInputWrapper,
-                                                        EdgePartitionEdgeValueInputWrapper,
-                                                        EdgeOp>{edge_partition,
-                                                                edge_partition_src_value_input,
-                                                                edge_partition_dst_value_input,
-                                                                edge_partition_e_value_input,
-                                                                e_op,
-                                                                major,
-                                                                major_offset,
-                                                                indices,
-                                                                edge_offset};
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
 
     if (edge_partition_e_mask) {
       auto transform_op =
@@ -322,19 +289,19 @@ __global__ void per_v_transform_reduce_e_low_degree(
     thrust::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
 
-    auto call_e_op = per_v_transform_reduce_call_e_op_t<GraphViewType,
-                                                        EdgePartitionSrcValueInputWrapper,
-                                                        EdgePartitionDstValueInputWrapper,
-                                                        EdgePartitionEdgeValueInputWrapper,
-                                                        EdgeOp>{edge_partition,
-                                                                edge_partition_src_value_input,
-                                                                edge_partition_dst_value_input,
-                                                                edge_partition_e_value_input,
-                                                                e_op,
-                                                                major,
-                                                                major_offset,
-                                                                indices,
-                                                                edge_offset};
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
 
     if (edge_partition_e_mask) {
       auto transform_op =
@@ -429,19 +396,19 @@ __global__ void per_v_transform_reduce_e_mid_degree(
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
-    auto call_e_op = per_v_transform_reduce_call_e_op_t<GraphViewType,
-                                                        EdgePartitionSrcValueInputWrapper,
-                                                        EdgePartitionDstValueInputWrapper,
-                                                        EdgePartitionEdgeValueInputWrapper,
-                                                        EdgeOp>{edge_partition,
-                                                                edge_partition_src_value_input,
-                                                                edge_partition_dst_value_input,
-                                                                edge_partition_e_value_input,
-                                                                e_op,
-                                                                major,
-                                                                major_offset,
-                                                                indices,
-                                                                edge_offset};
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
 
     [[maybe_unused]] auto reduced_e_op_result =
       lane_id == 0 ? init : identity_element;  // relevant only if update_major == true
@@ -540,19 +507,19 @@ __global__ void per_v_transform_reduce_e_high_degree(
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
-    auto call_e_op = per_v_transform_reduce_call_e_op_t<GraphViewType,
-                                                        EdgePartitionSrcValueInputWrapper,
-                                                        EdgePartitionDstValueInputWrapper,
-                                                        EdgePartitionEdgeValueInputWrapper,
-                                                        EdgeOp>{edge_partition,
-                                                                edge_partition_src_value_input,
-                                                                edge_partition_dst_value_input,
-                                                                edge_partition_e_value_input,
-                                                                e_op,
-                                                                major,
-                                                                major_offset,
-                                                                indices,
-                                                                edge_offset};
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
 
     [[maybe_unused]] auto reduced_e_op_result =
       threadIdx.x == 0 ? init : identity_element;  // relevant only if update_major == true
