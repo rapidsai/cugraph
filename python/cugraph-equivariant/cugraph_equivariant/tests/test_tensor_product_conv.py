@@ -91,8 +91,8 @@ def test_tensor_product_conv_equivariance(
 
     # rotate before
     out_before = tp_conv(
-        src_features=src_features @ D_in,
-        edge_sh=edge_sh @ D_sh,
+        src_features=src_features @ D_in.T,
+        edge_sh=edge_sh @ D_sh.T,
         edge_emb=edge_emb,
         graph=(edge_index, (num_src_nodes, num_dst_nodes)),
         src_scalars=src_scalars,
@@ -109,7 +109,7 @@ def test_tensor_product_conv_equivariance(
             src_scalars=src_scalars,
             dst_scalars=dst_scalars,
         )
-        @ D_out
+        @ D_out.T
     )
 
     torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-4)
