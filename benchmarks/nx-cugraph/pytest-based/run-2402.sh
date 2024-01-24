@@ -8,6 +8,7 @@
 
 mkdir -p logs
 
+# benches="$benches ..." pattern is easy to comment out individual runs
 benches=
 
 while [[ $1 != "" ]]; do

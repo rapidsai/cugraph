@@ -233,7 +233,7 @@ def get_graph_obj_for_benchmark(graph_obj, backend_wrapper):
     """
     G = graph_obj
     if backend_wrapper.backend_name == "cugraph-preconverted":
-        G = nxcg.from_networkx(G)
+        G = nxcg.from_networkx(G, preserve_all_attrs=True)
     return G
 
 
