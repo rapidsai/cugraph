@@ -194,6 +194,7 @@ def symmetrize(
     value_col_name=None,
     multi=False,
     symmetrize=True,
+    do_expensive_check = False,
 ):
     """
     Take a dataframe of source destination pairs along with associated
@@ -248,8 +249,9 @@ def symmetrize(
     if "edge_id" in input_df.columns and symmetrize:
         raise ValueError("Edge IDs are not supported on undirected graphs")
 
-    csg.null_check(input_df[source_col_name])
-    csg.null_check(input_df[dest_col_name])
+    if do_expensive_check: # FIXME: Optimize this check as it is currently expensive
+        csg.null_check(input_df[source_col_name])
+        csg.null_check(input_df[dest_col_name])
 
     if isinstance(input_df, dask_cudf.DataFrame):
         output_df = symmetrize_ddf(
