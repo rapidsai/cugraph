@@ -87,8 +87,9 @@ def symmetrize_df(
         return result
     else:
         warnings.warn(
-            "'multi' is deprecated as the removal of multi edges is "
-            "only supported when creating a multi-graph",
+            "Multi is deprecated and the removal of multi edges will no longer be "
+            "supported from 'symmetrize'. Multi edges will be removed upon creation "
+            "of graph instance.",
             FutureWarning,
         )
         vertex_col_name = src_name + dst_name
@@ -176,8 +177,9 @@ def symmetrize_ddf(
         return result
     else:
         warnings.warn(
-            "'multi' is deprecated as the removal of multi edges is "
-            "only supported when creating a multi-graph",
+            "Multi is deprecated and the removal of multi edges will no longer be "
+            "supported from 'symmetrize'. Multi edges will be removed upon creation "
+            "of graph instance.",
             FutureWarning,
         )
         vertex_col_name = src_name + dst_name
