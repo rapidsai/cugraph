@@ -366,7 +366,7 @@ class simpleDistributedGraphImpl:
                 self.weight_type,
                 self.edge_id_type,
                 self.edge_type_id_type,
-                self.properties.multi_edge,
+                not self.properties.multi_edge,
             )
             for w, edata in persisted_keys_d.items()
         }
