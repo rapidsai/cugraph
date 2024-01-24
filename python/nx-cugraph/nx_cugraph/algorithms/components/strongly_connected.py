@@ -51,7 +51,7 @@ def _strongly_connected_components(G):
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", plc="strongly_connected_components")
+@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def strongly_connected_components(G):
     G = _to_directed_graph(G)
     if G.src_indices.size == 0:
@@ -62,7 +62,7 @@ def strongly_connected_components(G):
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", plc="strongly_connected_components")
+@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def number_strongly_connected_components(G):
     G = _to_directed_graph(G)
     if G.src_indices.size == 0:
@@ -72,7 +72,7 @@ def number_strongly_connected_components(G):
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", plc="strongly_connected_components")
+@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def is_strongly_connected(G):
     G = _to_directed_graph(G)
     if len(G) == 0:
