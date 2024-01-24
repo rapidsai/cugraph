@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,8 +60,8 @@ cugraph_error_code_t cugraph_create_vertex_pairs(
  * @param [in]     vertex_pairs   A vertex_pairs
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
-  cugraph_vertex_pairs_t* vertex_pairs);
+cugraph_type_erased_device_array_view_t const* cugraph_vertex_pairs_get_first(
+  cugraph_vertex_pairs_t const* vertex_pairs);
 
 /**
  * @brief       Get the second vertex id array
@@ -69,8 +69,8 @@ cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
  * @param [in]     vertex_pairs   A vertex_pairs
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_second(
-  cugraph_vertex_pairs_t* vertex_pairs);
+cugraph_type_erased_device_array_view_t const* cugraph_vertex_pairs_get_second(
+  cugraph_vertex_pairs_t const* vertex_pairs);
 
 /**
  * @brief     Free vertex pair

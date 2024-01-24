@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,18 @@ struct test_jaccard_t {
   {
     return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(raft::handle_t const& handle,
+           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+           std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+           std::optional<raft::device_span<vertex_t const>> vertices,
+           bool use_weights,
+           size_t topk) const
+  {
+    return cugraph::jaccard_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, true, topk);
+  }
 };
 
 struct test_sorensen_t {
@@ -81,6 +93,18 @@ struct test_sorensen_t {
   {
     return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(raft::handle_t const& handle,
+           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+           std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+           std::optional<raft::device_span<vertex_t const>> vertices,
+           bool use_weights,
+           size_t topk) const
+  {
+    return cugraph::sorensen_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, true, topk);
+  }
 };
 
 struct test_overlap_t {
@@ -109,6 +133,18 @@ struct test_overlap_t {
     bool use_weights) const
   {
     return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(raft::handle_t const& handle,
+           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+           std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+           std::optional<raft::device_span<vertex_t const>> vertices,
+           bool use_weights,
+           size_t topk) const
+  {
+    return cugraph::overlap_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, true, topk);
   }
 };
 

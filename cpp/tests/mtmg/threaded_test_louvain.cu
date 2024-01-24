@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -277,6 +277,7 @@ class Tests_Multithreaded
 
         std::tie(std::ignore, modularity) = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
           thread_handle.raft_handle(),
+          std::nullopt,
           graph_view.get(thread_handle),
           edge_weights ? std::make_optional(edge_weights->get(thread_handle).view()) : std::nullopt,
           local_louvain_clusters.data(),
@@ -406,6 +407,7 @@ class Tests_Multithreaded
 
       std::tie(std::ignore, modularity) = cugraph::louvain<vertex_t, edge_t, weight_t, false>(
         handle,
+        std::nullopt,
         sg_graph.view(),
         sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
         sg_clusters.data(),

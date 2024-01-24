@@ -2137,6 +2137,126 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   bool do_expensive_check = false);
 
+/**
+ * @brief     Compute Jaccard all pairs similarity coefficient
+ *
+ * Similarity is computed for all pairs of vertices.  If the vertices
+ * variable is specified it will be all pairs based on two hop neighbors
+ * of these seeds.  If the vertices variable is not specified it will be
+ * all pairs of all two hop neighbors.
+ *
+ * If topk is specified only the top scoring vertex pairs will be returned,
+ * if not specified then all vertex pairs will be returned.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertices optional device span defining the seed vertices.
+ * @param topk optional specification of the how many of the top scoring vertex pairs should be
+ * returned
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing the tuples (t1, t2, similarity score)
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  jaccard_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Sorensen similarity coefficient
+ *
+ * Similarity is computed for all pairs of vertices.  If the vertices
+ * variable is specified it will be all pairs based on two hop neighbors
+ * of these seeds.  If the vertices variable is not specified it will be
+ * all pairs of all two hop neighbors.
+ *
+ * If topk is specified only the top scoring vertex pairs will be returned,
+ * if not specified then all vertex pairs will be returned.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertices optional device span defining the seed vertices.
+ * @param topk optional specification of the how many of the top scoring vertex pairs should be
+ * returned
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing the tuples (t1, t2, similarity score)
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  sorensen_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check = false);
+
+/**
+ * @brief     Compute overlap similarity coefficient
+ *
+ * Similarity is computed for all pairs of vertices.  If the vertices
+ * variable is specified it will be all pairs based on two hop neighbors
+ * of these seeds.  If the vertices variable is not specified it will be
+ * all pairs of all two hop neighbors.
+ *
+ * If topk is specified only the top scoring vertex pairs will be returned,
+ * if not specified then all vertex pairs will be returned.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertices optional device span defining the seed vertices.
+ * @param topk optional specification of the how many of the top scoring vertex pairs should be
+ * returned
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing the tuples (t1, t2, similarity score)
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  overlap_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check = false);
+
 /*
  * @brief Enumerate K-hop neighbors
  *
