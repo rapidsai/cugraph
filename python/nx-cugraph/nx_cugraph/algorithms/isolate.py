@@ -70,4 +70,4 @@ def isolates(G):
 @networkx_algorithm(version_added="23.10")
 def number_of_isolates(G):
     G = _to_graph(G)
-    return _mark_isolates(G).sum().tolist()
+    return int(cp.count_nonzero(_mark_isolates(G)))
