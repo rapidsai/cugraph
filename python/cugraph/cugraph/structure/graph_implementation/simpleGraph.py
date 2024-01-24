@@ -301,7 +301,7 @@ class simpleGraphImpl:
             value_col=value_col,
             store_transposed=store_transposed,
             renumber=renumber,
-            drop_multi_edges=self.properties.multi_edge,
+            drop_multi_edges=not self.properties.multi_edge,
         )
 
     def to_pandas_edgelist(
