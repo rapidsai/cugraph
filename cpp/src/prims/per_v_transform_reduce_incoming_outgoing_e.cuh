@@ -71,12 +71,11 @@ template <typename GraphViewType,
 struct per_v_transform_reduce_call_e_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               GraphViewType::is_multi_gpu>
-    edge_partition{};
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
-  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input{};
-  EdgeOp e_op{};
+                               GraphViewType::is_multi_gpu> const& edge_partition{};
+  EdgePartitionSrcValueInputWrapper const& edge_partition_src_value_input{};
+  EdgePartitionDstValueInputWrapper const& edge_partition_dst_value_input{};
+  EdgePartitionEdgeValueInputWrapper const& edge_partition_e_value_input{};
+  EdgeOp const& e_op{};
   typename GraphViewType::vertex_type major{};
   typename GraphViewType::vertex_type major_offset{};
   typename GraphViewType::vertex_type const* indices{nullptr};
@@ -106,11 +105,11 @@ template <typename vertex_t,
           typename ReduceOp,
           typename ResultValueOutputIteratorOrWrapper>
 struct transform_and_atomic_reduce_t {
-  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
+  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> const& edge_partition{};
   result_t identity_element{};
   vertex_t const* indices{nullptr};
-  TransformOp transform_op{};
-  ResultValueOutputIteratorOrWrapper result_value_output{};
+  TransformOp const& transform_op{};
+  ResultValueOutputIteratorOrWrapper& result_value_output{};
 
   __device__ void operator()(edge_t i) const
   {
@@ -136,15 +135,15 @@ template <bool update_major,
           typename ReduceOp,
           typename ResultValueOutputIteratorOrWrapper>
 __device__ void update_result_value_output(
-  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
+  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> const& edge_partition,
   vertex_t const* indices,
   edge_t local_degree,
-  TransformOp transform_op,
+  TransformOp const& transform_op,
   result_t init,
-  ReduceOp reduce_op,
+  ReduceOp const& reduce_op,
   size_t output_idx /* relevent only when update_major === true */,
   result_t identity_element,
-  ResultValueOutputIteratorOrWrapper result_value_output)
+  ResultValueOutputIteratorOrWrapper& result_value_output)
 {
   if constexpr (update_major) {
     *(result_value_output + output_idx) =
