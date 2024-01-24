@@ -58,7 +58,8 @@ class FullyConnectedTensorProductConv(nn.Module):
 
     mlp_channels : sequence of ints, optional (default=None)
         A sequence of integers defining number of neurons in each layer in MLP
-        before the output layer. If `None`, no MLP will be added.
+        before the output layer. If `None`, no MLP will be added. The input layer
+        contains edge embeddings and node scalar features.
 
     mlp_activation : nn.Module or sequence of nn.Module, optional (default=nn.GELU())
         A sequence of functions to be applied in between linear layers in MLP,
