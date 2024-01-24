@@ -186,8 +186,10 @@ class FullyConnectedTensorProductConv(nn.Module):
             Reduction operator. Choose between "mean" and "sum".
 
         edge_envelope: torch.Tensor, optional
-            Optional, typically used as attenuation factors to fade out messages coming from nodes close to the cutoff distance used to create the graph. This is important to make the model smooth to the changes in node's coordinates.
-            Edge envelope.
+            Typically used as attenuation factors to fade out messages coming
+            from nodes close to the cutoff distance used to create the graph.
+            This is important to make the model smooth to the changes in node's
+            coordinates.
             Shape: (num_edges,)
 
         Returns
