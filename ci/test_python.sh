@@ -247,12 +247,19 @@ else
   rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
 fi
 
+# test cugraph-equivariant
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # Reuse cugraph-dgl's test env for cugraph-equivariant
     set +u
     conda activate test_cugraph_dgl
     set -u
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      --channel pytorch \
+      --channel nvidia \
+      cugraph-equivariant
     pip install e3nn==0.5.1
 
     rapids-print-env
@@ -261,10 +268,10 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     pushd python/cugraph-equivariant/cugraph_equivariant
     pytest \
       --cache-clear \
-      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
       --cov-config=../../.coveragerc \
-      --cov=cugraph_dgl \
-      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+      --cov=cugraph_equivariant \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
       --cov-report=term \
       .
     popd
