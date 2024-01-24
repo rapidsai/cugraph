@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,6 +200,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     }
 
     auto mg_graph_view = mg_graph.view();
+    std::cout << "test_weighted=" << prims_usecase.test_weighted << " edge_masking=" << prims_usecase.edge_masking << std::endl;
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
