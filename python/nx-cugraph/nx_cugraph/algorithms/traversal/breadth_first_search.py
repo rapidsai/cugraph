@@ -57,9 +57,17 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
 def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     """`neighbors` and `sort_neighbors` parameters are not yet supported."""
+    if neighbors is not None:
+        raise NotImplementedError(
+            "neighbors argument in generic_bfs_edges is not currently supported"
+        )
+    if sort_neighbors is not None:
+        raise NotImplementedError(
+            "sort_neighbors argument in generic_bfs_edges is not currently supported"
+        )
     return bfs_edges(source, depth_limit=depth_limit)
 
 
@@ -68,9 +76,13 @@ def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     return neighbors is None and sort_neighbors is None
 
 
-@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
+    if sort_neighbors is not None:
+        raise NotImplementedError(
+            "sort_neighbors argument in bfs_edges is not currently supported"
+        )
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return
@@ -95,9 +107,13 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
 def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
+    if sort_neighbors is not None:
+        raise NotImplementedError(
+            "sort_neighbors argument in bfs_tree is not currently supported"
+        )
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return nxcg.DiGraph.from_coo(
@@ -149,9 +165,13 @@ def _(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
 def bfs_successors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
+    if sort_neighbors is not None:
+        raise NotImplementedError(
+            "sort_neighbors argument in bfs_successors is not currently supported"
+        )
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         yield (source, [])
@@ -173,7 +193,7 @@ def _(G, source, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="bfs")
 def bfs_layers(G, sources):
     G = _to_graph(G)
     if sources in G:
@@ -201,9 +221,13 @@ def bfs_layers(G, sources):
     return (G._nodearray_to_list(groups[key]) for key in range(len(groups)))
 
 
-@networkx_algorithm(is_incomplete=True, plc="bfs", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
 def bfs_predecessors(G, source, depth_limit=None, sort_neighbors=None):
     """`sort_neighbors` parameter is not yet supported."""
+    if sort_neighbors is not None:
+        raise NotImplementedError(
+            "sort_neighbors argument in bfs_predecessors is not currently supported"
+        )
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return
@@ -227,7 +251,7 @@ def _(G, source, depth_limit=None, sort_neighbors=None):
     return sort_neighbors is None
 
 
-@networkx_algorithm(plc="bfs", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="bfs")
 def descendants_at_distance(G, source, distance):
     G = _check_G_and_source(G, source)
     if distance is None or distance < 0:

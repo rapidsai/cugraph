@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -51,7 +51,7 @@ class TransformerConv(BaseConv):
 
     def __init__(
         self,
-        in_node_feats: Union[int, Tuple[int, int]],
+        in_node_feats: Union[int, tuple[int, int]],
         out_node_feats: int,
         num_heads: int,
         concat: bool = True,
@@ -116,7 +116,7 @@ class TransformerConv(BaseConv):
     def forward(
         self,
         g: Union[SparseGraph, dgl.DGLHeteroGraph],
-        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Forward computation.

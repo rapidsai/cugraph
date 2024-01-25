@@ -522,7 +522,7 @@ class Graph:
         if weight is not None:
             raise NotImplementedError
         # If no self-edges, then `self.src_indices.size // 2`
-        return int((self.src_indices <= self.dst_indices).sum())
+        return int(cp.count_nonzero(self.src_indices <= self.dst_indices))
 
     @networkx_api
     def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
@@ -531,7 +531,7 @@ class Graph:
     @networkx_api
     def to_undirected(self, as_view: bool = False) -> Graph:
         # Does deep copy in networkx
-        return self.copy(as_view)
+        return self._copy(as_view, self.to_undirected_class())
 
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
@@ -592,6 +592,7 @@ class Graph:
         store_transposed: bool = False,
         switch_indices: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
+        symmetrize: str | None = None,
     ):
         if edge_array is not None or edge_attr is None:
             pass
@@ -650,12 +651,30 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
+        if symmetrize is not None:
+            if edge_array is not None:
+                raise NotImplementedError(
+                    "edge_array must be None when symmetrizing the graph"
+                )
+            N = self._N
+            # Upcast to int64 so indices don't overflow
+            src_dst = N * src_indices.astype(np.int64) + dst_indices
+            src_dst_T = src_indices + N * dst_indices.astype(np.int64)
+            if symmetrize == "union":
+                src_dst_new = cp.union1d(src_dst, src_dst_T)
+            elif symmetrize == "intersection":
+                src_dst_new = cp.intersect1d(src_dst, src_dst_T)
+            else:
+                raise ValueError(
+                    f'symmetrize must be "union" or "intersection"; got "{symmetrize}"'
+                )
+            src_indices, dst_indices = cp.divmod(src_dst_new, N, dtype=index_dtype)
 
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
-                is_multigraph=self.is_multigraph(),
-                is_symmetric=not self.is_directed(),
+                is_multigraph=self.is_multigraph() and symmetrize is None,
+                is_symmetric=not self.is_directed() or symmetrize is not None,
             ),
             src_or_offset_array=src_indices,
             dst_or_index_array=dst_indices,
@@ -713,16 +732,30 @@ class Graph:
         self.graph = graph
         return self
 
-    def _degrees_array(self):
-        degrees = cp.bincount(self.src_indices, minlength=self._N)
+    def _degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != dst_indices
+            src_indices = src_indices[not_selfloops]
+            if self.is_directed():
+                dst_indices = dst_indices[not_selfloops]
+        if src_indices.size == 0:
+            return cp.zeros(self._N, dtype=np.int64)
+        degrees = cp.bincount(src_indices, minlength=self._N)
         if self.is_directed():
-            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+            degrees += cp.bincount(dst_indices, minlength=self._N)
         return degrees
 
     _in_degrees_array = _degrees_array
     _out_degrees_array = _degrees_array
 
     # Data conversions
+    def _nodekeys_to_nodearray(self, nodes: Iterable[NodeKey]) -> cp.array[IndexValue]:
+        if self.key_to_id is None:
+            return cp.fromiter(nodes, dtype=index_dtype)
+        return cp.fromiter(map(self.key_to_id.__getitem__, nodes), dtype=index_dtype)
+
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:

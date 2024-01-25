@@ -29,8 +29,8 @@ __all__ = ["eigenvector_centrality"]
 @networkx_algorithm(
     extra_params=_dtype_param,
     is_incomplete=True,  # nstart not supported
-    plc="eigenvector_centrality",
     version_added="23.12",
+    _plc="eigenvector_centrality",
 )
 def eigenvector_centrality(
     G, max_iter=100, tol=1.0e-6, nstart=None, weight=None, *, dtype=None
