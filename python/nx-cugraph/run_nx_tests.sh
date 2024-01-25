@@ -32,8 +32,8 @@ NETWORKX_FALLBACK_TO_NX=True \
     --pyargs networkx \
     --cov=nx_cugraph \
     --cov-config=$(dirname $0)/pyproject.toml \
+    --cov-report= \
     "$@"
-    # --cov-report=  # XXX: uncomment me and move me above
 coverage report \
     --include="*/nx_cugraph/algorithms/*" \
     --omit=__init__.py \
