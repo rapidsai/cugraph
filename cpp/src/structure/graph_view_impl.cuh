@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <prims/count_if_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_op.cuh>
+#include <utilities/error_check_utils.cuh>
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -414,6 +415,59 @@ edge_t count_edge_partition_multi_edges(
   }
 }
 
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::tuple<rmm::device_uvector<size_t>, std::vector<size_t>>
+compute_edge_indices_and_edge_partition_offsets(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> edge_majors,
+  raft::device_span<vertex_t const> edge_minors)
+{
+  auto edge_first = thrust::make_zip_iterator(edge_majors.begin(), edge_minors.begin());
+
+  rmm::device_uvector<size_t> edge_indices(edge_majors.size(), handle.get_stream());
+  thrust::sequence(handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
+  thrust::sort(handle.get_thrust_policy(),
+               edge_indices.begin(),
+               edge_indices.end(),
+               [edge_first] __device__(size_t lhs, size_t rhs) {
+                 return *(edge_first + lhs) < *(edge_first + rhs);
+               });
+
+  std::vector<size_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
+  for (size_t i = 0; i < h_major_range_lasts.size(); ++i) {
+    if constexpr (store_transposed) {
+      h_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+    } else {
+      h_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+    }
+  }
+  rmm::device_uvector<size_t> d_major_range_lasts(h_major_range_lasts.size(), handle.get_stream());
+  raft::update_device(d_major_range_lasts.data(),
+                      h_major_range_lasts.data(),
+                      h_major_range_lasts.size(),
+                      handle.get_stream());
+  rmm::device_uvector<size_t> d_lower_bounds(d_major_range_lasts.size(), handle.get_stream());
+  auto major_first        = edge_majors.begin();
+  auto sorted_major_first = thrust::make_transform_iterator(
+    edge_indices.begin(),
+    cugraph::detail::indirection_t<size_t, decltype(major_first)>{major_first});
+  thrust::lower_bound(handle.get_thrust_policy(),
+                      sorted_major_first,
+                      sorted_major_first + edge_indices.size(),
+                      d_major_range_lasts.begin(),
+                      d_major_range_lasts.end(),
+                      d_lower_bounds.begin());
+  std::vector<size_t> edge_partition_offsets(d_lower_bounds.size() + 1, 0);
+  raft::update_host(edge_partition_offsets.data() + 1,
+                    d_lower_bounds.data(),
+                    d_lower_bounds.size(),
+                    handle.get_stream());
+  handle.sync_stream();
+
+  return std::make_tuple(std::move(edge_indices), edge_partition_offsets);
+}
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
@@ -749,6 +803,295 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     handle,
     edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view()),
     this->local_edge_partition_segment_offsets());
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<bool>
+graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::has_edge(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> edge_srcs,
+  raft::device_span<vertex_t const> edge_dsts,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(
+    edge_srcs.size() == edge_dsts.size(),
+    "Invalid input arguments: edge_srcs.size() does not coincide with edge_dsts.size().");
+
+  auto edge_first =
+    thrust::make_zip_iterator(store_transposed ? edge_dsts.begin() : edge_srcs.begin(),
+                              store_transposed ? edge_srcs.begin() : edge_dsts.begin());
+
+  if (do_expensive_check) {
+    auto num_invalids =
+      detail::count_invalid_vertex_pairs(handle, *this, edge_first, edge_first + edge_srcs.size());
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: there are invalid edge (src, dst) pairs.");
+  }
+
+  auto [edge_indices, edge_partition_offsets] =
+    compute_edge_indices_and_edge_partition_offsets(handle,
+                                                    *this,
+                                                    store_transposed ? edge_dsts : edge_srcs,
+                                                    store_transposed ? edge_srcs : edge_dsts);
+
+  auto edge_mask_view = this->edge_mask_view();
+
+  auto sorted_edge_first = thrust::make_transform_iterator(
+    edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
+  rmm::device_uvector<bool> ret(edge_srcs.size(), handle.get_stream());
+
+  for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? thrust::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : thrust::nullopt;
+    thrust::transform(handle.get_thrust_policy(),
+                      sorted_edge_first + edge_partition_offsets[i],
+                      sorted_edge_first + edge_partition_offsets[i + 1],
+                      thrust::make_permutation_iterator(
+                        ret.begin(), edge_indices.begin() + edge_partition_offsets[i]),
+                      [edge_partition, edge_partition_e_mask] __device__(auto e) {
+                        auto major     = thrust::get<0>(e);
+                        auto minor     = thrust::get<1>(e);
+                        auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+                        if (major_idx) {
+                          vertex_t const* indices{nullptr};
+                          edge_t local_edge_offset{};
+                          edge_t local_degree{};
+                          thrust::tie(indices, local_edge_offset, local_degree) =
+                            edge_partition.local_edges(*major_idx);
+                          auto it = thrust::lower_bound(
+                            thrust::seq, indices, indices + local_degree, minor);
+                          if ((it != indices + local_degree) && *it == minor) {
+                            if (edge_partition_e_mask) {
+                              return (*edge_partition_e_mask)
+                                .get(local_edge_offset + thrust::distance(indices, it));
+                            } else {
+                              return true;
+                            }
+                          } else {
+                            return false;
+                          }
+                        } else {
+                          return false;
+                        }
+                      });
+  }
+
+  return ret;
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<bool>
+graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::has_edge(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> edge_srcs,
+  raft::device_span<vertex_t const> edge_dsts,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(
+    edge_srcs.size() == edge_dsts.size(),
+    "Invalid input arguments: edge_srcs.size() does not coincide with edge_dsts.size().");
+
+  auto edge_first =
+    thrust::make_zip_iterator(store_transposed ? edge_dsts.begin() : edge_srcs.begin(),
+                              store_transposed ? edge_srcs.begin() : edge_dsts.begin());
+
+  if (do_expensive_check) {
+    auto num_invalids =
+      detail::count_invalid_vertex_pairs(handle, *this, edge_first, edge_first + edge_srcs.size());
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: there are invalid edge (src, dst) pairs.");
+  }
+
+  auto edge_mask_view = this->edge_mask_view();
+
+  rmm::device_uvector<bool> ret(edge_srcs.size(), handle.get_stream());
+
+  auto edge_partition =
+    edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
+  auto edge_partition_e_mask =
+    edge_mask_view
+      ? thrust::make_optional<
+          detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+          *edge_mask_view, 0)
+      : thrust::nullopt;
+  thrust::transform(
+    handle.get_thrust_policy(),
+    edge_first,
+    edge_first + edge_srcs.size(),
+    ret.begin(),
+    [edge_partition, edge_partition_e_mask] __device__(auto e) {
+      auto major        = thrust::get<0>(e);
+      auto minor        = thrust::get<1>(e);
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      vertex_t const* indices{nullptr};
+      edge_t local_edge_offset{};
+      edge_t local_degree{};
+      thrust::tie(indices, local_edge_offset, local_degree) =
+        edge_partition.local_edges(major_offset);
+      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+      if ((it != indices + local_degree) && *it == minor) {
+        if (edge_partition_e_mask) {
+          return (*edge_partition_e_mask).get(local_edge_offset + thrust::distance(indices, it));
+        } else {
+          return true;
+        }
+      } else {
+        return false;
+      }
+    });
+
+  return ret;
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_multiplicity(raft::handle_t const& handle,
+                       raft::device_span<vertex_t const> edge_srcs,
+                       raft::device_span<vertex_t const> edge_dsts,
+                       bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(this->is_multigraph(), "Use has_edge() instead for non-multigraphs.");
+  CUGRAPH_EXPECTS(
+    edge_srcs.size() == edge_dsts.size(),
+    "Invalid input arguments: edge_srcs.size() does not coincide with edge_dsts.size().");
+
+  auto edge_first =
+    thrust::make_zip_iterator(store_transposed ? edge_dsts.begin() : edge_srcs.begin(),
+                              store_transposed ? edge_srcs.begin() : edge_dsts.begin());
+
+  if (do_expensive_check) {
+    auto num_invalids =
+      detail::count_invalid_vertex_pairs(handle, *this, edge_first, edge_first + edge_srcs.size());
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: there are invalid edge (src, dst) pairs.");
+  }
+
+  auto [edge_indices, edge_partition_offsets] =
+    compute_edge_indices_and_edge_partition_offsets(handle,
+                                                    *this,
+                                                    store_transposed ? edge_dsts : edge_srcs,
+                                                    store_transposed ? edge_srcs : edge_dsts);
+
+  auto edge_mask_view = this->edge_mask_view();
+
+  auto sorted_edge_first = thrust::make_transform_iterator(
+    edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
+  rmm::device_uvector<edge_t> ret(edge_srcs.size(), handle.get_stream());
+
+  for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? thrust::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : thrust::nullopt;
+    thrust::transform(
+      handle.get_thrust_policy(),
+      sorted_edge_first + edge_partition_offsets[i],
+      sorted_edge_first + edge_partition_offsets[i + 1],
+      thrust::make_permutation_iterator(ret.begin(),
+                                        edge_indices.begin() + edge_partition_offsets[i]),
+      [edge_partition, edge_partition_e_mask] __device__(auto e) {
+        auto major     = thrust::get<0>(e);
+        auto minor     = thrust::get<1>(e);
+        auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+        if (major_idx) {
+          vertex_t const* indices{nullptr};
+          edge_t local_edge_offset{};
+          edge_t local_degree{};
+          thrust::tie(indices, local_edge_offset, local_degree) =
+            edge_partition.local_edges(*major_idx);
+          auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+          auto upper_it = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
+          auto multiplicity = static_cast<edge_t>(thrust::distance(lower_it, upper_it));
+          if (edge_partition_e_mask && (multiplicity > 0)) {
+            multiplicity = static_cast<edge_t>(detail::count_set_bits(
+              (*edge_partition_e_mask).value_first(),
+              static_cast<size_t>(local_edge_offset + thrust::distance(indices, lower_it)),
+              static_cast<size_t>(multiplicity)));
+          }
+          return multiplicity;
+        } else {
+          return edge_t{0};
+        }
+      });
+  }
+
+  return ret;
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
+  compute_multiplicity(raft::handle_t const& handle,
+                       raft::device_span<vertex_t const> edge_srcs,
+                       raft::device_span<vertex_t const> edge_dsts,
+                       bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(this->is_multigraph(), "Use has_edge() instead for non-multigraphs.");
+  CUGRAPH_EXPECTS(
+    edge_srcs.size() == edge_dsts.size(),
+    "Invalid input arguments: edge_srcs.size() does not coincide with edge_dsts.size().");
+
+  auto edge_first =
+    thrust::make_zip_iterator(store_transposed ? edge_dsts.begin() : edge_srcs.begin(),
+                              store_transposed ? edge_srcs.begin() : edge_dsts.begin());
+
+  if (do_expensive_check) {
+    auto num_invalids =
+      detail::count_invalid_vertex_pairs(handle, *this, edge_first, edge_first + edge_srcs.size());
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: there are invalid edge (src, dst) pairs.");
+  }
+
+  auto edge_mask_view = this->edge_mask_view();
+
+  rmm::device_uvector<edge_t> ret(edge_srcs.size(), handle.get_stream());
+
+  auto edge_partition =
+    edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
+  auto edge_partition_e_mask =
+    edge_mask_view
+      ? thrust::make_optional<
+          detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+          *edge_mask_view, 0)
+      : thrust::nullopt;
+  thrust::transform(
+    handle.get_thrust_policy(),
+    edge_first,
+    edge_first + edge_srcs.size(),
+    ret.begin(),
+    [edge_partition, edge_partition_e_mask] __device__(auto e) {
+      auto major        = thrust::get<0>(e);
+      auto minor        = thrust::get<1>(e);
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      vertex_t const* indices{nullptr};
+      edge_t local_edge_offset{};
+      edge_t local_degree{};
+      thrust::tie(indices, local_edge_offset, local_degree) =
+        edge_partition.local_edges(major_offset);
+      auto lower_it     = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+      auto upper_it     = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
+      auto multiplicity = static_cast<edge_t>(thrust::distance(lower_it, upper_it));
+      if (edge_partition_e_mask && (multiplicity > 0)) {
+        multiplicity = static_cast<edge_t>(detail::count_set_bits(
+          (*edge_partition_e_mask).value_first(),
+          static_cast<size_t>(local_edge_offset + thrust::distance(indices, lower_it)),
+          static_cast<size_t>(multiplicity)));
+      }
+      return multiplicity;
+    });
+
+  return ret;
 }
 
 }  // namespace cugraph
