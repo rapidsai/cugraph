@@ -24,10 +24,6 @@ import gc
 import os
 import json
 
-from cugraph.utilities.utils import import_optional
-
-wgth = import_optional("pylibwholegraph.torch")
-
 
 class OGBNPapers100MDataset(Dataset):
     def __init__(
@@ -273,6 +269,8 @@ class OGBNPapers100MDataset(Dataset):
         self.__disk_x = {"paper": torch.as_tensor(np.load(full_path, mmap_mode="r"))}
 
     def __load_x_wg(self) -> None:
+        import pylibwholegraph.torch as wgth
+
         node_type_path = os.path.join(
             self.__dataset_dir, "ogbn_papers100M", "wgb", "paper"
         )
@@ -379,7 +377,7 @@ class OGBNPapers100MDataset(Dataset):
             torch.as_tensor(node_label.node.values, device="cpu")
         ] = torch.as_tensor(node_label.label.values, device="cpu")
 
-        self.__y = {"paper": node_label_tensor.contiguous()}
+        self.__y = {"paper": node_label_tensor.to(torch.int16).contiguous()}
 
         train_ix, test_val_ix = train_test_split(
             torch.as_tensor(node_label.node.values),

@@ -43,6 +43,7 @@ def get_features(input_nodes, output_nodes, feature_store, key="paper"):
 
     x = feature_store.get_data(indices=input_nodes, type_name=key, feat_name="x")
     y = feature_store.get_data(indices=output_nodes, type_name=key, feat_name="y")
+    y = y.reshape((y.shape[0],))
     return x, y
 
 

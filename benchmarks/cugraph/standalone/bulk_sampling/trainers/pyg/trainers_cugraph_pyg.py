@@ -165,19 +165,33 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             for node_type, y in self.__dataset.y_dict.items():
                 logger.debug(f"getting y for {node_type}")
-                fs.add_data_no_cast(y.cuda(), node_type, "y")
+                y = y.reshape((y.shape[0], 1))
+                if self.__backend != "wholegraph":
+                    y = y.cuda()
+                fs.add_data(y, node_type, "y")
 
+            """
             for node_type, train in self.__dataset.train_dict.items():
                 logger.debug(f"getting train for {node_type}")
-                fs.add_data_no_cast(train.cuda(), node_type, "train")
+                train = train.reshape((train.shape[0], 1))
+                if self.__backend != "wholegraph":
+                    train = train.cuda()
+                fs.add_data(train, node_type, "train")
 
             for node_type, test in self.__dataset.test_dict.items():
                 logger.debug(f"getting test for {node_type}")
-                fs.add_data_no_cast(test.cuda(), node_type, "test")
+                test = test.reshape((test.shape[0], 1))
+                if self.__backend != "wholegraph":
+                    test = test.cuda()
+                fs.add_data(test, node_type, "test")
 
             for node_type, val in self.__dataset.val_dict.items():
                 logger.debug(f"getting val for {node_type}")
-                fs.add_data_no_cast(val.cuda(), node_type, "val")
+                val = val.reshape((val.shape[0], 1))
+                if self.__backend != "wholegraph":
+                    val = val.cuda()
+                fs.add_data(val, node_type, "val")
+            """
 
             # TODO support online sampling if the edge index is provided
             num_edges_dict = self.__dataset.edge_index_dict

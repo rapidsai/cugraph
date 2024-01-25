@@ -61,6 +61,7 @@ fi
 
 echo "properly waiting for workers to connect"
 NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
+SEEDS_PER_CALL=$(python -c "import os; print(int(os.environ['NUM_GPUS'])*65536)")
 handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \
                     --num-expected-workers ${NUM_GPUS} \
                     --scheduler-file-path ${SCHEDULER_FILE}
@@ -77,7 +78,7 @@ if [[ $SLURM_NODEID == 0 ]]; then
         --datasets "ogbn_papers100M["$REPLICATION_FACTOR"]" \
         --fanouts $FANOUT \
         --batch_sizes $BATCH_SIZE \
-        --seeds_per_call_opts "524288" \
+        --seeds_per_call_opts $SEEDS_PER_CALL \
         --num_epochs $NUM_EPOCHS \
         --random_seed 42 \
         --sampling_target_framework $SAMPLING_FRAMEWORK
