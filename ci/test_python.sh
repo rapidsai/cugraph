@@ -112,6 +112,7 @@ rapids-logger "pytest networkx using nx-cugraph backend"
 pushd python/nx-cugraph
 rm nx_cugraph/.coverage
 env
+conda list
 ./run_nx_tests.sh
 # run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
 # in case nx-cugraph failed to load but fallback mode allowed the run to pass.
