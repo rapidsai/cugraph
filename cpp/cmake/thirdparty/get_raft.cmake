@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,8 +66,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       jameslamb
-                        PINNED_TAG "test-cuda-12.2"
+                        FORK       rapidsai
+                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
