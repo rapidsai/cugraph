@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-@networkx_algorithm(plc="triangle_count", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="triangle_count")
 def is_bipartite(G):
     G = _to_graph(G)
     # Counting triangles may not be the fastest way to do this, but it is simple.

@@ -28,7 +28,7 @@ __all__ = ["core_number", "k_truss"]
 
 @not_implemented_for("directed")
 @not_implemented_for("multigraph")
-@networkx_algorithm(is_incomplete=True, plc="core_number", version_added="24.02")
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="core_number")
 def core_number(G):
     """Directed graphs are not yet supported."""
     G = _to_undirected_graph(G)
@@ -55,7 +55,7 @@ def _(G):
 
 @not_implemented_for("directed")
 @not_implemented_for("multigraph")
-@networkx_algorithm(is_incomplete=True, plc="k_truss_subgraph", version_added="23.12")
+@networkx_algorithm(is_incomplete=True, version_added="23.12", _plc="k_truss_subgraph")
 def k_truss(G, k):
     """
     Currently raises `NotImplementedError` for graphs with more than one connected
