@@ -21,8 +21,8 @@ __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 @networkx_algorithm(
     is_incomplete=True,  # weight not supported
     is_different=True,  # RNG with seed is different
-    plc="betweenness_centrality",
     version_added="23.10",
+    _plc="betweenness_centrality",
 )
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
@@ -54,8 +54,8 @@ def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
 @networkx_algorithm(
     is_incomplete=True,  # weight not supported
     is_different=True,  # RNG with seed is different
-    plc="edge_betweenness_centrality",
     version_added="23.10",
+    _plc="edge_betweenness_centrality",
 )
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
     """`weight` parameter is not yet supported, and RNG with seed may be different."""

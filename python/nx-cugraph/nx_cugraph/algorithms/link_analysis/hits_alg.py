@@ -33,8 +33,8 @@ __all__ = ["hits"]
         ),
         **_dtype_param,
     },
-    plc="hits",
     version_added="23.12",
+    _plc="hits",
 )
 def hits(
     G,
