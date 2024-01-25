@@ -29,8 +29,8 @@ __all__ = ["katz_centrality"]
 @networkx_algorithm(
     extra_params=_dtype_param,
     is_incomplete=True,  # nstart and normalized=False not supported
-    plc="katz_centrality",
     version_added="23.12",
+    _plc="katz_centrality",
 )
 def katz_centrality(
     G,
