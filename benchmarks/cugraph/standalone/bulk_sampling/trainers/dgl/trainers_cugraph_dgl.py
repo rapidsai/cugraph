@@ -183,7 +183,6 @@ class DGLCuGraphTrainer(DGLTrainer):
         logger.info("getting data")
 
         if self.__data is None:
-            # FIXME wholegraph
             fs = FeatureStore(backend=self.__backend)
             num_nodes_dict = {}
 
