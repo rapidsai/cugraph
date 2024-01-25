@@ -25,7 +25,7 @@ with Path("coverage.json").open() as f:
     coverage = json.load(f)
 
 filenames_to_executed_lines = {
-    filename: set(coverage_info["executed_lines"])
+    filename.rsplit("nx-cugraph/", 1)[-1]: set(coverage_info["executed_lines"])
     for filename, coverage_info in coverage["files"].items()
 }
 
