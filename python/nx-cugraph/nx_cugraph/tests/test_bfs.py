@@ -14,7 +14,6 @@ import networkx as nx
 import pytest
 from packaging.version import parse
 
-
 nxver = parse(nx.__version__)
 
 if nxver.major == 3 and nxver.minor < 2:
