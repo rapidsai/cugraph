@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -29,7 +29,7 @@ class GATConv(BaseConv):
 
     Parameters
     ----------
-    in_feats : int or tuple
+    in_feats : int or (int, int)
         Input feature size. A pair denotes feature sizes of source and
         destination nodes.
     out_feats : int
@@ -92,7 +92,7 @@ class GATConv(BaseConv):
 
     def __init__(
         self,
-        in_feats: Union[int, Tuple[int, int]],
+        in_feats: Union[int, tuple[int, int]],
         out_feats: int,
         num_heads: int,
         feat_drop: float = 0.0,
@@ -104,14 +104,19 @@ class GATConv(BaseConv):
         bias: bool = True,
     ):
         super().__init__()
+
+        if isinstance(in_feats, int):
+            self.in_feats_src = self.in_feats_dst = in_feats
+        else:
+            self.in_feats_src, self.in_feats_dst = in_feats
         self.in_feats = in_feats
         self.out_feats = out_feats
-        self.in_feats_src, self.in_feats_dst = dgl.utils.expand_as_pair(in_feats)
         self.num_heads = num_heads
         self.feat_drop = nn.Dropout(feat_drop)
         self.concat = concat
         self.edge_feats = edge_feats
         self.negative_slope = negative_slope
+        self.residual = residual
         self.allow_zero_in_degree = allow_zero_in_degree
 
         if isinstance(in_feats, int):
@@ -126,27 +131,33 @@ class GATConv(BaseConv):
 
         if edge_feats is not None:
             self.lin_edge = nn.Linear(edge_feats, num_heads * out_feats, bias=False)
-            self.attn_weights = nn.Parameter(torch.Tensor(3 * num_heads * out_feats))
+            self.attn_weights = nn.Parameter(torch.empty(3 * num_heads * out_feats))
         else:
             self.register_parameter("lin_edge", None)
-            self.attn_weights = nn.Parameter(torch.Tensor(2 * num_heads * out_feats))
+            self.attn_weights = nn.Parameter(torch.empty(2 * num_heads * out_feats))
 
-        if bias and concat:
-            self.bias = nn.Parameter(torch.Tensor(num_heads, out_feats))
-        elif bias and not concat:
-            self.bias = nn.Parameter(torch.Tensor(out_feats))
-        else:
-            self.register_buffer("bias", None)
-
-        self.residual = residual and self.in_feats_dst != out_feats * num_heads
-        if self.residual:
-            self.lin_res = nn.Linear(
-                self.in_feats_dst, num_heads * out_feats, bias=bias
-            )
+        out_dim = num_heads * out_feats if concat else out_feats
+        if residual:
+            if self.in_feats_dst != out_dim:
+                self.lin_res = nn.Linear(self.in_feats_dst, out_dim, bias=bias)
+            else:
+                self.lin_res = nn.Identity()
         else:
             self.register_buffer("lin_res", None)
 
+        if bias and not isinstance(self.lin_res, nn.Linear):
+            if concat:
+                self.bias = nn.Parameter(torch.empty(num_heads, out_feats))
+            else:
+                self.bias = nn.Parameter(torch.empty(out_feats))
+        else:
+            self.register_buffer("bias", None)
+
         self.reset_parameters()
+
+    def set_allow_zero_in_degree(self, set_value):
+        r"""Set allow_zero_in_degree flag."""
+        self.allow_zero_in_degree = set_value
 
     def reset_parameters(self):
         r"""Reinitialize learnable parameters."""
@@ -172,7 +183,7 @@ class GATConv(BaseConv):
     def forward(
         self,
         g: Union[SparseGraph, dgl.DGLHeteroGraph],
-        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
@@ -182,8 +193,10 @@ class GATConv(BaseConv):
         ----------
         graph : DGLGraph or SparseGraph
             The graph.
-        nfeat : torch.Tensor
-            Input features of shape :math:`(N, D_{in})`.
+        nfeat : torch.Tensor or (torch.Tensor, torch.Tensor)
+            Node features. If given as a tuple, the two elements correspond to
+            the source and destination node features, respectively, in a
+            bipartite graph.
         efeat: torch.Tensor, optional
             Optional edge features.
         max_in_degree : int
@@ -237,18 +250,17 @@ class GATConv(BaseConv):
 
         if bipartite:
             if not hasattr(self, "lin_src"):
-                raise RuntimeError(
-                    f"{self.__class__.__name__}.in_feats must be a pair of "
-                    f"integers to allow bipartite node features, but got "
-                    f"{self.in_feats}."
-                )
-            nfeat_src = self.lin_src(nfeat[0])
-            nfeat_dst = self.lin_dst(nfeat[1])
+                nfeat_src = self.lin(nfeat[0])
+                nfeat_dst = self.lin(nfeat[1])
+            else:
+                nfeat_src = self.lin_src(nfeat[0])
+                nfeat_dst = self.lin_dst(nfeat[1])
         else:
             if not hasattr(self, "lin"):
                 raise RuntimeError(
                     f"{self.__class__.__name__}.in_feats is expected to be an "
-                    f"integer, but got {self.in_feats}."
+                    f"integer when the graph is not bipartite, "
+                    f"but got {self.in_feats}."
                 )
             nfeat = self.lin(nfeat)
 
