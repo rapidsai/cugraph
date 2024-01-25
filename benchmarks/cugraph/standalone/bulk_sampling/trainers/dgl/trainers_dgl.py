@@ -10,6 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
+
 import logging
 import torch
 import torch.distributed as td
@@ -17,6 +20,11 @@ import torch.nn.functional as F
 from torchmetrics import Accuracy
 from trainers import Trainer
 import time
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cugraph.gnn import FeatureStore
 
 
 def get_features(input_nodes, output_nodes, feature_store, key="paper"):
@@ -39,16 +47,45 @@ def get_features(input_nodes, output_nodes, feature_store, key="paper"):
 
 
 def log_batch(
-    logger,
-    iter_i,
-    num_batches,
-    time_forward,
-    time_backward,
-    time_start,
-    loader_time_iter,
-    epoch,
-    rank,
+    logger: logging.Logger,
+    iter_i: int,
+    num_batches: int,
+    time_forward: int,
+    time_backward: int,
+    time_start: int,
+    loader_time_iter: int,
+    epoch: int,
+    rank: int,
 ):
+    """
+    Logs the current performance of the trainer.
+
+    Parameters
+    ----------
+    logger: logging.Logger
+        The logger to use for logging the performance details.
+    iter_i: int
+        The current training iteration.
+    num_batches: int
+        The number of batches processed so far
+    time_forward: int
+        The total amount of time for the model forward pass so far
+    time_backward: int
+        The total amount of the for the model backwards pass so far
+    time_start: int
+        The time at which training was started
+    loader_time_iter: int
+        The time taken by the loader in the current iteraiton
+    epoch: int
+        The current training epoch
+    rank: int
+        The global rank of this worker
+
+    Returns
+    -------
+    None
+    """
+
     time_forward_iter = time_forward / num_batches
     time_backward_iter = time_backward / num_batches
     total_time_iter = (time.perf_counter() - time_start) / num_batches
@@ -158,7 +195,34 @@ def train_epoch(
     return num_batches, total_loss
 
 
-def get_accuracy(model, loader, feature_store, num_classes):
+def get_accuracy(
+    model: torch.nn.Module,
+    loader: torch.utils.DataLoader,
+    feature_store: FeatureStore,
+    num_classes: int,
+) -> float:
+    """
+    Computes the accuracy given a loader that ouputs evaluation data, the model being evaluated,
+    the feature store where node features are stored, and the number of output classes.
+
+    Parameters
+    ----------
+    model: torch.nn.Module
+        The model being evaluated
+    loader: torch.utils.DataLoader
+        The loader over evaluation samples
+    feature_store: cugraph.gnn.FeatureStore
+        The feature store containing node features
+    num_classes: int
+        The number of output classes of the model
+
+    Returns
+    -------
+    float
+        The calcuated accuracy, as a percentage.
+
+    """
+
     print("Computing accuracy...", flush=True)
     acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
     acc_sum = 0.0
@@ -192,6 +256,10 @@ def get_accuracy(model, loader, feature_store, num_classes):
 
 
 class DGLTrainer(Trainer):
+    """
+    Trainer implementation for node classification in DGL.
+    """
+
     def train(self):
         logger = logging.getLogger("DGLTrainer")
         time_d = {

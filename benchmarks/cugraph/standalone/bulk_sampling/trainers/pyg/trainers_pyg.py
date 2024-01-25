@@ -33,7 +33,12 @@ import os
 import time
 
 
-def pyg_num_workers(world_size):
+def pyg_num_workers(world_size: int) -> int:
+    """
+    Calculates the number of workers for the
+    loader in PyG by calling sched_getaffinity.
+    """
+
     num_workers = None
     if hasattr(os, "sched_getaffinity"):
         try:
@@ -45,7 +50,26 @@ def pyg_num_workers(world_size):
     return int(num_workers)
 
 
-def calc_accuracy(loader, model, num_classes):
+def calc_accuracy(
+    loader: NeighborLoader, model: torch.nn.Module, num_classes: int
+) -> float:
+    """
+    Evaluates the accuracy of a model given a loader over evaluation samples.
+
+    Parameters
+    ----------
+    loader: NeighborLoader
+        The loader over evaluation samples.
+    model: torch.nn.Module
+        The model being evaluated.
+    num_classes: int
+        The number of output classes of the model.
+
+    Returns
+    -------
+    The calculated accuracy as a fraction.
+    """
+
     from torchmetrics import Accuracy
 
     acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
@@ -83,6 +107,10 @@ def calc_accuracy(loader, model, num_classes):
 
 
 class PyGTrainer(Trainer):
+    """
+    Trainer implementation for node classification in PyG.
+    """
+
     def train(self):
         import logging
 
@@ -240,6 +268,12 @@ class PyGTrainer(Trainer):
 
 
 class PyGNativeTrainer(PyGTrainer):
+    """
+    Trainer implementation for native PyG
+    training using HeteroData as the graph and feature
+    store and NeighborLoader as the loader.
+    """
+
     def __init__(
         self,
         dataset,

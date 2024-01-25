@@ -124,6 +124,13 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--use_wholegraph",
+        action="store_true",
+        help="Whether to use WholeGraph feature storage",
+        required=False,
+    )
+
+    parser.add_argument(
         "--model",
         type=str,
         default="GraphSAGE",
@@ -162,6 +169,13 @@ def parse_args():
         required=False,
     )
 
+    parser.add_argument(
+        "--skip_download",
+        action="store_true",
+        help="Whether to skip downloading",
+        required=False,
+    )
+
     return parser.parse_args()
 
 
@@ -186,16 +200,36 @@ def main(args):
 
     world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * args.gpus_per_node
 
+    if args.use_wholegraph:
+        # TODO support WG without cuGraph
+        if args.framework not in ["cuGraphPyG", "cuGraphDGL"]:
+            raise ValueError("WG feature store only supported with cuGraph backends")
+        from pylibwholegraph.torch.initialize import (
+            get_global_communicator,
+            get_local_node_communicator,
+        )
+
+        logger.info("initializing WG comms...")
+        wm_comm = get_global_communicator()
+        get_local_node_communicator()
+
+        wm_comm = wm_comm.wmb_comm
+        logger.info(f"rank {global_rank} successfully initialized WG comms")
+        wm_comm.barrier()
+
     dataset = OGBNPapers100MDataset(
         replication_factor=args.replication_factor,
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
         load_edge_index=(args.framework == "PyG"),
+        backend="wholegraph" if args.use_wholegraph else "torch",
     )
 
-    if global_rank == 0:
+    # Note: this does not generate WG files
+    if global_rank == 0 and not args.skip_download:
         dataset.download()
+
     dist.barrier()
 
     fanout = [int(f) for f in args.fanout.split("_")]
@@ -234,6 +268,7 @@ def main(args):
             replace=False,
             num_neighbors=fanout,
             batch_size=args.batch_size,
+            backend="wholegraph" if args.use_wholegraph else "torch",
         )
     elif args.framework == "cuGraphDGL":
         sample_dir = os.path.join(
@@ -254,6 +289,7 @@ def main(args):
             replace=False,
             num_neighbors=[int(f) for f in args.fanout.split("_")],
             batch_size=args.batch_size,
+            backend="wholegraph" if args.use_wholegraph else "torch",
         )
     else:
         raise ValueError("unsupported framework")

@@ -24,6 +24,10 @@ import gc
 import os
 import json
 
+from cugraph.utilities.utils import import_optional
+
+wgth = import_optional("pylibwholegraph.torch")
+
 
 class OGBNPapers100MDataset(Dataset):
     def __init__(
@@ -34,6 +38,7 @@ class OGBNPapers100MDataset(Dataset):
         train_split=0.8,
         val_split=0.5,
         load_edge_index=True,
+        backend="torch",
     ):
         self.__replication_factor = replication_factor
         self.__disk_x = None
@@ -43,6 +48,7 @@ class OGBNPapers100MDataset(Dataset):
         self.__train_split = train_split
         self.__val_split = val_split
         self.__load_edge_index = load_edge_index
+        self.__backend = backend
 
     def download(self):
         import logging
@@ -152,6 +158,27 @@ class OGBNPapers100MDataset(Dataset):
             )
             ldf.to_parquet(node_label_file_path)
 
+        # WholeGraph
+        wg_bin_file_path = os.path.join(dataset_path, "wgb", "paper")
+        if self.__replication_factor == 1:
+            wg_bin_rep_path = os.path.join(wg_bin_file_path, "node_feat.d")
+        else:
+            wg_bin_rep_path = os.path.join(
+                wg_bin_file_path, f"node_feat_{self.__replication_factor}x.d"
+            )
+
+        if not os.path.exists(wg_bin_rep_path):
+            os.makedirs(wg_bin_rep_path)
+            if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
+
+                dataset = NodePropPredDataset(
+                    name="ogbn-papers100M", root=self.__dataset_dir
+                )
+            node_feat = dataset[0][0]["node_feat"]
+            for k in range(self.__replication_factor):
+                node_feat.tofile(os.path.join(wg_bin_rep_path, f"{k:04d}.bin"))
+
     @property
     def edge_index_dict(
         self,
@@ -224,21 +251,52 @@ class OGBNPapers100MDataset(Dataset):
 
     @property
     def x_dict(self) -> Dict[str, torch.Tensor]:
+        if self.__disk_x is None:
+            if self.__backend == "wholegraph":
+                self.__load_x_wg()
+            else:
+                self.__load_x_torch()
+
+        return self.__disk_x
+
+    def __load_x_torch(self) -> None:
         node_type_path = os.path.join(
             self.__dataset_dir, "ogbn_papers100M", "npy", "paper"
         )
+        if self.__replication_factor == 1:
+            full_path = os.path.join(node_type_path, "node_feat.npy")
+        else:
+            full_path = os.path.join(
+                node_type_path, f"node_feat_{self.__replication_factor}x.npy"
+            )
 
-        if self.__disk_x is None:
-            if self.__replication_factor == 1:
-                full_path = os.path.join(node_type_path, "node_feat.npy")
-            else:
-                full_path = os.path.join(
-                    node_type_path, f"node_feat_{self.__replication_factor}x.npy"
-                )
+        self.__disk_x = {"paper": torch.as_tensor(np.load(full_path, mmap_mode="r"))}
 
-            self.__disk_x = {"paper": np.load(full_path, mmap_mode="r")}
+    def __load_x_wg(self) -> None:
+        node_type_path = os.path.join(
+            self.__dataset_dir, "ogbn_papers100M", "wgb", "paper"
+        )
+        if self.__replication_factor == 1:
+            full_path = os.path.join(node_type_path, "node_feat.d")
+        else:
+            full_path = os.path.join(
+                node_type_path, f"node_feat_{self.__replication_factor}x.d"
+            )
 
-        return self.__disk_x
+        file_list = [os.path.join(full_path, f) for f in os.listdir(full_path)]
+
+        x = wgth.create_embedding_from_filelist(
+            wgth.get_global_communicator(),
+            "chunked",  # TODO support other options
+            "cpu",  # TODO support GPU
+            file_list,
+            torch.float32,
+            128,
+        )
+
+        print("created x wg embedding", x)
+
+        self.__disk_x = {"paper": x}
 
     @property
     def y_dict(self) -> Dict[str, torch.Tensor]:

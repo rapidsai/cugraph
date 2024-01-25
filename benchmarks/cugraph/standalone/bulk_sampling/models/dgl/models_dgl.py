@@ -16,6 +16,12 @@ import torch.nn.functional as F
 
 
 class GraphSAGE(torch.nn.Module):
+    """
+    GraphSAGE model implementation for DGL
+    supporting both native DGL and cuGraph-ops
+    backends.
+    """
+
     def __init__(
         self,
         in_channels,
@@ -41,6 +47,11 @@ class GraphSAGE(torch.nn.Module):
         )
 
     def forward(self, blocks, x):
+        """
+        Runs the model forward pass given a list of blocks
+        and feature tensor.
+        """
+
         for i, conv in enumerate(self.convs):
             x = conv(blocks[i], x)
             if i != len(self.convs) - 1:
