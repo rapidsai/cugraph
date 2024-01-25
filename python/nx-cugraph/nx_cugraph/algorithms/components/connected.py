@@ -26,7 +26,7 @@ __all__ = [
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
+@networkx_algorithm(version_added="23.12", _plc="weakly_connected_components")
 def number_connected_components(G):
     G = _to_undirected_graph(G)
     return _number_connected_components(G)
@@ -50,14 +50,11 @@ def _number_connected_components(G, symmetrize=None):
 @number_connected_components._can_run
 def _(G):
     # NetworkX <= 3.2.1 does not check directedness for us
-    try:
-        return not G.is_directed()
-    except Exception:
-        return False
+    return not G.is_directed()
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
+@networkx_algorithm(version_added="23.12", _plc="weakly_connected_components")
 def connected_components(G):
     G = _to_undirected_graph(G)
     return _connected_components(G)
@@ -80,7 +77,7 @@ def _connected_components(G, symmetrize=None):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
+@networkx_algorithm(version_added="23.12", _plc="weakly_connected_components")
 def is_connected(G):
     G = _to_undirected_graph(G)
     return _is_connected(G)
@@ -106,7 +103,7 @@ def _is_connected(G, symmetrize=None):
 
 
 @not_implemented_for("directed")
-@networkx_algorithm(plc="weakly_connected_components", version_added="23.12")
+@networkx_algorithm(version_added="23.12", _plc="weakly_connected_components")
 def node_connected_component(G, n):
     # We could also do plain BFS from n
     G = _to_undirected_graph(G)
