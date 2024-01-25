@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ template <typename key_t,
           typename dst_value_t,
           typename e_value_t,
           typename EdgeOp>
-struct call_e_op_t {
+struct transform_reduce_v_frontier_call_e_op_t {
   EdgeOp e_op{};
 
   __device__ thrust::optional<
@@ -331,13 +331,13 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-  detail::call_e_op_t<key_t,
-                      payload_t,
-                      vertex_t,
-                      typename EdgeSrcValueInputWrapper::value_type,
-                      typename EdgeDstValueInputWrapper::value_type,
-                      typename EdgeValueInputWrapper::value_type,
-                      EdgeOp>
+  detail::transform_reduce_v_frontier_call_e_op_t<key_t,
+                                                  payload_t,
+                                                  vertex_t,
+                                                  typename EdgeSrcValueInputWrapper::value_type,
+                                                  typename EdgeDstValueInputWrapper::value_type,
+                                                  typename EdgeValueInputWrapper::value_type,
+                                                  EdgeOp>
     e_op_wrapper{e_op};
 
   auto [key_buffer, payload_buffer] =
