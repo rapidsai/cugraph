@@ -223,12 +223,10 @@ __global__ void per_v_transform_reduce_e_hypersparse(
                                                identity_element,
                                                result_value_output);
     } else {
-      auto transform_op = [&call_e_op] __device__(auto i) { return call_e_op(i); };
-
       update_result_value_output<update_major>(edge_partition,
                                                indices,
                                                local_degree,
-                                               transform_op,
+                                               call_e_op,
                                                init,
                                                reduce_op,
                                                major - *(edge_partition).major_hypersparse_first(),
@@ -323,12 +321,10 @@ __global__ void per_v_transform_reduce_e_low_degree(
                                                identity_element,
                                                result_value_output);
     } else {
-      auto transform_op = [&call_e_op] __device__(auto i) { return call_e_op(i); };
-
       update_result_value_output<update_major>(edge_partition,
                                                indices,
                                                local_degree,
-                                               transform_op,
+                                               call_e_op,
                                                init,
                                                reduce_op,
                                                idx,
