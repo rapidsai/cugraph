@@ -31,5 +31,11 @@ NETWORKX_FALLBACK_TO_NX=True \
     pytest \
     --pyargs networkx \
     --cov=nx_cugraph \
+    --cov-config=pyproject.toml \
     "$@"
-coverage report --include="nx_cugraph/algorithms/*" --omit=__init__.py --show-missing --data-file=.coverage
+coverage report \
+    --include="nx_cugraph/algorithms/*" \
+    --omit=__init__.py \
+    --show-missing \
+    --data-file=.coverage \
+    --rcfile=pyproject.toml
