@@ -60,7 +60,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         world_size=1,
         num_epochs=1,
         sample_dir=".",
-        backend='torch',
+        backend="torch",
         **kwargs,
     ):
         self.__data = None
