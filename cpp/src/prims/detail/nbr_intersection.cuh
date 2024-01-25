@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include <prims/detail/optional_dataframe_buffer.hpp>
 #include <prims/kv_store.cuh>
+#include <utilities/error_check_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -62,35 +63,6 @@
 namespace cugraph {
 
 namespace detail {
-
-// check vertices in the pair are valid and first element of the pair is within the local vertex
-// partition range
-template <typename vertex_t>
-struct is_invalid_input_vertex_pair_t {
-  vertex_t num_vertices{};
-  raft::device_span<vertex_t const> edge_partition_major_range_firsts{};
-  raft::device_span<vertex_t const> edge_partition_major_range_lasts{};
-  vertex_t edge_partition_minor_range_first{};
-  vertex_t edge_partition_minor_range_last{};
-
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> pair) const
-  {
-    auto major = thrust::get<0>(pair);
-    auto minor = thrust::get<1>(pair);
-    if (!is_valid_vertex(num_vertices, major) || !is_valid_vertex(num_vertices, minor)) {
-      return true;
-    }
-    auto it = thrust::upper_bound(thrust::seq,
-                                  edge_partition_major_range_lasts.begin(),
-                                  edge_partition_major_range_lasts.end(),
-                                  major);
-    if (it == edge_partition_major_range_lasts.end()) { return true; }
-    auto edge_partition_idx =
-      static_cast<size_t>(thrust::distance(edge_partition_major_range_lasts.begin(), it));
-    if (major < edge_partition_major_range_firsts[edge_partition_idx]) { return true; }
-    return (minor < edge_partition_minor_range_first) || (minor >= edge_partition_minor_range_last);
-  }
-};
 
 // group index determined by major_comm_rank (primary key) and local edge partition index (secondary
 // key)
@@ -154,24 +126,11 @@ struct update_rx_major_local_degree_t {
     auto major =
       rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
                 offset_in_local_edge_partition];
-    vertex_t major_idx{0};
-    edge_t local_degree{0};
-    if (multi_gpu && (edge_partition.major_hypersparse_first() &&
-                      (major >= *(edge_partition.major_hypersparse_first())))) {
-      auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-      if (major_hypersparse_idx) {
-        major_idx =
-          (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-          *major_hypersparse_idx;
-        local_degree = edge_partition.local_degree(major_idx);
-      }
-    } else {
-      major_idx    = edge_partition.major_offset_from_major_nocheck(major);
-      local_degree = edge_partition.local_degree(major_idx);
-    }
+    auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
+    auto local_degree = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
     if (edge_partition_e_mask && (local_degree > edge_t{0})) {
-      auto local_offset = edge_partition.local_offset(major_idx);
+      auto local_offset = edge_partition.local_offset(*major_idx);
       local_degree      = static_cast<edge_t>(
         count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree));
     }
@@ -325,29 +284,11 @@ struct pick_min_degree_t {
     edge_t local_degree0{0};
     vertex_t major0 = thrust::get<0>(pair);
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
-      vertex_t major_idx{0};
-      if constexpr (multi_gpu) {
-        if (edge_partition.major_hypersparse_first() &&
-            (major0 >= *(edge_partition.major_hypersparse_first()))) {
-          auto major_hypersparse_idx =
-            edge_partition.major_hypersparse_idx_from_major_nocheck(major0);
-          if (major_hypersparse_idx) {
-            major_idx =
-              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-              *major_hypersparse_idx;
-            local_degree0 = edge_partition.local_degree(major_idx);
-          }
-        } else {
-          major_idx     = edge_partition.major_offset_from_major_nocheck(major0);
-          local_degree0 = edge_partition.local_degree(major_idx);
-        }
-      } else {
-        major_idx     = edge_partition.major_offset_from_major_nocheck(major0);
-        local_degree0 = edge_partition.local_degree(major_idx);
-      }
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major0);
+      local_degree0  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
       if (edge_partition_e_mask && (local_degree0 > edge_t{0})) {
-        auto local_offset = edge_partition.local_offset(major_idx);
+        auto local_offset = edge_partition.local_offset(*major_idx);
         local_degree0 =
           count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree0);
       }
@@ -360,29 +301,11 @@ struct pick_min_degree_t {
     edge_t local_degree1{0};
     vertex_t major1 = thrust::get<1>(pair);
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
-      vertex_t major_idx{0};
-      if constexpr (multi_gpu) {
-        if (edge_partition.major_hypersparse_first() &&
-            (major1 >= *(edge_partition.major_hypersparse_first()))) {
-          auto major_hypersparse_idx =
-            edge_partition.major_hypersparse_idx_from_major_nocheck(major1);
-          if (major_hypersparse_idx) {
-            major_idx =
-              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-              *major_hypersparse_idx;
-            local_degree1 = edge_partition.local_degree(major_idx);
-          }
-        } else {
-          major_idx     = edge_partition.major_offset_from_major_nocheck(major1);
-          local_degree1 = edge_partition.local_degree(major_idx);
-        }
-      } else {
-        major_idx     = edge_partition.major_offset_from_major_nocheck(major1);
-        local_degree1 = edge_partition.local_degree(major_idx);
-      }
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major1);
+      local_degree1  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
 
       if (edge_partition_e_mask && (local_degree1 > edge_t{0})) {
-        auto local_offset = edge_partition.local_offset(major_idx);
+        auto local_offset = edge_partition.local_offset(*major_idx);
         local_degree1 =
           count_set_bits((*edge_partition_e_mask).value_first(), local_offset, local_degree1);
       }
@@ -698,77 +621,6 @@ struct gatherv_indices_t {
     }
   }
 };
-
-template <typename GraphViewType, typename VertexPairIterator>
-size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
-                                  GraphViewType const& graph_view,
-                                  VertexPairIterator vertex_pair_first,
-                                  VertexPairIterator vertex_pair_last)
-{
-  using vertex_t = typename GraphViewType::vertex_type;
-
-  std::vector<vertex_t> h_edge_partition_major_range_firsts(
-    graph_view.number_of_local_edge_partitions());
-  std::vector<vertex_t> h_edge_partition_major_range_lasts(
-    h_edge_partition_major_range_firsts.size());
-  vertex_t edge_partition_minor_range_first{};
-  vertex_t edge_partition_minor_range_last{};
-  if constexpr (GraphViewType::is_multi_gpu) {
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i++) {
-      if constexpr (GraphViewType::is_storage_transposed) {
-        h_edge_partition_major_range_firsts[i] = graph_view.local_edge_partition_dst_range_first(i);
-        h_edge_partition_major_range_lasts[i]  = graph_view.local_edge_partition_dst_range_last(i);
-      } else {
-        h_edge_partition_major_range_firsts[i] = graph_view.local_edge_partition_src_range_first(i);
-        h_edge_partition_major_range_lasts[i]  = graph_view.local_edge_partition_src_range_last(i);
-      }
-    }
-    if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_minor_range_first = graph_view.local_edge_partition_src_range_first();
-      edge_partition_minor_range_last  = graph_view.local_edge_partition_src_range_last();
-    } else {
-      edge_partition_minor_range_first = graph_view.local_edge_partition_dst_range_first();
-      edge_partition_minor_range_last  = graph_view.local_edge_partition_dst_range_last();
-    }
-  } else {
-    h_edge_partition_major_range_firsts[0] = vertex_t{0};
-    h_edge_partition_major_range_lasts[0]  = graph_view.number_of_vertices();
-    edge_partition_minor_range_first       = vertex_t{0};
-    edge_partition_minor_range_last        = graph_view.number_of_vertices();
-  }
-  rmm::device_uvector<vertex_t> d_edge_partition_major_range_firsts(
-    h_edge_partition_major_range_firsts.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> d_edge_partition_major_range_lasts(
-    h_edge_partition_major_range_lasts.size(), handle.get_stream());
-  raft::update_device(d_edge_partition_major_range_firsts.data(),
-                      h_edge_partition_major_range_firsts.data(),
-                      h_edge_partition_major_range_firsts.size(),
-                      handle.get_stream());
-  raft::update_device(d_edge_partition_major_range_lasts.data(),
-                      h_edge_partition_major_range_lasts.data(),
-                      h_edge_partition_major_range_lasts.size(),
-                      handle.get_stream());
-
-  auto num_invalid_pairs = thrust::count_if(
-    handle.get_thrust_policy(),
-    vertex_pair_first,
-    vertex_pair_last,
-    is_invalid_input_vertex_pair_t<vertex_t>{
-      graph_view.number_of_vertices(),
-      raft::device_span<vertex_t const>(d_edge_partition_major_range_firsts.begin(),
-                                        d_edge_partition_major_range_firsts.end()),
-      raft::device_span<vertex_t const>(d_edge_partition_major_range_lasts.begin(),
-                                        d_edge_partition_major_range_lasts.end()),
-      edge_partition_minor_range_first,
-      edge_partition_minor_range_last});
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& comm = handle.get_comms();
-    num_invalid_pairs =
-      host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
-  }
-
-  return num_invalid_pairs;
-}
 
 // In multi-GPU, the first element of every vertex pair in [vertex_pair_first, vertex_pair) should
 // be within the valid edge partition major range assigned to this process and the second element

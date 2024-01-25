@@ -36,8 +36,8 @@ __all__ = ["louvain_communities"]
     },
     is_incomplete=True,  # seed not supported; self-loops not supported
     is_different=True,  # RNG different
-    plc="louvain",
     version_added="23.10",
+    _plc="louvain",
 )
 def louvain_communities(
     G,
