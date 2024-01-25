@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#SBATCH -A datascience_rapids_cugraphgnn
-#SBATCH -p luna
 #SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSamplingPyG
 #SBATCH -N 1
 #SBATCH -t 00:25:00 
@@ -34,7 +32,7 @@ NUM_EPOCHS=1
 REPLICATION_FACTOR=1
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
-FRAMEWORK="cuGraphPyG"
+FRAMEWORK="cuGraphDGL"
 GPUS_PER_NODE=8
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
@@ -68,6 +66,7 @@ elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
 fi
 
 # Train
+# Should always use WholeGraph for benchmarks since it will eventually become the default feature store backend
 srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
@@ -85,5 +84,6 @@ srun \
             --batch_size $BATCH_SIZE \
             --fanout $FANOUT \
             --replication_factor $REPLICATION_FACTOR \
-            --num_epochs $NUM_EPOCHS
+            --num_epochs $NUM_EPOCHS \
+            --use_wholegraph
 

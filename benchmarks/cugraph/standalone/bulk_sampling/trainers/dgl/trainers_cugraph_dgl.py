@@ -60,6 +60,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         world_size=1,
         num_epochs=1,
         sample_dir=".",
+        backend='torch',
         **kwargs,
     ):
         self.__data = None
@@ -72,6 +73,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
         self.__optimizer = None
+        self.__backend = backend
 
     @property
     def rank(self):
@@ -123,34 +125,45 @@ class DGLCuGraphTrainer(DGLTrainer):
 
         if self.__data is None:
             # FIXME wholegraph
-            fs = FeatureStore(backend="torch")
+            fs = FeatureStore(backend=self.__backend)
             num_nodes_dict = {}
+
+            if self.__backend == "wholegraph":
+                from pylibwholegraph.torch.initialize import get_global_communicator
+
+                wm_comm = get_global_communicator()
+                wm_comm.barrier()
 
             for node_type, x in self.__dataset.x_dict.items():
                 logger.debug(f"getting x for {node_type}")
                 fs.add_data(x, node_type, "x")
                 num_nodes_dict[node_type] = self.__dataset.num_nodes(node_type)
+                if self.__backend == "wholegraph":
+                    wm_comm.barrier()
 
             for node_type, y in self.__dataset.y_dict.items():
                 logger.debug(f"getting y for {node_type}")
-                fs.add_data(y, node_type, "y")
+                fs.add_data_no_cast(y, node_type, "y")
 
             for node_type, train in self.__dataset.train_dict.items():
                 logger.debug(f"getting train for {node_type}")
-                fs.add_data(train, node_type, "train")
+                fs.add_data_no_cast(train, node_type, "train")
 
             for node_type, test in self.__dataset.test_dict.items():
                 logger.debug(f"getting test for {node_type}")
-                fs.add_data(test, node_type, "test")
+                fs.add_data_no_cast(test, node_type, "test")
 
             for node_type, val in self.__dataset.val_dict.items():
                 logger.debug(f"getting val for {node_type}")
-                fs.add_data(val, node_type, "val")
+                fs.add_data_no_cast(val, node_type, "val")
 
             # # TODO support online sampling if the edge index is provided
             # num_edges_dict = self.__dataset.edge_index_dict
             # if not isinstance(list(num_edges_dict.values())[0], int):
             #     num_edges_dict = {k: len(v) for k, v in num_edges_dict}
+
+            if self.__backend == "wholegraph":
+                wm_comm.barrier()
 
             self.__data = fs
         return self.__data

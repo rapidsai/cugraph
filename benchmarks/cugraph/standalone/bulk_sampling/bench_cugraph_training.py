@@ -201,9 +201,8 @@ def main(args):
     world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * args.gpus_per_node
 
     if args.use_wholegraph:
-        # TODO support DGL too
         # TODO support WG without cuGraph
-        if args.framework not in ["cuGraphPyG"]:
+        if args.framework not in ["cuGraphPyG", "cuGraphDGL"]:
             raise ValueError("WG feature store only supported with cuGraph backends")
         from pylibwholegraph.torch.initialize import (
             get_global_communicator,
@@ -290,6 +289,7 @@ def main(args):
             replace=False,
             num_neighbors=[int(f) for f in args.fanout.split("_")],
             batch_size=args.batch_size,
+            backend="wholegraph" if args.use_wholegraph else "torch",
         )
     else:
         raise ValueError("unsupported framework")

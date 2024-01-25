@@ -68,7 +68,6 @@ handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \
 
 DASK_STARTUP_ERRORCODE=$LAST_EXITCODE
 
-# These benchmarks should always use WG since that will be the future default
 echo $SLURM_NODEID 
 if [[ $SLURM_NODEID == 0 ]]; then
     echo "Launching Python Script"
@@ -81,8 +80,7 @@ if [[ $SLURM_NODEID == 0 ]]; then
         --seeds_per_call_opts "524288" \
         --num_epochs $NUM_EPOCHS \
         --random_seed 42 \
-        --sampling_target_framework $SAMPLING_FRAMEWORK \
-        --use_wholegraph
+        --sampling_target_framework $SAMPLING_FRAMEWORK
 
     echo "DONE" > ${SAMPLES_DIR}/status.txt
 fi
