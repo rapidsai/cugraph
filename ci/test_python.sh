@@ -134,6 +134,9 @@ coverage report \
   --rcfile=./pyproject.toml
 coverage json --rcfile=./pyproject.toml
 python -m nx_cugraph.tests.ensure_algos_covered
+# Exercise (and show results of) scripts that show implemented networkx algorithms
+python -m nx_cugraph.scripts.print_tree --dispatch-name --plc --incomplete --different
+python -m nx_cugraph.scripts.print_table
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
