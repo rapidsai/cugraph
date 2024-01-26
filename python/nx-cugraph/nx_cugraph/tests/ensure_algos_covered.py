@@ -77,6 +77,7 @@ def main():
             + "\n"
         )
         raise AssertionError(msg)
+    print("\nSuccess: coverage determined all algorithms were called!\n")
 
 
 if __name__ == "__main__":
