@@ -30,8 +30,9 @@ NETWORKX_TEST_BACKEND=cugraph \
 NETWORKX_FALLBACK_TO_NX=True \
     pytest \
     --pyargs networkx \
-    --cov=nx_cugraph \
+    --config-file=$(dirname $0)/pyproject.toml \
     --cov-config=$(dirname $0)/pyproject.toml \
+    --cov=nx_cugraph \
     --cov-report= \
     "$@"
 coverage report \

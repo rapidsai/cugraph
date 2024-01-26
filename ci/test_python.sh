@@ -109,10 +109,10 @@ pytest \
 popd
 
 rapids-logger "pytest networkx using nx-cugraph backend"
-pushd python/nx-cugraph
+pushd python
 mkdir new_directory_for_coverage
 cd new_directory_for_coverage
-../run_nx_tests.sh
+../nx-cugraph/run_nx_tests.sh
 # run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
 # in case nx-cugraph failed to load but fallback mode allowed the run to pass.
 _coverage=$(coverage report|grep "^TOTAL")
@@ -120,8 +120,19 @@ echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 # Ensure all algorithms were called by comparing covered lines to function lines.
 # Run our tests again (they're fast enough) to add their coverage, then create coverage.json
-pytest --pyargs nx_cugraph --cov=nx_cugraph --cov-append --cov-config=../pyproject.toml --cov-report=
-coverage json --rcfile=../pyproject.toml
+pytest \
+  --pyargs nx_cugraph \
+  --config-file=../nx-cugraph/pyproject.toml \
+  --cov-config=../nx-cugraph/pyproject.toml \
+  --cov=nx_cugraph \
+  --cov-append \
+  --cov-report=
+coverage report \
+  --include="*/nx_cugraph/algorithms/*" \
+  --omit=__init__.py \
+  --show-missing \
+  --rcfile=../nx-cugraph/pyproject.toml
+coverage json --rcfile=../nx-cugraph/pyproject.toml
 python -m nx_cugraph.tests.ensure_algos_covered
 popd
 
