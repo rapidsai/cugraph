@@ -69,10 +69,14 @@ class BackendInterface:
         no_string_dtype = "string edge values not currently supported"
 
         xfail = {
-            key(
-                "test_strongly_connected.py:"
-                "TestStronglyConnected.test_condensation_mapping_and_members"
-            ): "Strongly connected groups in different iteration order",
+            # This is removed while strongly_connected_components() is not
+            # dispatchable. See algorithms/components/strongly_connected.py for
+            # details.
+            #
+            # key(
+            #     "test_strongly_connected.py:"
+            #     "TestStronglyConnected.test_condensation_mapping_and_members"
+            # ): "Strongly connected groups in different iteration order",
         }
 
         from packaging.version import parse
