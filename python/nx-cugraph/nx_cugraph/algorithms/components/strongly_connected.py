@@ -46,9 +46,10 @@ def _strongly_connected_components(G):
 
 
 # The networkx_algorithm decorator is (temporarily) removed to disable
-# dispatching for this function. The *current* cugraph-based implementation of
-# strongly_connected_components has limitations that make it generally inferior
-# to the default NetworkX implementation.
+# dispatching for this function. The current cugraph
+# strongly_connected_components is a legacy implementation with known issues,
+# and in most cases should not be used until the cugraph team can provide an
+# update.
 #
 # Users can still call this via the nx_cugraph module directly:
 # >>> import nx_cugraph as nxcg
