@@ -59,7 +59,7 @@ def symmetrize_df(
         of multi edges will no longer be supported from 'symmetrize'.
         Multi edges will be removed upon  creation of graph instance directly
         based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-        
+
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
@@ -144,7 +144,7 @@ def symmetrize_ddf(
         of multi edges will no longer be supported from 'symmetrize'.
         Multi edges will be removed upon  creation of graph instance directly
         based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-        
+
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
@@ -236,7 +236,7 @@ def symmetrize(
         of multi edges will no longer be supported from 'symmetrize'.
         Multi edges will be removed upon  creation of graph instance directly
         based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-        
+
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
