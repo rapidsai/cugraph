@@ -240,6 +240,7 @@ all_pairs_similarity(raft::handle_t const& handle,
   }
 
   if (topk) {
+    std::cout << "topk = " << *topk << std::endl;
     //  We can reduce memory footprint by doing work in batches and
     //  computing/updating topk with each batch
     rmm::device_uvector<vertex_t> top_v1(*topk, handle.get_stream());
@@ -247,7 +248,8 @@ all_pairs_similarity(raft::handle_t const& handle,
     rmm::device_uvector<weight_t> top_score(*topk, handle.get_stream());
 
     //   FIXME: Think about what this should be
-    edge_t const MAX_PAIRS{2 << 20};
+    // edge_t const MAX_PAIRS{2 << 20};
+    edge_t const MAX_PAIRS{32768};
 
     rmm::device_uvector<edge_t> degrees = graph_view.compute_out_degrees(handle);
     rmm::device_uvector<edge_t> two_hop_degrees(degrees.size(), handle.get_stream());
@@ -283,6 +285,7 @@ all_pairs_similarity(raft::handle_t const& handle,
     edge_t next_boundary{MAX_PAIRS};
 
     while (true) {
+      std::cout << "processing a batch, current_pos = " << current_pos << std::endl;
       if (current_pos < two_hop_degrees.size()) {
         next_pos = current_pos + thrust::distance(two_hop_degrees.begin() + current_pos,
                                                   thrust::upper_bound(handle.get_thrust_policy(),
@@ -374,6 +377,8 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     return std::make_tuple(std::move(top_v1), std::move(top_v2), std::move(top_score));
   } else {
+    std::cout << "topk not specified " << std::endl;
+
     auto [offsets, v2] =
       k_hop_nbrs(handle,
                  graph_view,

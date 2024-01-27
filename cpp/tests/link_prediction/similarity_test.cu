@@ -21,6 +21,7 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
@@ -91,26 +92,42 @@ class Tests_Similarity
     rmm::device_uvector<vertex_t> v2(0, handle.get_stream());
     rmm::device_uvector<weight_t> result_score(0, handle.get_stream());
 
+    raft::random::RngState rng_state{0};
+
+    rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
+    std::optional<raft::device_span<vertex_t const>> sources_span{std::nullopt};
+
+    if (similarity_usecase.max_seeds != std::numeric_limits<size_t>::max()) {
+      sources = cugraph::select_random_vertices(
+        handle,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        std::min(similarity_usecase.max_seeds,
+                 static_cast<size_t>(graph_view.number_of_vertices())),
+        false,
+        false);
+      sources_span = raft::device_span<vertex_t const>{sources.data(), sources.size()};
+    }
+
     if (similarity_usecase.all_pairs) {
-      std::tie(v1, v2, result_score) =
-        test_functor.run(handle,
-                         graph_view,
-                         edge_weight_view,
-                         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-                         similarity_usecase.use_weights,
-                         similarity_usecase.topk);
+      std::cout << "testing all pairs" << std::endl;
+      std::tie(v1, v2, result_score) = test_functor.run(handle,
+                                                        graph_view,
+                                                        edge_weight_view,
+                                                        sources_span,
+                                                        similarity_usecase.use_weights,
+                                                        similarity_usecase.topk);
     } else {
-      rmm::device_uvector<vertex_t> sources(graph_view.number_of_vertices(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(), sources.begin(), sources.end(), vertex_t{0});
+      if (!sources_span) {
+        sources.resize(graph_view.number_of_vertices(), handle.get_stream());
+        thrust::sequence(handle.get_thrust_policy(), sources.begin(), sources.end(), vertex_t{0});
+        sources_span = raft::device_span<vertex_t const>{sources.data(), sources.size()};
+      }
 
       rmm::device_uvector<size_t> offsets(0, handle.get_stream());
 
-      std::tie(offsets, v2) =
-        k_hop_nbrs(handle,
-                   graph_view,
-                   raft::device_span<vertex_t const>{sources.data(), sources.size()},
-                   2,
-                   true);
+      std::tie(offsets, v2) = k_hop_nbrs(handle, graph_view, *sources_span, 2, true);
 
       v1 = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
@@ -122,14 +139,25 @@ class Tests_Similarity
                                              v1.size(),
                                              sources.data(),
                                              vertex_t{0},
-                                             sources.size(),
-                                             do_expensive_check);
+                                             static_cast<vertex_t>(sources.size()),
+                                             true);
+
+      auto new_size = thrust::distance(
+        thrust::make_zip_iterator(v1.begin(), v2.begin()),
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(v1.begin(), v2.begin()),
+          thrust::make_zip_iterator(v1.end(), v2.end()),
+          [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+
+      v1.resize(new_size, handle.get_stream());
+      v2.resize(new_size, handle.get_stream());
 
       // FIXME:  Need to add some tests that specify actual vertex pairs
       std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
         {v1.data(), v1.size()}, {v2.data(), v2.size()}};
 
-      auto result_score = test_functor.run(
+      result_score = test_functor.run(
         handle, graph_view, edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
     }
 
@@ -245,24 +273,38 @@ TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatOverlap)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Similarity_File,
-  ::testing::Combine(
-    // enable correctness checks
-    // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
-    // 100}),
-    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+  ::testing::Combine(::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
+                                       Similarity_Usecase{true, true, false, 20, 100},
+                                       Similarity_Usecase{false, true, false, 20, 100},
+                                       Similarity_Usecase{true, true, false, 20, 100},
+                                       Similarity_Usecase{false, true, false, 20, 100, 10},
+                                       Similarity_Usecase{true, true, false, 20, 100, 10},
+                                       Similarity_Usecase{false, true, true, 20, 100},
+                                       Similarity_Usecase{true, true, true, 20, 100},
+                                       Similarity_Usecase{false, true, true, 20, 100},
+                                       Similarity_Usecase{true, true, true, 20, 100},
+                                       Similarity_Usecase{false, true, true, 20, 100, 10},
+                                       Similarity_Usecase{true, true, true, 20, 100, 10}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Similarity_Rmat,
   ::testing::Combine(
-    // enable correctness checks
-    // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
-    // 100}),
-    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100}),
+    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
+                      // Similarity_Usecase{true, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100},
+                      // Similarity_Usecase{true, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 1000, 100, 10},
+                      // Similarity_Usecase{true, true, false, 20, 100, 10}),
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      // Similarity_Usecase{true, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      // Similarity_Usecase{true, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100, 10}  //,
+                      // Similarity_Usecase{true, true, true, 20, 100, 10}),
+                      ),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(

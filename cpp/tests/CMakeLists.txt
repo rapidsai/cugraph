@@ -369,7 +369,7 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
-ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
+ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
 
 ###################################################################################################
 # - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
