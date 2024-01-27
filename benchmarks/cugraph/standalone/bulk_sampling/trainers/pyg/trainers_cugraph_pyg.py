@@ -147,7 +147,14 @@ class PyGCuGraphTrainer(PyGTrainer):
         logger.info("getting data")
 
         if self.__data is None:
-            fs = FeatureStore(backend=self.__backend)
+            if self.__backend == "wholegraph":
+                fs = FeatureStore(
+                    backend="wholegraph",
+                    wg_type="chunked",
+                    wg_location="cpu",
+                )
+            else:
+                fs = FeatureStore(backend=self.__backend)
             num_nodes_dict = {}
 
             if self.__backend == "wholegraph":
