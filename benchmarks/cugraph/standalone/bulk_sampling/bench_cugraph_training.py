@@ -207,9 +207,11 @@ def main(args):
         from pylibwholegraph.torch.initialize import (
             get_global_communicator,
             get_local_node_communicator,
+            init
         )
 
         logger.info("initializing WG comms...")
+        init(global_rank, world_size, local_rank, args.gpus_per_node)
         wm_comm = get_global_communicator()
         get_local_node_communicator()
 

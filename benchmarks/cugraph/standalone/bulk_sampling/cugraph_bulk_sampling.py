@@ -576,7 +576,7 @@ def benchmark_cugraph_bulk_sampling(
             "include_hop_column": False,
         }
     elif sampling_target_framework == "cugraph_pyg":
-        # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.02)
+        # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.04)
         sampling_kwargs = {
             "deduplicate_sources": True,
             "prior_sources_behavior": "exclude",
@@ -589,7 +589,7 @@ def benchmark_cugraph_bulk_sampling(
     else:
         raise ValueError("Only cugraph_dgl_csr or cugraph_pyg are valid frameworks")
 
-    batches_per_partition = 600_000 // batch_size
+    batches_per_partition = 256
     execution_time, allocation_counts = sample_graph(
         G=G,
         label_df=dask_label_df,

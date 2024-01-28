@@ -165,15 +165,17 @@ class DGLCuGraphTrainer(DGLTrainer):
         else:
             raise ValueError(f"Invalid stage {stage}")
 
+        input_file_paths, num_batches = self.get_input_files(
+            path, epoch=epoch, stage=stage
+        )
+
         dataloader = get_dataloader(
-            input_file_paths=self.get_input_files(
-                path, epoch=epoch, stage=stage
-            ).tolist(),
+            input_file_paths=input_file_paths.tolist(),
             total_num_nodes=None,
             sparse_format="csc",
             return_type="cugraph_dgl.nn.SparseGraph",
         )
-        return dataloader
+        return dataloader, num_batches
 
     @property
     def data(self):
@@ -183,6 +185,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         logger.info("getting data")
 
         if self.__data is None:
+            logger.info("using wholegraph backend")
             if self.__backend == "wholegraph":
                 fs = FeatureStore(
                     backend="wholegraph",
@@ -284,4 +287,12 @@ class DGLCuGraphTrainer(DGLTrainer):
         np.random.seed(epoch)
         np.random.shuffle(splits)
 
-        return splits[self.rank]
+        ex = re.compile(r'batch=([0-9]+)\-([0-9]+).parquet')
+        num_batches = min([
+            sum([int(ex.match(fname.split('/')[-1])[2]) - int(ex.match(fname.split('/')[-1])[1]) for fname in s])
+            for s in splits
+        ])
+        if num_batches == 0:
+            raise ValueError(f"Too few batches for training with world size {self.__world_size}")
+
+        return splits[self.rank], num_batches

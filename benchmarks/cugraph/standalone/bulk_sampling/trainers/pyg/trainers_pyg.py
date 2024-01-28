@@ -51,7 +51,7 @@ def pyg_num_workers(world_size: int) -> int:
 
 
 def calc_accuracy(
-    loader: NeighborLoader, model: torch.nn.Module, num_classes: int
+    loader: NeighborLoader, max_num_batches: int, model: torch.nn.Module, num_classes: int
 ) -> float:
     """
     Evaluates the accuracy of a model given a loader over evaluation samples.
@@ -88,7 +88,8 @@ def calc_accuracy(
 
             batch = batch.to_homogeneous().cuda()
 
-            batch.y = batch.y.to(torch.long)
+            batch.y = batch.y.to(torch.long).reshape((batch.y.shape[0],))
+
             out = model(
                 batch.x,
                 batch.edge_index,
@@ -97,6 +98,9 @@ def calc_accuracy(
             )
             acc_sum += acc(out[:batch_size].softmax(dim=-1), batch.y[:batch_size])
             num_batches += 1
+
+            if max_num_batches is not None and i >= max_num_batches:
+                break
 
     acc_sum = torch.tensor(float(acc_sum), dtype=torch.float32, device="cuda")
     td.all_reduce(acc_sum, op=td.ReduceOp.SUM)
@@ -117,7 +121,6 @@ class PyGTrainer(Trainer):
         logger = logging.getLogger("PyGTrainer")
         logger.info("Entered train loop")
 
-        total_loss = 0.0
         num_batches = 0
 
         time_forward = 0.0
@@ -127,13 +130,16 @@ class PyGTrainer(Trainer):
         start_time = time.perf_counter()
         end_time_backward = start_time
 
+        num_layers = len(self.model.module.convs)
+        
         for epoch in range(self.num_epochs):
             with td.algorithms.join.Join(
-                [self.model], divide_by_initial_world_size=False
+                [self.model, self.optimizer], divide_by_initial_world_size=False
             ):
                 self.model.train()
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
                 for iter_i, data in enumerate(
-                    self.get_loader(epoch=epoch, stage="train")
+                    loader
                 ):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
@@ -154,7 +160,6 @@ class PyGTrainer(Trainer):
                     )
 
                     # FIXME find a way to get around this and not have to call extend_tensor
-                    num_layers = len(self.model.module.convs)
                     num_sampled_nodes = extend_tensor(num_sampled_nodes, num_layers + 1)
                     num_sampled_edges = extend_tensor(num_sampled_edges, num_layers)
 
@@ -165,6 +170,7 @@ class PyGTrainer(Trainer):
                     )
 
                     num_batches += 1
+                    logger.info(f"{self.rank} / {iter_i}")
                     if iter_i % 20 == 1:
                         time_forward_iter = time_forward / num_batches
                         time_backward_iter = time_backward / num_batches
@@ -226,31 +232,35 @@ class PyGTrainer(Trainer):
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
-                    total_loss += loss.item()
                     end_time_backward = time.perf_counter()
                     time_backward += end_time_backward - start_time_backward
 
+                    if max_num_batches is not None and iter_i >= max_num_batches:
+                        break
+
             end_time = time.perf_counter()
 
+            logger.info("Entering test stage...")
             with td.algorithms.join.Join(
                 [self.model], divide_by_initial_world_size=False
             ):
                 self.model.eval()
-                loader = self.get_loader(epoch=epoch, stage="test")
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="test")
                 num_classes = self.dataset.num_labels
 
-                acc = calc_accuracy(loader, self.model.module, num_classes)
+                acc = calc_accuracy(loader, max_num_batches, self.model.module, num_classes)
 
             if self.rank == 0:
                 print(
                     f"Accuracy: {acc * 100.0:.4f}%",
                 )
 
+        logger.info("Entering validation stage")
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
             self.model.eval()
-            loader = self.get_loader(epoch=epoch, stage="val")
+            loader, max_num_batches = self.get_loader(epoch=epoch, stage="val")
             num_classes = self.dataset.num_labels
-            acc = calc_accuracy(loader, self.model.module, num_classes)
+            acc = calc_accuracy(loader, max_num_batches, self.model.module, num_classes)
 
         if self.rank == 0:
             print(
@@ -413,7 +423,7 @@ class PyGNativeTrainer(PyGTrainer):
         )
 
         logger.info("done creating loader")
-        return loader
+        return loader, None
 
     def get_model(self, name="GraphSAGE"):
         if name != "GraphSAGE":

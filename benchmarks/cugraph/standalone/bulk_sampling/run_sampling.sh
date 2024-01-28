@@ -60,7 +60,7 @@ else
 fi
 
 echo "properly waiting for workers to connect"
-NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
+export NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
 SEEDS_PER_CALL=$(python -c "import os; print(int(os.environ['NUM_GPUS'])*65536)")
 handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \
                     --num-expected-workers ${NUM_GPUS} \

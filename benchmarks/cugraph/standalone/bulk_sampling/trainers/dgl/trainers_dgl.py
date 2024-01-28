@@ -98,7 +98,7 @@ def log_batch(
 
 
 def train_epoch(
-    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger, rank
+    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger, rank, max_num_batches
 ):
     """
     Train the model for one epoch.
@@ -110,7 +110,8 @@ def train_epoch(
         num_classes: The number of classes.
         time_d: A dictionary of times.
         logger: The logger to use.
-        rank: Total rank
+        rank: Global rank
+        max_num_batches: Number of batches after which to quit (to avoid hang due to asymmetry)
     """
     model = model.train()
     time_feature_indexing = time_d["time_feature_indexing"]
@@ -123,7 +124,6 @@ def train_epoch(
     end_time_backward = time.perf_counter()
 
     num_batches = 0
-    total_loss = 0.0
 
     for iter_i, (input_nodes, output_nodes, blocks) in enumerate(loader):
         loader_time_iter = time.perf_counter() - end_time_backward
@@ -170,7 +170,6 @@ def train_epoch(
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
         end_time_backward = time.perf_counter()
         time_backward += end_time_backward - start_time_backward
 
@@ -186,6 +185,9 @@ def train_epoch(
                 epoch=epoch,
                 rank=rank,
             )
+        
+        if max_num_batches is not None and iter_i >= max_num_batches:
+            break
 
     time_d["time_loader"] += time_loader
     time_d["time_feature_indexing"] += time_feature_indexing
@@ -193,7 +195,7 @@ def train_epoch(
     time_d["time_forward"] += time_forward
     time_d["time_backward"] += time_backward
 
-    return num_batches, total_loss
+    return num_batches
 
 
 def get_accuracy(
@@ -201,6 +203,7 @@ def get_accuracy(
     loader: torch.utils.DataLoader,
     feature_store: FeatureStore,
     num_classes: int,
+    max_num_batches: int,
 ) -> float:
     """
     Computes the accuracy given a loader that ouputs evaluation data, the model being evaluated,
@@ -216,6 +219,9 @@ def get_accuracy(
         The feature store containing node features
     num_classes: int
         The number of output classes of the model
+    max_num_batches: int
+        The number of batches to iterate for, will quit after reaching this number.
+        Used to avoid hang due to asymmetric input.
 
     Returns
     -------
@@ -240,6 +246,9 @@ def get_accuracy(
             batch_size = out.shape[0]
             acc_sum += acc(out[:batch_size].softmax(dim=-1), y_true[:batch_size])
             num_batches += 1
+
+            if max_num_batches is not None and iter_i >= max_num_batches:
+                break
 
     num_batches = num_batches
 
@@ -277,16 +286,18 @@ class DGLTrainer(Trainer):
             with td.algorithms.join.Join(
                 [self.model], divide_by_initial_world_size=False
             ):
-                num_batches, total_loss = train_epoch(
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
+                num_batches = train_epoch(
                     model=self.model,
                     optimizer=self.optimizer,
-                    loader=self.get_loader(epoch=epoch, stage="train"),
+                    loader=loader,
                     feature_store=self.data,
                     num_classes=self.dataset.num_labels,
                     epoch=epoch,
                     time_d=time_d,
                     logger=logger,
                     rank=self.rank,
+                    max_num_batches=max_num_batches,
                 )
                 total_batches = total_batches + num_batches
             end_time = time.perf_counter()
@@ -302,22 +313,26 @@ class DGLTrainer(Trainer):
                 [self.model], divide_by_initial_world_size=False
             ):
                 # test
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="test")
                 test_acc = get_accuracy(
                     model=self.model.module,
-                    loader=self.get_loader(epoch=epoch, stage="test"),
+                    loader=loader,
                     feature_store=self.data,
                     num_classes=self.dataset.num_labels,
+                    max_num_batches = max_num_batches,
                 )
                 print(f"Accuracy: {test_acc:.4f}%")
 
         # val:
         self.model.eval()
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            loader, max_num_batches = self.get_loader(epoch=epoch, stage="val")
             val_acc = get_accuracy(
                 model=self.model.module,
-                loader=self.get_loader(epoch=epoch, stage="val"),
+                loader=loader,
                 feature_store=self.data,
                 num_classes=self.dataset.num_labels,
+                max_num_batches=max_num_batches,
             )
             print(f"Validation Accuracy: {val_acc:.4f}%")
 

@@ -269,6 +269,11 @@ class OGBNPapers100MDataset(Dataset):
         self.__disk_x = {"paper": torch.as_tensor(np.load(full_path, mmap_mode="r"))}
 
     def __load_x_wg(self) -> None:
+        import logging
+        
+        logger = logging.getLogger("OGBNPapers100MDataset")
+        logger.info("Loading x into WG embedding...")
+
         import pylibwholegraph.torch as wgth
 
         node_type_path = os.path.join(
@@ -285,14 +290,14 @@ class OGBNPapers100MDataset(Dataset):
 
         x = wgth.create_embedding_from_filelist(
             wgth.get_global_communicator(),
-            "chunked",  # TODO support other options
+            "distributed",  # TODO support other options
             "cpu",  # TODO support GPU
             file_list,
             torch.float32,
             128,
         )
 
-        print("created x wg embedding", x)
+        logger.info("created x wg embedding")
 
         self.__disk_x = {"paper": x}
 

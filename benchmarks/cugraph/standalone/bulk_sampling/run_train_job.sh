@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSamplingPyG
-#SBATCH -N 1
+#SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSampling
+#SBATCH -N 2
 #SBATCH -t 00:25:00 
 
 CONTAINER_IMAGE=${CONTAINER_IMAGE:="please_specify_container"}
@@ -29,7 +29,7 @@ mkdir -p $DATASETS_DIR
 BATCH_SIZE=512
 FANOUT="10_10_10"
 NUM_EPOCHS=1
-REPLICATION_FACTOR=1
+REPLICATION_FACTOR=2
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
 FRAMEWORK="cuGraphDGL"

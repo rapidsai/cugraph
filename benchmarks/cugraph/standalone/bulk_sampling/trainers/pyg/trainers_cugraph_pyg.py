@@ -19,12 +19,14 @@ import torch
 import numpy as np
 
 from torch.nn.parallel import DistributedDataParallel as ddp
+from torch.distributed.optim import ZeroRedundancyOptimizer
 
 from cugraph.gnn import FeatureStore
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.loader import BulkSampleLoader
 
 import os
+import re
 
 
 class PyGCuGraphTrainer(PyGTrainer):
@@ -103,8 +105,11 @@ class PyGCuGraphTrainer(PyGTrainer):
     @property
     def optimizer(self):
         if self.__optimizer is None:
-            self.__optimizer = torch.optim.Adam(
-                self.model.parameters(), lr=0.01, weight_decay=0.0005
+            self.__optimizer = ZeroRedundancyOptimizer(
+                self.model.parameters(),
+                lr=0.01,
+                weight_decay=0.0005,
+                optimizer_class=torch.optim.Adam,
             )
         return self.__optimizer
 
@@ -112,7 +117,7 @@ class PyGCuGraphTrainer(PyGTrainer):
     def num_epochs(self) -> int:
         return self.__num_epochs
 
-    def get_loader(self, epoch: int = 0, stage="train") -> int:
+    def get_loader(self, epoch: int = 0, stage="train"):
         import logging
 
         logger = logging.getLogger("PyGCuGraphTrainer")
@@ -127,17 +132,18 @@ class PyGCuGraphTrainer(PyGTrainer):
         else:
             raise ValueError(f"invalid stage {stage}")
 
+        input_files, num_batches = self.get_input_files(path, epoch=epoch, stage=stage)
         loader = BulkSampleLoader(
             self.data,
             self.data,
             None,  # FIXME get input nodes properly
             directory=path,
-            input_files=self.get_input_files(path, epoch=epoch, stage=stage),
+            input_files=input_files,
             **self.__loader_kwargs,
         )
 
         logger.info(f"got loader successfully on rank {self.rank}")
-        return loader
+        return loader, num_batches
 
     @property
     def data(self):
@@ -148,6 +154,7 @@ class PyGCuGraphTrainer(PyGTrainer):
 
         if self.__data is None:
             if self.__backend == "wholegraph":
+                logger.info("using wholegraph backend")
                 fs = FeatureStore(
                     backend="wholegraph",
                     wg_type="chunked",
@@ -247,7 +254,23 @@ class PyGCuGraphTrainer(PyGTrainer):
         file_list = np.array(os.listdir(path))
         file_list.sort()
 
-        splits = np.array_split(file_list, self.__world_size)
         np.random.seed(epoch)
-        np.random.shuffle(splits)
-        return splits[self.rank]
+        np.random.shuffle(file_list)
+
+        splits = np.array_split(file_list, self.__world_size)
+        
+        import logging
+        logger = logging.getLogger('PyGCuGraphTrainer')
+        logger.info(f"rank {self.rank} input files: {str(splits[self.rank])}")
+
+        split = splits[self.rank]
+
+        ex = re.compile(r'batch=([0-9]+)\-([0-9]+).parquet')
+        num_batches = min([
+            sum([int(ex.match(fname)[2]) - int(ex.match(fname)[1]) for fname in s])
+            for s in splits
+        ])
+        if num_batches == 0:
+            raise ValueError(f"Too few batches for training with world size {self.__world_size}")
+
+        return split, num_batches
