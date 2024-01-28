@@ -170,7 +170,6 @@ class PyGTrainer(Trainer):
                     )
 
                     num_batches += 1
-                    logger.info(f"{self.rank} / {iter_i}")
                     if iter_i % 20 == 1:
                         time_forward_iter = time_forward / num_batches
                         time_backward_iter = time_backward / num_batches
