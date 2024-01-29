@@ -1108,11 +1108,11 @@ void k_truss(raft::handle_t const& handle,
         });
 
       auto vertex_pair_buffer_p_r_q_r_tmp =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(2 * vertex_pair_buffer_p_r_edge_p_q_size,
-                                                                     handle.get_stream());
-      
-      rmm::device_uvector<vertex_t> decrease_num_triangles_p_r_q_r_tmp(2 * vertex_pair_buffer_p_r_edge_p_q_size,
-                                                                       handle.get_stream());
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          2 * vertex_pair_buffer_p_r_edge_p_q_size, handle.get_stream());
+
+      rmm::device_uvector<vertex_t> decrease_num_triangles_p_r_q_r_tmp(
+        2 * vertex_pair_buffer_p_r_edge_p_q_size, handle.get_stream());
       thrust::fill(handle.get_thrust_policy(),
                    decrease_num_triangles_p_r_q_r_tmp.begin(),
                    decrease_num_triangles_p_r_q_r_tmp.end(),
@@ -1122,18 +1122,18 @@ void k_truss(raft::handle_t const& handle,
                    get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
                    get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
                    get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r_tmp));
-      
 
       thrust::copy(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
                    get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_q),
-                   get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r_tmp) + vertex_pair_buffer_p_r_edge_p_q_size);
-      
+                   get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r_tmp) +
+                     vertex_pair_buffer_p_r_edge_p_q_size);
+
       thrust::sort(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r_tmp),
                    get_dataframe_buffer_end(
                      vertex_pair_buffer_p_r_q_r_tmp));  // FIXME: Remove duplicated edges
-      
+
       auto count_p_r_q_r =
         thrust::unique_count(handle.get_thrust_policy(),
                              get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r_tmp),
@@ -1152,7 +1152,7 @@ void k_truss(raft::handle_t const& handle,
                             get_dataframe_buffer_begin(vertex_pair_buffer_p_r_q_r),
                             decrease_num_triangles_p_r_q_r.begin(),
                             thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
-      
+
       // Add edges from vertex_pair_buffer
       prev_size            = size_dataframe_buffer(vertex_pair_buffer_p_r_q_r);
       accumulate_pair_size = size_dataframe_buffer(vertex_pair_buffer) + prev_size;
@@ -1183,11 +1183,17 @@ void k_truss(raft::handle_t const& handle,
                             get_dataframe_buffer_begin(vertex_pair_buffer),
                             num_triangles.begin(),
                             thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
-      
 
-      raft::print_device_vector("'vertex_pair_buffer' - src", std::get<0>(vertex_pair_buffer).data(), std::get<0>(vertex_pair_buffer).size(), std::cout);
-      raft::print_device_vector("'vertex_pair_buffer' - dst", std::get<1>(vertex_pair_buffer).data(), std::get<1>(vertex_pair_buffer).size(), std::cout);
-      raft::print_device_vector("'num_triangles_p_r_q_r' - ", num_triangles.data(), num_triangles.size(), std::cout);
+      raft::print_device_vector("'vertex_pair_buffer' - src",
+                                std::get<0>(vertex_pair_buffer).data(),
+                                std::get<0>(vertex_pair_buffer).size(),
+                                std::cout);
+      raft::print_device_vector("'vertex_pair_buffer' - dst",
+                                std::get<1>(vertex_pair_buffer).data(),
+                                std::get<1>(vertex_pair_buffer).size(),
+                                std::cout);
+      raft::print_device_vector(
+        "'num_triangles_p_r_q_r' - ", num_triangles.data(), num_triangles.size(), std::cout);
 
       edges_to_num_triangles = thrust::make_zip_iterator(
         get_dataframe_buffer_begin(vertex_pair_buffer), num_triangles.begin());
@@ -1251,30 +1257,22 @@ void k_truss(raft::handle_t const& handle,
                    std::get<1>(vertex_pair_buffer).begin(),
                    std::get<1>(vertex_pair_buffer).begin() + last_edge_idx,
                    edgelist_dsts.begin());
-      
+
       // Find if there exist edges with invalid triangle counts
-      auto invalid_edge_first =
-      thrust::stable_partition(handle.get_thrust_policy(),
-                               edges_to_num_triangles,
-                               edges_to_num_triangles + num_triangles.size(),
-                               [k] __device__(auto e) {
-                                 auto num_triangles = thrust::get<1>(e);
-                                 auto is_in_k_truss = num_triangles == 2;
-                                 return (num_triangles > k) || (num_triangles ==0) ;  // FIXME (k-2) * 2
-                               });
+      auto invalid_edge_first = thrust::stable_partition(
+        handle.get_thrust_policy(),
+        edges_to_num_triangles,
+        edges_to_num_triangles + num_triangles.size(),
+        [k] __device__(auto e) {
+          auto num_triangles = thrust::get<1>(e);
+          auto is_in_k_truss = num_triangles == 2;
+          return (num_triangles > k) || (num_triangles == 0);  // FIXME (k-2) * 2
+        });
 
       num_invalid_edges = static_cast<size_t>(
         thrust::distance(invalid_edge_first, edges_to_num_triangles + num_triangles.size()));
-      
+
       printf("\nfinal number of invalid edges = %d\n", num_invalid_edges);
-
-
-
-
-
-
-
-
     }
   }
 }
