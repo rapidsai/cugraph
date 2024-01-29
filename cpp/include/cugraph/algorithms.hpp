@@ -2058,9 +2058,9 @@ void triangle_count(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void k_truss(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            edge_t k,
-            bool do_expensive_check = false);
+             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             edge_t k,
+             bool do_expensive_check = false);
 
 /**
  * @brief     Compute Jaccard similarity coefficient
