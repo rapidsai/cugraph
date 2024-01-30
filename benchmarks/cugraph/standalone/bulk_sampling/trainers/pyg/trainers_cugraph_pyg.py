@@ -258,19 +258,24 @@ class PyGCuGraphTrainer(PyGTrainer):
         np.random.shuffle(file_list)
 
         splits = np.array_split(file_list, self.__world_size)
-        
+
         import logging
-        logger = logging.getLogger('PyGCuGraphTrainer')
+
+        logger = logging.getLogger("PyGCuGraphTrainer")
         logger.info(f"rank {self.rank} input files: {str(splits[self.rank])}")
 
         split = splits[self.rank]
 
-        ex = re.compile(r'batch=([0-9]+)\-([0-9]+).parquet')
-        num_batches = min([
-            sum([int(ex.match(fname)[2]) - int(ex.match(fname)[1]) for fname in s])
-            for s in splits
-        ])
+        ex = re.compile(r"batch=([0-9]+)\-([0-9]+).parquet")
+        num_batches = min(
+            [
+                sum([int(ex.match(fname)[2]) - int(ex.match(fname)[1]) for fname in s])
+                for s in splits
+            ]
+        )
         if num_batches == 0:
-            raise ValueError(f"Too few batches for training with world size {self.__world_size}")
+            raise ValueError(
+                f"Too few batches for training with world size {self.__world_size}"
+            )
 
         return split, num_batches

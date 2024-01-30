@@ -51,7 +51,10 @@ def pyg_num_workers(world_size: int) -> int:
 
 
 def calc_accuracy(
-    loader: NeighborLoader, max_num_batches: int, model: torch.nn.Module, num_classes: int
+    loader: NeighborLoader,
+    max_num_batches: int,
+    model: torch.nn.Module,
+    num_classes: int,
 ) -> float:
     """
     Evaluates the accuracy of a model given a loader over evaluation samples.
@@ -131,16 +134,14 @@ class PyGTrainer(Trainer):
         end_time_backward = start_time
 
         num_layers = len(self.model.module.convs)
-        
+
         for epoch in range(self.num_epochs):
             with td.algorithms.join.Join(
                 [self.model, self.optimizer], divide_by_initial_world_size=False
             ):
                 self.model.train()
                 loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
-                for iter_i, data in enumerate(
-                    loader
-                ):
+                for iter_i, data in enumerate(loader):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
@@ -247,7 +248,9 @@ class PyGTrainer(Trainer):
                 loader, max_num_batches = self.get_loader(epoch=epoch, stage="test")
                 num_classes = self.dataset.num_labels
 
-                acc = calc_accuracy(loader, max_num_batches, self.model.module, num_classes)
+                acc = calc_accuracy(
+                    loader, max_num_batches, self.model.module, num_classes
+                )
 
             if self.rank == 0:
                 print(

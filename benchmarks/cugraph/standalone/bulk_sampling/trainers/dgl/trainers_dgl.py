@@ -98,7 +98,16 @@ def log_batch(
 
 
 def train_epoch(
-    model, optimizer, loader, feature_store, epoch, num_classes, time_d, logger, rank, max_num_batches
+    model,
+    optimizer,
+    loader,
+    feature_store,
+    epoch,
+    num_classes,
+    time_d,
+    logger,
+    rank,
+    max_num_batches,
 ):
     """
     Train the model for one epoch.
@@ -185,7 +194,7 @@ def train_epoch(
                 epoch=epoch,
                 rank=rank,
             )
-        
+
         if max_num_batches is not None and iter_i >= max_num_batches:
             break
 
@@ -319,7 +328,7 @@ class DGLTrainer(Trainer):
                     loader=loader,
                     feature_store=self.data,
                     num_classes=self.dataset.num_labels,
-                    max_num_batches = max_num_batches,
+                    max_num_batches=max_num_batches,
                 )
                 print(f"Accuracy: {test_acc:.4f}%")
 

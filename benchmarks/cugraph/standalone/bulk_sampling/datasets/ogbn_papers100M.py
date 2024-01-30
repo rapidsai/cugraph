@@ -270,7 +270,7 @@ class OGBNPapers100MDataset(Dataset):
 
     def __load_x_wg(self) -> None:
         import logging
-        
+
         logger = logging.getLogger("OGBNPapers100MDataset")
         logger.info("Loading x into WG embedding...")
 
