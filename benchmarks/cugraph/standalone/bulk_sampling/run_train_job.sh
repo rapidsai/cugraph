@@ -85,5 +85,6 @@ srun \
             --fanout $FANOUT \
             --replication_factor $REPLICATION_FACTOR \
             --num_epochs $NUM_EPOCHS \
-            --use_wholegraph
+            --use_wholegraph \
+            --skip_download
 
