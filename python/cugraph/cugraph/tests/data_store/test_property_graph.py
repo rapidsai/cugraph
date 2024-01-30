@@ -25,7 +25,6 @@ from cugraph.generators import rmat
 from cugraph.datasets import cyber
 from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
