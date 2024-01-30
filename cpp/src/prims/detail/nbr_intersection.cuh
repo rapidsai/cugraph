@@ -529,22 +529,22 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
 
     edge_t intersection_size{};
     if (edge_partition_e_mask) {
-      intersection_size = set_intersection_by_key_with_mask<true>(
-        indices0,
-        indices1,
-        edge_property_values0,
-        edge_property_values1,
-        (*edge_partition_e_mask).value_first(),
-        nbr_intersection_indices.begin(),
-        nbr_intersection_e_property_values0,
-        nbr_intersection_e_property_values1,
-        local_edge_offset0,
-        local_degree0,
-        (std::is_same_v<FirstElementToIdxMap, void*> && edge_partition_e_mask),
-        local_edge_offset1,
-        local_degree1,
-        (std::is_same_v<SecondElementToIdxMap, void*> && edge_partition_e_mask),
-        nbr_intersection_offsets[i]);
+      intersection_size =
+        set_intersection_by_key_with_mask<true>(indices0,
+                                                indices1,
+                                                edge_property_values0,
+                                                edge_property_values1,
+                                                (*edge_partition_e_mask).value_first(),
+                                                nbr_intersection_indices.begin(),
+                                                nbr_intersection_e_property_values0,
+                                                nbr_intersection_e_property_values1,
+                                                local_edge_offset0,
+                                                local_degree0,
+                                                std::is_same_v<FirstElementToIdxMap, void*>,
+                                                local_edge_offset1,
+                                                local_degree1,
+                                                std::is_same_v<SecondElementToIdxMap, void*>,
+                                                nbr_intersection_offsets[i]);
     } else {
       intersection_size =
         set_intersection_by_key_with_mask<false>(indices0,
