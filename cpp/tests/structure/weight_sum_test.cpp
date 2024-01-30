@@ -236,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeightSum_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(WeightSum_Usecase{false}),
+    ::testing::Values(WeightSum_Usecase{false}, WeightSum_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -247,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeightSum_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(WeightSum_Usecase{false}),
+    ::testing::Values(WeightSum_Usecase{false}, WeightSum_Usecase{true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -259,7 +259,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeightSum_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(WeightSum_Usecase{false, false}),
+    ::testing::Values(WeightSum_Usecase{false, false}, WeightSum_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
