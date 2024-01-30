@@ -25,7 +25,7 @@ from ..utils import index_dtype
 from .graph import Graph
 
 if TYPE_CHECKING:  # pragma: no cover
-    from nx_cugraph.typing import NodeKey
+    from nx_cugraph.typing import AttrKey
 
 __all__ = ["DiGraph"]
 
@@ -47,10 +47,8 @@ class DiGraph(Graph):
         return nx.DiGraph
 
     @networkx_api
-    def number_of_edges(
-        self, u: NodeKey | None = None, v: NodeKey | None = None
-    ) -> int:
-        if u is not None or v is not None:
+    def size(self, weight: AttrKey | None = None) -> int:
+        if weight is not None:
             raise NotImplementedError
         return self.src_indices.size
 
@@ -177,8 +175,20 @@ class DiGraph(Graph):
     # Private methods #
     ###################
 
-    def _in_degrees_array(self):
-        return cp.bincount(self.dst_indices, minlength=self._N)
+    def _in_degrees_array(self, *, ignore_selfloops=False):
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = self.src_indices != dst_indices
+            dst_indices = dst_indices[not_selfloops]
+        if dst_indices.size == 0:
+            return cp.zeros(self._N, dtype=np.int64)
+        return cp.bincount(dst_indices, minlength=self._N)
 
-    def _out_degrees_array(self):
-        return cp.bincount(self.src_indices, minlength=self._N)
+    def _out_degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != self.dst_indices
+            src_indices = src_indices[not_selfloops]
+        if src_indices.size == 0:
+            return cp.zeros(self._N, dtype=np.int64)
+        return cp.bincount(src_indices, minlength=self._N)

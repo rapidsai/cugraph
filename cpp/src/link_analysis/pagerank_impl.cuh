@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -288,7 +288,7 @@ centrality_algorithm_metadata_t pagerank(
         edge_dst_dummy_property_t{}.view(),
         edge_dummy_property_t{}.view(),
         [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, auto) {
-          return src_val * 1.0 * alpha;
+          return src_val * alpha;
         },
         unvarying_part,
         reduce_op::plus<result_t>{},
