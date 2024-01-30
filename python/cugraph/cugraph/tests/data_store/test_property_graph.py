@@ -1480,7 +1480,6 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     assert len(G.edgelist.edgelist_df) == num_edges
 
 
-
 @pytest.mark.sg
 def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
     """

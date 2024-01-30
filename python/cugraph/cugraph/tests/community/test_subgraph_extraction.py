@@ -32,7 +32,7 @@ def setup_function():
 ###############################################################################
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
-    
+
     print("len'edgelist_df' = ", len(edgelist_df), " nxg' = ", nxg.size())
     print("edgelist_df = \n", edgelist_df)
     assert len(edgelist_df) == nxg.size()
