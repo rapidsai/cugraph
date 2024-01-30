@@ -33,8 +33,6 @@ def setup_function():
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
 
-    print("len'edgelist_df' = ", len(edgelist_df), " nxg' = ", nxg.size())
-    print("edgelist_df = \n", edgelist_df)
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
         assert nxg.has_edge(edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i])
@@ -43,7 +41,6 @@ def compare_edges(cg, nxg):
 
 def cugraph_call(M, verts, directed=True):
     # cugraph can be compared to nx graph of same type.
-    print("directed = ", directed)
     G = cugraph.Graph(directed=directed)
 
     cu_M = cudf.from_pandas(M)
@@ -52,9 +49,6 @@ def cugraph_call(M, verts, directed=True):
     # Drop this requirement when 'subgraph_extraction' leverages the CAPI graph
     # which calls renumbering
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="weight")
-
-    print("input_df = ", len(G.input_df))
-    print("edgelist.edgelist_df = ", len(G.edgelist.edgelist_df))
 
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
