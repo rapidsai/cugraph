@@ -25,6 +25,7 @@ from cugraph.generators import rmat
 from cugraph.datasets import cyber
 from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -1176,10 +1177,12 @@ def test_extract_subgraph_vertex_prop_condition_only(
         )
     # Should result in two edges, one a "relationship", the other a "referral"
     expected_edgelist = cudf.DataFrame(
-        {"src": [89216, 78634], "dst": [78634, 89216], "weights": [99, 8]}
+        {"src": [78634, 89216], "dst": [89216, 78634], "weights": [8, 99]}
     )
 
     if G.renumbered:
+        # FIXME: Can only use the attribute 'edgelist.edgelist_df' for directed
+        # graphs
         actual_edgelist = G.unrenumber(
             G.edgelist.edgelist_df, "src", preserve_order=True
         )
@@ -1454,6 +1457,9 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph, as_pg_first):
 def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     """
     Call extract with no args, should result in the entire property graph.
+
+    This test is no longer valid because parallel edges are dropped at
+    the plc graph creation.
     """
     (pG, data) = dataset1_PropertyGraph
 
@@ -1471,8 +1477,8 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     )
     # referrals has 3 edges with the same src/dst, so subtract 2 from
     # the total count since this is not creating a multigraph..
-    num_edges -= 2
     assert len(G.edgelist.edgelist_df) == num_edges
+
 
 
 @pytest.mark.sg

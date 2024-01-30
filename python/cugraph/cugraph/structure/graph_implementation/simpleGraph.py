@@ -480,10 +480,7 @@ class simpleGraphImpl:
                     edgelist_df[simpleGraphImpl.srcCol]
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
-                # FIXME: Drop multi edges with the CAPI instead.
-                vertex_col_name = [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-                edgelist_df = edgelist_df.groupby(
-                    by=[*vertex_col_name], as_index=False).min()
+                
         elif not use_initial_input_df and self.properties.renumbered:
             # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
@@ -492,10 +489,6 @@ class simpleGraphImpl:
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
                 
-                # FIXME: Drop multi edges with the CAPI instead.
-                vertex_col_name = simpleGraphImpl.srcCol + simpleGraphImpl.dstCol
-                edgelist_df = edgelist_df.groupby(
-                    by=[*vertex_col_name], as_index=False).min()
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
             )
@@ -518,6 +511,12 @@ class simpleGraphImpl:
                             simpleGraphImpl.dstCol: dstCol,
                         }
                     )
+        if not self.properties.multi_edge:
+            # Drop parallel edges for non MultiGraph
+            # FIXME: Drop multi edges with the CAPI instead.
+            vertex_col_name = [srcCol, dstCol]
+            edgelist_df = edgelist_df.groupby(
+                        by=[*vertex_col_name], as_index=False).min()
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
         # is not consistant with the SG API.

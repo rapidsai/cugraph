@@ -32,7 +32,9 @@ def setup_function():
 ###############################################################################
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
-
+    
+    print("len'edgelist_df' = ", len(edgelist_df), " nxg' = ", nxg.size())
+    print("edgelist_df = \n", edgelist_df)
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
         assert nxg.has_edge(edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i])
@@ -41,6 +43,7 @@ def compare_edges(cg, nxg):
 
 def cugraph_call(M, verts, directed=True):
     # cugraph can be compared to nx graph of same type.
+    print("directed = ", directed)
     G = cugraph.Graph(directed=directed)
 
     cu_M = cudf.from_pandas(M)
@@ -50,6 +53,9 @@ def cugraph_call(M, verts, directed=True):
     # which calls renumbering
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="weight")
 
+    print("input_df = ", len(G.input_df))
+    print("edgelist.edgelist_df = ", len(G.edgelist.edgelist_df))
+
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 
@@ -57,7 +63,7 @@ def cugraph_call(M, verts, directed=True):
 def nx_call(M, verts, directed=True):
     if directed:
         G = nx.from_pandas_edgelist(
-            M, source="0", target="1", create_using=nx.DiGraph()
+            M, source="0", target="1", create_using=nx.MultiGraph()
         )
     else:
         G = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
@@ -81,7 +87,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-def test_subgraph_extraction_Graph(graph_file):
+def test_subgraph_extraction_Graph_0(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
@@ -94,7 +100,7 @@ def test_subgraph_extraction_Graph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
     verts = np.zeros(3, dtype=np.int32)
