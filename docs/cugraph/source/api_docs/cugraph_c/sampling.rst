@@ -1,36 +1,12 @@
 Sampling
 ========
 
-Uniform Random Walks
---------------------
-.. doxygenfunction:: cugraph_uniform_random_walks
-    :project: libcugraph
+.. role:: py(code)
+   :language: c
+   :class: highlight
 
-Biased Random Walks
---------------------
-.. doxygenfunction:: cugraph_biased_random_walks
-    :project: libcugraph
+``#include <cugraph_c/sampling_algorithms.h>``
 
-Random Walks via Node2Vec
--------------------------
-.. doxygenfunction:: cugraph_node2vec_random_walks
-    :project: libcugraph
-
-Node2Vec
---------
-.. doxygenfunction:: cugraph_node2vec
-    :project: libcugraph
-
-Uniform Neighborhood Sampling
------------------------------
-.. doxygenfunction:: cugraph_uniform_neighbor_sample_with_edge_properties
-    :project: libcugraph
-
-.. doxygenfunction:: cugraph_uniform_neighbor_sample
-    :project: libcugraph
-
-Support
--------
 .. doxygengroup:: samplingC
      :project: libcugraph
      :members:

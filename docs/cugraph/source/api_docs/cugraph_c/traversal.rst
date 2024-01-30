@@ -1,29 +1,12 @@
 Traversal
 ==========
 
+.. role:: py(code)
+   :language: c
+   :class: highlight
 
-Breadth First Search (BFS)
---------------------------
-.. doxygenfunction:: cugraph_bfs
-    :project: libcugraph
+``#include <cugraph_c/traversal_algorithms.h>``
 
-Single-Source Shortest-Path (SSSP)
-----------------------------------
-.. doxygenfunction:: cugraph_sssp
-    :project: libcugraph
-
-Path Extraction
----------------
-.. doxygenfunction:: cugraph_extract_paths
-    :project: libcugraph
-
-Extract Max Path Length
------------------------
-.. doxygenfunction:: cugraph_extract_paths_result_get_max_path_length
-    :project: libcugraph
-
-Support
--------
 .. doxygengroup:: traversal
      :project: libcugraph
      :members:
