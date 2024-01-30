@@ -17,6 +17,7 @@ from . import (
     community,
     components,
     link_analysis,
+    operators,
     shortest_paths,
     traversal,
     tree,
@@ -29,6 +30,7 @@ from .core import *
 from .dag import *
 from .isolate import *
 from .link_analysis import *
+from .operators import *
 from .reciprocity import *
 from .shortest_paths import *
 from .traversal import *
