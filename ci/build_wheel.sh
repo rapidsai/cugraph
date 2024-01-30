@@ -57,7 +57,8 @@ python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 # pure-python packages should not have auditwheel run on them.
 if [[ ${package_name} == "nx-cugraph" ]] || \
    [[ ${package_name} == "cugraph-dgl" ]] || \
-   [[ ${package_name} == "cugraph-pyg" ]]; then
+   [[ ${package_name} == "cugraph-pyg" ]] || \
+   [[ ${package_name} == "cugraph-equivariant" ]]; then
     RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 dist
 else
     mkdir -p final_dist

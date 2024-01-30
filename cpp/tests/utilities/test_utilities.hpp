@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -377,18 +377,24 @@ template <typename T>
 std::vector<T> to_host(raft::handle_t const& handle, raft::device_span<T const> data)
 {
   std::vector<T> h_data(data.size());
-  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
-  handle.sync_stream();
+  if constexpr (std::is_same_v<T, bool>) {  // std::vector<bool> stores values in a packed format
+    auto h_tmp = new bool[data.size()];
+    raft::update_host(h_tmp, data.data(), data.size(), handle.get_stream());
+    handle.sync_stream();
+    std::transform(
+      h_tmp, h_tmp + data.size(), h_data.begin(), [](uint8_t v) { return static_cast<bool>(v); });
+    delete[] h_tmp;
+  } else {
+    raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
+    handle.sync_stream();
+  }
   return h_data;
 }
 
 template <typename T>
 std::vector<T> to_host(raft::handle_t const& handle, rmm::device_uvector<T> const& data)
 {
-  std::vector<T> h_data(data.size());
-  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
-  handle.sync_stream();
-  return h_data;
+  return to_host(handle, raft::device_span<T const>(data.data(), data.size()));
 }
 
 template <typename T>
@@ -396,11 +402,7 @@ std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
                                       std::optional<raft::device_span<T const>> data)
 {
   std::optional<std::vector<T>> h_data{std::nullopt};
-  if (data) {
-    h_data = std::vector<T>((*data).size());
-    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
-    handle.sync_stream();
-  }
+  if (data) { h_data = to_host(handle, *data); }
   return h_data;
 }
 
@@ -410,9 +412,7 @@ std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
 {
   std::optional<std::vector<T>> h_data{std::nullopt};
   if (data) {
-    h_data = std::vector<T>((*data).size());
-    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
-    handle.sync_stream();
+    h_data = to_host(handle, raft::device_span<T const>((*data).data(), (*data).size()));
   }
   return h_data;
 }
@@ -430,8 +430,16 @@ template <typename T>
 rmm::device_uvector<T> to_device(raft::handle_t const& handle, std::vector<T> const& data)
 {
   rmm::device_uvector<T> d_data(data.size(), handle.get_stream());
-  raft::update_device(d_data.data(), data.data(), data.size(), handle.get_stream());
-  handle.sync_stream();
+  if constexpr (std::is_same_v<T, bool>) {  // std::vector<bool> stores values in a packed format
+    auto h_tmp = new bool[data.size()];
+    std::copy(data.begin(), data.end(), h_tmp);
+    raft::update_device(d_data.data(), h_tmp, h_tmp + data.size(), handle.get_stream());
+    handle.sync_stream();
+    delete[] h_tmp;
+  } else {
+    raft::update_device(d_data.data(), data.data(), data.size(), handle.get_stream());
+    handle.sync_stream();
+  }
   return d_data;
 }
 
@@ -453,11 +461,7 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
                                                 std::optional<std::vector<T>> const& data)
 {
   std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
-  if (data) {
-    d_data = rmm::device_uvector<T>(data->size(), handle.get_stream());
-    raft::update_host(d_data->data(), data->data(), data->size(), handle.get_stream());
-    handle.sync_stream();
-  }
+  if (data) { d_data = to_device(handle, *data); }
   return d_data;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -298,6 +298,20 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_range_first_ + major_offset;
   }
 
+  __device__ thrust::optional<vertex_t> major_idx_from_major_nocheck(vertex_t major) const noexcept
+  {
+    if (major_hypersparse_first_ && (major >= *major_hypersparse_first_)) {
+      auto major_hypersparse_idx =
+        detail::major_hypersparse_idx_from_major_nocheck_impl(*dcs_nzd_vertices_, major);
+      return major_hypersparse_idx
+               ? thrust::make_optional((*major_hypersparse_first_ - major_range_first_) +
+                                       *major_hypersparse_idx)
+               : thrust::nullopt;
+    } else {
+      return major - major_range_first_;
+    }
+  }
+
   __device__ vertex_t major_from_major_idx_nocheck(vertex_t major_idx) const noexcept
   {
     if (major_hypersparse_first_) {
@@ -339,6 +353,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return dcs_nzd_vertices_ ? thrust::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
                              : thrust::nullopt;
   }
+
   __host__ __device__ thrust::optional<vertex_t> dcs_nzd_vertex_count() const
   {
     return dcs_nzd_vertices_
@@ -458,6 +473,11 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ __device__ vertex_t major_from_major_offset_nocheck(vertex_t major_offset) const noexcept
   {
     return major_offset;
+  }
+
+  __device__ thrust::optional<vertex_t> major_idx_from_major_nocheck(vertex_t major) const noexcept
+  {
+    return major_offset_from_major_nocheck(major);
   }
 
   __device__ vertex_t major_from_major_idx_nocheck(vertex_t major_idx) const noexcept
