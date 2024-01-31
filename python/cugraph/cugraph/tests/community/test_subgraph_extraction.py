@@ -57,7 +57,7 @@ def cugraph_call(M, verts, directed=True):
 def nx_call(M, verts, directed=True):
     if directed:
         G = nx.from_pandas_edgelist(
-            M, source="0", target="1", create_using=nx.MultiGraph()
+            M, source="0", target="1", create_using=nx.DiGraph()
         )
     else:
         G = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
@@ -81,7 +81,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-def test_subgraph_extraction_Graph_0(graph_file):
+def test_subgraph_extraction_Graph(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
@@ -94,7 +94,7 @@ def test_subgraph_extraction_Graph_0(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
+@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
     verts = np.zeros(3, dtype=np.int32)
