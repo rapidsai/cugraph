@@ -59,10 +59,10 @@ struct test_jaccard_t {
            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
            std::optional<raft::device_span<vertex_t const>> vertices,
            bool use_weights,
-           size_t topk) const
+           std::optional<size_t> topk) const
   {
     return cugraph::jaccard_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, true, topk);
+      handle, graph_view, edge_weight_view, vertices, topk);
   }
 };
 
@@ -100,10 +100,10 @@ struct test_sorensen_t {
            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
            std::optional<raft::device_span<vertex_t const>> vertices,
            bool use_weights,
-           size_t topk) const
+           std::optional<size_t> topk) const
   {
     return cugraph::sorensen_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, true, topk);
+      handle, graph_view, edge_weight_view, vertices, topk);
   }
 };
 
@@ -141,10 +141,10 @@ struct test_overlap_t {
            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
            std::optional<raft::device_span<vertex_t const>> vertices,
            bool use_weights,
-           size_t topk) const
+           std::optional<size_t> topk) const
   {
     return cugraph::overlap_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, true, topk);
+      handle, graph_view, edge_weight_view, vertices, topk);
   }
 };
 
