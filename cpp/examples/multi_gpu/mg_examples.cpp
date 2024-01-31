@@ -151,36 +151,7 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
                      threshold,
                      resolution);
 
-  // Renumber map
-  for (size_t r = 0; r < comm_size; r++) {
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if (comm_rank == r) {
-      if (renumber_map) {
-        std::cout << "rank " << r << " : " << std::endl;
-        auto renumber_map_title =
-          std::string("renumber_map:").append(std::to_string(comm_rank)).c_str();
-        raft::print_device_vector(
-          renumber_map_title, (*renumber_map).data(), (*renumber_map).size(), std::cout);
-      }
-    }
-  }
-
-  for (size_t r = 0; r < comm_size; r++) {
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if (comm_rank == r) {
-      std::cout << "rank " << r << " : " << std::endl;
-      auto cluster_title = std::string("cluster_v:").append(std::to_string(comm_rank)).c_str();
-      raft::print_device_vector(
-        cluster_title, cluster_assignments.data(), cluster_assignments.size(), std::cout);
-    }
-  }
-
-  for (size_t r = 0; r < comm_size; r++) {
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if (comm_rank == r) {
-      std::cout << "rank : " << comm_rank << ", modularity : " << modularity << std::endl;
-    }
-  }
+  std::cout << "rank : " << comm_rank << ", modularity : " << modularity << std::endl;
 }
 
 int main(int argc, char** argv)
