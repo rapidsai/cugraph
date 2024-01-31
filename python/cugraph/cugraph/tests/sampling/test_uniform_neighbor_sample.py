@@ -146,7 +146,12 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # Retrieve the input dataframe.
     # FIXME: in simpleGraph and simpleDistributedGraph, G.edgelist.edgelist_df
     # should be 'None' if the datasets was never renumbered
+    # FIXME: Drop multi edges with the CAPI instead.
+    vertex_col_name = ["src", "dst"]
     input_df = G.edgelist.edgelist_df
+    input_df = input_df.groupby(
+                by=[*vertex_col_name], as_index=False
+            ).min()
 
     result_nbr = uniform_neighbor_sample(
         G,
