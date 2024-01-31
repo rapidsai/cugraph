@@ -23,8 +23,8 @@
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
- *  @{
  */
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,18 +60,21 @@ cugraph_error_code_t cugraph_triangle_count(const cugraph_resource_handle_t* han
                                             cugraph_error_t** error);
 
 /**
+ * @ingroup community
  * @brief     Get triangle counting vertices
  */
 cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_vertices(
   cugraph_triangle_count_result_t* result);
 
 /**
+ * @ingroup community
  * @brief     Get triangle counting counts
  */
 cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_counts(
   cugraph_triangle_count_result_t* result);
 
 /**
+ * @ingroup community
  * @brief     Free a triangle count result
  *
  * @param [in] result     The result from a sampling algorithm
@@ -147,24 +150,28 @@ cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
                                     cugraph_error_t** error);
 
 /**
+ * @ingroup community
  * @brief     Get hierarchical clustering vertices
  */
 cugraph_type_erased_device_array_view_t* cugraph_hierarchical_clustering_result_get_vertices(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
+ * @ingroup community
  * @brief     Get hierarchical clustering clusters
  */
 cugraph_type_erased_device_array_view_t* cugraph_hierarchical_clustering_result_get_clusters(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
+ * @ingroup community
  * @brief     Get modularity
  */
 double cugraph_hierarchical_clustering_result_get_modularity(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
+ * @ingroup community
  * @brief     Free a hierarchical clustering result
  *
  * @param [in] result     The result from a sampling algorithm
@@ -423,7 +430,3 @@ void cugraph_clustering_result_free(cugraph_clustering_result_t* result);
 #ifdef __cplusplus
 }
 #endif
-
-/**
- *  @}
- */
