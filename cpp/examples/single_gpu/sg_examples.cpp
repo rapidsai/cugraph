@@ -116,7 +116,7 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
 
 int main(int argc, char** argv)
 {
-  std::cout << "Usage: ./sg_examples [path to a csv graph file] [optional memory allocation mode]"
+  std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
             << std::endl;
 
   std::string const& csv_graph_file_path = argc < 2 ? "../graph.csv" : argv[1];

@@ -195,7 +195,7 @@ int main(int argc, char** argv)
   auto const comm_size = handle->get_comms().get_size();
 
   if (!comm_rank) {
-    std::cout << "Usage: ./sg_examples [path to a csv graph file] [optional memory allocation mode]"
+    std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
               << std::endl;
   }
 
