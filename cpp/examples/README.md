@@ -4,9 +4,11 @@ Example codes on how to use libcugraph.
 
 ## Contents
 
-- sg_examples: contains simple code on how to use libcugraph to run different cugraph algorithms in a signle GPU node.
+- sg_examples: simple code on how to use libcugraph to run different graph algorithms in a signle GPU node.
 
-- mg_examples: contains example code on how to use libcugraph to run different cugraph algorithms in a multi GPU node.
+- mg_examples: example code on how to use libcugraph to run different graph algorithms in a multi GPU node.
+
+-  graph_partitioning: contains code to explain vertex and edge partitioning in cugraph.
 
 ## Build instructions:
 

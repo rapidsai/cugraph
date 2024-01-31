@@ -28,3 +28,4 @@ build_example() {
 
 build_example single_gpu
 build_example multi_gpu
+build_example graph_partitioning
