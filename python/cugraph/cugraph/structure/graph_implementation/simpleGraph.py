@@ -511,11 +511,8 @@ class simpleGraphImpl:
                             simpleGraphImpl.dstCol: dstCol,
                         }
                     )
-        if not self.properties.multi_edge:            
-            if (
-                type(srcCol) is list
-                and type(dstCol) is list
-            ):
+        if not self.properties.multi_edge:
+            if type(srcCol) is list and type(dstCol) is list:
                 vertex_col_name = srcCol + dstCol
 
             else:

@@ -149,9 +149,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # FIXME: Drop multi edges with the CAPI instead.
     vertex_col_name = ["src", "dst"]
     input_df = G.edgelist.edgelist_df
-    input_df = input_df.groupby(
-                by=[*vertex_col_name], as_index=False
-            ).min()
+    input_df = input_df.groupby(by=[*vertex_col_name], as_index=False).min()
 
     result_nbr = uniform_neighbor_sample(
         G,
