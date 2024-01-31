@@ -845,13 +845,12 @@ class simpleGraphImpl:
         Get the number of edges in the graph.
         """
         if not self.properties.multi_edge:
-            # 
+            #
             # Drop parallel edges for non MultiGraph
             # FIXME: Drop multi edges with the CAPI instead.
             if self.edgelist is not None:
                 self.edgelist.edgelist_df = self.edgelist.edgelist_df.groupby(
-                    by=[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol],
-                    as_index=False
+                    by=[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol], as_index=False
                 ).min()
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
