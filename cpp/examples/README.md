@@ -1,7 +1,7 @@
 # libcugraph examples
 
 Example codes on how to use libcugraph.
-Contents:
+## Contents:
 
 - sg_examples: contains simple code on how to use libcugraph to run different cugraph algorithms in a signle GPU node.
 
