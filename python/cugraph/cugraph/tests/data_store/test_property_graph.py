@@ -1476,7 +1476,8 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     )
     # referrals has 3 edges with the same src/dst, so subtract 2 from
     # the total count since this is not creating a multigraph..
-    assert len(G.edgelist.edgelist_df) == num_edges
+    num_edges -= 2
+    assert len(G.view_edge_list()) == num_edges
 
 
 @pytest.mark.sg
