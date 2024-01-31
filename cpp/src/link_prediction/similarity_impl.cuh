@@ -240,16 +240,18 @@ all_pairs_similarity(raft::handle_t const& handle,
   }
 
   if (topk) {
-    std::cout << "topk = " << *topk << std::endl;
     //  We can reduce memory footprint by doing work in batches and
     //  computing/updating topk with each batch
-    rmm::device_uvector<vertex_t> top_v1(*topk, handle.get_stream());
-    rmm::device_uvector<vertex_t> top_v2(*topk, handle.get_stream());
-    rmm::device_uvector<weight_t> top_score(*topk, handle.get_stream());
+    rmm::device_uvector<vertex_t> top_v1(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> top_v2(0, handle.get_stream());
+    rmm::device_uvector<weight_t> top_score(0, handle.get_stream());
+
+    top_v1.reserve(*topk, handle.get_stream());
+    top_v2.reserve(*topk, handle.get_stream());
+    top_score.reserve(*topk, handle.get_stream());
 
     //   FIXME: Think about what this should be
-    // edge_t const MAX_PAIRS{2 << 20};
-    edge_t const MAX_PAIRS{32768};
+    edge_t const MAX_PAIRS{2 << 20};
 
     rmm::device_uvector<edge_t> degrees = graph_view.compute_out_degrees(handle);
     rmm::device_uvector<edge_t> two_hop_degrees(degrees.size(), handle.get_stream());
@@ -258,6 +260,8 @@ all_pairs_similarity(raft::handle_t const& handle,
     // FIXME: If sources is specified, this could be done on a subset of the vertices
     //
     edge_dst_property_t<GraphViewType, edge_t> edge_dst_degrees(handle, graph_view);
+    update_edge_dst_property(handle, graph_view, degrees.begin(), edge_dst_degrees);
+
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
@@ -268,6 +272,23 @@ all_pairs_similarity(raft::handle_t const& handle,
       edge_t{0},
       reduce_op::plus<edge_t>{},
       two_hop_degrees.begin());
+
+    if (source_vertices) {
+      rmm::device_uvector<edge_t> gathered_degrees(sources.size(), handle.get_stream());
+
+      thrust::gather(
+        handle.get_thrust_policy(),
+        thrust::make_transform_iterator(
+          sources.begin(),
+          cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+        thrust::make_transform_iterator(
+          sources.end(),
+          cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+        two_hop_degrees.begin(),
+        gathered_degrees.begin());
+
+      two_hop_degrees = std::move(gathered_degrees);
+    }
 
     thrust::sort_by_key(handle.get_thrust_policy(),
                         two_hop_degrees.begin(),
@@ -282,16 +303,20 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     size_t current_pos{0};
     size_t next_pos{0};
-    edge_t next_boundary{MAX_PAIRS};
 
     while (true) {
-      std::cout << "processing a batch, current_pos = " << current_pos << std::endl;
       if (current_pos < two_hop_degrees.size()) {
-        next_pos = current_pos + thrust::distance(two_hop_degrees.begin() + current_pos,
-                                                  thrust::upper_bound(handle.get_thrust_policy(),
-                                                                      two_hop_degrees.begin(),
-                                                                      two_hop_degrees.end(),
-                                                                      next_boundary));
+        edge_t next_boundary;
+        raft::update_host(
+          &next_boundary, two_hop_degrees.data() + current_pos, 1, handle.get_stream());
+        next_boundary += MAX_PAIRS;
+
+        next_pos =
+          current_pos + thrust::distance(two_hop_degrees.begin() + current_pos,
+                                         thrust::upper_bound(handle.get_thrust_policy(),
+                                                             two_hop_degrees.begin() + current_pos,
+                                                             two_hop_degrees.end(),
+                                                             next_boundary));
 
         if (next_pos == current_pos) next_pos++;
       }
@@ -308,7 +333,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       auto [offsets, v2] = k_hop_nbrs(
         handle,
         graph_view,
-        raft::device_span<vertex_t const>{sources.begin() + current_pos, next_pos - current_pos},
+        raft::device_span<vertex_t const>{sources.data() + current_pos, next_pos - current_pos},
         2,
         do_expensive_check);
 
@@ -351,16 +376,18 @@ all_pairs_similarity(raft::handle_t const& handle,
                           thrust::make_zip_iterator(v1.begin(), v2.begin()),
                           thrust::greater<weight_t>{});
 
-      if (score.size() < (2 * (*topk))) {
-        score.resize(2 * (*topk), handle.get_stream());
-        v1.resize(2 * (*topk), handle.get_stream());
-        v2.resize(2 * (*topk), handle.get_stream());
+      size_t v1_keep = std::min(*topk, v1.size());
+
+      if (score.size() < (top_v1.size() + v1_keep)) {
+        score.resize(top_v1.size() + v1_keep, handle.get_stream());
+        v1.resize(score.size(), handle.get_stream());
+        v2.resize(score.size(), handle.get_stream());
       }
 
-      thrust::copy(handle.get_thrust_policy(), top_v1.begin(), top_v1.end(), v1.begin() + *topk);
-      thrust::copy(handle.get_thrust_policy(), top_v2.begin(), top_v2.end(), v2.begin() + *topk);
+      thrust::copy(handle.get_thrust_policy(), top_v1.begin(), top_v1.end(), v1.begin() + v1_keep);
+      thrust::copy(handle.get_thrust_policy(), top_v2.begin(), top_v2.end(), v2.begin() + v1_keep);
       thrust::copy(
-        handle.get_thrust_policy(), top_score.begin(), top_score.end(), score.begin() + *topk);
+        handle.get_thrust_policy(), top_score.begin(), top_score.end(), score.begin() + v1_keep);
 
       thrust::sort_by_key(handle.get_thrust_policy(),
                           score.begin(),
@@ -368,17 +395,26 @@ all_pairs_similarity(raft::handle_t const& handle,
                           thrust::make_zip_iterator(v1.begin(), v2.begin()),
                           thrust::greater<weight_t>{});
 
-      thrust::copy(handle.get_thrust_policy(), v1.begin(), v1.end(), top_v1.begin());
-      thrust::copy(handle.get_thrust_policy(), v2.begin(), v2.end(), top_v2.begin());
-      thrust::copy(handle.get_thrust_policy(), score.begin(), score.end(), top_score.begin());
+      if (top_v1.size() < std::min(*topk, v1.size())) {
+        top_v1.resize(std::min(*topk, v1.size()), handle.get_stream());
+        top_v2.resize(top_v1.size(), handle.get_stream());
+        top_score.resize(top_v1.size(), handle.get_stream());
+      }
+
+      thrust::copy(
+        handle.get_thrust_policy(), v1.begin(), v1.begin() + top_v1.size(), top_v1.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), v2.begin(), v2.begin() + top_v1.size(), top_v2.begin());
+      thrust::copy(handle.get_thrust_policy(),
+                   score.begin(),
+                   score.begin() + top_v1.size(),
+                   top_score.begin());
 
       current_pos = next_pos;
     }
 
     return std::make_tuple(std::move(top_v1), std::move(top_v2), std::move(top_score));
   } else {
-    std::cout << "topk not specified " << std::endl;
-
     auto [offsets, v2] =
       k_hop_nbrs(handle,
                  graph_view,

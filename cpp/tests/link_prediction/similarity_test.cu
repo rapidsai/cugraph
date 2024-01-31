@@ -31,9 +31,9 @@ struct Similarity_Usecase {
   bool use_weights{false};
   bool check_correctness{true};
   bool all_pairs{false};
-  size_t max_seeds{std::numeric_limits<size_t>::max()};
-  size_t max_vertex_pairs_to_check{std::numeric_limits<size_t>::max()};
-  size_t topk{std::numeric_limits<size_t>::max()};
+  std::optional<size_t> max_seeds{std::nullopt};
+  std::optional<size_t> max_vertex_pairs_to_check{std::nullopt};
+  std::optional<size_t> topk{std::nullopt};
 };
 
 template <typename input_usecase_t>
@@ -97,13 +97,13 @@ class Tests_Similarity
     rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
     std::optional<raft::device_span<vertex_t const>> sources_span{std::nullopt};
 
-    if (similarity_usecase.max_seeds != std::numeric_limits<size_t>::max()) {
+    if (similarity_usecase.max_seeds) {
       sources = cugraph::select_random_vertices(
         handle,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         rng_state,
-        std::min(similarity_usecase.max_seeds,
+        std::min(*similarity_usecase.max_seeds,
                  static_cast<size_t>(graph_view.number_of_vertices())),
         false,
         false);
@@ -111,7 +111,6 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.all_pairs) {
-      std::cout << "testing all pairs" << std::endl;
       std::tie(v1, v2, result_score) = test_functor.run(handle,
                                                         graph_view,
                                                         edge_weight_view,
@@ -170,7 +169,9 @@ class Tests_Similarity
     if (similarity_usecase.check_correctness) {
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view, edge_weight_view);
 
-      size_t check_size = std::min(v1.size(), similarity_usecase.max_vertex_pairs_to_check);
+      size_t check_size = similarity_usecase.max_vertex_pairs_to_check
+                            ? std::min(v1.size(), *similarity_usecase.max_vertex_pairs_to_check)
+                            : v1.size();
 
       //
       // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1,
@@ -186,11 +187,19 @@ class Tests_Similarity
       raft::update_host(
         h_result_score.data(), result_score.data(), check_size, handle.get_stream());
 
-      similarity_compare(graph_view.number_of_vertices(),
-                         std::tie(src, dst, wgt),
-                         std::tie(h_vertex_pair_1, h_vertex_pair_2),
-                         h_result_score,
-                         test_functor);
+      if (similarity_usecase.use_weights) {
+        weighted_similarity_compare(graph_view.number_of_vertices(),
+                                    std::tie(src, dst, wgt),
+                                    std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                                    h_result_score,
+                                    test_functor);
+      } else {
+        similarity_compare(graph_view.number_of_vertices(),
+                           std::tie(src, dst, wgt),
+                           std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                           h_result_score,
+                           test_functor);
+      }
     }
   }
 };
@@ -293,18 +302,22 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_Rmat,
   ::testing::Combine(
     ::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
-                      // Similarity_Usecase{true, true, false, 20, 100},
                       Similarity_Usecase{false, true, false, 20, 100},
-                      // Similarity_Usecase{true, true, false, 20, 100},
                       Similarity_Usecase{false, true, false, 1000, 100, 10},
-                      // Similarity_Usecase{true, true, false, 20, 100, 10}),
                       Similarity_Usecase{false, true, true, 20, 100},
-                      // Similarity_Usecase{true, true, true, 20, 100},
                       Similarity_Usecase{false, true, true, 20, 100},
-                      // Similarity_Usecase{true, true, true, 20, 100},
-                      Similarity_Usecase{false, true, true, 20, 100, 10}  //,
-                      // Similarity_Usecase{true, true, true, 20, 100, 10}),
-                      ),
+                      Similarity_Usecase{false, true, true, 20, 100, 10},
+#if 0
+                      // FIXME: See Issue #4132... these tests don't work for multi-graph right now
+                      Similarity_Usecase{true, true, true, 20, 100},
+                      Similarity_Usecase{true, true, true, 20, 100},
+                      Similarity_Usecase{true, true, false, 20, 100, 10},
+                      Similarity_Usecase{true, true, false, 20, 100},
+                      Similarity_Usecase{true, true, false, 20, 100},
+                      Similarity_Usecase{true, true, true, 20, 100, 10},
+#endif
+                      Similarity_Usecase{false, true, true, std::nullopt, std::nullopt, 100},
+                      Similarity_Usecase{false, true, true, std::nullopt, std::nullopt, 10}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
