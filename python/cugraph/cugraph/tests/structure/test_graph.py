@@ -415,7 +415,6 @@ def test_consolidation(graph_file):
     cluster.close()
 
 
-"""
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
@@ -432,7 +431,6 @@ def test_two_hop_neighbors(graph_file):
 
     find_two_paths(df, Mcsr)
     check_all_two_hops(df, Mcsr)
-"""
 
 
 # Test
