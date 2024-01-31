@@ -16,7 +16,7 @@ Run `build.sh` to build the above listed examples.
 
 `executable path_to_your_csv_graph_file [memory allocation mode]`
 
-Memory allocation mode can be one of the followings
+Memory allocation mode can be one of the followings -
 
 - cuda
 - pool 
