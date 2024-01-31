@@ -1456,9 +1456,6 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph, as_pg_first):
 def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     """
     Call extract with no args, should result in the entire property graph.
-
-    This test is no longer valid because parallel edges are dropped at
-    the plc graph creation.
     """
     (pG, data) = dataset1_PropertyGraph
 
