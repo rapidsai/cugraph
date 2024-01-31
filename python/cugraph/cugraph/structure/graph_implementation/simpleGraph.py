@@ -421,7 +421,7 @@ class simpleGraphImpl:
             print("edgelist is None")
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
-   
+
         srcCol = self.source_columns
         dstCol = self.destination_columns
         """
@@ -513,8 +513,10 @@ class simpleGraphImpl:
                         }
                     )
         if not self.properties.multi_edge:
-            if type(self.source_columns) is list and \
-                type(self.destination_columns) is list:
+            if (
+                type(self.source_columns) is list
+                and type(self.destination_columns) is list
+            ):
                 vertex_col_name = srcCol + dstCol
 
             else:
@@ -1335,9 +1337,7 @@ class simpleGraphImpl:
         if not self.properties.multi_edge:
             # Drop parallel edges for non MultiGraph
             # FIXME: Drop multi edges with the CAPI instead.
-            df = df.groupby(
-                by=[*vertex_col_name], as_index=False
-            ).min()
+            df = df.groupby(by=[*vertex_col_name], as_index=False).min()
 
         neighbors = df[df[simpleGraphImpl.srcCol] == n][
             simpleGraphImpl.dstCol
