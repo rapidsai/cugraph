@@ -418,7 +418,6 @@ class simpleGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
-            print("edgelist is None")
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
