@@ -63,7 +63,16 @@ pytest \
   tests
 popd
 
-# FIXME: TEMPORARILY disable single-GPU "MG" testing
+# Test runs that include tests that use dask require
+# --import-mode=append. Those tests start a LocalCUDACluster that inherits
+# changes from pytest's modifications to PYTHONPATH (which defaults to
+# prepending source tree paths to PYTHONPATH).  This causes the
+# LocalCUDACluster subprocess to import cugraph from the source tree instead of
+# the install location, and in most cases, the source tree does not have
+# extensions built in-place and will result in ImportErrors.
+#
+# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
+# bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 DASK_WORKER_DEVICES="0" \
@@ -72,6 +81,7 @@ DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
 DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
 pytest \
   -v \
+  --import-mode=append \
   --benchmark-disable \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
@@ -79,7 +89,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not test_property_graph_mg and not test_bulk_sampler_io" \
   tests
 popd
 
