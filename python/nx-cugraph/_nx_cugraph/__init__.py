@@ -24,7 +24,7 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": "https://github.com/rapidsai/cugraph/tree/branch-24.02/python/nx-cugraph",
+    "url": "https://github.com/rapidsai/cugraph/tree/branch-24.04/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -43,6 +43,7 @@ _info = {
         "chvatal_graph",
         "circular_ladder_graph",
         "clustering",
+        "complement",
         "complete_bipartite_graph",
         "complete_graph",
         "complete_multipartite_graph",
@@ -105,6 +106,7 @@ _info = {
         "path_graph",
         "petersen_graph",
         "reciprocity",
+        "reverse",
         "sedgewick_maze_graph",
         "single_source_shortest_path_length",
         "single_target_shortest_path_length",
@@ -196,7 +198,7 @@ def get_info():
 
 
 # FIXME: can this use the standard VERSION file and update mechanism?
-__version__ = "24.02.00"
+__version__ = "24.04.00"
 
 if __name__ == "__main__":
     from pathlib import Path

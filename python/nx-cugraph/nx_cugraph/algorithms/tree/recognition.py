@@ -21,20 +21,20 @@ __all__ = ["is_arborescence", "is_branching", "is_forest", "is_tree"]
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(plc="weakly_connected_components", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="weakly_connected_components")
 def is_arborescence(G):
     G = _to_directed_graph(G)
     return is_tree(G) and int(G._in_degrees_array().max()) <= 1
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(plc="weakly_connected_components", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="weakly_connected_components")
 def is_branching(G):
     G = _to_directed_graph(G)
     return is_forest(G) and int(G._in_degrees_array().max()) <= 1
 
 
-@networkx_algorithm(plc="weakly_connected_components", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="weakly_connected_components")
 def is_forest(G):
     G = _to_graph(G)
     if len(G) == 0:
@@ -60,7 +60,7 @@ def is_forest(G):
     return True
 
 
-@networkx_algorithm(plc="weakly_connected_components", version_added="24.02")
+@networkx_algorithm(version_added="24.02", _plc="weakly_connected_components")
 def is_tree(G):
     G = _to_graph(G)
     if len(G) == 0:

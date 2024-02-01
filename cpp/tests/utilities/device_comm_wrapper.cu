@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,10 @@ rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle,
   rmm::device_uvector<T> gathered_v(
     is_root ? std::reduce(rx_sizes.begin(), rx_sizes.end()) : size_t{0}, handle.get_stream());
 
+  using comm_datatype_t = std::conditional_t<std::is_same_v<T, bool>, uint8_t, T>;
   cugraph::device_gatherv(handle.get_comms(),
-                          d_input.data(),
-                          gathered_v.data(),
+                          reinterpret_cast<comm_datatype_t const*>(d_input.data()),
+                          reinterpret_cast<comm_datatype_t*>(gathered_v.data()),
                           d_input.size(),
                           rx_sizes,
                           rx_displs,
@@ -64,9 +65,10 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
   rmm::device_uvector<T> gathered_v(std::reduce(rx_sizes.begin(), rx_sizes.end()),
                                     handle.get_stream());
 
+  using comm_datatype_t = std::conditional_t<std::is_same_v<T, bool>, uint8_t, T>;
   cugraph::device_allgatherv(handle.get_comms(),
-                             d_input.data(),
-                             gathered_v.data(),
+                             reinterpret_cast<comm_datatype_t const*>(d_input.data()),
+                             reinterpret_cast<comm_datatype_t*>(gathered_v.data()),
                              rx_sizes,
                              rx_displs,
                              handle.get_stream());
@@ -75,6 +77,9 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
 }
 
 // explicit instantiation
+
+template rmm::device_uvector<bool> device_gatherv(raft::handle_t const& handle,
+                                                  raft::device_span<bool const> d_input);
 
 template rmm::device_uvector<int32_t> device_gatherv(raft::handle_t const& handle,
                                                      raft::device_span<int32_t const> d_input);
@@ -90,6 +95,9 @@ template rmm::device_uvector<float> device_gatherv(raft::handle_t const& handle,
 
 template rmm::device_uvector<double> device_gatherv(raft::handle_t const& handle,
                                                     raft::device_span<double const> d_input);
+
+template rmm::device_uvector<bool> device_allgatherv(raft::handle_t const& handle,
+                                                     raft::device_span<bool const> d_input);
 
 template rmm::device_uvector<int32_t> device_allgatherv(raft::handle_t const& handle,
                                                         raft::device_span<int32_t const> d_input);
