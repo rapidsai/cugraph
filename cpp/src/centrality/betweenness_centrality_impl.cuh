@@ -69,7 +69,7 @@ struct extract_edge_e_op_t {
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
     thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-    weight_t edge_centrality)
+    weight_t edge_centrality) const
   {
     return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
              ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
