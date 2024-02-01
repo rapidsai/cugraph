@@ -4,7 +4,7 @@ Example codes on how to use libcugraph.
 
 ## Contents
 
-- sg_examples: simple code on how to use libcugraph to run different graph algorithms in a signle GPU node.
+- sg_examples: simple code on how to use libcugraph to run different graph algorithms in a single GPU node.
 
 - mg_examples: example code on how to use libcugraph to run different graph algorithms in a multi GPU node.
 

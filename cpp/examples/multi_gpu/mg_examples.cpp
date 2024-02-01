@@ -131,10 +131,26 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
                false,
                std::numeric_limits<vertex_t>::max());
 
+  size_t max_nr_elements_to_print = 20;
+
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+  auto distances_title = std::string("distances").append(std::to_string(comm_rank));
+  raft::print_device_vector(distances_title.c_str(),
+                            d_distances.begin(),
+                            std::min<size_t>(d_distances.size(), max_nr_elements_to_print),
+                            std::cout);
+
+  auto predecessors_title = std::string("predecessors").append(std::to_string(comm_rank));
+  raft::print_device_vector(predecessors_title.c_str(),
+                            d_predecessors.begin(),
+                            std::min<size_t>(d_predecessors.size(), max_nr_elements_to_print),
+                            std::cout);
+
   // Louvain
 
-  rmm::device_uvector<vertex_t> cluster_assignments(graph_view.local_vertex_partition_range_size(),
-                                                    handle.get_stream());
+  rmm::device_uvector<vertex_t> d_cluster_assignments(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
   weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
@@ -146,10 +162,19 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
                      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
                      graph_view,
                      edge_weight_view,
-                     cluster_assignments.data(),
+                     d_cluster_assignments.data(),
                      max_level,
                      threshold,
                      resolution);
+
+  auto cluster_assignments_title =
+    std::string("cluster_assignments_").append(std::to_string(comm_rank));
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(
+    cluster_assignments_title.c_str(),
+    d_cluster_assignments.begin(),
+    std::min<size_t>(d_cluster_assignments.size(), max_nr_elements_to_print),
+    std::cout);
 
   std::cout << "rank : " << comm_rank << ", modularity : " << modularity << std::endl;
 }

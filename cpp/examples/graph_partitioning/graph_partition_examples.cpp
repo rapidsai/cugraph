@@ -122,7 +122,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
   // Number of vertices mapped to this process, ie the size of
   // the vertex partition assigned to this process
 
-  vertex_t size_of_the_vetex_partition_assigned_to_this_process =
+  vertex_t size_of_the_vertex_partition_assigned_to_this_process =
     graph_view.local_vertex_partition_range_size();
 
   // NOTE: The `renumber_map` contains the vertices assigned to this process.
@@ -130,10 +130,9 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
   // Print verties mapped to this process
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   if (renumber_map) {
-    auto vertex_paritition_title =
-      std::string("vertices@rank_").append(std::to_string(comm_rank)).c_str();
+    auto vertex_partition_title = std::string("vertices@rank_").append(std::to_string(comm_rank));
     raft::print_device_vector(
-      vertex_paritition_title, (*renumber_map).data(), (*renumber_map).size(), std::cout);
+      vertex_partition_title.c_str(), (*renumber_map).data(), (*renumber_map).size(), std::cout);
   }
 
   std::vector<vertex_t> h_vertices_in_this_proces((*renumber_map).size());
@@ -144,7 +143,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                     handle.get_stream());
   handle.sync_stream();
 
-  assert(size_of_the_vetex_partition_assigned_to_this_process == (*renumber_map).size());
+  assert(size_of_the_vertex_partition_assigned_to_this_process == (*renumber_map).size());
 
   // The position of a vertex in the `renumber_map` is indicative of its new (aka renumberd) vertex
   // id
@@ -159,22 +158,25 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   vertex_t renumber_vertex_id_of_local_last = graph_view.local_vertex_partition_range_last();
 
+  // Print original vertex ids, new (aka renumbered) vertex ids and the ranks of the owner processes
+
   if (renumber_map) {
-    thrust::for_each(thrust::host,
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.begin(),
-                       thrust::make_counting_iterator(renumber_vertex_id_of_local_first))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.end(),
-                       thrust::make_counting_iterator(renumber_vertex_id_of_local_last))),
-                     [comm_rank](auto old_and_new_id_pair) {
-                       auto old_id = thrust::get<0>(old_and_new_id_pair);
-                       auto new_id = thrust::get<1>(old_and_new_id_pair);
-                       printf("owned by rank %d, original vertex id %d --- becomes -->  %d\n",
-                              comm_rank,
-                              static_cast<int>(old_id),
-                              static_cast<int>(new_id));
-                     });
+    thrust::for_each(
+      thrust::host,
+      thrust::make_zip_iterator(
+        thrust::make_tuple(h_vertices_in_this_proces.begin(),
+                           thrust::make_counting_iterator(renumber_vertex_id_of_local_first))),
+      thrust::make_zip_iterator(
+        thrust::make_tuple(h_vertices_in_this_proces.end(),
+                           thrust::make_counting_iterator(renumber_vertex_id_of_local_last))),
+      [comm_rank](auto old_and_new_id_pair) {
+        auto old_id = thrust::get<0>(old_and_new_id_pair);
+        auto new_id = thrust::get<1>(old_and_new_id_pair);
+        printf("owner rank = %d, original vertex id %d ----->  new (renumbered) vertex id %d\n",
+               comm_rank,
+               static_cast<int>(old_id),
+               static_cast<int>(new_id));
+      });
   }
   // Look into edge partitions and their associated edge properties (if any)
   // Non-owning of the edge edge_weights object
@@ -191,18 +193,16 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
     auto offsets_title = std::string("offsets_")
                            .append(std::to_string(comm_rank))
                            .append("_")
-                           .append(std::to_string(ep_idx))
-                           .c_str();
+                           .append(std::to_string(ep_idx));
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(offsets_title, offsets.begin(), offsets.size(), std::cout);
+    raft::print_device_vector(offsets_title.c_str(), offsets.begin(), offsets.size(), std::cout);
 
     auto indices_title = std::string("indices_")
                            .append(std::to_string(comm_rank))
                            .append("_")
-                           .append(std::to_string(ep_idx))
-                           .c_str();
+                           .append(std::to_string(ep_idx));
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(indices_title, indices.begin(), indices.size(), std::cout);
+    raft::print_device_vector(indices_title.c_str(), indices.begin(), indices.size(), std::cout);
 
     // Edge property values
     if (edge_weight_view) {
@@ -215,10 +215,9 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
       auto weights_title = std::string("weights_")
                              .append(std::to_string(comm_rank))
                              .append("_")
-                             .append(std::to_string(ep_idx))
-                             .c_str();
+                             .append(std::to_string(ep_idx));
       raft::print_device_vector(
-        weights_title, value_firsts[ep_idx], edge_counts[ep_idx], std::cout);
+        weights_title.c_str(), value_firsts[ep_idx], edge_counts[ep_idx], std::cout);
     }
   }
 }
