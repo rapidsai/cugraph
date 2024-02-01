@@ -107,8 +107,9 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   bool renumber = true;  // must be true for distributed graph.
 
-  // Read a graph (along with edge properties e.g. edge weights, if provided) from the input csv
-  // file
+  // Read a graph (along with edge properties e.g. edge weights, if provided) from
+  // the input csv file
+
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
       handle, csv_graph_file_path, true, renumber);
@@ -116,8 +117,15 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
   // Meta of the non-owning view of the graph object store vertex/edge partitioning map
   auto graph_view = graph.view();
 
+  // Non-owning of the edge edge_weights object
+  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
   // Total number of vertices
   vertex_t global_number_of_vertices = graph_view.number_of_vertices();
+
+  //
+  // Look into vertex partitions
+  //
 
   // Number of vertices mapped to this process, ie the size of
   // the vertex partition assigned to this process
@@ -145,15 +153,14 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   assert(size_of_the_vertex_partition_assigned_to_this_process == (*renumber_map).size());
 
-  // The position of a vertex in the `renumber_map` is indicative of its new (aka renumberd) vertex
-  // id
-
-  // The new (aka renumbed) id of the first vertex, ie the vertex at position 0 of `renumber_map`,
-  // assigned to this process
+  // The position of a vertex in the `renumber_map` is indicative of its new (aka renumberd)
+  // vertex id. The new (aka renumbered) id of the first vertex, ie the vertex at position 0
+  // of `renumber_map`, assigned to this process
 
   vertex_t renumber_vertex_id_of_local_first = graph_view.local_vertex_partition_range_first();
 
-  // The new (aka renumbed) id of the last vertex, ie the vertex at position 0 of `renumber_map`,
+  // The new (aka renumbered) id of the last vertex, ie the vertex at position
+  // `size_of_the_vertex_partition_assigned_to_this_process` - 1 of `renumber_map`,
   // assigned to this process
 
   vertex_t renumber_vertex_id_of_local_last = graph_view.local_vertex_partition_range_last();
@@ -178,9 +185,10 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                static_cast<int>(new_id));
       });
   }
+
+  //
   // Look into edge partitions and their associated edge properties (if any)
-  // Non-owning of the edge edge_weights object
-  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+  //
 
   for (size_t ep_idx = 0; ep_idx < graph_view.number_of_local_edge_partitions(); ++ep_idx) {
     // Toplogy
