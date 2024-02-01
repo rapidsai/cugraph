@@ -63,7 +63,16 @@ pytest \
   tests
 popd
 
-# FIXME: TEMPORARILY disable single-GPU "MG" testing
+# Test runs that include tests that use dask require
+# --import-mode=append. Those tests start a LocalCUDACluster that inherits
+# changes from pytest's modifications to PYTHONPATH (which defaults to
+# prepending source tree paths to PYTHONPATH).  This causes the
+# LocalCUDACluster subprocess to import cugraph from the source tree instead of
+# the install location, and in most cases, the source tree does not have
+# extensions built in-place and will result in ImportErrors.
+#
+# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
+# bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 DASK_WORKER_DEVICES="0" \
@@ -72,6 +81,7 @@ DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
 DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
 pytest \
   -v \
+  --import-mode=append \
   --benchmark-disable \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
@@ -79,7 +89,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not test_property_graph_mg and not test_bulk_sampler_io" \
   tests
 popd
 
@@ -245,6 +255,47 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   fi
 else
   rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
+fi
+
+# test cugraph-equivariant
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+    # Reuse cugraph-dgl's test env for cugraph-equivariant
+    set +u
+    conda activate test_cugraph_dgl
+    set -u
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      --channel pytorch \
+      --channel nvidia \
+      cugraph-equivariant
+    pip install e3nn==0.5.1
+
+    rapids-print-env
+
+    rapids-logger "pytest cugraph-equivariant"
+    pushd python/cugraph-equivariant/cugraph_equivariant
+    pytest \
+      --cache-clear \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_equivariant \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+  else
+    rapids-logger "skipping cugraph-equivariant pytest on ARM64"
+  fi
+else
+  rapids-logger "skipping cugraph-equivariant pytest on CUDA!=11.8"
 fi
 
 rapids-logger "Test script exiting with value: $EXITCODE"
