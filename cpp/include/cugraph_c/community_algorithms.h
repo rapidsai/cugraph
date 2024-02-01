@@ -25,7 +25,6 @@
 /** @defgroup community Community algorithms
  */
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
