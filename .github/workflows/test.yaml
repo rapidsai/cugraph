@@ -77,7 +77,7 @@ jobs:
       script: ci/test_wheel_cugraph-pyg.sh
   wheel-tests-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
