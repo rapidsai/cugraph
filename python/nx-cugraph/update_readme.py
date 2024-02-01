@@ -14,9 +14,9 @@
 import io
 import re
 
-from nx_cugraph.scripts.print_table import main as nxcg_print_table
-
 import pandas as pd
+
+from nx_cugraph.scripts.print_table import main as nxcg_print_table
 
 table_header_string = "| feature/algo | release/target version |"
 table_header_patt = re.compile(r"\| feature/algo[\s]+\| release/target version[\s]+\|")
