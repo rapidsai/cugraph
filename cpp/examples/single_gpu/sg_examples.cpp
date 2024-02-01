@@ -116,11 +116,13 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
 
 int main(int argc, char** argv)
 {
-  std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
-            << std::endl;
+  if (argc < 2) {
+    std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
+              << std::endl;
+    exit(0);
+  }
 
-  std::string const& csv_graph_file_path = argc < 2 ? "../graph.csv" : argv[1];
-  std::string const& allocation_mode     = argc < 3 ? "pool" : argv[2];
+  std::string const& allocation_mode     = argc < 3 ? "cuda" : argv[2];
   std::unique_ptr<raft::handle_t> handle = initialize_sg_handle(allocation_mode);
 
   constexpr bool multi_gpu = false;
@@ -129,5 +131,5 @@ int main(int argc, char** argv)
   using edge_t   = int32_t;
   using weight_t = float;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path);
+  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1]);
 }

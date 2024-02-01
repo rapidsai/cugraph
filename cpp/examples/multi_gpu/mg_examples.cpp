@@ -100,10 +100,10 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
   auto const comm_size = handle.get_comms().get_size();
 
   std::cout << "Rank_" << comm_rank << ", reading graph from " << csv_graph_file_path << std::endl;
-
+  bool renumber = true;  // must be true for distributed graph.
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, true, true);
+      handle, csv_graph_file_path, true, renumber);
 
   auto graph_view       = graph.view();
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
@@ -156,19 +156,20 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
 
 int main(int argc, char** argv)
 {
-  std::string const& csv_graph_file_path = argc < 2 ? "../graph.csv" : argv[1];
-  std::string const& allocation_mode     = argc < 3 ? "pool" : argv[2];
+  if (argc < 2) {
+    std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
+              << std::endl;
+    exit(0);
+  }
+
+  std::string const& csv_graph_file_path = argv[1];
+  std::string const& allocation_mode     = argc < 3 ? "cuda" : argv[2];
 
   initialize_mpi_and_set_device(argc, argv);
   std::unique_ptr<raft::handle_t> handle = initialize_mg_handle(allocation_mode);
 
   auto const comm_rank = handle->get_comms().get_rank();
   auto const comm_size = handle->get_comms().get_size();
-
-  if (!comm_rank) {
-    std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
-              << std::endl;
-  }
 
   using vertex_t           = int32_t;
   using edge_t             = int32_t;

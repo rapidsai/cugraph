@@ -24,6 +24,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <thrust/for_each.h>
+
 #include "iostream"
 #include "string"
 using namespace std;
@@ -91,6 +93,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 
 /**
  * @brief This function reads graph from an input csv file and
+ * display vertex and edge partitions.
  */
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -102,25 +105,80 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   std::cout << "Rank_" << comm_rank << ", reading graph from " << csv_graph_file_path << std::endl;
 
+  bool renumber = true;  // must be true for distributed graph.
+
+  // Read a graph (along with edge properties e.g. edge weights, if provided) from the input csv
+  // file
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, true, true);
+      handle, csv_graph_file_path, true, renumber);
 
-  auto graph_view       = graph.view();
-  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
-  assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
+  // Meta of the non-owning view of the graph object store vertex/edge partitioning map
+  auto graph_view = graph.view();
 
-  // Renumber map
+  // Total number of vertices
+  vertex_t global_number_of_vertices = graph_view.number_of_vertices();
 
+  // Number of vertices mapped to this process, ie the size of
+  // the vertex partition assigned to this process
+
+  vertex_t size_of_the_vetex_partition_assigned_to_this_process =
+    graph_view.local_vertex_partition_range_size();
+
+  // NOTE: The `renumber_map` contains the vertices assigned to this process.
+
+  // Print verties mapped to this process
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   if (renumber_map) {
-    auto renumber_map_title =
-      std::string("renumber_map_:").append(std::to_string(comm_rank)).c_str();
+    auto vertex_paritition_title =
+      std::string("vertices@rank_").append(std::to_string(comm_rank)).c_str();
     raft::print_device_vector(
-      renumber_map_title, (*renumber_map).data(), (*renumber_map).size(), std::cout);
+      vertex_paritition_title, (*renumber_map).data(), (*renumber_map).size(), std::cout);
   }
 
-  // Look into edge partitions
+  std::vector<vertex_t> h_vertices_in_this_proces((*renumber_map).size());
+
+  raft::update_host(h_vertices_in_this_proces.data(),
+                    (*renumber_map).data(),
+                    (*renumber_map).size(),
+                    handle.get_stream());
+  handle.sync_stream();
+
+  assert(size_of_the_vetex_partition_assigned_to_this_process == (*renumber_map).size());
+
+  // The position of a vertex in the `renumber_map` is indicative of its new (aka renumberd) vertex
+  // id
+
+  // The new (aka renumbed) id of the first vertex, ie the vertex at position 0 of `renumber_map`,
+  // assigned to this process
+
+  vertex_t renumber_vertex_id_of_local_first = graph_view.local_vertex_partition_range_first();
+
+  // The new (aka renumbed) id of the last vertex, ie the vertex at position 0 of `renumber_map`,
+  // assigned to this process
+
+  vertex_t renumber_vertex_id_of_local_last = graph_view.local_vertex_partition_range_last();
+
+  if (renumber_map) {
+    thrust::for_each(thrust::host,
+                     thrust::make_zip_iterator(thrust::make_tuple(
+                       h_vertices_in_this_proces.begin(),
+                       thrust::make_counting_iterator(renumber_vertex_id_of_local_first))),
+                     thrust::make_zip_iterator(thrust::make_tuple(
+                       h_vertices_in_this_proces.end(),
+                       thrust::make_counting_iterator(renumber_vertex_id_of_local_last))),
+                     [comm_rank](auto old_and_new_id_pair) {
+                       auto old_id = thrust::get<0>(old_and_new_id_pair);
+                       auto new_id = thrust::get<1>(old_and_new_id_pair);
+                       printf("owned by rank %d, original vertex id %d --- becomes -->  %d\n",
+                              comm_rank,
+                              static_cast<int>(old_id),
+                              static_cast<int>(new_id));
+                     });
+  }
+  // Look into edge partitions and their associated edge properties (if any)
+  // Non-owning of the edge edge_weights object
+  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
   for (size_t ep_idx = 0; ep_idx < graph_view.number_of_local_edge_partitions(); ++ep_idx) {
     // Toplogy
