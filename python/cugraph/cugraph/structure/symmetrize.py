@@ -182,6 +182,7 @@ def symmetrize_ddf(
     else:
         result = ddf
     if multi:
+        result = result.reset_index(drop=True).repartition(npartitions=len(workers) * 2)
         return result
     else:
         warnings.warn(

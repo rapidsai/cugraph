@@ -39,6 +39,7 @@ from cugraph.dask.common.part_utils import (
 )
 from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
 import cugraph.dask.comms.comms as Comms
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 
 
 class simpleDistributedGraphImpl:
@@ -457,6 +458,13 @@ class simpleDistributedGraphImpl:
                     edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
                 else:
                     is_multi_column = True
+
+            if not self.properties.multi_edge:
+                # Drop parallel edges for non MultiGraph
+                # FIXME: Drop multi edges with the CAPI instead.
+                _client = default_client()
+                workers = _client.scheduler_info()["workers"]
+                edgelist_df = _memory_efficient_drop_duplicates(edgelist_df, [srcCol, dstCol], len(workers))
 
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]

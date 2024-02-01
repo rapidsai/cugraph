@@ -26,6 +26,7 @@ import cugraph.dask as dcg
 from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.dask import uniform_neighbor_sample
 from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 from cugraph.datasets import email_Eu_core, small_tree
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
@@ -135,6 +136,13 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
     dg = input_combo["MGGraph"]
 
     input_df = dg.input_df
+    # Drop parallel edges for non MultiGraph
+    # FIXME: Drop multi edges with the CAPI instead.
+    vertex_col_name = ["src", "dst"]
+    workers = dask_client.scheduler_info()["workers"]
+    input_df = _memory_efficient_drop_duplicates(
+        input_df, vertex_col_name, len(workers))
+
     result_nbr = uniform_neighbor_sample(
         dg,
         input_combo["start_list"],
