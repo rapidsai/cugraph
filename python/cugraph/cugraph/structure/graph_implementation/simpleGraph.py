@@ -264,7 +264,7 @@ class simpleGraphImpl:
                 source,
                 destination,
                 edge_attr,
-                multi=self.properties.multi_edge, # Deprecated parameter
+                multi=self.properties.multi_edge,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -279,7 +279,7 @@ class simpleGraphImpl:
                 elist,
                 source,
                 destination,
-                multi=self.properties.multi_edge, # Deprecated parameter
+                multi=self.properties.multi_edge,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 

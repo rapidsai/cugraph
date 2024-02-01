@@ -141,7 +141,8 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
     vertex_col_name = ["src", "dst"]
     workers = dask_client.scheduler_info()["workers"]
     input_df = _memory_efficient_drop_duplicates(
-        input_df, vertex_col_name, len(workers))
+        input_df, vertex_col_name, len(workers)
+    )
 
     result_nbr = uniform_neighbor_sample(
         dg,

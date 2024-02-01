@@ -464,7 +464,9 @@ class simpleDistributedGraphImpl:
                 # FIXME: Drop multi edges with the CAPI instead.
                 _client = default_client()
                 workers = _client.scheduler_info()["workers"]
-                edgelist_df = _memory_efficient_drop_duplicates(edgelist_df, [srcCol, dstCol], len(workers))
+                edgelist_df = _memory_efficient_drop_duplicates(
+                    edgelist_df, [srcCol, dstCol], len(workers)
+                )
 
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]
