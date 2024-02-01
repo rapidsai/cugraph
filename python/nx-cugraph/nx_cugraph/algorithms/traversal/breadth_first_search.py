@@ -68,7 +68,7 @@ def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbor
         raise NotImplementedError(
             "sort_neighbors argument in generic_bfs_edges is not currently supported"
         )
-    return bfs_edges(source, depth_limit=depth_limit)
+    return bfs_edges(G, source, depth_limit=depth_limit)
 
 
 @generic_bfs_edges._can_run
