@@ -80,18 +80,26 @@ class BackendInterface:
         nxver = parse(nx.__version__)
 
         if nxver.major == 3 and nxver.minor <= 2:
-            # Networkx versions prior to 3.2.1 have tests written to expect
-            # sp.sparse.linalg.ArpackNoConvergence exceptions raised on no
-            # convergence in HITS. Newer versions since the merge of
-            # https://github.com/networkx/networkx/pull/7084 expect
-            # nx.PowerIterationFailedConvergence, which is what nx_cugraph.hits
-            # raises, so we mark them as xfail for previous versions of NX.
             xfail.update(
                 {
+                    # NetworkX versions prior to 3.2.1 have tests written to
+                    # expect sp.sparse.linalg.ArpackNoConvergence exceptions
+                    # raised on no convergence in HITS. Newer versions since
+                    # the merge of
+                    # https://github.com/networkx/networkx/pull/7084 expect
+                    # nx.PowerIterationFailedConvergence, which is what
+                    # nx_cugraph.hits raises, so we mark them as xfail for
+                    # previous versions of NX.
                     key(
                         "test_hits.py:TestHITS.test_hits_not_convergent"
                     ): "nx_cugraph.hits raises updated exceptions not caught in "
                     "these tests",
+                    # NetworkX versions 3.2 and older contain tests that fail
+                    # with pytest>=8. Assume pytest>=8 and mark xfail.
+                    key(
+                        "test_strongly_connected.py:"
+                        "TestStronglyConnected.test_connected_raise"
+                    ): "test is incompatible with pytest>=8",
                 }
             )
 
