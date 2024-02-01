@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1176,12 +1176,10 @@ def test_extract_subgraph_vertex_prop_condition_only(
         )
     # Should result in two edges, one a "relationship", the other a "referral"
     expected_edgelist = cudf.DataFrame(
-        {"src": [78634, 89216], "dst": [89216, 78634], "weights": [8, 99]}
+        {"src": [89216, 78634], "dst": [78634, 89216], "weights": [99, 8]}
     )
 
     if G.renumbered:
-        # FIXME: Can only use the attribute 'edgelist.edgelist_df' for directed
-        # graphs
         actual_edgelist = G.unrenumber(
             G.edgelist.edgelist_df, "src", preserve_order=True
         )
@@ -1474,7 +1472,7 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     # referrals has 3 edges with the same src/dst, so subtract 2 from
     # the total count since this is not creating a multigraph..
     num_edges -= 2
-    assert len(G.view_edge_list()) == num_edges
+    assert len(G.edgelist.edgelist_df) == num_edges
 
 
 @pytest.mark.sg

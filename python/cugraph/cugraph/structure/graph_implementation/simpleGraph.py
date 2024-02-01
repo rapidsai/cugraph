@@ -264,7 +264,7 @@ class simpleGraphImpl:
                 source,
                 destination,
                 edge_attr,
-                multi=True,  # Deprecated parameter
+                multi=self.properties.multi_edge, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -279,7 +279,7 @@ class simpleGraphImpl:
                 elist,
                 source,
                 destination,
-                multi=True,  # Deprecated parameter
+                multi=self.properties.multi_edge, # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -511,18 +511,6 @@ class simpleGraphImpl:
                             simpleGraphImpl.dstCol: dstCol,
                         }
                     )
-        if not self.properties.multi_edge:
-            if type(srcCol) is list and type(dstCol) is list:
-                vertex_col_name = srcCol + dstCol
-
-            else:
-                vertex_col_name = [srcCol, dstCol]
-
-            # Drop parallel edges for non MultiGraph
-            # FIXME: Drop multi edges with the CAPI instead.
-            edgelist_df = edgelist_df.groupby(
-                by=[*vertex_col_name], as_index=False
-            ).min()
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
         # is not consistant with the SG API.
@@ -844,14 +832,6 @@ class simpleGraphImpl:
         """
         Get the number of edges in the graph.
         """
-        if not self.properties.multi_edge:
-            #
-            # Drop parallel edges for non MultiGraph
-            # FIXME: Drop multi edges with the CAPI instead.
-            if self.edgelist is not None:
-                self.edgelist.edgelist_df = self.edgelist.edgelist_df.groupby(
-                    by=[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol], as_index=False
-                ).min()
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
@@ -1335,14 +1315,6 @@ class simpleGraphImpl:
             n = node[0]
 
         df = self.edgelist.edgelist_df
-
-        vertex_col_name = [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-
-        if not self.properties.multi_edge:
-            # Drop parallel edges for non MultiGraph
-            # FIXME: Drop multi edges with the CAPI instead.
-            df = df.groupby(by=[*vertex_col_name], as_index=False).min()
-
         neighbors = df[df[simpleGraphImpl.srcCol] == n][
             simpleGraphImpl.dstCol
         ].reset_index(drop=True)
