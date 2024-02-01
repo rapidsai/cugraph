@@ -211,3 +211,4 @@ void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
 #ifdef __cplusplus
 }
 #endif
+
