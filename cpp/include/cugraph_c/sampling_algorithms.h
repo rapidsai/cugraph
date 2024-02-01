@@ -605,4 +605,3 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
 #ifdef __cplusplus
 }
 #endif
-
