@@ -23,7 +23,11 @@ if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
 else
     # Test runs that include tests that use dask require
     # --import-mode=append. See test_python.sh for details.
+    # FIXME: Adding PY_IGNORE_IMPORTMISMATCH=1 to workaround conftest.py import
+    # mismatch error seen by nx-cugraph after using pytest 8 and
+    # --import-mode=append.
     RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets \
+    PY_IGNORE_IMPORTMISMATCH=1 \
     DASK_WORKER_DEVICES="0" \
     DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
     DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
