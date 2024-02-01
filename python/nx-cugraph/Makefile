@@ -2,7 +2,7 @@
 SHELL= /bin/bash
 
 .PHONY: all
-all: plugin-info lint
+all: plugin-info lint readme
 
 .PHONY: lint
 lint:
@@ -15,3 +15,7 @@ lint-update:
 .PHONY: plugin-info
 plugin-info:
 	python _nx_cugraph/__init__.py
+
+.PHONY: readme
+readme:
+	python update_readme.py README.md
