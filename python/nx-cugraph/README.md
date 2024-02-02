@@ -89,106 +89,146 @@ interface to its CUDA-based graph analytics library) and
 [CuPy](https://cupy.dev/) (a GPU-accelerated array library) to NetworkX's
 familiar and easy-to-use API.
 
-Below is the list of algorithms that are currently supported or planned to be
-supported in nx-cugraph.
+Below is the list of algorithms that are currently supported in nx-cugraph.
 
-| feature/algo                         | release/target version   |
-|:-------------------------------------|:-------------------------|
-| ancestors                            | 24.02                    |
-| average_clustering                   | 24.02                    |
-| barbell_graph                        | 23.12                    |
-| betweenness_centrality               | 23.10                    |
-| bfs_edges                            | 24.02                    |
-| bfs_layers                           | 24.02                    |
-| bfs_predecessors                     | 24.02                    |
-| bfs_successors                       | 24.02                    |
-| bfs_tree                             | 24.02                    |
-| bull_graph                           | 23.12                    |
-| caveman_graph                        | 23.12                    |
-| chvatal_graph                        | 23.12                    |
-| circular_ladder_graph                | 23.12                    |
-| clustering                           | 24.02                    |
-| complement                           | 24.02                    |
-| complete_bipartite_graph             | 23.12                    |
-| complete_graph                       | 23.12                    |
-| complete_multipartite_graph          | 23.12                    |
-| connected_components                 | 23.12                    |
-| core_number                          | 24.02                    |
-| cubical_graph                        | 23.12                    |
-| cycle_graph                          | 23.12                    |
-| davis_southern_women_graph           | 23.12                    |
-| degree_centrality                    | 23.12                    |
-| desargues_graph                      | 23.12                    |
-| descendants                          | 24.02                    |
-| descendants_at_distance              | 24.02                    |
-| diamond_graph                        | 23.12                    |
-| dodecahedral_graph                   | 23.12                    |
-| edge_betweenness_centrality          | 23.10                    |
-| eigenvector_centrality               | 23.12                    |
-| empty_graph                          | 23.12                    |
-| florentine_families_graph            | 23.12                    |
-| from_pandas_edgelist                 | 23.12                    |
-| from_scipy_sparse_array              | 23.12                    |
-| frucht_graph                         | 23.12                    |
-| generic_bfs_edges                    | 24.02                    |
-| heawood_graph                        | 23.12                    |
-| hits                                 | 23.12                    |
-| house_graph                          | 23.12                    |
-| house_x_graph                        | 23.12                    |
-| icosahedral_graph                    | 23.12                    |
-| in_degree_centrality                 | 23.12                    |
-| is_arborescence                      | 24.02                    |
-| is_bipartite                         | 24.02                    |
-| is_branching                         | 24.02                    |
-| is_connected                         | 23.12                    |
-| is_forest                            | 24.02                    |
-| is_isolate                           | 23.10                    |
-| is_strongly_connected                | 24.02                    |
-| is_tree                              | 24.02                    |
-| is_weakly_connected                  | 24.02                    |
-| isolates                             | 23.10                    |
-| k_truss                              | 23.12                    |
-| karate_club_graph                    | 23.12                    |
-| katz_centrality                      | 23.12                    |
-| krackhardt_kite_graph                | 23.12                    |
-| ladder_graph                         | 23.12                    |
-| leiden                               | ?                        |
-| les_miserables_graph                 | 23.12                    |
-| lollipop_graph                       | 23.12                    |
-| louvain_communities                  | 23.10                    |
-| moebius_kantor_graph                 | 23.12                    |
-| node_connected_component             | 23.12                    |
-| null_graph                           | 23.12                    |
-| number_connected_components          | 23.12                    |
-| number_of_isolates                   | 23.10                    |
-| number_strongly_connected_components | 24.02                    |
-| number_weakly_connected_components   | 24.02                    |
-| octahedral_graph                     | 23.12                    |
-| out_degree_centrality                | 23.12                    |
-| overall_reciprocity                  | 24.02                    |
-| pagerank                             | 23.12                    |
-| pappus_graph                         | 23.12                    |
-| path_graph                           | 23.12                    |
-| petersen_graph                       | 23.12                    |
-| reciprocity                          | 24.02                    |
-| reverse                              | 24.02                    |
-| sedgewick_maze_graph                 | 23.12                    |
-| single_source_shortest_path_length   | 23.12                    |
-| single_target_shortest_path_length   | 23.12                    |
-| star_graph                           | 23.12                    |
-| strongly_connected_components        | 24.02                    |
-| tadpole_graph                        | 23.12                    |
-| tetrahedral_graph                    | 23.12                    |
-| transitivity                         | 24.02                    |
-| triangles                            | 24.02                    |
-| trivial_graph                        | 23.12                    |
-| truncated_cube_graph                 | 23.12                    |
-| truncated_tetrahedron_graph          | 23.12                    |
-| turan_graph                          | 23.12                    |
-| tutte_graph                          | 23.12                    |
-| uniform_neighbor_sample              | ?                        |
-| weakly_connected_components          | 24.02                    |
-| wheel_graph                          | 23.12                    |
+### Algorithms
+
+```
+bipartite
+ ├─ basic
+ │   └─ is_bipartite
+ └─ generators
+     └─ complete_bipartite_graph
+centrality
+ ├─ betweenness
+ │   ├─ betweenness_centrality
+ │   └─ edge_betweenness_centrality
+ ├─ degree_alg
+ │   ├─ degree_centrality
+ │   ├─ in_degree_centrality
+ │   └─ out_degree_centrality
+ ├─ eigenvector
+ │   └─ eigenvector_centrality
+ └─ katz
+     └─ katz_centrality
+cluster
+ ├─ average_clustering
+ ├─ clustering
+ ├─ transitivity
+ └─ triangles
+community
+ └─ louvain
+     └─ louvain_communities
+components
+ ├─ connected
+ │   ├─ connected_components
+ │   ├─ is_connected
+ │   ├─ node_connected_component
+ │   └─ number_connected_components
+ └─ weakly_connected
+     ├─ is_weakly_connected
+     ├─ number_weakly_connected_components
+     └─ weakly_connected_components
+core
+ ├─ core_number
+ └─ k_truss
+dag
+ ├─ ancestors
+ └─ descendants
+isolate
+ ├─ is_isolate
+ ├─ isolates
+ └─ number_of_isolates
+link_analysis
+ ├─ hits_alg
+ │   └─ hits
+ └─ pagerank_alg
+     └─ pagerank
+operators
+ └─ unary
+     ├─ complement
+     └─ reverse
+reciprocity
+ ├─ overall_reciprocity
+ └─ reciprocity
+shortest_paths
+ └─ unweighted
+     ├─ single_source_shortest_path_length
+     └─ single_target_shortest_path_length
+traversal
+ └─ breadth_first_search
+     ├─ bfs_edges
+     ├─ bfs_layers
+     ├─ bfs_predecessors
+     ├─ bfs_successors
+     ├─ bfs_tree
+     ├─ descendants_at_distance
+     └─ generic_bfs_edges
+tree
+ └─ recognition
+     ├─ is_arborescence
+     ├─ is_branching
+     ├─ is_forest
+     └─ is_tree
+```
+
+### Generators
+
+```
+classic
+ ├─ barbell_graph
+ ├─ circular_ladder_graph
+ ├─ complete_graph
+ ├─ complete_multipartite_graph
+ ├─ cycle_graph
+ ├─ empty_graph
+ ├─ ladder_graph
+ ├─ lollipop_graph
+ ├─ null_graph
+ ├─ path_graph
+ ├─ star_graph
+ ├─ tadpole_graph
+ ├─ trivial_graph
+ ├─ turan_graph
+ └─ wheel_graph
+community
+ └─ caveman_graph
+small
+ ├─ bull_graph
+ ├─ chvatal_graph
+ ├─ cubical_graph
+ ├─ desargues_graph
+ ├─ diamond_graph
+ ├─ dodecahedral_graph
+ ├─ frucht_graph
+ ├─ heawood_graph
+ ├─ house_graph
+ ├─ house_x_graph
+ ├─ icosahedral_graph
+ ├─ krackhardt_kite_graph
+ ├─ moebius_kantor_graph
+ ├─ octahedral_graph
+ ├─ pappus_graph
+ ├─ petersen_graph
+ ├─ sedgewick_maze_graph
+ ├─ tetrahedral_graph
+ ├─ truncated_cube_graph
+ ├─ truncated_tetrahedron_graph
+ └─ tutte_graph
+social
+ ├─ davis_southern_women_graph
+ ├─ florentine_families_graph
+ ├─ karate_club_graph
+ └─ les_miserables_graph
+```
+
+### Other
+
+```
+convert_matrix
+ ├─ from_pandas_edgelist
+ └─ from_scipy_sparse_array
+```
 
 To request nx-cugraph backend support for a NetworkX API that is not listed
 above, visit the [cuGraph GitHub repo](https://github.com/rapidsai/cugraph).
