@@ -174,7 +174,6 @@ Below is the list of functions that are currently supported in nx-cugraph.
 | single_source_shortest_path_length   | 23.12                    |
 | single_target_shortest_path_length   | 23.12                    |
 | star_graph                           | 23.12                    |
-| strongly_connected_components        | 24.02                    |
 | tadpole_graph                        | 23.12                    |
 | tetrahedral_graph                    | 23.12                    |
 | transitivity                         | 24.02                    |
