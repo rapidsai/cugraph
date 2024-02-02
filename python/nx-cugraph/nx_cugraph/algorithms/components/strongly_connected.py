@@ -15,12 +15,7 @@ import networkx as nx
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_directed_graph
-from nx_cugraph.utils import (
-    _groupby,
-    index_dtype,
-    networkx_algorithm,
-    not_implemented_for,
-)
+from nx_cugraph.utils import _groupby, index_dtype, not_implemented_for
 
 __all__ = [
     "number_strongly_connected_components",
@@ -50,8 +45,19 @@ def _strongly_connected_components(G):
     return labels
 
 
+# The networkx_algorithm decorator is (temporarily) removed to disable
+# dispatching for this function. The current cugraph
+# strongly_connected_components is a legacy implementation with known issues,
+# and in most cases should not be used until the cugraph team can provide an
+# update.
+#
+# Users can still call this via the nx_cugraph module directly:
+# >>> import nx_cugraph as nxcg
+# >>> nxcg.strongly_connected_components(...)
+
+
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
+# @networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def strongly_connected_components(G):
     G = _to_directed_graph(G)
     if G.src_indices.size == 0:
@@ -62,7 +68,7 @@ def strongly_connected_components(G):
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
+# @networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def number_strongly_connected_components(G):
     G = _to_directed_graph(G)
     if G.src_indices.size == 0:
@@ -72,7 +78,7 @@ def number_strongly_connected_components(G):
 
 
 @not_implemented_for("undirected")
-@networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
+# @networkx_algorithm(version_added="24.02", _plc="strongly_connected_components")
 def is_strongly_connected(G):
     G = _to_directed_graph(G)
     if len(G) == 0:
