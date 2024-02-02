@@ -66,6 +66,7 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph-dgl.sh
+      matrix_filter: map(select(.ARCH == "amd64"))
   wheel-tests-cugraph-pyg:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
@@ -75,6 +76,7 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph-pyg.sh
+      matrix_filter: map(select(.ARCH == "amd64" and .CUDA_VER == "11.8.0"))
   wheel-tests-cugraph-equivariant:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.02
@@ -84,3 +86,4 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph-equivariant.sh
+      matrix_filter: map(select(.ARCH == "amd64"))
