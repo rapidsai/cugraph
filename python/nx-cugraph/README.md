@@ -89,10 +89,9 @@ interface to its CUDA-based graph analytics library) and
 [CuPy](https://cupy.dev/) (a GPU-accelerated array library) to NetworkX's
 familiar and easy-to-use API.
 
-Below is the list of algorithms that are currently supported or planned to be
-supported in nx-cugraph.
+Below is the list of functions that are currently supported in nx-cugraph.
 
-| feature/algo                         | release/target version   |
+| function                             | release/target version   |
 |:-------------------------------------|:-------------------------|
 | ancestors                            | 24.02                    |
 | average_clustering                   | 24.02                    |
@@ -152,7 +151,6 @@ supported in nx-cugraph.
 | katz_centrality                      | 23.12                    |
 | krackhardt_kite_graph                | 23.12                    |
 | ladder_graph                         | 23.12                    |
-| leiden                               | ?                        |
 | les_miserables_graph                 | 23.12                    |
 | lollipop_graph                       | 23.12                    |
 | louvain_communities                  | 23.10                    |
@@ -186,7 +184,6 @@ supported in nx-cugraph.
 | truncated_tetrahedron_graph          | 23.12                    |
 | turan_graph                          | 23.12                    |
 | tutte_graph                          | 23.12                    |
-| uniform_neighbor_sample              | ?                        |
 | weakly_connected_components          | 24.02                    |
 | wheel_graph                          | 23.12                    |
 

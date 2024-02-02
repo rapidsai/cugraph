@@ -18,10 +18,12 @@ import pandas as pd
 
 from nx_cugraph.scripts.print_table import main as nxcg_print_table
 
-table_header_string = "| feature/algo | release/target version |"
-table_header_patt = re.compile(r"\| feature/algo[\s]+\| release/target version[\s]+\|")
+table_header_string = "| function | release/target version |"
+table_header_patt = re.compile(
+    r"\|[\s]+function[\s]+\|[\s]+release/target version[\s]+\|"
+)
 nxcg_algo_col_name = "dispatch_name"
-readme_algo_col_name = "feature/algo"
+readme_algo_col_name = "function"
 nxcg_version_col_name = "version_added"
 readme_version_col_name = "release/target version"
 
@@ -140,7 +142,7 @@ def main(readme_file_name="README.md"):
     # Rewrite the README with the updated table
     with open(readme_file_name, "w") as fd:
         print("\n".join(before_table_lines), file=fd)
-        print(merged.to_markdown(index=False), file=fd)
+        print(merged.to_markdown(index=False, disable_numparse=True), file=fd)
         print("\n".join(after_table_lines), file=fd)
 
 
