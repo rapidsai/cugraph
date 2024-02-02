@@ -86,9 +86,9 @@ class DiGraph(Graph):
                     key: val[indices].copy() for key, val in self.edge_masks.items()
                 }
             else:
-                src_indices, dst_indices = cp.divmod(
-                    src_dst_indices_new, N, dtype=index_dtype
-                )
+                src_indices, dst_indices = cp.divmod(src_dst_indices_new, N)
+                src_indices = src_indices.astype(index_dtype)
+                dst_indices = dst_indices.astype(index_dtype)
         else:
             src_dst_indices_old_T = self.src_indices + N * self.dst_indices.astype(
                 np.int64
@@ -116,9 +116,9 @@ class DiGraph(Graph):
                 src_dst_indices_new = cp.union1d(
                     src_dst_indices_old, src_dst_indices_old_T
                 )
-                src_indices, dst_indices = cp.divmod(
-                    src_dst_indices_new, N, dtype=index_dtype
-                )
+                src_indices, dst_indices = cp.divmod(src_dst_indices_new, N)
+                src_indices = src_indices.astype(index_dtype)
+                dst_indices = dst_indices.astype(index_dtype)
 
         if self.edge_values:
             recip_indices = cp.lexsort(cp.vstack((src_indices, dst_indices)))
