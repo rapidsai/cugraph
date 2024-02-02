@@ -22,8 +22,8 @@ Extract Max Path Length
 .. doxygenfunction:: cugraph_extract_paths_result_get_max_path_length
     :project: libcugraph
 
-Support
--------
+Traversal Support Functions
+---------------------------
 .. doxygengroup:: traversal
      :project: libcugraph
      :members:

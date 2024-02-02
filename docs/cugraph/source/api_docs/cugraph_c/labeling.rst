@@ -12,8 +12,8 @@ Strongly Connected Components
 .. doxygenfunction:: cugraph_strongly_connected_components
     :project: libcugraph
 
-Support
--------
+Labeling Support Functions
+--------------------------
  .. doxygengroup:: labeling
      :project: libcugraph
      :members:
