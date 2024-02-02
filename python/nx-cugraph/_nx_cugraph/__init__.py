@@ -12,7 +12,11 @@
 # limitations under the License.
 """Tell NetworkX about the cugraph backend. This file can update itself:
 
-$ make plugin-info  # Recommended method for development
+$ make plugin-info
+
+or
+
+$ make all  # Recommended - runs 'plugin-info' followed by 'lint'
 
 or
 
@@ -78,7 +82,6 @@ _info = {
         "is_connected",
         "is_forest",
         "is_isolate",
-        "is_strongly_connected",
         "is_tree",
         "is_weakly_connected",
         "isolates",
@@ -96,7 +99,6 @@ _info = {
         "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
-        "number_strongly_connected_components",
         "number_weakly_connected_components",
         "octahedral_graph",
         "out_degree_centrality",
@@ -111,7 +113,6 @@ _info = {
         "single_source_shortest_path_length",
         "single_target_shortest_path_length",
         "star_graph",
-        "strongly_connected_components",
         "tadpole_graph",
         "tetrahedral_graph",
         "transitivity",
