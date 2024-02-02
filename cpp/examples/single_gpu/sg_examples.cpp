@@ -22,9 +22,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
-#include "iostream"
-#include "string"
-using namespace std;
+#include <iostream>
+#include <string>
 
 std::unique_ptr<raft::handle_t> initialize_sg_handle(std::string const& allocation_mode = "cuda")
 {
@@ -36,7 +35,7 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle(std::string const& allocati
               << std::endl;
     std::for_each(possible_allocation_modes.cbegin(),
                   possible_allocation_modes.cend(),
-                  [](string mode) { std::cout << mode << std::endl; });
+                  [](std::string mode) { std::cout << mode << std::endl; });
 
     exit(0);
   }

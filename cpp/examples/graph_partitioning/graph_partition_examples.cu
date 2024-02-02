@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-#include "../tests/utilities/base_fixture.hpp"
-#include "../tests/utilities/test_utilities.hpp"
+#include <../tests/utilities/base_fixture.hpp>
+#include <../tests/utilities/test_utilities.hpp>
+
+// #include <prims/update_edge_src_dst_property.cuh>
+// #include <cugraph/edge_property.hpp>
+// #include <cugraph/edge_src_dst_property.hpp>
 
 #include <cugraph/algorithms.hpp>
 
@@ -28,6 +32,8 @@
 
 #include <iostream>
 #include <string>
+#include <system_error>
+using namespace std;
 
 void initialize_mpi_and_set_device(int argc, char** argv)
 {
@@ -227,6 +233,10 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
         weights_title.c_str(), value_firsts[ep_idx], edge_counts[ep_idx], std::cout);
     }
   }
+
+  // using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+
+  // cugraph::edge_src_property_t<graph_view_t, weight_t> src_vertex_props(handle, graph_view);
 }
 
 int main(int argc, char** argv)

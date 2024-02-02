@@ -1,0 +1,20 @@
+Using 'cuda' allocation mode to create device memory resources.
+Rank_1, reading graph from graph2.csv
+Rank_0, reading graph from graph2.csv
+vertices@rank_0=[5];
+owned by rank 0, original vertex id 5 --- becomes -->  0
+offsets_0_0=[0,0];
+indices_0_0=[];
+weights_0_0=[];
+offsets_0_1=[0,1,2];
+indices_0_1=[0,0];
+weights_0_1=[35,45];
+vertices@rank_1=[3,4];
+owned by rank 1, original vertex id 3 --- becomes -->  1
+owned by rank 1, original vertex id 4 --- becomes -->  2
+offsets_1_0=[0,2];
+indices_1_0=[1,2];
+weights_1_0=[53,54];
+offsets_1_1=[0,1,2];
+indices_1_1=[2,1];
+weights_1_1=[34,43];
