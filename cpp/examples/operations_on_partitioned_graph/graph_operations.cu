@@ -123,6 +123,11 @@ void perform_example_graph_operations(raft::handle_t const& handle,
 
   // Non-owning view of the graph object
   auto graph_view = graph.view();
+  // Number of vertices mapped to this process, ie the size of
+  // the vertex partition assigned to this process
+
+  vertex_t size_of_the_vertex_partition_assigned_to_this_process =
+    graph_view.local_vertex_partition_range_size();
 
   // Non-owning of the edge edge_weights object
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
