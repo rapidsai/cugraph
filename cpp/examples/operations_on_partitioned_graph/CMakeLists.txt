@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.23.1)
 
 project(
-  main
+  graph_operations
   VERSION 0.0.1
   LANGUAGES CXX CUDA
 )
@@ -34,7 +34,6 @@ target_include_directories(csvfileutil
 PUBLIC
 "../../../thirdparty/mmio"
 "../../tests"
-PRIVATE
 "../../include"
 "../../src"
 )
@@ -43,7 +42,7 @@ set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
 target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 
 # Configure your project here
-add_executable(main main.cu)
-set_target_properties(main PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(main PRIVATE csvfileutil)
-target_compile_features(main PRIVATE cxx_std_17)
+add_executable(graph_operations graph_operations.cu)
+set_target_properties(graph_operations PROPERTIES CUDA_ARCHITECTURES "native")
+target_link_libraries(graph_operations PRIVATE csvfileutil)
+target_compile_features(graph_operations PRIVATE cxx_std_17)

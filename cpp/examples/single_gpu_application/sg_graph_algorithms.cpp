@@ -90,16 +90,16 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
                false,
                std::numeric_limits<vertex_t>::max());
 
-  size_t max_nr_elements_to_print = 20;
+  size_t max_nr_of_elements_to_print = 20;
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   raft::print_device_vector("distances",
                             d_distances.begin(),
-                            std::min<size_t>(d_distances.size(), max_nr_elements_to_print),
+                            std::min<size_t>(d_distances.size(), max_nr_of_elements_to_print),
                             std::cout);
 
   raft::print_device_vector("predecessors",
                             d_predecessors.begin(),
-                            std::min<size_t>(d_predecessors.size(), max_nr_elements_to_print),
+                            std::min<size_t>(d_predecessors.size(), max_nr_of_elements_to_print),
                             std::cout);
 
   // Louvain
@@ -124,10 +124,11 @@ void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_
 
   // Print cluster assignments of vertices
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  raft::print_device_vector("cluster_assignments",
-                            cluster_assignments.begin(),
-                            std::min<size_t>(cluster_assignments.size(), max_nr_elements_to_print),
-                            std::cout);
+  raft::print_device_vector(
+    "cluster_assignments",
+    cluster_assignments.begin(),
+    std::min<size_t>(cluster_assignments.size(), max_nr_of_elements_to_print),
+    std::cout);
 
   std::cout << "modularity : " << modularity << std::endl;
 }

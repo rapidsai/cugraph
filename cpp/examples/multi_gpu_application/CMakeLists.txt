@@ -43,6 +43,6 @@ set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
 target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 
 # Configure your project here
-add_executable(mg_examples mg_examples.cpp)
-target_link_libraries(mg_examples PRIVATE csvfileutil)
-target_compile_features(mg_examples PRIVATE cxx_std_17)
+add_executable(mg_graph_algorithms mg_graph_algorithms.cpp)
+target_link_libraries(mg_graph_algorithms PRIVATE csvfileutil)
+target_compile_features(mg_graph_algorithms PRIVATE cxx_std_17)

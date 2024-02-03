@@ -4,11 +4,13 @@ Example codes on how to use libcugraph.
 
 ## Contents
 
-- single_gpu: simple code on how to use libcugraph to run different graph algorithms in a single GPU node.
+- single_gpu_application: example code on how to use libgraph to run different graph algorithms on a single-GPU node.
 
-- multi_gpu: example code on how to use libcugraph to run different graph algorithms in a multi GPU node.
+- multi_gpu_application: example code on how to use libgraph to run different graph algorithms on a multi-GPU node.
 
--  graph_partitioning: contains code to explain vertex and edge partitioning in cugraph.
+-  graph_partition: code to explain vertex and edge partitioning in cugraph.
+
+-  operations_on_partitioned_graph: example code for using cugraph primitives for simple graph operations needed to implement graph algorithms. 
 
 ## Build instructions:
 

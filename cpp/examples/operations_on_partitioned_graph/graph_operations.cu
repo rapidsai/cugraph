@@ -17,12 +17,22 @@
 #include "../tests/utilities/base_fixture.hpp"
 #include "../tests/utilities/test_utilities.hpp"
 
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+
+#include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+
 #include <cugraph/algorithms.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
+
+#include <thrust/for_each.h>
 
 #include <iostream>
 #include <string>
@@ -89,93 +99,75 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 }
 
 /**
- * @brief This function reads graph from an input csv file and run BFS and Louvain on it.
+ * @brief This function reads graph from an input csv file and
+ * display vertex and edge partitions.
  */
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_file_path)
+void perform_example_graph_operations(raft::handle_t const& handle,
+                                      std::string const& csv_graph_file_path)
 {
   auto const comm_rank = handle.get_comms().get_rank();
   auto const comm_size = handle.get_comms().get_size();
 
   std::cout << "Rank_" << comm_rank << ", reading graph from " << csv_graph_file_path << std::endl;
+
   bool renumber = true;  // must be true for distributed graph.
+
+  // Read a graph (along with edge properties e.g. edge weights, if provided) from
+  // the input csv file
+
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
       handle, csv_graph_file_path, true, renumber);
 
-  auto graph_view       = graph.view();
+  // Non-owning view of the graph object
+  auto graph_view = graph.view();
+
+  // Non-owning of the edge edge_weights object
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
-  assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
 
-  // run example algorithms
+  using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  rmm::device_uvector<weight_t> vertex_weights =
+    compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-  // BFS
+  cugraph::edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle, graph_view);
 
-  rmm::device_uvector<vertex_t> d_distances(graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
-  rmm::device_uvector<vertex_t> d_predecessors(graph_view.local_vertex_partition_range_size(),
-                                               handle.get_stream());
+  cugraph::edge_dst_property_t<graph_view_t, weight_t> dst_vertex_weights_cache(handle, graph_view);
 
-  rmm::device_uvector<vertex_t> d_sources(1, handle.get_stream());
-  std::vector<vertex_t> h_sources = {0};
-  raft::update_device(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
+  update_edge_src_property(handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
 
-  cugraph::bfs(handle,
-               graph_view,
-               d_distances.data(),
-               d_predecessors.data(),
-               d_sources.data(),
-               d_sources.size(),
-               false,
-               std::numeric_limits<vertex_t>::max());
+  update_edge_dst_property(handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
 
-  size_t max_nr_elements_to_print = 20;
+  rmm::device_uvector<weight_t> outputs(size_of_the_vertex_partition_assigned_to_this_process,
+                                        handle.get_stream());
 
+  per_v_transform_reduce_incoming_e(
+    handle,
+    graph_view,
+    src_vertex_weights_cache.view(),
+    dst_vertex_weights_cache.view(),
+    *edge_weight_view,
+    [] __device__(auto src, auto dst, auto src_prop, auto dst_prop, auto edge_prop) {
+      printf("\n%d ---> %d :  src_prop= %f dst_prop = %f edge_prop = %f \n",
+             static_cast<int>(src),
+             static_cast<int>(dst),
+             static_cast<float>(src_prop),
+             static_cast<float>(dst_prop),
+             static_cast<float>(edge_prop));
+      return dst_prop * edge_prop;
+    },
+    weight_t{0},
+    cugraph::reduce_op::plus<weight_t>{},
+    outputs.begin());
+
+  auto outputs_title                 = std::string("outputs_").append(std::to_string(comm_rank));
+  size_t max_nr_of_elements_to_print = 10;
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-  auto distances_title = std::string("distances").append(std::to_string(comm_rank));
-  raft::print_device_vector(distances_title.c_str(),
-                            d_distances.begin(),
-                            std::min<size_t>(d_distances.size(), max_nr_elements_to_print),
+  raft::print_device_vector(outputs_title.c_str(),
+                            outputs.begin(),
+                            std::min<size_t>(outputs.size(), max_nr_of_elements_to_print),
                             std::cout);
-
-  auto predecessors_title = std::string("predecessors").append(std::to_string(comm_rank));
-  raft::print_device_vector(predecessors_title.c_str(),
-                            d_predecessors.begin(),
-                            std::min<size_t>(d_predecessors.size(), max_nr_elements_to_print),
-                            std::cout);
-
-  // Louvain
-
-  rmm::device_uvector<vertex_t> d_cluster_assignments(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-  weight_t threshold  = 1e-7;
-  weight_t resolution = 1.0;
-  size_t max_level    = 10;
-
-  weight_t modularity{-1.0};
-  std::tie(std::ignore, modularity) =
-    cugraph::louvain(handle,
-                     std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
-                     graph_view,
-                     edge_weight_view,
-                     d_cluster_assignments.data(),
-                     max_level,
-                     threshold,
-                     resolution);
-
-  auto cluster_assignments_title =
-    std::string("cluster_assignments_").append(std::to_string(comm_rank));
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  raft::print_device_vector(
-    cluster_assignments_title.c_str(),
-    d_cluster_assignments.begin(),
-    std::min<size_t>(d_cluster_assignments.size(), max_nr_elements_to_print),
-    std::cout);
-
-  std::cout << "rank : " << comm_rank << ", modularity : " << modularity << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -200,5 +192,6 @@ int main(int argc, char** argv)
   using weight_t           = float;
   constexpr bool multi_gpu = true;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path);
+  perform_example_graph_operations<vertex_t, edge_t, weight_t, multi_gpu>(*handle,
+                                                                          csv_graph_file_path);
 }

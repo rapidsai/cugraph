@@ -17,16 +17,12 @@
 cmake_minimum_required(VERSION 3.23.1)
 
 project(
-  graph_partition_examples
+  sg_examples
   VERSION 0.0.1
   LANGUAGES CXX CUDA
 )
 
 include(../fetch_dependencies.cmake)
-
-find_package(MPI REQUIRED COMPONENTS CXX)
-include(../../cmake/thirdparty/get_nccl.cmake)
-
 
 add_library(csvfileutil STATIC ../../tests/utilities/csv_file_utilities.cu)
 
@@ -40,9 +36,9 @@ PRIVATE
 )
 
 set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
+target_link_libraries(csvfileutil PUBLIC cugraph::cugraph)
 
 # Configure your project here
-add_executable(graph_partition_examples graph_partition_examples.cpp)
-target_link_libraries(graph_partition_examples PRIVATE csvfileutil)
-target_compile_features(graph_partition_examples PRIVATE cxx_std_17)
+add_executable(sg_graph_algorithms sg_graph_algorithms.cpp)
+target_link_libraries(sg_graph_algorithms PRIVATE csvfileutil)
+target_compile_features(sg_graph_algorithms PRIVATE cxx_std_17)
