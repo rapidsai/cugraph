@@ -133,7 +133,9 @@ def main(
     }
     if by == "networkx_path":
         G = create_tree(path_to_info, by="networkx_path", **kwargs)
-        text = re.sub(r"[A-Za-z_\./]+\.", "", ("\n".join(nx.generate_network_text(G))))
+        text = re.sub(
+            r" [A-Za-z_\./]+\.", " ", ("\n".join(nx.generate_network_text(G)))
+        )
     elif by == "plc":
         G = create_tree(
             path_to_info, by=["plc", "networkx_path"], prefix="plc-", **kwargs
