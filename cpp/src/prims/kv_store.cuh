@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,8 @@ namespace cugraph {
 
 namespace detail {
 
+using cuco_storage_type = cuco::storage<1>;  ///< cuco window storage type
+
 template <typename KeyIterator, typename ValueIterator>
 struct kv_binary_search_find_op_t {
   using key_type   = typename thrust::iterator_traits<KeyIterator>::value_type;
@@ -86,18 +88,19 @@ struct kv_binary_search_contains_op_t {
 
 template <typename KeyIterator>
 struct kv_cuco_insert_and_increment_t {
-  using key_type        = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using cuco_store_type = cuco::experimental::static_map<
-    key_type,
-    size_t,
-    cuco::experimental::extent<std::size_t>,
-    cuda::thread_scope_device,
-    thrust::equal_to<key_type>,
-    cuco::experimental::linear_probing<1,  // CG size
-                                       cuco::murmurhash3_32<key_t>>,
-    rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>>;
+  using key_type = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using cuco_store_type =
+    cuco::static_map<key_type,
+                     size_t,
+                     cuco::extent<std::size_t>,
+                     cuda::thread_scope_device,
+                     thrust::equal_to<key_type>,
+                     cuco::linear_probing<1,  // CG size
+                                          cuco::murmurhash3_32<key_t>>,
+                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     cuco_storage_type>;
 
-  typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag> device_ref{};
+  typename cuco_store_type::ref_type<cuco::insert_and_find_tag> device_ref{};
   KeyIterator key_first{};
   size_t* counter{nullptr};
   size_t invalid_idx{};
@@ -109,7 +112,7 @@ struct kv_cuco_insert_and_increment_t {
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
       auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-      using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
+      using ref_type = typename cuco_store_type::ref_type<cuco::insert_and_find_tag>;
       cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
@@ -122,18 +125,19 @@ struct kv_cuco_insert_and_increment_t {
 
 template <typename KeyIterator, typename StencilIterator, typename PredOp>
 struct kv_cuco_insert_if_and_increment_t {
-  using key_type        = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using cuco_store_type = cuco::experimental::static_map<
-    key_type,
-    size_t,
-    cuco::experimental::extent<std::size_t>,
-    cuda::thread_scope_device,
-    thrust::equal_to<key_type>,
-    cuco::experimental::linear_probing<1,  // CG size
-                                       cuco::murmurhash3_32<key_t>>,
-    rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>>;
+  using key_type = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using cuco_store_type =
+    cuco::static_map<key_type,
+                     size_t,
+                     cuco::extent<std::size_t>,
+                     cuda::thread_scope_device,
+                     thrust::equal_to<key_type>,
+                     cuco::linear_probing<1,  // CG size
+                                          cuco::murmurhash3_32<key_t>>,
+                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     cuco_storage_type>;
 
-  typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag> device_ref{};
+  typename cuco_store_type::ref_type<cuco::insert_and_find_tag> device_ref{};
   KeyIterator key_first{};
   StencilIterator stencil_first{};
   PredOp pred_op{};
@@ -149,7 +153,7 @@ struct kv_cuco_insert_if_and_increment_t {
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
       auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-      using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
+      using ref_type = typename cuco_store_type::ref_type<cuco::insert_and_find_tag>;
       cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
@@ -162,23 +166,24 @@ struct kv_cuco_insert_if_and_increment_t {
 
 template <typename key_t, typename value_t>
 struct kv_cuco_insert_and_assign_t {
-  using cuco_store_type = cuco::experimental::static_map<
-    key_t,
-    std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
-    cuco::experimental::extent<std::size_t>,
-    cuda::thread_scope_device,
-    thrust::equal_to<key_t>,
-    cuco::experimental::linear_probing<1,  // CG size
-                                       cuco::murmurhash3_32<key_t>>,
-    rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>>;
+  using cuco_store_type =
+    cuco::static_map<key_t,
+                     std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
+                     cuco::extent<std::size_t>,
+                     cuda::thread_scope_device,
+                     thrust::equal_to<key_t>,
+                     cuco::linear_probing<1,  // CG size
+                                          cuco::murmurhash3_32<key_t>>,
+                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     cuco_storage_type>;
 
-  typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag> device_ref{};
+  typename cuco_store_type::ref_type<cuco::insert_and_find_tag> device_ref{};
 
   __device__ void operator()(thrust::tuple<key_t, value_t> pair)
   {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (!inserted) {
-      using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
+      using ref_type = typename cuco_store_type::ref_type<cuco::insert_and_find_tag>;
       cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(thrust::get<1>(pair), cuda::std::memory_order_relaxed);
@@ -220,10 +225,9 @@ struct kv_binary_search_store_device_view_t {
 
 template <typename ViewType>
 struct kv_cuco_store_find_device_view_t {
-  using key_type   = typename ViewType::key_type;
-  using value_type = typename ViewType::value_type;
-  using cuco_store_device_ref_type =
-    typename ViewType::cuco_store_type::ref_type<cuco::experimental::find_tag>;
+  using key_type                   = typename ViewType::key_type;
+  using value_type                 = typename ViewType::value_type;
+  using cuco_store_device_ref_type = typename ViewType::cuco_store_type::ref_type<cuco::find_tag>;
 
   static_assert(!ViewType::binary_search);
 
@@ -336,15 +340,16 @@ class kv_cuco_store_view_t {
 
   static constexpr bool binary_search = false;
 
-  using cuco_store_type = cuco::experimental::static_map<
-    key_t,
-    std::conditional_t<std::is_arithmetic_v<value_type>, value_type, size_t>,
-    cuco::experimental::extent<std::size_t>,
-    cuda::thread_scope_device,
-    thrust::equal_to<key_t>,
-    cuco::experimental::linear_probing<1,  // CG size
-                                       cuco::murmurhash3_32<key_t>>,
-    rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>>;
+  using cuco_store_type =
+    cuco::static_map<key_t,
+                     std::conditional_t<std::is_arithmetic_v<value_type>, value_type, size_t>,
+                     cuco::extent<std::size_t>,
+                     cuda::thread_scope_device,
+                     thrust::equal_to<key_t>,
+                     cuco::linear_probing<1,  // CG size
+                                          cuco::murmurhash3_32<key_t>>,
+                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     cuco_storage_type>;
 
   template <typename type = value_type>
   kv_cuco_store_view_t(cuco_store_type const* store,
@@ -392,7 +397,7 @@ class kv_cuco_store_view_t {
     cuco_store_->contains(key_first, key_last, value_first, stream.value());
   }
 
-  auto cuco_store_find_device_ref() const { return cuco_store_->ref(cuco::experimental::find); }
+  auto cuco_store_find_device_ref() const { return cuco_store_->ref(cuco::find); }
 
   template <typename type = value_type>
   std::enable_if_t<!std::is_arithmetic_v<type>, ValueIterator> store_value_first() const
@@ -531,15 +536,16 @@ class kv_cuco_store_t {
     std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<value_buffer_type>),
                          value_buffer_type&>;
 
-  using cuco_store_type = cuco::experimental::static_map<
-    key_t,
-    std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
-    cuco::experimental::extent<std::size_t>,
-    cuda::thread_scope_device,
-    thrust::equal_to<key_t>,
-    cuco::experimental::linear_probing<1,  // CG size
-                                       cuco::murmurhash3_32<key_t>>,
-    rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>>;
+  using cuco_store_type =
+    cuco::static_map<key_t,
+                     std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
+                     cuco::extent<std::size_t>,
+                     cuda::thread_scope_device,
+                     thrust::equal_to<key_t>,
+                     cuco::linear_probing<1,  // CG size
+                                          cuco::murmurhash3_32<key_t>>,
+                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     cuco_storage_type>;
 
   kv_cuco_store_t(rmm::cuda_stream_view stream) {}
 
@@ -588,7 +594,7 @@ class kv_cuco_store_t {
       // requires placing the atomic variable on managed memory and this adds additional
       // complication.
       rmm::device_scalar<size_t> counter(old_store_value_size, stream);
-      auto mutable_device_ref = cuco_store_->ref(cuco::experimental::insert_and_find);
+      auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
       rmm::device_uvector<size_t> store_value_offsets(num_keys, stream);
       thrust::tabulate(
         rmm::exec_policy(stream),
@@ -629,7 +635,7 @@ class kv_cuco_store_t {
       // requires placing the atomic variable on managed memory and this adds additional
       // complication.
       rmm::device_scalar<size_t> counter(old_store_value_size, stream);
-      auto mutable_device_ref = cuco_store_->ref(cuco::experimental::insert_and_find);
+      auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
       rmm::device_uvector<size_t> store_value_offsets(num_keys, stream);
       thrust::tabulate(rmm::exec_policy(stream),
                        store_value_offsets.begin(),
@@ -665,8 +671,8 @@ class kv_cuco_store_t {
     if constexpr (std::is_arithmetic_v<value_t>) {
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
       // FIXME: a temporary solution till insert_and_assign is added to
-      // cuco::experimental::static_map
-      auto mutable_device_ref = cuco_store_->ref(cuco::experimental::insert_and_find);
+      // cuco::static_map
+      auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
       thrust::for_each(rmm::exec_policy(stream),
                        pair_first,
                        pair_first + num_keys,
@@ -679,7 +685,7 @@ class kv_cuco_store_t {
       // requires placing the atomic variable on managed memory and this adds additional
       // complication.
       rmm::device_scalar<size_t> counter(old_store_value_size, stream);
-      auto mutable_device_ref = cuco_store_->ref(cuco::experimental::insert_and_find);
+      auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
       rmm::device_uvector<size_t> store_value_offsets(num_keys, stream);
       thrust::tabulate(
         rmm::exec_policy(stream),
@@ -731,20 +737,19 @@ class kv_cuco_store_t {
                                                         })),
                         stream);
 
-      thrust::for_each(
-        rmm::exec_policy(stream),
-        kv_indices.begin(),
-        kv_indices.end(),
-        [key_first,
-         value_first,
-         store_value_first = get_dataframe_buffer_begin(store_values_),
-         device_ref        = cuco_store_->ref(cuco::experimental::find)] __device__(auto kv_idx) {
-          size_t store_value_offset{};
-          auto found = device_ref.find(*(key_first + kv_idx));
-          assert(found != device_ref.end());
-          store_value_offset                        = (*found).second;
-          *(store_value_first + store_value_offset) = *(value_first + kv_idx);
-        });
+      thrust::for_each(rmm::exec_policy(stream),
+                       kv_indices.begin(),
+                       kv_indices.end(),
+                       [key_first,
+                        value_first,
+                        store_value_first = get_dataframe_buffer_begin(store_values_),
+                        device_ref        = cuco_store_->ref(cuco::find)] __device__(auto kv_idx) {
+                         size_t store_value_offset{};
+                         auto found = device_ref.find(*(key_first + kv_idx));
+                         assert(found != device_ref.end());
+                         store_value_offset                        = (*found).second;
+                         *(store_value_first + store_value_offset) = *(value_first + kv_idx);
+                       });
     }
   }
 
@@ -821,23 +826,25 @@ class kv_cuco_store_t {
     auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(
       rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
-      cuco_store_ = std::make_unique<cuco_store_type>(
-        cuco_size,
-        cuco::sentinel::empty_key<key_t>{invalid_key},
-        cuco::sentinel::empty_value<value_t>{invalid_value},
-        thrust::equal_to<key_t>{},
-        cuco::experimental::linear_probing<1,  // CG size
-                                           cuco::murmurhash3_32<key_t>>{},
-        stream_adapter,
-        stream.value());
+      cuco_store_ =
+        std::make_unique<cuco_store_type>(cuco_size,
+                                          cuco::sentinel::empty_key<key_t>{invalid_key},
+                                          cuco::sentinel::empty_value<value_t>{invalid_value},
+                                          thrust::equal_to<key_t>{},
+                                          cuco::linear_probing<1,  // CG size
+                                                               cuco::murmurhash3_32<key_t>>{},
+                                          cuco::thread_scope_device,
+                                          cuco_storage_type{},
+                                          stream_adapter,
+                                          stream.value());
     } else {
       cuco_store_ = std::make_unique<cuco_store_type>(
         cuco_size,
         cuco::sentinel::empty_key<key_t>{invalid_key},
         cuco::sentinel::empty_value<size_t>{std::numeric_limits<size_t>::max()},
         thrust::equal_to<key_t>{},
-        cuco::experimental::linear_probing<1,  // CG size
-                                           cuco::murmurhash3_32<key_t>>{},
+        cuco::linear_probing<1,  // CG size
+                             cuco::murmurhash3_32<key_t>>{},
         stream_adapter,
         stream);
       store_values_ = allocate_dataframe_buffer<value_t>(0, stream);
@@ -857,7 +864,7 @@ class kv_cuco_store_t {
   size_t size_{
     0};  // caching as cuco_store_->size() is expensive (this scans the entire slots to handle
          // user inserts through a device reference (and currently this is an upper bound (this
-         // will become exact once we fully switch to cuco::experimental::static_map and use the
+         // will become exact once we fully switch to cuco::static_map and use the
          // static_map class's insert_and_assign function; this function will be added soon)
 };
 
