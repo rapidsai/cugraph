@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -120,9 +120,9 @@ class DGLUniformSampler:
             return self._get_edgeid_type_d(sampled_df)
         else:
             return (
-                sampled_df[src_n].values,
-                sampled_df[dst_n].values,
-                sampled_df["indices"].values,
+                sampled_df[src_n].astype("float").values,
+                sampled_df[dst_n].astype("float").values,
+                sampled_df["indices"].astype("float").values,
             )
 
     def _get_edgeid_type_d(self, df):
