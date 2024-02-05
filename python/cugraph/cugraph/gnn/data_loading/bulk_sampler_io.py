@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -181,7 +181,9 @@ def _write_samples_to_parquet_csr(
             [
                 cudf.Series(minors_array[results_start:results_end], name="minors"),
                 cudf.Series(
-                    renumber_map.map.values[renumber_map_start:renumber_map_end],
+                    renumber_map.renumber_map.values[
+                        renumber_map_start:renumber_map_end
+                    ],
                     name="map",
                 ),
                 label_hop_offsets_current_partition,
@@ -299,7 +301,7 @@ def _write_samples_to_parquet_coo(
             else:
                 renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
 
-            renumber_map_p = renumber_map.map.iloc[
+            renumber_map_p = renumber_map.renumber_map.iloc[
                 renumber_map_start_ix:renumber_map_end_ix
             ]
 
