@@ -175,7 +175,7 @@ jobs:
       package-name: cugraph-pyg
   wheel-build-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.04
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -185,7 +185,7 @@ jobs:
   wheel-publish-cugraph-equivariant:
     needs: wheel-build-cugraph-equivariant
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.02
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.04
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
