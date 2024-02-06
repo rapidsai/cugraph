@@ -17,7 +17,8 @@
 #include "../tests/utilities/base_fixture.hpp"
 #include "../tests/utilities/test_utilities.hpp"
 
-#include <cugraph/algorithms.hpp>
+#include <cugraph/edge_partition_view.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -194,13 +195,13 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   for (size_t ep_idx = 0; ep_idx < graph_view.number_of_local_edge_partitions(); ++ep_idx) {
     // Toplogy
-    auto edge_partition = graph_view.local_edge_partition_view(ep_idx);
+    auto edge_partition_view = graph_view.local_edge_partition_view(ep_idx);
 
-    auto number_of_edges_in_partition = edge_partition.number_of_edges();
-    auto offsets                      = edge_partition.offsets();
-    auto indices                      = edge_partition.indices();
+    auto number_of_edges_in_edge_partition = edge_partition_view.number_of_edges();
+    auto offsets                           = edge_partition_view.offsets();
+    auto indices                           = edge_partition_view.indices();
 
-    assert(number_of_edges_in_partition == indices.size());
+    assert(number_of_edges_in_edge_partition == indices.size());
 
     auto offsets_title = std::string("offsets_")
                            .append(std::to_string(comm_rank))
@@ -221,15 +222,91 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
     raft::print_device_vector(
       indices_title.c_str(),
       indices.begin(),
-      std::min<size_t>(number_of_edges_in_partition, max_nr_of_elements_to_print),
+      std::min<size_t>(number_of_edges_in_edge_partition, max_nr_of_elements_to_print),
       std::cout);
+
+    auto major_hypersparse_first = edge_partition_view.major_hypersparse_first();
+    auto dcs_nzd_vertices        = edge_partition_view.dcs_nzd_vertices();
+
+    auto major_range_first = edge_partition_view.major_range_first();
+    auto major_range_last  = edge_partition_view.major_range_last();
+
+    if (major_hypersparse_first) {
+      std::cout << "rank: " << comm_rank << ",  partition index: " << ep_idx
+                << " major_range_first = " << major_range_first
+                << ", major_range_last = " << major_range_last
+                << ", major_hypersparse_first = " << (*major_hypersparse_first) << "\n";
+
+      std::cout << "rank: " << comm_rank << ",  partition index: " << ep_idx
+                << ", |dcs_nzd_vertices|: " << (*dcs_nzd_vertices).size() << std::endl;
+    }
+
+    //
+    // Print sources and destinitions of edges stored in current edge partition
+    //
+
+    // print sources and destinitions stored in CSR/CSC format
+
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(vertex_t{0}),
+                     thrust::make_counting_iterator(
+                       (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) -
+                       major_range_first),
+                     [comm_rank, ep_idx, offsets, indices, major_range_first] __device__(auto i) {
+                       auto v                               = major_range_first + i;
+                       auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
+
+                       thrust::for_each(
+                         thrust::seq,
+                         thrust::make_counting_iterator(edge_t{offsets[i]}),
+                         thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
+                         [comm_rank, ep_idx, v, indices] __device__(auto pos) {
+                           printf(
+                             "\n(comm_rank = %d local edge partition id = %d): src = %d dst = %d\n",
+                             static_cast<int>(comm_rank),
+                             static_cast<int>(ep_idx),
+                             static_cast<int>(v),
+                             static_cast<int>(indices[pos]));
+                         });
+                     });
+
+    // print sources and destinitions stored in DCSR/DCSC format
+    if (major_hypersparse_first.has_value()) {
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(vertex_t{0}),
+        thrust::make_counting_iterator(static_cast<vertex_t>((*dcs_nzd_vertices).size())),
+        [comm_rank,
+         ep_idx,
+         offsets,
+         indices,
+         major_range_first,
+         dcs_nzd_vertices        = (*dcs_nzd_vertices),
+         major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
+          auto v                               = dcs_nzd_vertices[i];
+          auto major_idx                       = (major_hypersparse_first - major_range_first) + i;
+          auto deg_of_v_in_this_edge_partition = offsets[major_idx + 1] - offsets[major_idx];
+
+          thrust::for_each(
+            thrust::seq,
+            thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
+            thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
+            [comm_rank, ep_idx, v, indices] __device__(auto pos) {
+              printf("\n(comm_rank = %d local edge partition id = %d): src = %d dst = %d\n",
+                     static_cast<int>(comm_rank),
+                     static_cast<int>(ep_idx),
+                     static_cast<int>(v),
+                     static_cast<int>(indices[pos]));
+            });
+        });
+    }
 
     // Edge property values
     if (edge_weight_view) {
       auto value_firsts = edge_weight_view->value_firsts();
       auto edge_counts  = edge_weight_view->edge_counts();
 
-      assert(number_of_edges_in_partition == edge_counts[ep_idx]);
+      assert(number_of_edges_in_edge_partition == edge_counts[ep_idx]);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto weights_title = std::string("weights_")
@@ -239,7 +316,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
       raft::print_device_vector(
         weights_title.c_str(),
         value_firsts[ep_idx],
-        std::min<size_t>(number_of_edges_in_partition, max_nr_of_elements_to_print),
+        std::min<size_t>(number_of_edges_in_edge_partition, max_nr_of_elements_to_print),
         std::cout);
     }
   }

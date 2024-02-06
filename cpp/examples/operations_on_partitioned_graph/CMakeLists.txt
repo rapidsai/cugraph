@@ -27,17 +27,14 @@ include(../fetch_dependencies.cmake)
 find_package(MPI REQUIRED COMPONENTS CXX)
 include(../../cmake/thirdparty/get_nccl.cmake)
 
-
 add_library(csvfileutil STATIC ../../tests/utilities/csv_file_utilities.cu)
-
 target_include_directories(csvfileutil
-PUBLIC
-"../../../thirdparty/mmio"
-"../../tests"
-"../../include"
-"../../src"
+  PUBLIC
+    "../../../thirdparty/mmio"
+    "../../tests"
+    "../../include"
+    "../../src"
 )
-
 set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
 target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 

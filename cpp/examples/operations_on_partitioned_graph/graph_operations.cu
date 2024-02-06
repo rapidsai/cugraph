@@ -21,11 +21,10 @@
 #include <prims/reduce_op.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
+#include <cugraph/algorithms.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/dataframe_buffer.hpp>
-
-#include <cugraph/algorithms.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>

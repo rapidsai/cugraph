@@ -25,7 +25,6 @@ project(
 include(../fetch_dependencies.cmake)
 
 add_library(csvfileutil STATIC ../../tests/utilities/csv_file_utilities.cu)
-
 target_include_directories(csvfileutil
 PUBLIC
 "../../../thirdparty/mmio"
@@ -34,7 +33,6 @@ PRIVATE
 "../../include"
 "../../src"
 )
-
 set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
 target_link_libraries(csvfileutil PUBLIC cugraph::cugraph)
 
