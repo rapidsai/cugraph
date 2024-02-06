@@ -134,7 +134,11 @@ class DGLUniformSampler:
             for etype, etype_id in self.etype_id_dict.items()
         }
         return {
-            etype: (df[src_n].values, df[dst_n].values, df["indices"].values)
+            etype: (
+                df[src_n].astype("float").values,
+                df[dst_n].astype("float").values,
+                df["indices"].astype("float").values,
+            )
             for etype, df in result_d.items()
         }
 
