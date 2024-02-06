@@ -12,6 +12,7 @@
 # the License.
 # =============================================================================
 
+set(CPM_DOWNLOAD_cuco ON)
 set(rapids-cmake-repo PointKernel/rapids-cmake)
 set(rapids-cmake-branch cuco-experimental)
 
