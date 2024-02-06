@@ -89,48 +89,146 @@ interface to its CUDA-based graph analytics library) and
 [CuPy](https://cupy.dev/) (a GPU-accelerated array library) to NetworkX's
 familiar and easy-to-use API.
 
-Below is the list of algorithms (many listed using pylibcugraph names),
-available today in pylibcugraph or implemented using CuPy, that are or will be
-supported in nx-cugraph.
+Below is the list of algorithms that are currently supported in nx-cugraph.
 
-| feature/algo | release/target version |
-| ----- | ----- |
-| analyze_clustering_edge_cut | ? |
-| analyze_clustering_modularity | ? |
-| analyze_clustering_ratio_cut | ? |
-| balanced_cut_clustering | ? |
-| betweenness_centrality | 23.10 |
-| bfs | ? |
-| connected_components | 23.12 |
-| core_number | ? |
-| degree_centrality | 23.12 |
-| ecg | ? |
-| edge_betweenness_centrality | 23.10 |
-| ego_graph | ? |
-| eigenvector_centrality | 23.12 |
-| get_two_hop_neighbors | ? |
-| hits | 23.12 |
-| in_degree_centrality | 23.12 |
-| induced_subgraph | ? |
-| jaccard_coefficients | ? |
-| katz_centrality | 23.12 |
-| k_core | ? |
-| k_truss_subgraph | 23.12 |
-| leiden | ? |
-| louvain | 23.10 |
-| node2vec | ? |
-| out_degree_centrality | 23.12 |
-| overlap_coefficients | ? |
-| pagerank | 23.12 |
-| personalized_pagerank | ? |
-| sorensen_coefficients | ? |
-| spectral_modularity_maximization | ? |
-| sssp | 23.12 |
-| strongly_connected_components | ? |
-| triangle_count | ? |
-| uniform_neighbor_sample | ? |
-| uniform_random_walks | ? |
-| weakly_connected_components | ? |
+### Algorithms
+
+```
+bipartite
+ ├─ basic
+ │   └─ is_bipartite
+ └─ generators
+     └─ complete_bipartite_graph
+centrality
+ ├─ betweenness
+ │   ├─ betweenness_centrality
+ │   └─ edge_betweenness_centrality
+ ├─ degree_alg
+ │   ├─ degree_centrality
+ │   ├─ in_degree_centrality
+ │   └─ out_degree_centrality
+ ├─ eigenvector
+ │   └─ eigenvector_centrality
+ └─ katz
+     └─ katz_centrality
+cluster
+ ├─ average_clustering
+ ├─ clustering
+ ├─ transitivity
+ └─ triangles
+community
+ └─ louvain
+     └─ louvain_communities
+components
+ ├─ connected
+ │   ├─ connected_components
+ │   ├─ is_connected
+ │   ├─ node_connected_component
+ │   └─ number_connected_components
+ └─ weakly_connected
+     ├─ is_weakly_connected
+     ├─ number_weakly_connected_components
+     └─ weakly_connected_components
+core
+ ├─ core_number
+ └─ k_truss
+dag
+ ├─ ancestors
+ └─ descendants
+isolate
+ ├─ is_isolate
+ ├─ isolates
+ └─ number_of_isolates
+link_analysis
+ ├─ hits_alg
+ │   └─ hits
+ └─ pagerank_alg
+     └─ pagerank
+operators
+ └─ unary
+     ├─ complement
+     └─ reverse
+reciprocity
+ ├─ overall_reciprocity
+ └─ reciprocity
+shortest_paths
+ └─ unweighted
+     ├─ single_source_shortest_path_length
+     └─ single_target_shortest_path_length
+traversal
+ └─ breadth_first_search
+     ├─ bfs_edges
+     ├─ bfs_layers
+     ├─ bfs_predecessors
+     ├─ bfs_successors
+     ├─ bfs_tree
+     ├─ descendants_at_distance
+     └─ generic_bfs_edges
+tree
+ └─ recognition
+     ├─ is_arborescence
+     ├─ is_branching
+     ├─ is_forest
+     └─ is_tree
+```
+
+### Generators
+
+```
+classic
+ ├─ barbell_graph
+ ├─ circular_ladder_graph
+ ├─ complete_graph
+ ├─ complete_multipartite_graph
+ ├─ cycle_graph
+ ├─ empty_graph
+ ├─ ladder_graph
+ ├─ lollipop_graph
+ ├─ null_graph
+ ├─ path_graph
+ ├─ star_graph
+ ├─ tadpole_graph
+ ├─ trivial_graph
+ ├─ turan_graph
+ └─ wheel_graph
+community
+ └─ caveman_graph
+small
+ ├─ bull_graph
+ ├─ chvatal_graph
+ ├─ cubical_graph
+ ├─ desargues_graph
+ ├─ diamond_graph
+ ├─ dodecahedral_graph
+ ├─ frucht_graph
+ ├─ heawood_graph
+ ├─ house_graph
+ ├─ house_x_graph
+ ├─ icosahedral_graph
+ ├─ krackhardt_kite_graph
+ ├─ moebius_kantor_graph
+ ├─ octahedral_graph
+ ├─ pappus_graph
+ ├─ petersen_graph
+ ├─ sedgewick_maze_graph
+ ├─ tetrahedral_graph
+ ├─ truncated_cube_graph
+ ├─ truncated_tetrahedron_graph
+ └─ tutte_graph
+social
+ ├─ davis_southern_women_graph
+ ├─ florentine_families_graph
+ ├─ karate_club_graph
+ └─ les_miserables_graph
+```
+
+### Other
+
+```
+convert_matrix
+ ├─ from_pandas_edgelist
+ └─ from_scipy_sparse_array
+```
 
 To request nx-cugraph backend support for a NetworkX API that is not listed
 above, visit the [cuGraph GitHub repo](https://github.com/rapidsai/cugraph).
