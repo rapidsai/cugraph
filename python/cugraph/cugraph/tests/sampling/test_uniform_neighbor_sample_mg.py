@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,6 +26,7 @@ import cugraph.dask as dcg
 from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.dask import uniform_neighbor_sample
 from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 from cugraph.datasets import email_Eu_core, small_tree
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
@@ -135,6 +136,14 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
     dg = input_combo["MGGraph"]
 
     input_df = dg.input_df
+    # Drop parallel edges for non MultiGraph
+    # FIXME: Drop multi edges with the CAPI instead.
+    vertex_col_name = ["src", "dst"]
+    workers = dask_client.scheduler_info()["workers"]
+    input_df = _memory_efficient_drop_duplicates(
+        input_df, vertex_col_name, len(workers)
+    )
+
     result_nbr = uniform_neighbor_sample(
         dg,
         input_combo["start_list"],
@@ -1006,7 +1015,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
 
     assert (renumber_map.batch_id == 0).all()
     assert (
-        renumber_map.map.nunique()
+        renumber_map.renumber_map.nunique()
         == cudf.concat(
             [sources_hop_0, sampling_results_renumbered.destinations]
         ).nunique()
@@ -1082,7 +1091,9 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
 
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
-            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+            renumber_map.renumber_map[
+                0 : len(expected_renumber_map)
+            ].values_host.tolist()
         )
 
     renumber_map_offsets = offsets_renumbered.renumber_map_offsets.dropna()
@@ -1144,8 +1155,8 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
     minors = sampling_results["minors"].dropna()
     assert len(majors) == len(minors)
 
-    majors = renumber_map.map.iloc[majors]
-    minors = renumber_map.map.iloc[minors]
+    majors = renumber_map.renumber_map.iloc[majors]
+    minors = renumber_map.renumber_map.iloc[minors]
 
     for i in range(len(majors)):
         assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
@@ -1212,8 +1223,8 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
         majors = majors.repeat(cupy.diff(major_offsets))
 
-        majors = renumber_map.map.iloc[majors]
-        minors = renumber_map.map.iloc[minors]
+        majors = renumber_map.renumber_map.iloc[majors]
+        minors = renumber_map.renumber_map.iloc[minors]
 
         for i in range(len(majors)):
             assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])

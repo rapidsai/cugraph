@@ -463,9 +463,9 @@ cdef class MGGraph(_GPUGraph):
             edge_type_view_ptr_ptr,
             store_transposed,
             num_arrays,
-            do_expensive_check,
             drop_self_loops,
             drop_multi_edges,
+            do_expensive_check,
             &(self.c_graph_ptr),
             &error_ptr)
 

@@ -39,6 +39,7 @@ from cugraph.dask.common.part_utils import (
 )
 from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
 import cugraph.dask.comms.comms as Comms
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 
 
 class simpleDistributedGraphImpl:
@@ -95,6 +96,7 @@ class simpleDistributedGraphImpl:
         weight_type,
         edge_id_type,
         edge_type_id,
+        drop_multi_edges,
     ):
         weights = None
         edge_ids = None
@@ -149,6 +151,7 @@ class simpleDistributedGraphImpl:
             num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
+            drop_multi_edges=drop_multi_edges,
         )
         del edata_x
         gc.collect()
@@ -267,7 +270,7 @@ class simpleDistributedGraphImpl:
                 input_ddf,
                 source,
                 destination,
-                multi=self.properties.multi_edge,
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
             value_col = None
@@ -277,7 +280,7 @@ class simpleDistributedGraphImpl:
                 source,
                 destination,
                 value_col_names,
-                multi=self.properties.multi_edge,
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -364,6 +367,7 @@ class simpleDistributedGraphImpl:
                 self.weight_type,
                 self.edge_id_type,
                 self.edge_type_id_type,
+                not self.properties.multi_edge,
             )
             for w, edata in persisted_keys_d.items()
         }
@@ -454,6 +458,15 @@ class simpleDistributedGraphImpl:
                     edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
                 else:
                     is_multi_column = True
+
+            if not self.properties.multi_edge:
+                # Drop parallel edges for non MultiGraph
+                # FIXME: Drop multi edges with the CAPI instead.
+                _client = default_client()
+                workers = _client.scheduler_info()["workers"]
+                edgelist_df = _memory_efficient_drop_duplicates(
+                    edgelist_df, [srcCol, dstCol], len(workers)
+                )
 
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]

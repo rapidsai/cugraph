@@ -668,7 +668,9 @@ class Graph:
                 raise ValueError(
                     f'symmetrize must be "union" or "intersection"; got "{symmetrize}"'
                 )
-            src_indices, dst_indices = cp.divmod(src_dst_new, N, dtype=index_dtype)
+            src_indices, dst_indices = cp.divmod(src_dst_new, N)
+            src_indices = src_indices.astype(index_dtype)
+            dst_indices = dst_indices.astype(index_dtype)
 
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
