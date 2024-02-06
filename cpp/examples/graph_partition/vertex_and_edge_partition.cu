@@ -193,6 +193,9 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
   // Look into edge partitions and their associated edge properties (if any)
   //
 
+  bool is_weighted = false;
+  if (edge_weight_view.has_value()) { is_weighted = true; }
+
   for (size_t ep_idx = 0; ep_idx < graph_view.number_of_local_edge_partitions(); ++ep_idx) {
     // Toplogy
     auto edge_partition_view = graph_view.local_edge_partition_view(ep_idx);
@@ -203,33 +206,11 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
     assert(number_of_edges_in_edge_partition == indices.size());
 
-    auto offsets_title = std::string("offsets_")
-                           .append(std::to_string(comm_rank))
-                           .append("_")
-                           .append(std::to_string(ep_idx));
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(offsets_title.c_str(),
-                              offsets.begin(),
-                              std::min<size_t>(offsets.size(), max_nr_of_elements_to_print),
-                              std::cout);
-
-    auto indices_title = std::string("indices_")
-                           .append(std::to_string(comm_rank))
-                           .append("_")
-                           .append(std::to_string(ep_idx));
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-    raft::print_device_vector(
-      indices_title.c_str(),
-      indices.begin(),
-      std::min<size_t>(number_of_edges_in_edge_partition, max_nr_of_elements_to_print),
-      std::cout);
+    auto major_range_first = edge_partition_view.major_range_first();
+    auto major_range_last  = edge_partition_view.major_range_last();
 
     auto major_hypersparse_first = edge_partition_view.major_hypersparse_first();
     auto dcs_nzd_vertices        = edge_partition_view.dcs_nzd_vertices();
-
-    auto major_range_first = edge_partition_view.major_range_first();
-    auto major_range_last  = edge_partition_view.major_range_last();
 
     if (major_hypersparse_first) {
       std::cout << "rank: " << comm_rank << ",  partition index: " << ep_idx
@@ -247,28 +228,59 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
     // print sources and destinitions stored in CSR/CSC format
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator(vertex_t{0}),
-                     thrust::make_counting_iterator(
-                       (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) -
-                       major_range_first),
-                     [comm_rank, ep_idx, offsets, indices, major_range_first] __device__(auto i) {
-                       auto v                               = major_range_first + i;
-                       auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
+    // weight_t const* edge_weights{nullprt};
+    raft::device_span<weight_t const> weights_of_edges_stored_in_this_edge_partition{};
 
-                       thrust::for_each(
-                         thrust::seq,
-                         thrust::make_counting_iterator(edge_t{offsets[i]}),
-                         thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
-                         [comm_rank, ep_idx, v, indices] __device__(auto pos) {
-                           printf(
-                             "\n(comm_rank = %d local edge partition id = %d): src = %d dst = %d\n",
-                             static_cast<int>(comm_rank),
-                             static_cast<int>(ep_idx),
-                             static_cast<int>(v),
-                             static_cast<int>(indices[pos]));
-                         });
-                     });
+    if (is_weighted) {
+      auto value_firsts = edge_weight_view->value_firsts();
+      auto edge_counts  = edge_weight_view->edge_counts();
+
+      weights_of_edges_stored_in_this_edge_partition =
+        raft::device_span<weight_t const>(value_firsts[ep_idx], edge_counts[ep_idx]);
+    }
+
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(vertex_t{0}),
+      thrust::make_counting_iterator(
+        (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) -
+        major_range_first),
+      [comm_rank,
+       ep_idx,
+       offsets,
+       indices,
+       major_range_first,
+       is_weighted,
+       weights = weights_of_edges_stored_in_this_edge_partition.begin()] __device__(auto i) {
+        auto v                               = major_range_first + i;
+        auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
+
+        thrust::for_each(
+          thrust::seq,
+          thrust::make_counting_iterator(edge_t{offsets[i]}),
+          thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
+          [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
+            if (is_weighted) {
+              printf(
+                "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
+                "destination = %d weight = %f\n",
+                static_cast<int>(comm_rank),
+                static_cast<int>(ep_idx),
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]),
+                static_cast<float>(weights[pos]));
+
+            } else {
+              printf(
+                "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
+                "destination = %d\n",
+                static_cast<int>(comm_rank),
+                static_cast<int>(ep_idx),
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]));
+            }
+          });
+      });
 
     // print sources and destinitions stored in DCSR/DCSC format
     if (major_hypersparse_first.has_value()) {
@@ -281,6 +293,8 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
          offsets,
          indices,
          major_range_first,
+         is_weighted,
+         weights                 = weights_of_edges_stored_in_this_edge_partition.begin(),
          dcs_nzd_vertices        = (*dcs_nzd_vertices),
          major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
           auto v                               = dcs_nzd_vertices[i];
@@ -291,12 +305,26 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
             thrust::seq,
             thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
             thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
-            [comm_rank, ep_idx, v, indices] __device__(auto pos) {
-              printf("\n(comm_rank = %d local edge partition id = %d): src = %d dst = %d\n",
-                     static_cast<int>(comm_rank),
-                     static_cast<int>(ep_idx),
-                     static_cast<int>(v),
-                     static_cast<int>(indices[pos]));
+            [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
+              if (is_weighted) {
+                printf(
+                  "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
+                  "destination = %d weight = %f\n",
+                  static_cast<int>(comm_rank),
+                  static_cast<int>(ep_idx),
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]),
+                  static_cast<float>(weights[pos]));
+
+              } else {
+                printf(
+                  "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
+                  "destination = %d\n",
+                  static_cast<int>(comm_rank),
+                  static_cast<int>(ep_idx),
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]));
+              }
             });
         });
     }
