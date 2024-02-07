@@ -155,5 +155,5 @@ int main(int argc, char** argv)
   using edge_t   = int32_t;
   using weight_t = float;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1], false);
+  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1], true);
 }

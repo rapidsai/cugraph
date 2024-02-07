@@ -162,11 +162,10 @@ void perform_example_graph_operations(raft::handle_t const& handle,
       src_vertex_weights_cache.view(),
       dst_vertex_weights_cache.view(),
       (*edge_weight_view),
-      [new_to_original_id_map = (*renumber_map).data()] __device__(
-        auto src, auto dst, auto src_prop, auto dst_prop, auto edge_prop) {
+      [] __device__(auto src, auto dst, auto src_prop, auto dst_prop, auto edge_prop) {
         printf("\nsrc ---> %d dst = %d :  src_prop = %f dst_prop = %f edge_prop = %f\n",
-               static_cast<int>(new_to_original_id_map[src]),
-               static_cast<int>(new_to_original_id_map[dst]),
+               static_cast<int>(src),
+               static_cast<int>(dst),
                static_cast<float>(src_prop),
                static_cast<float>(dst_prop),
                static_cast<float>(edge_prop));
@@ -205,11 +204,10 @@ void perform_example_graph_operations(raft::handle_t const& handle,
       src_vertex_weights_cache.view(),
       dst_vertex_weights_cache.view(),
       cugraph::edge_dummy_property_t{}.view(),
-      [new_to_original_id_map = (*renumber_map).data()] __device__(
-        auto src, auto dst, auto src_prop, auto dst_prop, auto) {
+      [] __device__(auto src, auto dst, auto src_prop, auto dst_prop, auto) {
         printf("\nsrc ---> %d dst = %d :  src_prop = %f dst_prop = %f\n",
-               static_cast<int>(new_to_original_id_map[src]),
-               static_cast<int>(new_to_original_id_map[dst]),
+               static_cast<int>(src),
+               static_cast<int>(dst),
                static_cast<float>(src_prop),
                static_cast<float>(dst_prop));
         return dst_prop;

@@ -203,5 +203,5 @@ int main(int argc, char** argv)
   using weight_t           = float;
   constexpr bool multi_gpu = true;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path, false);
+  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path, true);
 }

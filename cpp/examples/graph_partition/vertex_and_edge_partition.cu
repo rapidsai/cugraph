@@ -239,8 +239,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
        indices,
        major_range_first,
        is_weighted,
-       weights                = weights_of_edges_stored_in_this_edge_partition.begin(),
-       new_to_original_id_map = (*renumber_map).data()] __device__(auto i) {
+       weights = weights_of_edges_stored_in_this_edge_partition.begin()] __device__(auto i) {
         auto v                               = major_range_first + i;
         auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
 
@@ -248,16 +247,15 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
           thrust::seq,
           thrust::make_counting_iterator(edge_t{offsets[i]}),
           thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
-          [comm_rank, ep_idx, v, indices, new_to_original_id_map, is_weighted, weights] __device__(
-            auto pos) {
+          [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
             if (is_weighted) {
               printf(
                 "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
                 "destination = %d weight = %f\n",
                 static_cast<int>(comm_rank),
                 static_cast<int>(ep_idx),
-                static_cast<int>(new_to_original_id_map[v]),
-                static_cast<int>(new_to_original_id_map[indices[pos]]),
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]),
                 static_cast<float>(weights[pos]));
 
             } else {
@@ -266,8 +264,8 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                 "destination = %d\n",
                 static_cast<int>(comm_rank),
                 static_cast<int>(ep_idx),
-                static_cast<int>(new_to_original_id_map[v]),
-                static_cast<int>(new_to_original_id_map[indices[pos]]));
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]));
             }
           });
       });
@@ -285,7 +283,6 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
          major_range_first,
          is_weighted,
          weights                 = weights_of_edges_stored_in_this_edge_partition.begin(),
-         new_to_original_id_map  = (*renumber_map).data(),
          dcs_nzd_vertices        = (*dcs_nzd_vertices),
          major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
           auto v                               = dcs_nzd_vertices[i];
@@ -296,21 +293,15 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
             thrust::seq,
             thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
             thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
-            [comm_rank,
-             ep_idx,
-             v,
-             indices,
-             new_to_original_id_map,
-             is_weighted,
-             weights] __device__(auto pos) {
+            [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
               if (is_weighted) {
                 printf(
                   "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
                   "destination = %d weight = %f\n",
                   static_cast<int>(comm_rank),
                   static_cast<int>(ep_idx),
-                  static_cast<int>(new_to_original_id_map[v]),
-                  static_cast<int>(new_to_original_id_map[indices[pos]]),
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]),
                   static_cast<float>(weights[pos]));
 
               } else {
@@ -319,8 +310,8 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                   "destination = %d\n",
                   static_cast<int>(comm_rank),
                   static_cast<int>(ep_idx),
-                  static_cast<int>(new_to_original_id_map[v]),
-                  static_cast<int>(new_to_original_id_map[indices[pos]]));
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]));
               }
             });
         });
