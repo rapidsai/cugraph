@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 #
 # NETWORKX_GRAPH_CONVERT=cugraph
 #   Used by networkx versions 3.0 and 3.1
@@ -30,7 +30,13 @@ NETWORKX_TEST_BACKEND=cugraph \
 NETWORKX_FALLBACK_TO_NX=True \
     pytest \
     --pyargs networkx \
-    --cov=nx_cugraph.algorithms \
-    --cov-report term-missing \
-    --no-cov-on-fail \
+    --config-file=$(dirname $0)/pyproject.toml \
+    --cov-config=$(dirname $0)/pyproject.toml \
+    --cov=nx_cugraph \
+    --cov-report= \
     "$@"
+coverage report \
+    --include="*/nx_cugraph/algorithms/*" \
+    --omit=__init__.py \
+    --show-missing \
+    --rcfile=$(dirname $0)/pyproject.toml
