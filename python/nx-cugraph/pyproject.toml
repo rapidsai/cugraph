@@ -79,6 +79,7 @@ include = [
     "_nx_cugraph*",
     "_nx_cugraph.*",
 ]
+exclude = ["*tests*"]
 
 [tool.black]
 line-length = 88
