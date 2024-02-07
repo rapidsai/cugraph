@@ -87,14 +87,13 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 
   return std::move(handle);
 }
+
 /**
  * @brief This function reads graph from an input csv file and run BFS and Louvain on it.
  */
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void run_graph_algos(raft::handle_t const& handle,
-                     std::string const& csv_graph_file_path,
-                     bool weighted = false)
+void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_file_path)
 {
   auto const comm_rank = handle.get_comms().get_rank();
   auto const comm_size = handle.get_comms().get_size();
@@ -103,14 +102,12 @@ void run_graph_algos(raft::handle_t const& handle,
   bool renumber = true;  // must be true for distributed graph.
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, weighted, renumber);
+      handle, csv_graph_file_path, true, renumber);
 
   auto graph_view       = graph.view();
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+  assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
 
-  if (renumber_map.has_value()) {
-    assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
-  }
   // run example algorithms
 
   // BFS
@@ -203,5 +200,5 @@ int main(int argc, char** argv)
   using weight_t           = float;
   constexpr bool multi_gpu = true;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path, false);
+  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path);
 }

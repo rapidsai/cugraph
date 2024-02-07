@@ -98,8 +98,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
-                                          std::string const& csv_graph_file_path,
-                                          bool weighted = false)
+                                          std::string const& csv_graph_file_path)
 {
   auto const comm_rank = handle.get_comms().get_rank();
   auto const comm_size = handle.get_comms().get_size();
@@ -113,7 +112,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, weighted, renumber);
+      handle, csv_graph_file_path, true, renumber);
 
   // Meta of the non-owning view of the graph object store vertex/edge partitioning map
   auto graph_view = graph.view();
@@ -161,52 +160,34 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
   // vertex id. The new (aka renumbered) id of the first vertex, ie the vertex at position 0
   // of `renumber_map`, assigned to this process
 
-  vertex_t renumbered_vertex_id_of_local_first = graph_view.local_vertex_partition_range_first();
+  vertex_t renumber_vertex_id_of_local_first = graph_view.local_vertex_partition_range_first();
 
   // The new (aka renumbered) id of the last vertex, ie the vertex at position
   // `size_of_the_vertex_partition_assigned_to_this_process` - 1 of `renumber_map`,
   // assigned to this process
 
-  vertex_t renumbered_vertex_id_of_local_last = graph_view.local_vertex_partition_range_last();
+  vertex_t renumber_vertex_id_of_local_last = graph_view.local_vertex_partition_range_last();
 
   // Print original vertex ids, new (aka renumbered) vertex ids and the ranks of the owner processes
 
   if (renumber_map) {
-    thrust::for_each(thrust::host,
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.begin(),
-                       thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.end(),
-                       thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
-                     [comm_rank](auto old_and_new_id_pair) {
-                       auto old_id = thrust::get<0>(old_and_new_id_pair);
-                       auto new_id = thrust::get<1>(old_and_new_id_pair);
-                       printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
-                              comm_rank,
-                              static_cast<int>(old_id),
-                              static_cast<int>(new_id));
-                     });
+    thrust::for_each(
+      thrust::host,
+      thrust::make_zip_iterator(
+        thrust::make_tuple(h_vertices_in_this_proces.begin(),
+                           thrust::make_counting_iterator(renumber_vertex_id_of_local_first))),
+      thrust::make_zip_iterator(
+        thrust::make_tuple(h_vertices_in_this_proces.end(),
+                           thrust::make_counting_iterator(renumber_vertex_id_of_local_last))),
+      [comm_rank](auto old_and_new_id_pair) {
+        auto old_id = thrust::get<0>(old_and_new_id_pair);
+        auto new_id = thrust::get<1>(old_and_new_id_pair);
+        printf("owner rank = %d, original vertex id %d ----->  new (renumbered) vertex id %d\n",
+               comm_rank,
+               static_cast<int>(old_id),
+               static_cast<int>(new_id));
+      });
   }
-
-  // if (renumber_map) {
-  //   thrust::for_each(
-  //     handle.get_thrust_policy(),
-  //     thrust::make_zip_iterator(
-  //       thrust::make_tuple((*renumber_map).begin(),
-  //                          thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
-  //     thrust::make_zip_iterator(thrust::make_tuple(
-  //       (*renumber_map).end(),
-  //       thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
-  //     [comm_rank](auto old_and_new_id_pair) {
-  //       auto old_id = thrust::get<0>(old_and_new_id_pair);
-  //       auto new_id = thrust::get<1>(old_and_new_id_pair);
-  //       printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
-  //              comm_rank,
-  //              static_cast<int>(old_id),
-  //              static_cast<int>(new_id));
-  //     });
-  // }
 
   //
   // Look into edge partitions and their associated edge properties (if any)
@@ -258,8 +239,7 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
        indices,
        major_range_first,
        is_weighted,
-       weights                = weights_of_edges_stored_in_this_edge_partition.begin(),
-       new_to_original_id_map = (*renumber_map).data()] __device__(auto i) {
+       weights = weights_of_edges_stored_in_this_edge_partition.begin()] __device__(auto i) {
         auto v                               = major_range_first + i;
         auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
 
@@ -267,16 +247,15 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
           thrust::seq,
           thrust::make_counting_iterator(edge_t{offsets[i]}),
           thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
-          [comm_rank, ep_idx, v, indices, new_to_original_id_map, is_weighted, weights] __device__(
-            auto pos) {
+          [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
             if (is_weighted) {
               printf(
                 "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
                 "destination = %d weight = %f\n",
                 static_cast<int>(comm_rank),
                 static_cast<int>(ep_idx),
-                static_cast<int>(new_to_original_id_map[v]),
-                static_cast<int>(new_to_original_id_map[indices[pos]]),
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]),
                 static_cast<float>(weights[pos]));
 
             } else {
@@ -285,8 +264,8 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                 "destination = %d\n",
                 static_cast<int>(comm_rank),
                 static_cast<int>(ep_idx),
-                static_cast<int>(new_to_original_id_map[v]),
-                static_cast<int>(new_to_original_id_map[indices[pos]]));
+                static_cast<int>(v),
+                static_cast<int>(indices[pos]));
             }
           });
       });
@@ -304,7 +283,6 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
          major_range_first,
          is_weighted,
          weights                 = weights_of_edges_stored_in_this_edge_partition.begin(),
-         new_to_original_id_map  = (*renumber_map).data(),
          dcs_nzd_vertices        = (*dcs_nzd_vertices),
          major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
           auto v                               = dcs_nzd_vertices[i];
@@ -315,21 +293,15 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
             thrust::seq,
             thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
             thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
-            [comm_rank,
-             ep_idx,
-             v,
-             indices,
-             new_to_original_id_map,
-             is_weighted,
-             weights] __device__(auto pos) {
+            [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
               if (is_weighted) {
                 printf(
                   "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
                   "destination = %d weight = %f\n",
                   static_cast<int>(comm_rank),
                   static_cast<int>(ep_idx),
-                  static_cast<int>(new_to_original_id_map[v]),
-                  static_cast<int>(new_to_original_id_map[indices[pos]]),
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]),
                   static_cast<float>(weights[pos]));
 
               } else {
@@ -338,8 +310,8 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                   "destination = %d\n",
                   static_cast<int>(comm_rank),
                   static_cast<int>(ep_idx),
-                  static_cast<int>(new_to_original_id_map[v]),
-                  static_cast<int>(new_to_original_id_map[indices[pos]]));
+                  static_cast<int>(v),
+                  static_cast<int>(indices[pos]));
               }
             });
         });
@@ -388,6 +360,6 @@ int main(int argc, char** argv)
   using weight_t           = float;
   constexpr bool multi_gpu = true;
 
-  look_into_vertex_and_edge_partitions<vertex_t, edge_t, weight_t, multi_gpu>(
-    *handle, csv_graph_file_path, false);
+  look_into_vertex_and_edge_partitions<vertex_t, edge_t, weight_t, multi_gpu>(*handle,
+                                                                              csv_graph_file_path);
 }

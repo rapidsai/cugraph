@@ -104,8 +104,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void perform_example_graph_operations(raft::handle_t const& handle,
-                                      std::string const& csv_graph_file_path,
-                                      const bool weighted = false)
+                                      std::string const& csv_graph_file_path)
 {
   auto const comm_rank = handle.get_comms().get_rank();
   auto const comm_size = handle.get_comms().get_size();
@@ -119,7 +118,7 @@ void perform_example_graph_operations(raft::handle_t const& handle,
 
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, weighted, renumber);
+      handle, csv_graph_file_path, true, renumber);
 
   // Non-owning view of the graph object
   auto graph_view = graph.view();
@@ -133,99 +132,46 @@ void perform_example_graph_operations(raft::handle_t const& handle,
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  rmm::device_uvector<weight_t> vertex_weights =
+    compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-  //
-  // As an example operation, compute the weighted average of the properties of
-  // neighboring vertices, weighted by the edge weights, if the input graph is weighted;
-  // Otherwise, compute the simple average.
-  //
-  if (weighted) {
-    using result_t      = weight_t;
-    auto vertex_weights = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+  cugraph::edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle, graph_view);
 
-    cugraph::edge_src_property_t<graph_view_t, result_t> src_vertex_weights_cache(handle,
-                                                                                  graph_view);
+  cugraph::edge_dst_property_t<graph_view_t, weight_t> dst_vertex_weights_cache(handle, graph_view);
 
-    cugraph::edge_dst_property_t<graph_view_t, result_t> dst_vertex_weights_cache(handle,
-                                                                                  graph_view);
+  update_edge_src_property(handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
 
-    update_edge_src_property(handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
+  update_edge_dst_property(handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
 
-    update_edge_dst_property(handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
+  rmm::device_uvector<weight_t> outputs(size_of_the_vertex_partition_assigned_to_this_process,
+                                        handle.get_stream());
 
-    rmm::device_uvector<result_t> outputs(size_of_the_vertex_partition_assigned_to_this_process,
-                                          handle.get_stream());
+  per_v_transform_reduce_incoming_e(
+    handle,
+    graph_view,
+    src_vertex_weights_cache.view(),
+    dst_vertex_weights_cache.view(),
+    *edge_weight_view,
+    [] __device__(auto src, auto dst, auto src_prop, auto dst_prop, auto edge_prop) {
+      printf("\n%d ---> %d :  src_prop= %f dst_prop = %f edge_prop = %f \n",
+             static_cast<int>(src),
+             static_cast<int>(dst),
+             static_cast<float>(src_prop),
+             static_cast<float>(dst_prop),
+             static_cast<float>(edge_prop));
+      return dst_prop * edge_prop;
+    },
+    weight_t{0},
+    cugraph::reduce_op::plus<weight_t>{},
+    outputs.begin());
 
-    per_v_transform_reduce_incoming_e(
-      handle,
-      graph_view,
-      src_vertex_weights_cache.view(),
-      dst_vertex_weights_cache.view(),
-      (*edge_weight_view),
-      [new_to_original_id_map = (*renumber_map).data()] __device__(
-        auto src, auto dst, auto src_prop, auto dst_prop, auto edge_prop) {
-        printf("\nsrc ---> %d dst = %d :  src_prop = %f dst_prop = %f edge_prop = %f\n",
-               static_cast<int>(new_to_original_id_map[src]),
-               static_cast<int>(new_to_original_id_map[dst]),
-               static_cast<float>(src_prop),
-               static_cast<float>(dst_prop),
-               static_cast<float>(edge_prop));
-        return dst_prop * edge_prop;
-      },
-      result_t{0},
-      cugraph::reduce_op::plus<result_t>{},
-      outputs.begin());
-
-    auto outputs_title                 = std::string("outputs_").append(std::to_string(comm_rank));
-    size_t max_nr_of_elements_to_print = 10;
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(outputs_title.c_str(),
-                              outputs.begin(),
-                              std::min<size_t>(outputs.size(), max_nr_of_elements_to_print),
-                              std::cout);
-  } else {
-    using result_t      = edge_t;
-    auto vertex_weights = graph_view.compute_out_degrees(handle);
-
-    cugraph::edge_src_property_t<graph_view_t, result_t> src_vertex_weights_cache(handle,
-                                                                                  graph_view);
-    cugraph::edge_dst_property_t<graph_view_t, result_t> dst_vertex_weights_cache(handle,
-                                                                                  graph_view);
-
-    update_edge_src_property(handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
-
-    update_edge_dst_property(handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
-
-    rmm::device_uvector<result_t> outputs(size_of_the_vertex_partition_assigned_to_this_process,
-                                          handle.get_stream());
-
-    per_v_transform_reduce_incoming_e(
-      handle,
-      graph_view,
-      src_vertex_weights_cache.view(),
-      dst_vertex_weights_cache.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [new_to_original_id_map = (*renumber_map).data()] __device__(
-        auto src, auto dst, auto src_prop, auto dst_prop, auto) {
-        printf("\nsrc ---> %d dst = %d :  src_prop = %f dst_prop = %f\n",
-               static_cast<int>(new_to_original_id_map[src]),
-               static_cast<int>(new_to_original_id_map[dst]),
-               static_cast<float>(src_prop),
-               static_cast<float>(dst_prop));
-        return dst_prop;
-      },
-      result_t{0},
-      cugraph::reduce_op::plus<result_t>{},
-      outputs.begin());
-
-    auto outputs_title                 = std::string("outputs_").append(std::to_string(comm_rank));
-    size_t max_nr_of_elements_to_print = 10;
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(outputs_title.c_str(),
-                              outputs.begin(),
-                              std::min<size_t>(outputs.size(), max_nr_of_elements_to_print),
-                              std::cout);
-  }
+  auto outputs_title                 = std::string("outputs_").append(std::to_string(comm_rank));
+  size_t max_nr_of_elements_to_print = 10;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(outputs_title.c_str(),
+                            outputs.begin(),
+                            std::min<size_t>(outputs.size(), max_nr_of_elements_to_print),
+                            std::cout);
 }
 
 int main(int argc, char** argv)
@@ -250,6 +196,6 @@ int main(int argc, char** argv)
   using weight_t           = float;
   constexpr bool multi_gpu = true;
 
-  perform_example_graph_operations<vertex_t, edge_t, weight_t, multi_gpu>(
-    *handle, csv_graph_file_path, false);
+  perform_example_graph_operations<vertex_t, edge_t, weight_t, multi_gpu>(*handle,
+                                                                          csv_graph_file_path);
 }

@@ -22,7 +22,7 @@ For single_gpu
 
 `path_to_executable path_to_a_csv_graph_file [memory allocation mode]`
 
-For multi_gpu, graph_partitioning and cugraph_operations
+For multi_gpu and graph_partitioning
 
 `mpirun -np 2 path_to_executable  path_to_a_csv_graph_file [memory allocation mode]`
 

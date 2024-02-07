@@ -57,22 +57,17 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle(std::string const& allocati
  */
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void run_graph_algos(raft::handle_t const& handle,
-                     std::string const& csv_graph_file_path,
-                     bool weighted = false)
+void run_graph_algos(raft::handle_t const& handle, std::string const& csv_graph_file_path)
 {
   std::cout << "Reading graph from " << csv_graph_file_path << std::endl;
-  bool renumber = false;  // for single gpu, this can be true or false
   auto [graph, edge_weights, renumber_map] =
     cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, weighted, renumber);
+      handle, csv_graph_file_path, true, true);
 
   auto graph_view       = graph.view();
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+  assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
 
-  if (renumber_map.has_value()) {
-    assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
-  }
   // run example algorithms
 
   // BFS
@@ -155,5 +150,5 @@ int main(int argc, char** argv)
   using edge_t   = int32_t;
   using weight_t = float;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1], false);
+  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1]);
 }
