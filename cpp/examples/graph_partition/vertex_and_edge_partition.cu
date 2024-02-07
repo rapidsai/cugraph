@@ -189,25 +189,6 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
                      });
   }
 
-  // if (renumber_map) {
-  //   thrust::for_each(
-  //     handle.get_thrust_policy(),
-  //     thrust::make_zip_iterator(
-  //       thrust::make_tuple((*renumber_map).begin(),
-  //                          thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
-  //     thrust::make_zip_iterator(thrust::make_tuple(
-  //       (*renumber_map).end(),
-  //       thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
-  //     [comm_rank](auto old_and_new_id_pair) {
-  //       auto old_id = thrust::get<0>(old_and_new_id_pair);
-  //       auto new_id = thrust::get<1>(old_and_new_id_pair);
-  //       printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
-  //              comm_rank,
-  //              static_cast<int>(old_id),
-  //              static_cast<int>(new_id));
-  //     });
-  // }
-
   //
   // Look into edge partitions and their associated edge properties (if any)
   //
