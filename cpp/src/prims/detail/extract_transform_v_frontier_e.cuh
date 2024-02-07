@@ -62,13 +62,13 @@ namespace detail {
 
 int32_t constexpr extract_transform_v_frontier_e_kernel_block_size = 512;
 
-template <typename e_op_result_t,
-          typename BufferKeyOutputIterator,
-          typename BufferValueOutputIterator>
-__device__ void push_buffer_element(e_op_result_t e_op_result,
-                                    BufferKeyOutputIterator buffer_key_output_first,
+template <typename BufferKeyOutputIterator,
+          typename BufferValueOutputIterator,
+          typename e_op_result_t>
+__device__ void push_buffer_element(BufferKeyOutputIterator buffer_key_output_first,
                                     BufferValueOutputIterator buffer_value_output_first,
-                                    size_t buffer_idx)
+                                    size_t buffer_idx,
+                                    e_op_result_t e_op_result)
 {
   using output_key_t =
     typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
@@ -85,6 +85,34 @@ __device__ void push_buffer_element(e_op_result_t e_op_result,
     *(buffer_key_output_first + buffer_idx) = *e_op_result;
   } else {
     *(buffer_value_output_first + buffer_idx) = *e_op_result;
+  }
+}
+
+template <typename BufferKeyOutputIterator,
+          typename BufferValueOutputIterator,
+          typename e_op_result_t>
+__device__ void warp_push_buffer_elements(
+  BufferKeyOutputIterator buffer_key_output_first,
+  BufferValueOutputIterator buffer_value_output_first,
+  cuda::atomic_ref<size_t, cuda::thread_scope_device>& buffer_idx,
+  int lane_id,
+  e_op_result_t e_op_result)
+{
+  auto ballot = __ballot_sync(raft::warp_full_mask(), e_op_result ? uint32_t{1} : uint32_t{0});
+  if (ballot > 0) {
+    size_t warp_buffer_start_idx{};
+    if (lane_id == 0) {
+      auto increment        = __popc(ballot);
+      warp_buffer_start_idx = buffer_idx.fetch_add(increment, cuda::std::memory_order_relaxed);
+    }
+    warp_buffer_start_idx = __shfl_sync(raft::warp_full_mask(), warp_buffer_start_idx, int{0});
+    if (e_op_result) {
+      auto buffer_warp_offset = __popc(ballot & ~(raft::warp_full_mask() << lane_id));
+      push_buffer_element(buffer_key_output_first,
+                          buffer_value_output_first,
+                          warp_buffer_start_idx + buffer_warp_offset,
+                          e_op_result);
+    }
   }
 }
 
@@ -131,15 +159,14 @@ __global__ void extract_transform_v_frontier_e_hypersparse_or_low_degree(
                                                 edge_partition.major_range_first());
   auto idx                = static_cast<size_t>(tid);
 
+  cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
+
   __shared__ edge_t
     warp_local_degree_inclusive_sums[extract_transform_v_frontier_e_kernel_block_size];
   __shared__ edge_t warp_key_local_edge_offsets[extract_transform_v_frontier_e_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
-
-  __shared__ size_t
-    buffer_warp_start_indices[extract_transform_v_frontier_e_kernel_block_size / raft::warp_size()];
 
   auto indices = edge_partition.indices();
 
@@ -227,25 +254,9 @@ __global__ void extract_transform_v_frontier_e_hypersparse_or_low_degree(
             e_op_result = call_e_op(key, local_edge_offset);
           }
         }
-        auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
-        if (ballot > 0) {
-          if (lane_id == 0) {
-            auto increment = __popc(ballot);
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            buffer_warp_start_indices[warp_id] = static_cast<size_t>(
-              atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                        static_cast<unsigned long long int>(increment)));
-          }
-          __syncwarp();
-          if (e_op_result) {
-            auto buffer_warp_offset =
-              static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-            push_buffer_element(e_op_result,
-                                buffer_key_output_first,
-                                buffer_value_output_first,
-                                buffer_warp_start_indices[warp_id] + buffer_warp_offset);
-          }
-        }
+
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     } else {
       for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
@@ -264,25 +275,9 @@ __global__ void extract_transform_v_frontier_e_hypersparse_or_low_degree(
           auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
           e_op_result = call_e_op(key, local_edge_offset);
         }
-        auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
-        if (ballot > 0) {
-          if (lane_id == 0) {
-            auto increment = __popc(ballot);
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            buffer_warp_start_indices[warp_id] = static_cast<size_t>(
-              atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                        static_cast<unsigned long long int>(increment)));
-          }
-          __syncwarp();
-          if (e_op_result) {
-            auto buffer_warp_offset =
-              static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-            push_buffer_element(e_op_result,
-                                buffer_key_output_first,
-                                buffer_value_output_first,
-                                buffer_warp_start_indices[warp_id] + buffer_warp_offset);
-          }
-        }
+
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     }
 
@@ -331,8 +326,8 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
   auto const lane_id = tid % raft::warp_size();
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
-  __shared__ size_t
-    buffer_warp_start_indices[extract_transform_v_frontier_e_kernel_block_size / raft::warp_size()];
+  cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
+
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
     vertex_t major{};
@@ -374,50 +369,16 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
           e_op_result = call_e_op(i);
         }
 
-        auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
-        if (ballot > 0) {
-          if (lane_id == 0) {
-            auto increment = __popc(ballot);
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            buffer_warp_start_indices[warp_id] = static_cast<size_t>(
-              atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                        static_cast<unsigned long long int>(increment)));
-          }
-          __syncwarp();
-          if (e_op_result) {
-            auto buffer_warp_offset =
-              static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-            push_buffer_element(e_op_result,
-                                buffer_key_output_first,
-                                buffer_value_output_first,
-                                buffer_warp_start_indices[warp_id] + buffer_warp_offset);
-          }
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     } else {
       for (size_t i = lane_id; i < rounded_up_local_out_degree; i += raft::warp_size()) {
         e_op_result_t e_op_result{thrust::nullopt};
         if (i < static_cast<size_t>(local_out_degree)) { e_op_result = call_e_op(i); }
 
-        auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
-        if (ballot > 0) {
-          if (lane_id == 0) {
-            auto increment = __popc(ballot);
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            buffer_warp_start_indices[warp_id] = static_cast<size_t>(
-              atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                        static_cast<unsigned long long int>(increment)));
-          }
-          __syncwarp();
-          if (e_op_result) {
-            auto buffer_warp_offset =
-              static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-            push_buffer_element(e_op_result,
-                                buffer_key_output_first,
-                                buffer_value_output_first,
-                                buffer_warp_start_indices[warp_id] + buffer_warp_offset);
-          }
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     }
 
@@ -460,11 +421,11 @@ __global__ void extract_transform_v_frontier_e_high_degree(
                                  typename EdgePartitionEdgeValueInputWrapper::value_type,
                                  EdgeOp>::type;
 
-  auto idx = static_cast<size_t>(blockIdx.x);
+  auto const warp_id = threadIdx.x / raft::warp_size();
+  auto const lane_id = threadIdx.x % raft::warp_size();
+  auto idx           = static_cast<size_t>(blockIdx.x);
 
-  using BlockScan = cub::BlockScan<edge_t, extract_transform_v_frontier_e_kernel_block_size>;
-  __shared__ typename BlockScan::TempStorage temp_storage;
-  __shared__ size_t buffer_block_start_idx;
+  cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
@@ -503,59 +464,25 @@ __global__ void extract_transform_v_frontier_e_high_degree(
     if (edge_partition_e_mask) {
       for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
         e_op_result_t e_op_result{thrust::nullopt};
-        edge_t buffer_block_offset{0};
         if ((i < static_cast<size_t>(local_out_degree)) &&
             ((*edge_partition_e_mask).get(local_edge_offset + i))) {
           e_op_result = call_e_op(i);
         }
 
-        BlockScan(temp_storage)
-          .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
-        if (threadIdx.x == (blockDim.x - 1)) {
-          auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
-          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-          buffer_block_start_idx = increment > 0
-                                     ? static_cast<size_t>(atomicAdd(
-                                         reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                         static_cast<unsigned long long int>(increment)))
-                                     : size_t{0} /* dummy */;
-        }
-        __syncthreads();
-        if (e_op_result) {
-          push_buffer_element(e_op_result,
-                              buffer_key_output_first,
-                              buffer_value_output_first,
-                              buffer_block_start_idx + buffer_block_offset);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     } else {
       for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
         e_op_result_t e_op_result{thrust::nullopt};
-        edge_t buffer_block_offset{0};
         if (i < static_cast<size_t>(local_out_degree)) { e_op_result = call_e_op(i); }
 
-        BlockScan(temp_storage)
-          .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
-        if (threadIdx.x == (blockDim.x - 1)) {
-          auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
-          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-          buffer_block_start_idx = increment > 0
-                                     ? static_cast<size_t>(atomicAdd(
-                                         reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                         static_cast<unsigned long long int>(increment)))
-                                     : size_t{0} /* dummy */;
-        }
-        __syncthreads();
-        if (e_op_result) {
-          push_buffer_element(e_op_result,
-                              buffer_key_output_first,
-                              buffer_value_output_first,
-                              buffer_block_start_idx + buffer_block_offset);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
-
-      idx += gridDim.x;
     }
+
+    idx += gridDim.x;
   }
 }
 
