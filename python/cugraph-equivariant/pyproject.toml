@@ -62,3 +62,4 @@ include = [
     "cugraph_equivariant*",
     "cugraph_equivariant.*",
 ]
+exclude = ["*tests*"]
