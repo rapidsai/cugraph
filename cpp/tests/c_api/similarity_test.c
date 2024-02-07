@@ -186,12 +186,12 @@ int generic_all_pairs_similarity_test(vertex_t* h_src,
 
   cugraph_type_erased_device_array_view_t* similarity_coefficient;
 
-  cugraph_vertex_pairs_t const* vertex_pairs;
+  cugraph_vertex_pairs_t * vertex_pairs;
   vertex_pairs = cugraph_similarity_result_get_vertex_pairs(result);
   similarity_coefficient = cugraph_similarity_result_get_similarity(result);
 
-  cugraph_type_erased_device_array_view_t const *result_v1;
-  cugraph_type_erased_device_array_view_t const *result_v2;
+  cugraph_type_erased_device_array_view_t *result_v1;
+  cugraph_type_erased_device_array_view_t *result_v2;
 
   result_v1 = cugraph_vertex_pairs_get_first(vertex_pairs);
   result_v2 = cugraph_vertex_pairs_get_second(vertex_pairs);

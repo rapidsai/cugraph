@@ -34,7 +34,7 @@ namespace c_api {
 
 struct cugraph_similarity_result_t {
   cugraph_type_erased_device_array_t* similarity_coefficients_;
-  cugraph_vertex_pairs_t const* vertex_pairs_;
+  cugraph_vertex_pairs_t* vertex_pairs_;
 };
 
 }  // namespace c_api
@@ -303,7 +303,7 @@ struct overlap_functor {
 }  // namespace
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarity(
-  cugraph_similarity_result_t const* result)
+  cugraph_similarity_result_t* result)
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_similarity_result_t const*>(result);
@@ -311,12 +311,11 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_similarity_result_ge
     internal_pointer->similarity_coefficients_->view());
 }
 
-extern "C" cugraph_vertex_pairs_t const* cugraph_similarity_result_get_vertex_pairs(
-  cugraph_similarity_result_t const* result)
+extern "C" cugraph_vertex_pairs_t* cugraph_similarity_result_get_vertex_pairs(
+  cugraph_similarity_result_t* result)
 {
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_similarity_result_t const*>(result);
-  return reinterpret_cast<cugraph_vertex_pairs_t const*>(internal_pointer->vertex_pairs_);
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_similarity_result_t*>(result);
+  return reinterpret_cast<cugraph_vertex_pairs_t*>(internal_pointer->vertex_pairs_);
 }
 
 extern "C" void cugraph_similarity_result_free(cugraph_similarity_result_t* result)

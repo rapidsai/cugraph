@@ -244,21 +244,19 @@ extern "C" cugraph_error_code_t cugraph_create_vertex_pairs(
   return cugraph::c_api::run_algorithm(graph, functor, vertex_pairs, error);
 }
 
-extern "C" cugraph_type_erased_device_array_view_t const* cugraph_vertex_pairs_get_first(
-  cugraph_vertex_pairs_t const* vertex_pairs)
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
+  cugraph_vertex_pairs_t* vertex_pairs)
 {
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_vertex_pairs_t const*>(vertex_pairs);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_vertex_pairs_t*>(vertex_pairs);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->first_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t const* cugraph_vertex_pairs_get_second(
-  cugraph_vertex_pairs_t const* vertex_pairs)
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_second(
+  cugraph_vertex_pairs_t* vertex_pairs)
 {
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_vertex_pairs_t const*>(vertex_pairs);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_vertex_pairs_t*>(vertex_pairs);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->second_->view());
 }
 

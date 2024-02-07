@@ -43,8 +43,8 @@ typedef struct {
  * @param [in]     result   The result from a similarity algorithm
  * @return vertex pairs
  */
-cugraph_vertex_pairs_t const* cugraph_similarity_result_get_vertex_pairs(
-  cugraph_similarity_result_t const* result);
+cugraph_vertex_pairs_t* cugraph_similarity_result_get_vertex_pairs(
+  cugraph_similarity_result_t* result);
 
 /**
  * @ingroup similarity
@@ -54,7 +54,7 @@ cugraph_vertex_pairs_t const* cugraph_similarity_result_get_vertex_pairs(
  * @return type erased array of similarity coefficients
  */
 cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarity(
-  cugraph_similarity_result_t const* result);
+  cugraph_similarity_result_t* result);
 
 /**
  * @ingroup similarity

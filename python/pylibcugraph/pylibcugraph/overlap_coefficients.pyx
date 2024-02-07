@@ -150,12 +150,12 @@ def overlap_coefficients(ResourceHandle resource_handle,
 
     cupy_similarity = copy_to_cupy_array(c_resource_handle_ptr, similarity_ptr)
 
-    cdef const cugraph_type_erased_device_array_view_t* first_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* first_ptr = \
         cugraph_vertex_pairs_get_first(vertex_pairs_ptr)
 
     cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
 
-    cdef const cugraph_type_erased_device_array_view_t* second_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* second_ptr = \
         cugraph_vertex_pairs_get_second(vertex_pairs_ptr)
 
     cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
