@@ -123,8 +123,6 @@ void fill_edge_src_property(raft::handle_t const& handle,
                             edge_src_property_t<GraphViewType, T>& edge_src_property_output,
                             bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -161,8 +159,6 @@ void fill_edge_dst_property(raft::handle_t const& handle,
                             edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
                             bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
