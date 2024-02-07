@@ -57,3 +57,5 @@ include = [
     "cugraph_pyg*",
     "cugraph_pyg.*",
 ]
+exclude = ["*tests*"]
+
