@@ -189,8 +189,6 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   size_t ret{0};
 
   vertex_t const* local_frontier_vertex_first{nullptr};
@@ -207,10 +205,19 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? thrust::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : thrust::nullopt;
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -225,14 +232,30 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                    static_cast<int>(i),
                    handle.get_stream());
 
-      ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
-                                                    edge_partition_frontier_vertices.end(),
-                                                    handle.get_stream());
+      if (edge_partition_e_mask) {
+        ret +=
+          edge_partition.compute_number_of_edges_with_mask((*edge_partition_e_mask).value_first(),
+                                                           edge_partition_frontier_vertices.begin(),
+                                                           edge_partition_frontier_vertices.end(),
+                                                           handle.get_stream());
+      } else {
+        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
+                                                      edge_partition_frontier_vertices.end(),
+                                                      handle.get_stream());
+      }
     } else {
       assert(i == 0);
-      ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
-                                                    local_frontier_vertex_first + frontier.size(),
-                                                    handle.get_stream());
+      if (edge_partition_e_mask) {
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          (*edge_partition_e_mask).value_first(),
+          local_frontier_vertex_first,
+          local_frontier_vertex_first + frontier.size(),
+          handle.get_stream());
+      } else {
+        ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
+                                                      local_frontier_vertex_first + frontier.size(),
+                                                      handle.get_stream());
+      }
     }
   }
 
@@ -322,8 +345,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   using edge_t    = typename GraphViewType::edge_type;
   using key_t     = typename VertexFrontierBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do
