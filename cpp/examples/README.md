@@ -10,7 +10,7 @@ Example codes on how to use libcugraph.
 
 -  graph_partition: code to explain vertex and edge partitioning in cugraph.
 
--  operations_on_partitioned_graph: example code for using cugraph primitives for simple graph operations needed to implement graph algorithms. 
+-  cugraph_operations: example code for using cugraph primitives for simple graph operations needed to implement graph algorithms. 
 
 ## Build instructions:
 
@@ -29,6 +29,6 @@ For multi_gpu and graph_partitioning
 Memory allocation mode can be one of the followings -
 
 - cuda
-- pool 
+- pool
 - binning
 - managed

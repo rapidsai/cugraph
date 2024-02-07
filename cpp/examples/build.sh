@@ -29,4 +29,5 @@ build_example() {
 build_example single_gpu_application
 build_example multi_gpu_application
 build_example graph_partition
-build_example operations_on_partitioned_graph
+build_example cugraph_operations
+
