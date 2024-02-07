@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -47,11 +47,11 @@ export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
 cd "$CONDA_PREFIX"/bin/gtests/libcugraph/
-ctest -j10 --output-on-failure
+ctest -j10 --output-on-failure --no-tests=error
 
 if [ -d "$CONDA_PREFIX"/bin/gtests/libcugraph_c/ ]; then
   cd "$CONDA_PREFIX"/bin/gtests/libcugraph_c/
-  ctest -j10 --output-on-failure
+  ctest -j10 --output-on-failure --no-tests=error
 fi
 
 rapids-logger "Test script exiting with value: $EXITCODE"
