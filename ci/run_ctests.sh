@@ -3,14 +3,12 @@
 
 set -euo pipefail
 
-if [ -d "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph/" ]; then
-    # Support customizing the ctests' install location
-    cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph/"
-    ctest --output-on-failure "$@"
-fi
+# Support customizing the ctests' install location
+cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph/"
+ctest --output-on-failure "$@"
 
 if [ -d "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_c/" ]; then
-    # Support customizing the ctests' install location
-    cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_c/"
-    ctest --output-on-failure "$@"
+  # Support customizing the ctests' install location
+  cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_c/"
+  ctest --output-on-failure "$@"
 fi
