@@ -231,23 +231,11 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
     auto major_hypersparse_first = edge_partition_view.major_hypersparse_first();
     auto dcs_nzd_vertices        = edge_partition_view.dcs_nzd_vertices();
 
-    if (major_hypersparse_first) {
-      std::cout << "rank: " << comm_rank << ",  partition index: " << ep_idx
-                << " major_range_first = " << major_range_first
-                << ", major_range_last = " << major_range_last
-                << ", major_hypersparse_first = " << (*major_hypersparse_first) << "\n";
-
-      std::cout << "rank: " << comm_rank << ",  partition index: " << ep_idx
-                << ", |dcs_nzd_vertices|: " << (*dcs_nzd_vertices).size() << std::endl;
-    }
-
     //
     // Print sources and destinitions of edges stored in current edge partition
     //
 
     // print sources and destinitions stored in CSR/CSC format
-
-    // weight_t const* edge_weights{nullprt};
     raft::device_span<weight_t const> weights_of_edges_stored_in_this_edge_partition{};
 
     if (is_weighted) {
