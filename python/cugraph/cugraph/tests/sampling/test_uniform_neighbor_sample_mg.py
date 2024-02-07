@@ -1015,7 +1015,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
 
     assert (renumber_map.batch_id == 0).all()
     assert (
-        renumber_map.map.nunique()
+        renumber_map.renumber_map.nunique()
         == cudf.concat(
             [sources_hop_0, sampling_results_renumbered.destinations]
         ).nunique()
@@ -1091,7 +1091,9 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
 
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
-            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+            renumber_map.renumber_map[
+                0 : len(expected_renumber_map)
+            ].values_host.tolist()
         )
 
     renumber_map_offsets = offsets_renumbered.renumber_map_offsets.dropna()
@@ -1153,8 +1155,8 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
     minors = sampling_results["minors"].dropna()
     assert len(majors) == len(minors)
 
-    majors = renumber_map.map.iloc[majors]
-    minors = renumber_map.map.iloc[minors]
+    majors = renumber_map.renumber_map.iloc[majors]
+    minors = renumber_map.renumber_map.iloc[minors]
 
     for i in range(len(majors)):
         assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
@@ -1221,8 +1223,8 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         majors = cudf.Series(cupy.arange(len(major_offsets) - 1))
         majors = majors.repeat(cupy.diff(major_offsets))
 
-        majors = renumber_map.map.iloc[majors]
-        minors = renumber_map.map.iloc[minors]
+        majors = renumber_map.renumber_map.iloc[majors]
+        minors = renumber_map.renumber_map.iloc[minors]
 
         for i in range(len(majors)):
             assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
