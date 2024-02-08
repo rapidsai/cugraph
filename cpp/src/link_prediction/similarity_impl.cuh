@@ -17,6 +17,7 @@
 
 #include <prims/count_if_e.cuh>
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/error_check_utils.cuh>
 
@@ -159,6 +160,303 @@ rmm::device_uvector<weight_t> similarity(
       do_expensive_check);
 
     return similarity_score;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>>
+all_pairs_similarity(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+                     std::optional<raft::device_span<vertex_t const>> source_vertices,
+                     std::optional<size_t> topk,
+                     functor_t functor,
+                     bool do_expensive_check = false)
+{
+  using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+
+  CUGRAPH_EXPECTS(graph_view.is_symmetric(),
+                  "similarity algorithms require an undirected(symmetric) graph");
+
+  if (do_expensive_check) {
+    if (source_vertices) {
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_vertex_partition_view());
+      auto num_invalid_vertices =
+        thrust::count_if(handle.get_thrust_policy(),
+                         source_vertices->begin(),
+                         source_vertices->end(),
+                         [vertex_partition] __device__(auto val) {
+                           return !(vertex_partition.is_valid_vertex(val) &&
+                                    vertex_partition.in_local_vertex_partition_range_nocheck(val));
+                         });
+
+      if constexpr (multi_gpu) {
+        num_invalid_vertices = cugraph::host_scalar_allreduce(
+          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+      }
+
+      CUGRAPH_EXPECTS(num_invalid_vertices == 0,
+                      "Invalid input arguments: there are invalid input vertices.");
+    }
+
+    if (edge_weight_view) {
+      auto num_negative_edge_weights =
+        count_if_e(handle,
+                   graph_view,
+                   edge_src_dummy_property_t{}.view(),
+                   edge_dst_dummy_property_t{}.view(),
+                   *edge_weight_view,
+                   [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w < 0.0; });
+
+      if constexpr (multi_gpu) {
+        num_negative_edge_weights = cugraph::host_scalar_allreduce(handle.get_comms(),
+                                                                   num_negative_edge_weights,
+                                                                   raft::comms::op_t::SUM,
+                                                                   handle.get_stream());
+      }
+
+      CUGRAPH_EXPECTS(
+        num_negative_edge_weights == 0,
+        "Invalid input argument: input edge weights should have non-negative values.");
+    }
+  }
+
+  rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
+
+  if (source_vertices) {
+    sources.resize(source_vertices->size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 source_vertices->begin(),
+                 source_vertices->end(),
+                 sources.begin());
+  } else {
+    sources.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    thrust::sequence(handle.get_thrust_policy(),
+                     sources.begin(),
+                     sources.end(),
+                     graph_view.local_vertex_partition_range_first());
+  }
+
+  if (topk) {
+    //  We can reduce memory footprint by doing work in batches and
+    //  computing/updating topk with each batch
+    rmm::device_uvector<vertex_t> top_v1(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> top_v2(0, handle.get_stream());
+    rmm::device_uvector<weight_t> top_score(0, handle.get_stream());
+
+    top_v1.reserve(*topk, handle.get_stream());
+    top_v2.reserve(*topk, handle.get_stream());
+    top_score.reserve(*topk, handle.get_stream());
+
+    //   FIXME: Think about what this should be
+    edge_t const MAX_PAIRS{2 << 20};
+
+    rmm::device_uvector<edge_t> degrees = graph_view.compute_out_degrees(handle);
+    rmm::device_uvector<edge_t> two_hop_degrees(degrees.size(), handle.get_stream());
+
+    // Let's compute the maximum size of the 2-hop neighborhood of each vertex
+    // FIXME: If sources is specified, this could be done on a subset of the vertices
+    //
+    edge_dst_property_t<GraphViewType, edge_t> edge_dst_degrees(handle, graph_view);
+    update_edge_dst_property(handle, graph_view, degrees.begin(), edge_dst_degrees);
+
+    per_v_transform_reduce_incoming_e(
+      handle,
+      graph_view,
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_degrees.view(),
+      edge_dummy_property_t{}.view(),
+      [] __device__(vertex_t, vertex_t, auto, auto dst_degree, auto) { return dst_degree; },
+      edge_t{0},
+      reduce_op::plus<edge_t>{},
+      two_hop_degrees.begin());
+
+    if (source_vertices) {
+      rmm::device_uvector<edge_t> gathered_degrees(sources.size(), handle.get_stream());
+
+      thrust::gather(
+        handle.get_thrust_policy(),
+        thrust::make_transform_iterator(
+          sources.begin(),
+          cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+        thrust::make_transform_iterator(
+          sources.end(),
+          cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+        two_hop_degrees.begin(),
+        gathered_degrees.begin());
+
+      two_hop_degrees = std::move(gathered_degrees);
+    }
+
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        two_hop_degrees.begin(),
+                        two_hop_degrees.end(),
+                        sources.begin(),
+                        thrust::greater<edge_t>{});
+
+    thrust::inclusive_scan(handle.get_thrust_policy(),
+                           two_hop_degrees.begin(),
+                           two_hop_degrees.end(),
+                           two_hop_degrees.begin());
+
+    size_t current_pos{0};
+    size_t next_pos{0};
+
+    while (true) {
+      if (current_pos < two_hop_degrees.size()) {
+        edge_t next_boundary;
+        raft::update_host(
+          &next_boundary, two_hop_degrees.data() + current_pos, 1, handle.get_stream());
+        next_boundary += MAX_PAIRS;
+
+        next_pos =
+          current_pos + thrust::distance(two_hop_degrees.begin() + current_pos,
+                                         thrust::upper_bound(handle.get_thrust_policy(),
+                                                             two_hop_degrees.begin() + current_pos,
+                                                             two_hop_degrees.end(),
+                                                             next_boundary));
+
+        if (next_pos == current_pos) next_pos++;
+      }
+
+      size_t batch_size = next_pos - current_pos;
+
+      if constexpr (multi_gpu) {
+        batch_size = cugraph::host_scalar_allreduce(
+          handle.get_comms(), batch_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
+
+      if (batch_size == 0) break;
+
+      auto [offsets, v2] = k_hop_nbrs(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>{sources.data() + current_pos, next_pos - current_pos},
+        2,
+        do_expensive_check);
+
+      auto v1 = cugraph::detail::expand_sparse_offsets(
+        raft::device_span<size_t const>{offsets.data(), offsets.size()},
+        vertex_t{0},
+        handle.get_stream());
+
+      cugraph::unrenumber_local_int_vertices(handle,
+                                             v1.data(),
+                                             v1.size(),
+                                             sources.data() + current_pos,
+                                             vertex_t{0},
+                                             static_cast<vertex_t>(next_pos - current_pos),
+                                             do_expensive_check);
+
+      auto new_size = thrust::distance(
+        thrust::make_zip_iterator(v1.begin(), v2.begin()),
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(v1.begin(), v2.begin()),
+          thrust::make_zip_iterator(v1.end(), v2.end()),
+          [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+
+      v1.resize(new_size, handle.get_stream());
+      v2.resize(new_size, handle.get_stream());
+
+      auto score =
+        similarity(handle,
+                   graph_view,
+                   edge_weight_view,
+                   std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
+                                   raft::device_span<vertex_t const>{v2.data(), v2.size()}),
+                   functor,
+                   do_expensive_check);
+
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          score.begin(),
+                          score.end(),
+                          thrust::make_zip_iterator(v1.begin(), v2.begin()),
+                          thrust::greater<weight_t>{});
+
+      size_t v1_keep = std::min(*topk, v1.size());
+
+      if (score.size() < (top_v1.size() + v1_keep)) {
+        score.resize(top_v1.size() + v1_keep, handle.get_stream());
+        v1.resize(score.size(), handle.get_stream());
+        v2.resize(score.size(), handle.get_stream());
+      }
+
+      thrust::copy(handle.get_thrust_policy(), top_v1.begin(), top_v1.end(), v1.begin() + v1_keep);
+      thrust::copy(handle.get_thrust_policy(), top_v2.begin(), top_v2.end(), v2.begin() + v1_keep);
+      thrust::copy(
+        handle.get_thrust_policy(), top_score.begin(), top_score.end(), score.begin() + v1_keep);
+
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          score.begin(),
+                          score.end(),
+                          thrust::make_zip_iterator(v1.begin(), v2.begin()),
+                          thrust::greater<weight_t>{});
+
+      if (top_v1.size() < std::min(*topk, v1.size())) {
+        top_v1.resize(std::min(*topk, v1.size()), handle.get_stream());
+        top_v2.resize(top_v1.size(), handle.get_stream());
+        top_score.resize(top_v1.size(), handle.get_stream());
+      }
+
+      thrust::copy(
+        handle.get_thrust_policy(), v1.begin(), v1.begin() + top_v1.size(), top_v1.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), v2.begin(), v2.begin() + top_v1.size(), top_v2.begin());
+      thrust::copy(handle.get_thrust_policy(),
+                   score.begin(),
+                   score.begin() + top_v1.size(),
+                   top_score.begin());
+
+      current_pos = next_pos;
+    }
+
+    return std::make_tuple(std::move(top_v1), std::move(top_v2), std::move(top_score));
+  } else {
+    auto [offsets, v2] =
+      k_hop_nbrs(handle,
+                 graph_view,
+                 raft::device_span<vertex_t const>{sources.data(), sources.size()},
+                 2,
+                 do_expensive_check);
+
+    auto v1 = cugraph::detail::expand_sparse_offsets(
+      raft::device_span<size_t const>{offsets.data(), offsets.size()},
+      vertex_t{0},
+      handle.get_stream());
+
+    cugraph::unrenumber_local_int_vertices(handle,
+                                           v1.data(),
+                                           v1.size(),
+                                           sources.data(),
+                                           vertex_t{0},
+                                           static_cast<vertex_t>(sources.size()),
+                                           do_expensive_check);
+
+    auto new_size = thrust::distance(
+      thrust::make_zip_iterator(v1.begin(), v2.begin()),
+      thrust::remove_if(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(v1.begin(), v2.begin()),
+        thrust::make_zip_iterator(v1.end(), v2.end()),
+        [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+
+    v1.resize(new_size, handle.get_stream());
+    v2.resize(new_size, handle.get_stream());
+
+    auto score =
+      similarity(handle,
+                 graph_view,
+                 edge_weight_view,
+                 std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
+                                 raft::device_span<vertex_t const>{v2.data(), v2.size()}),
+                 functor,
+                 do_expensive_check);
+
+    return std::make_tuple(std::move(v1), std::move(v2), std::move(score));
   }
 }
 
