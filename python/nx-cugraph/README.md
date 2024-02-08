@@ -93,7 +93,7 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 
 ### Algorithms
 
-```
+<pre>
 bipartite
  ├─ basic
  │   └─ is_bipartite
@@ -170,11 +170,11 @@ tree
      ├─ is_branching
      ├─ is_forest
      └─ is_tree
-```
+</pre>
 
 ### Generators
 
-```
+<pre>
 classic
  ├─ barbell_graph
  ├─ circular_ladder_graph
@@ -220,15 +220,15 @@ social
  ├─ florentine_families_graph
  ├─ karate_club_graph
  └─ les_miserables_graph
-```
+</pre>
 
 ### Other
 
-```
+<pre>
 convert_matrix
  ├─ from_pandas_edgelist
  └─ from_scipy_sparse_array
-```
+</pre>
 
 To request nx-cugraph backend support for a NetworkX API that is not listed
 above, visit the [cuGraph GitHub repo](https://github.com/rapidsai/cugraph).

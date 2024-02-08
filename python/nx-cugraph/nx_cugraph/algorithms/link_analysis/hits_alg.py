@@ -66,9 +66,9 @@ def hits(
             resource_handle=plc.ResourceHandle(),
             graph=G._get_plc_graph(weight, 1, dtype, store_transposed=True),
             tol=tol,
-            initial_hubs_guess_vertices=None
-            if nstart is None
-            else cp.arange(N, dtype=index_dtype),
+            initial_hubs_guess_vertices=(
+                None if nstart is None else cp.arange(N, dtype=index_dtype)
+            ),
             initial_hubs_guess_values=nstart,
             max_iter=max_iter,
             normalized=normalized,
