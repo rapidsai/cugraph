@@ -38,6 +38,7 @@ build:
     - {{ compiler('cuda11') }}
     {% else %}
     - {{ compiler('cuda') }}
+    - cuda-cudart-dev
     {% endif %}
 
 requirements:
@@ -57,6 +58,8 @@ requirements:
     - cuda-version ={{ cuda_version }}
     {% if cuda_major == "11" %}
     - cudatoolkit
+    {% else %}
+    - cuda-cudart-dev
     {% endif %}
     - cython >=3.0.0
     - libcugraph ={{ version }}
@@ -68,6 +71,8 @@ requirements:
     - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
     {% if cuda_major == "11" %}
     - cudatoolkit
+    {% else %}
+    - cuda-cudart
     {% endif %}
     - libcugraph ={{ version }}
     - python

@@ -90,12 +90,14 @@ outputs:
         - {{ compiler('cuda11') }}
         {% else %}
         - {{ compiler('cuda') }}
+        - cuda-cudart-dev
         {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
       host:
         - cuda-version ={{ cuda_version }}
+        - cuda-cudart-dev
       run:
         - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         {% if cuda_major == "11" %}
@@ -107,6 +109,7 @@ outputs:
         - libcusparse {{ cuda11_libcusparse_run_version }}
         {% else %}
         - cuda-profiler-api
+        - cuda-cudart
         - libcublas
         - libcurand
         - libcusolver
@@ -135,17 +138,21 @@ outputs:
         - {{ compiler('cuda11') }}
         {% else %}
         - {{ compiler('cuda') }}
+        - cuda-cudart-dev
         {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
       host:
         - cuda-version ={{ cuda_version }}
+        - cuda-cudart-dev
       run:
         - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         - {{ pin_subpackage('libcugraph', exact=True) }}
         {% if cuda_major == "11" %}
         - cudatoolkit
+        {% else %}
+        - cuda-cudart
         {% endif %}
         - libcudf ={{ minor_version }}
         - librmm ={{ minor_version }}
@@ -166,18 +173,22 @@ outputs:
         - {{ compiler('cuda11') }}
         {% else %}
         - {{ compiler('cuda') }}
+        - cuda-cudart-dev
         {% endif %}
     requirements:
       build:
         - cmake {{ cmake_version }}
       host:
         - cuda-version ={{ cuda_version }}
+        - cuda-cudart-dev
       run:
         - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         - {{ pin_subpackage('libcugraph_etl', exact=True) }}
         - {{ pin_subpackage('libcugraph', exact=True) }}
         {% if cuda_major == "11" %}
         - cudatoolkit
+        {% else %}
+        - cuda-cudart
         {% endif %}
         - gmock {{ gtest_version }}
         - gtest {{ gtest_version }}
