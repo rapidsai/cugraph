@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -166,7 +166,7 @@ def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
         ]
 
         recovered_samples = cudf.read_parquet(os.path.join(samples_path, file))
-        recovered_map = recovered_samples.map
+        recovered_map = recovered_samples["map"]
         recovered_samples = recovered_samples.drop("map", axis=1).dropna()
 
         for current_batch_id in range(start_batch_id, end_batch_id + 1):

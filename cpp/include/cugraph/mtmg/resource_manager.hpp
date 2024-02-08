@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,9 +106,9 @@ class resource_manager_t {
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{global_rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
 #else
-    auto const [free, total] = rmm::detail::available_device_memory();
+    auto const [free, total] = rmm::available_device_memory();
     auto const min_alloc =
-      rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
+      rmm::align_down(std::min(free, total / 6), rmm::CUDA_ALLOCATION_ALIGNMENT);
 
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{global_rank,
