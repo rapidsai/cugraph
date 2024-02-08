@@ -26,8 +26,8 @@ build_example() {
   cmake --build ${build_dir} -j${PARALLEL_LEVEL}
 }
 
-build_example single_gpu_application
-build_example multi_gpu_application
-build_example graph_partition
-build_example cugraph_operations
+build_example simple/single_gpu_application
+build_example simple/multi_gpu_application
+build_example advanced/graph_partition
+build_example advanced/cugraph_operations
 
