@@ -53,5 +53,3 @@ version = {file = "cugraph_dgl/VERSION"}
 include = [
     "cugraph_dgl*",
 ]
-exclude = ["*tests*"]
-
