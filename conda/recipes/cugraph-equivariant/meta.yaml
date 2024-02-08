@@ -1,0 +1,37 @@
+# Copyright (c) 2024, NVIDIA CORPORATION.
+
+{% set version = environ['RAPIDS_PACKAGE_VERSION'].lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version = environ['CONDA_PY'] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
+
+package:
+  name: cugraph-equivariant
+  version: {{ version }}
+
+source:
+  path: ../../..
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+
+requirements:
+  host:
+    - python
+  run:
+    - pylibcugraphops ={{ minor_version }}
+    - python
+
+tests:
+  imports:
+    - cugraph_equivariant
+
+about:
+  home: https://rapids.ai/
+  dev_url: https://github.com/rapidsai/cugraph
+  license: Apache-2.0
+  license_file: ../../../LICENSE
+  summary: GPU-accelerated equivariant convolutional layers.

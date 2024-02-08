@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import cupy as cp
+
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import networkx_algorithm
 
@@ -20,4 +22,4 @@ __all__ = ["number_of_selfloops"]
 def number_of_selfloops(G):
     G = _to_graph(G)
     is_selfloop = G.src_indices == G.dst_indices
-    return is_selfloop.sum().tolist()
+    return int(cp.count_nonzero(is_selfloop))

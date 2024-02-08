@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -776,7 +776,7 @@ struct renumber_functor {
     for (int i = 0; i < src_view.num_columns(); i++) {
       auto str_col_view = cudf::strings_column_view(src_view.column(i));
       src_vertex_chars_ptrs.push_back(
-        const_cast<char_type*>(str_col_view.chars().data<char_type>()));
+        const_cast<char_type*>(str_col_view.parent().data<char_type>()));
       src_vertex_offset_ptrs.push_back(
         const_cast<str_offset_type*>(str_col_view.offsets().data<str_offset_type>()));
     }
@@ -784,7 +784,7 @@ struct renumber_functor {
     for (int i = 0; i < dst_view.num_columns(); i++) {
       auto str_col_view = cudf::strings_column_view(dst_view.column(i));
       dst_vertex_chars_ptrs.push_back(
-        const_cast<char_type*>(str_col_view.chars().data<char_type>()));
+        const_cast<char_type*>(str_col_view.parent().data<char_type>()));
       dst_vertex_offset_ptrs.push_back(
         const_cast<str_offset_type*>(str_col_view.offsets().data<str_offset_type>()));
     }
@@ -970,13 +970,14 @@ struct renumber_functor {
                                      std::move(unrenumber_col1_chars),
                                      rmm::device_buffer{},
                                      0);
+    auto str_col_1_contents = str_col_1->release();
 
     renumber_table_vectors.push_back(
       cudf::make_strings_column(size_type(key_value_count),
                                 std::move(offset_col_1),
-                                std::move(str_col_1),
+                                std::move(*str_col_1_contents.data),
                                 0,
-                                rmm::device_buffer(size_type(0), exec_strm)));
+                                std::move(*str_col_1_contents.null_mask)));
 
     auto offset_col_2 =
       std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
@@ -991,13 +992,14 @@ struct renumber_functor {
                                      std::move(unrenumber_col2_chars),
                                      rmm::device_buffer{},
                                      0);
+    auto str_col_2_contents = str_col_2->release();
 
     renumber_table_vectors.push_back(
       cudf::make_strings_column(size_type(key_value_count),
                                 std::move(offset_col_2),
-                                std::move(str_col_2),
+                                std::move(*str_col_2_contents.data),
                                 0,
-                                rmm::device_buffer(size_type(0), exec_strm)));
+                                std::move(*str_col_2_contents.null_mask)));
 
     // make table from string columns - did at the end
 

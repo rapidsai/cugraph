@@ -1,12 +1,6 @@
 Community
 =========
 
-.. role:: py(code)
-   :language: c
-   :class: highlight
-
-``#include <cugraph_c/community_algorithms.h>``
-
 Triangle Counting
 -----------------
 .. doxygenfunction:: cugraph_triangle_count
@@ -45,8 +39,8 @@ Spectral Clustering - Modularity Maximization
 .. doxygenfunction:: cugraph_analyze_clustering_modularity
     :project: libcugraph
 
-Spectral Clusteriong - Edge Cut
--------------------------------
+Spectral Clustering - Edge Cut
+------------------------------
 .. doxygenfunction:: cugraph_analyze_clustering_edge_cut
     :project: libcugraph
 

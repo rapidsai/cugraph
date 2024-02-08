@@ -59,7 +59,7 @@ def main(path_to_info=None, *, file=sys.stdout):
     if path_to_info is None:
         path_to_info = get_path_to_info(version_added_sep=".")
     lines = ["networkx_path,dispatch_name,version_added,plc,is_incomplete,is_different"]
-    lines.extend(",".join(info) for info in path_to_info.values())
+    lines.extend(",".join(map(str, info)) for info in path_to_info.values())
     text = "\n".join(lines)
     print(text, file=file)
     return text

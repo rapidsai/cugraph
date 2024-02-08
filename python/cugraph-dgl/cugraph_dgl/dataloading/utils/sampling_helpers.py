@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -446,7 +446,7 @@ def _process_sampled_df_csc(
     major_offsets = cast_to_tensor(df.major_offsets.dropna())
     label_hop_offsets = cast_to_tensor(df.label_hop_offsets.dropna())
     renumber_map_offsets = cast_to_tensor(df.renumber_map_offsets.dropna())
-    renumber_map = cast_to_tensor(df.map.dropna())
+    renumber_map = cast_to_tensor(df["map"].dropna())
     minors = cast_to_tensor(df.minors.dropna())
 
     n_batches = len(renumber_map_offsets) - 1

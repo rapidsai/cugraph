@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -399,7 +399,7 @@ class MultiGraph(Graph):
     @networkx_api
     def to_undirected(self, as_view: bool = False) -> MultiGraph:
         # Does deep copy in networkx
-        return self.copy(as_view)
+        return self._copy(as_view, self.to_undirected_class())
 
     ###################
     # Private methods #

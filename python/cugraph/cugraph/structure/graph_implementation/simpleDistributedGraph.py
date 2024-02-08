@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,12 +35,11 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
-    get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
 )
 from cugraph.dask.common.mg_utils import run_gc_on_dask_cluster
-from cugraph.dask import get_n_workers
 import cugraph.dask.comms.comms as Comms
+from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 
 
 class simpleDistributedGraphImpl:
@@ -97,6 +96,7 @@ class simpleDistributedGraphImpl:
         weight_type,
         edge_id_type,
         edge_type_id,
+        drop_multi_edges,
     ):
         weights = None
         edge_ids = None
@@ -151,6 +151,7 @@ class simpleDistributedGraphImpl:
             num_arrays=num_arrays,
             store_transposed=store_transposed,
             do_expensive_check=False,
+            drop_multi_edges=drop_multi_edges,
         )
         del edata_x
         gc.collect()
@@ -269,7 +270,7 @@ class simpleDistributedGraphImpl:
                 input_ddf,
                 source,
                 destination,
-                multi=self.properties.multi_edge,
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
             value_col = None
@@ -279,7 +280,7 @@ class simpleDistributedGraphImpl:
                 source,
                 destination,
                 value_col_names,
-                multi=self.properties.multi_edge,
+                multi=True,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -366,6 +367,7 @@ class simpleDistributedGraphImpl:
                 self.weight_type,
                 self.edge_id_type,
                 self.edge_type_id_type,
+                not self.properties.multi_edge,
             )
             for w, edata in persisted_keys_d.items()
         }
@@ -456,6 +458,15 @@ class simpleDistributedGraphImpl:
                     edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
                 else:
                     is_multi_column = True
+
+            if not self.properties.multi_edge:
+                # Drop parallel edges for non MultiGraph
+                # FIXME: Drop multi edges with the CAPI instead.
+                _client = default_client()
+                workers = _client.scheduler_info()["workers"]
+                edgelist_df = _memory_efficient_drop_duplicates(
+                    edgelist_df, [srcCol, dstCol], len(workers)
+                )
 
             edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
                 [srcCol, dstCol]
@@ -825,12 +836,13 @@ class simpleDistributedGraphImpl:
         _client = default_client()
 
         def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
-            return pylibcugraph_get_two_hop_neighbors(
+            results_ = pylibcugraph_get_two_hop_neighbors(
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
                 start_vertices=start_vertices,
                 do_expensive_check=False,
             )
+            return results_
 
         if isinstance(start_vertices, int):
             start_vertices = [start_vertices]
@@ -845,31 +857,31 @@ class simpleDistributedGraphImpl:
             else:
                 start_vertices_type = self.input_df.dtypes[0]
 
-            if not isinstance(start_vertices, (dask_cudf.Series)):
-                start_vertices = dask_cudf.from_cudf(
+            start_vertices = start_vertices.astype(start_vertices_type)
+
+            def create_iterable_args(
+                session_id, input_graph, start_vertices=None, npartitions=None
+            ):
+                session_id_it = [session_id] * npartitions
+                graph_it = input_graph.values()
+                start_vertices = cp.array_split(start_vertices.values, npartitions)
+                return [
+                    session_id_it,
+                    graph_it,
                     start_vertices,
-                    npartitions=min(self._npartitions, len(start_vertices)),
-                )
-                start_vertices = start_vertices.astype(start_vertices_type)
+                ]
 
-            n_workers = get_n_workers()
-            start_vertices = start_vertices.repartition(npartitions=n_workers)
-            start_vertices = persist_dask_df_equal_parts_per_worker(
-                start_vertices, _client
-            )
-            start_vertices = get_persisted_df_worker_map(start_vertices, _client)
-
-            result = [
-                _client.submit(
-                    _call_plc_two_hop_neighbors,
+            result = _client.map(
+                _call_plc_two_hop_neighbors,
+                *create_iterable_args(
                     Comms.get_session_id(),
-                    self._plc_graph[w],
-                    start_vertices[w][0],
-                    workers=[w],
-                    allow_other_workers=False,
-                )
-                for w in start_vertices.keys()
-            ]
+                    self._plc_graph,
+                    start_vertices,
+                    self._npartitions,
+                ),
+                pure=False,
+            )
+
         else:
             result = [
                 _client.submit(
@@ -896,7 +908,8 @@ class simpleDistributedGraphImpl:
             return df
 
         cudf_result = [
-            _client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+            _client.submit(convert_to_cudf, cp_arrays, pure=False)
+            for cp_arrays in result
         ]
 
         wait(cudf_result)
