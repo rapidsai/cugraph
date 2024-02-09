@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <prims/detail/prim_functors.cuh>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
@@ -89,48 +90,51 @@ __global__ void transform_reduce_e_hypersparse(
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
       *(edge_partition.major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
-    auto sum                                        = thrust::transform_reduce(
-      thrust::seq,
-      thrust::make_counting_iterator(edge_t{0}),
-      thrust::make_counting_iterator(local_degree),
-      [&edge_partition,
-       &edge_partition_src_value_input,
-       &edge_partition_dst_value_input,
-       &edge_partition_e_value_input,
-       &edge_partition_e_mask,
-       &e_op,
-       major,
-       indices,
-       edge_offset] __device__(auto i) {
-        if (!edge_partition_e_mask || (*edge_partition_e_mask).get(edge_offset + i)) {
-          auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-          auto minor        = indices[i];
-          auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-          auto src          = GraphViewType::is_storage_transposed ? minor : major;
-          auto dst          = GraphViewType::is_storage_transposed ? major : minor;
-          auto src_offset   = GraphViewType::is_storage_transposed
-                                                                       ? minor_offset
-                                                                       : static_cast<vertex_t>(major_offset);
-          auto dst_offset   = GraphViewType::is_storage_transposed
-                                                                       ? static_cast<vertex_t>(major_offset)
-                                                                       : minor_offset;
-          return e_op(src,
-                      dst,
-                      edge_partition_src_value_input.get(src_offset),
-                      edge_partition_dst_value_input.get(dst_offset),
-                      edge_partition_e_value_input.get(edge_offset + i));
-        } else {
-          return e_op_result_t{};
-        }
-      },
-      e_op_result_t{},
-      edge_property_add);
+
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
+
+    e_op_result_t sum{};
+    if (edge_partition_e_mask) {
+      sum = thrust::transform_reduce(
+        thrust::seq,
+        thrust::make_counting_iterator(edge_t{0}),
+        thrust::make_counting_iterator(local_degree),
+        [&edge_partition_e_mask, &call_e_op, edge_offset] __device__(auto i) {
+          if ((*edge_partition_e_mask).get(edge_offset + i)) {
+            return call_e_op(i);
+          } else {
+            return e_op_result_t{};
+          }
+        },
+        e_op_result_t{},
+        edge_property_add);
+    } else {
+      sum = thrust::transform_reduce(thrust::seq,
+                                     thrust::make_counting_iterator(edge_t{0}),
+                                     thrust::make_counting_iterator(local_degree),
+                                     call_e_op,
+                                     e_op_result_t{},
+                                     edge_property_add);
+    }
 
     e_op_result_sum = edge_property_add(e_op_result_sum, sum);
     idx += gridDim.x * blockDim.x;
@@ -175,50 +179,50 @@ __global__ void transform_reduce_e_low_degree(
   property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = major_start_offset + idx;
+    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
+    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
-    auto sum                                        = thrust::transform_reduce(
-      thrust::seq,
-      thrust::make_counting_iterator(edge_t{0}),
-      thrust::make_counting_iterator(local_degree),
-      [&edge_partition,
-       &edge_partition_src_value_input,
-       &edge_partition_dst_value_input,
-       &edge_partition_e_value_input,
-       &edge_partition_e_mask,
-       &e_op,
-       major_offset,
-       indices,
-       edge_offset] __device__(auto i) {
-        if (!edge_partition_e_mask || (*edge_partition_e_mask).get(edge_offset + i)) {
-          auto minor        = indices[i];
-          auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-          auto src          = GraphViewType::is_storage_transposed
-                                                                       ? minor
-                                                                       : edge_partition.major_from_major_offset_nocheck(major_offset);
-          auto dst          = GraphViewType::is_storage_transposed
-                                                                       ? edge_partition.major_from_major_offset_nocheck(major_offset)
-                                                                       : minor;
-          auto src_offset   = GraphViewType::is_storage_transposed
-                                                                       ? minor_offset
-                                                                       : static_cast<vertex_t>(major_offset);
-          auto dst_offset   = GraphViewType::is_storage_transposed
-                                                                       ? static_cast<vertex_t>(major_offset)
-                                                                       : minor_offset;
-          return e_op(src,
-                      dst,
-                      edge_partition_src_value_input.get(src_offset),
-                      edge_partition_dst_value_input.get(dst_offset),
-                      edge_partition_e_value_input.get(edge_offset + i));
-        } else {
-          return e_op_result_t{};
-        }
-      },
-      e_op_result_t{},
-      edge_property_add);
+
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
+
+    e_op_result_t sum{};
+    if (edge_partition_e_mask) {
+      sum = thrust::transform_reduce(
+        thrust::seq,
+        thrust::make_counting_iterator(edge_t{0}),
+        thrust::make_counting_iterator(local_degree),
+        [&edge_partition_e_mask, &call_e_op, edge_offset] __device__(auto i) {
+          if ((*edge_partition_e_mask).get(edge_offset + i)) {
+            return call_e_op(i);
+          } else {
+            return e_op_result_t{};
+          }
+        },
+        e_op_result_t{},
+        edge_property_add);
+    } else {
+      sum = thrust::transform_reduce(thrust::seq,
+                                     thrust::make_counting_iterator(edge_t{0}),
+                                     thrust::make_counting_iterator(local_degree),
+                                     call_e_op,
+                                     e_op_result_t{},
+                                     edge_property_add);
+    }
 
     e_op_result_sum = edge_property_add(e_op_result_sum, sum);
     idx += gridDim.x * blockDim.x;
@@ -264,30 +268,37 @@ __global__ void transform_reduce_e_mid_degree(
   property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = major_start_offset + idx;
+    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
+    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
-    for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-      if (!edge_partition_e_mask || (*edge_partition_e_mask).get(edge_offset + i)) {
-        auto minor        = indices[i];
-        auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto src          = GraphViewType::is_storage_transposed
-                              ? minor
-                              : edge_partition.major_from_major_offset_nocheck(major_offset);
-        auto dst          = GraphViewType::is_storage_transposed
-                              ? edge_partition.major_from_major_offset_nocheck(major_offset)
-                              : minor;
-        auto src_offset =
-          GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-        auto dst_offset =
-          GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        auto e_op_result = e_op(src,
-                                dst,
-                                edge_partition_src_value_input.get(src_offset),
-                                edge_partition_dst_value_input.get(dst_offset),
-                                edge_partition_e_value_input.get(edge_offset + i));
+
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
+
+    if (edge_partition_e_mask) {
+      for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
+        if ((*edge_partition_e_mask).get(edge_offset + i)) {
+          auto e_op_result = call_e_op(i);
+          e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
+        }
+      }
+    } else {
+      for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
+        auto e_op_result = call_e_op(i);
         e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
       }
     }
@@ -331,30 +342,37 @@ __global__ void transform_reduce_e_high_degree(
   property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = major_start_offset + idx;
+    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
+    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
-    for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-      if (!edge_partition_e_mask || (*edge_partition_e_mask).get(edge_offset + i)) {
-        auto minor        = indices[i];
-        auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto src          = GraphViewType::is_storage_transposed
-                              ? minor
-                              : edge_partition.major_from_major_offset_nocheck(major_offset);
-        auto dst          = GraphViewType::is_storage_transposed
-                              ? edge_partition.major_from_major_offset_nocheck(major_offset)
-                              : minor;
-        auto src_offset =
-          GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-        auto dst_offset =
-          GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        auto e_op_result = e_op(src,
-                                dst,
-                                edge_partition_src_value_input.get(src_offset),
-                                edge_partition_dst_value_input.get(dst_offset),
-                                edge_partition_e_value_input.get(edge_offset + i));
+
+    auto call_e_op = call_e_op_t<GraphViewType,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgePartitionEdgeValueInputWrapper,
+                                 EdgeOp>{edge_partition,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         major,
+                                         major_offset,
+                                         indices,
+                                         edge_offset};
+
+    if (edge_partition_e_mask) {
+      for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
+        if ((*edge_partition_e_mask).get(edge_offset + i)) {
+          auto e_op_result = call_e_op(i);
+          e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
+        }
+      }
+    } else {
+      for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
+        auto e_op_result = call_e_op(i);
         e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
       }
     }
