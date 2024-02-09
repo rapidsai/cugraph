@@ -42,4 +42,3 @@ version = {file = "cugraph_service_client/VERSION"}
 include = [
     "cugraph_service_client",
 ]
-exclude = ["*tests*"]
