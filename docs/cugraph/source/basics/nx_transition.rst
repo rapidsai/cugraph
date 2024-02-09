@@ -1,9 +1,8 @@
 **************************************
-NetworkX Compatibility and Transition
+NetworkX by calling cuGraph Algorithms 
 **************************************
 
-*Note: this is a work in progress and will be updatred and changed as we better flesh out 
-compatibility issues*
+*Note: This behavior is still supported but will soon be deprecated. Going forward, using nx_cugraph as a NetworkX backend will be the the primary method.*
 
 One of the goals of RAPIDS cuGraph is to mimic the NetworkX API to simplify
 the transition to accelerated GPU data science.  However, graph analysis,
@@ -18,8 +17,11 @@ But sometimes it is easier to replace just a portion.
 Last Update
 ###########
 
-Last Update:	Oct 14th, 2020
-Release:		0.16
+Last Update:	February 7th, 2024
+Release:		24.04
+
+**CuGraph is now a registered backend for networkX. This is described in the blog on 
+`Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics`**
 
 Information on `NetworkX <https://networkx.github.io/documentation/stable/index.html>`_
 
