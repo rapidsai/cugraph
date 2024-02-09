@@ -47,8 +47,7 @@ void weight_sum_reference(edge_t const* offsets,
   if (!major) { std::fill(weight_sums, weight_sums + num_vertices, weight_t{0.0}); }
   for (vertex_t i = 0; i < num_vertices; ++i) {
     if (major) {
-      weight_sums[i] =
-        std::reduce(weights + offsets[i], weights + offsets[i + 1], weight_t{0.0});
+      weight_sums[i] = std::reduce(weights + offsets[i], weights + offsets[i + 1], weight_t{0.0});
     } else {
       for (auto j = offsets[i]; j < offsets[i + 1]; ++j) {
         auto nbr = indices[j];
@@ -66,7 +65,8 @@ typedef struct WeightSum_Usecase_t {
 } WeightSum_Usecase;
 
 template <typename input_usecase_t>
-class Tests_WeightSum : public ::testing::TestWithParam<std::tuple<WeightSum_Usecase, input_usecase_t>> {
+class Tests_WeightSum
+  : public ::testing::TestWithParam<std::tuple<WeightSum_Usecase, input_usecase_t>> {
  public:
   Tests_WeightSum() {}
 
@@ -133,7 +133,8 @@ class Tests_WeightSum : public ::testing::TestWithParam<std::tuple<WeightSum_Use
     }
 
     if (weight_sum_usecase.check_correctness) {
-      auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto [h_offsets, h_indices, h_weights] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
 
       std::vector<weight_t> h_reference_in_weight_sums(graph_view.number_of_vertices());
       std::vector<weight_t> h_reference_out_weight_sums(graph_view.number_of_vertices());
@@ -158,9 +159,8 @@ class Tests_WeightSum : public ::testing::TestWithParam<std::tuple<WeightSum_Use
       auto threshold_ratio     = weight_t{2.0 * 1e-4};
       auto threshold_magnitude = std::numeric_limits<weight_t>::min();
       auto nearly_equal        = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-        auto ret = 
-          std::abs(lhs - rhs) <
-               std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+        auto ret =
+          std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
         return std::abs(lhs - rhs) <
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
       };
