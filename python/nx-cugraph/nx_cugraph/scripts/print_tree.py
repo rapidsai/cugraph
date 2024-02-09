@@ -31,7 +31,16 @@ def assoc_in(d, keys, value):
     return d
 
 
-def tree_lines(tree, parents=(), are_levels_closing=()):
+def default_get_payload_internal(keys):
+    return keys[-1]
+
+
+def tree_lines(
+    tree,
+    parents=(),
+    are_levels_closing=(),
+    get_payload_internal=default_get_payload_internal,
+):
     pre = "".join(
         "    " if is_level_closing else " │  "
         for is_level_closing in are_levels_closing
@@ -45,8 +54,13 @@ def tree_lines(tree, parents=(), are_levels_closing=()):
         if isinstance(val, str):
             yield pre + f" {c}─ " + val
         else:
-            yield pre + f" {c}─ " + key
-            yield from tree_lines(val, (parents, *key), are_levels_closing)
+            yield pre + f" {c}─ " + get_payload_internal((*parents, key))
+            yield from tree_lines(
+                val,
+                (*parents, key),
+                are_levels_closing,
+                get_payload_internal=get_payload_internal,
+            )
 
 
 def get_payload(
@@ -99,6 +113,7 @@ def create_tree(
     different=False,
     prefix="",
     strip_networkx=True,
+    get_payload=get_payload,
 ):
     if path_to_info is None:
         path_to_info = get_path_to_info()

@@ -16,6 +16,9 @@ lint-update:
 plugin-info:
 	python _nx_cugraph/__init__.py
 
+objects.inv:
+	wget https://networkx.org/documentation/latest/objects.inv
+
 .PHONY: readme
-readme:
-	python scripts/update_readme.py README.md
+readme: objects.inv
+	python scripts/update_readme.py README.md objects.inv

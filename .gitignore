@@ -78,6 +78,8 @@ datasets/*
 !datasets/karate-disjoint.csv
 !datasets/netscience.csv
 
+# nx-python side effects
+python/nx-cugraph/objects.inv
 
 .pydevproject
 
