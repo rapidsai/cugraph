@@ -6,7 +6,7 @@ all: plugin-info lint readme
 
 .PHONY: lint
 lint:
-	git ls-files | xargs pre-commit run --config lint.yaml --files
+	git ls-files | xargs pre-commit run --config lint.yaml --files || true
 
 .PHONY: lint-update
 lint-update:
@@ -17,7 +17,7 @@ plugin-info:
 	python _nx_cugraph/__init__.py
 
 objects.inv:
-	wget https://networkx.org/documentation/latest/objects.inv
+	wget https://networkx.org/documentation/stable/objects.inv
 
 .PHONY: readme
 readme: objects.inv

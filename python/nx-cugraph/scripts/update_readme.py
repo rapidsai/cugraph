@@ -44,30 +44,30 @@ def replace_body(text, match, new_body):
 
 
 # NetworkX isn't perfectly intersphinx-compatible, so manually specify some urls.
-# TODO: create networkx issue about intersphinx incompatibility
+# See: https://github.com/networkx/networkx/issues/7278
 MANUAL_OBJECT_URLS = {
     "networkx.algorithms.centrality.betweenness": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/centrality.html#shortest-path-betweenness"
     ),
     "networkx.algorithms.centrality.degree_alg": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/centrality.html#degree"
     ),
     "networkx.algorithms.centrality.eigenvector": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/centrality.html#eigenvector"
     ),
     "networkx.algorithms.centrality.katz": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/centrality.html#eigenvector"
     ),
     "networkx.algorithms.components.connected": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/component.html#connectivity"
     ),
     "networkx.algorithms.components.weakly_connected": (
-        "https://networkx.org/documentation/latest/reference/"
+        "https://networkx.org/documentation/stable/reference/"
         "algorithms/component.html#weak-connectivity"
     ),
 }
@@ -95,8 +95,7 @@ def main(readme_file, objects_filename):
     objects_text = zlib.decompress(zlib_data).decode().strip()
     objects_list = [parse_docobject(line) for line in objects_text.split("\n")]
     doc_urls = {
-        # Should we use latest or stable?
-        obj.name: "https://networkx.org/documentation/latest/" + obj.uri
+        obj.name: "https://networkx.org/documentation/stable/" + obj.uri
         for obj in objects_list
     }
     if len(objects_list) != len(doc_urls):
