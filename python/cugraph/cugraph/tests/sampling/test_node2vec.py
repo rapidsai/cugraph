@@ -148,7 +148,7 @@ def test_node2vec_line(graph_file, directed):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(*_get_param_args("graph_file", SMALL_DATASETS)
+@pytest.mark.parametrize(*_get_param_args("graph_file", SMALL_DATASETS))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
 @pytest.mark.parametrize(*_get_param_args("start_vertices_type", START_VERTICES_TYPE))
