@@ -99,6 +99,7 @@ __global__ void transform_reduce_e_hypersparse(
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
 
     auto call_e_op = call_e_op_t<GraphViewType,
+                                 vertex_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -187,6 +188,7 @@ __global__ void transform_reduce_e_low_degree(
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
+                                 vertex_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -276,6 +278,7 @@ __global__ void transform_reduce_e_mid_degree(
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
+                                 vertex_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -350,6 +353,7 @@ __global__ void transform_reduce_e_high_degree(
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
+                                 vertex_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
