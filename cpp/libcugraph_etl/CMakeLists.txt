@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -190,7 +190,7 @@ rapids_export(INSTALL cugraph_etl
 
 ################################################################################
 # - build export ---------------------------------------------------------------
-rapids_export(BUILD cugraph
+rapids_export(BUILD cugraph_etl
     EXPORT_SET cugraph_etl-exports
     GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
     NAMESPACE cugraph::
