@@ -141,7 +141,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
             )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
-    
+
     start_vertices = ensure_valid_dtype(G, start_vertices)
 
     vertex_set, edge_set, sizes = pylibcugraph_node2vec(

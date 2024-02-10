@@ -148,16 +148,11 @@ def test_node2vec_line(graph_file, directed):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(*_get_param_args("graph_file", [SMALL_DATASETS[0]]))
+@pytest.mark.parametrize(*_get_param_args("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
 @pytest.mark.parametrize(*_get_param_args("start_vertices_type", START_VERTICES_TYPE))
-def test_node2vec_0(
-    graph_file,
-    directed,
-    compress,
-    start_vertices_type
-):
+def test_node2vec(graph_file, directed, compress, start_vertices_type):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
 
@@ -169,7 +164,8 @@ def test_node2vec_0(
     num_verts = G.number_of_vertices()
     k = random.randint(6, 12)
     start_vertices = cudf.Series(
-        random.sample(range(num_verts), k), dtype=start_vertices_type)
+        random.sample(range(num_verts), k), dtype=start_vertices_type
+    )
     max_depth = 5
 
     if start_vertices_type == "int64":
@@ -182,7 +178,6 @@ def test_node2vec_0(
             calc_node2vec(
                 G, start_vertices, max_depth, compress_result=compress, p=0.8, q=0.5
             )
-
 
     result, seeds = calc_node2vec(
         G, start_vertices, max_depth, compress_result=compress, p=0.8, q=0.5
