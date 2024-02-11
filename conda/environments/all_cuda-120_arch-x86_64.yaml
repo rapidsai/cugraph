@@ -15,6 +15,7 @@ dependencies:
 - c-compiler
 - cmake>=3.26.4
 - cuda-nvcc
+- cuda-nvtx-dev
 - cuda-version=12.0
 - cudf==24.4.*
 - cupy>=12.0.0

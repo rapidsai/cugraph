@@ -327,6 +327,7 @@ dependencies:
           - matrix:
               cuda: "12.*"
             packages:
+              - cuda-nvtx-dev
           - matrix:
               cuda: "11.*"
             packages:
