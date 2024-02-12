@@ -2,31 +2,30 @@
 NetworkX by calling cuGraph Algorithms 
 **************************************
 
-*Note: This behavior is still supported but will soon be deprecated. Going forward, using nx_cugraph as a NetworkX backend will be the the primary method.*
 
-One of the goals of RAPIDS cuGraph is to mimic the NetworkX API to simplify
-the transition to accelerated GPU data science.  However, graph analysis,
-also called network science, like most other data science workflow, is more
-than just running an algorithm.  Graph data requires cleaning and prep (ETL)
-and then the construction of a graph object; that is all before the execution
+*Note: This behavior is still supported but will soon be deprecated. Going forward, 
+using nx_cugraph as a NetworkX backend will be the the primary method to accelerate 
+networkX with cuGraph*
+
+
+One of the goals of RAPIDS cuGraph is to give NetworkX users the most efficient to 
+accelerated GPU data science.  However, graph analysis,
+also called network science, is more than just running algorithms.  Graph data requires
+cleaning and prep (ETL) and then the construction of a graph object; that is all before the execution
 of a graph algorithm.  RAPIDS and cuGraph allow a portion or the complete
 analytic workflow to be accelerated.  To achieve the maximum amount of
 acceleration, we encourage fully replacing existing code with cuGraph.
-But sometimes it is easier to replace just a portion. 
 
-Last Update
-###########
+Latest Update
+#############
 
 Last Update:	February 7th, 2024
 Release:		24.04
 
-**CuGraph is now a registered backend for networkX. This is described in the blog on 
-`Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics`**
+**CuGraph is now a registered backend for networkX. This is described in the following blog: 
+`Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics 
+<https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for-high-performance-graph-analytics/>`_
 
-Information on `NetworkX <https://networkx.github.io/documentation/stable/index.html>`_
-
-This transition guide in an expansion of the Medium Blog on `NetworkX Compatibility 
-<https://medium.com/rapids-ai/rapids-cugraph-networkx-compatibility-d119e417557c>`_
 
 
 Easy Path – Use NetworkX Graph Objects, Accelerated Algorithms
@@ -35,23 +34,14 @@ Easy Path – Use NetworkX Graph Objects, Accelerated Algorithms
 Rather than updating all of your existing code, simply update the calls to
 graph algorithms by replacing the module name.  This allows all the complicated
 ETL code to be unchanged while still seeing significate performance
-improvements.  
+improvements. Again this will be deprecated since networkX dispatching to nx_cugraph
+has many advantages. 
 
-In the following example, the cuGraph module is being imported as “cnx”.
-While module can be assigned any name can be used, we picked cnx to reduce
-the amount of text to be changed. The text highlighted in yellow indicates
-changes.
 
-.. image:: ../images/Nx_Cg_1.png
-  :width: 600
+However, this functionality will also be deprecated since using nx_cugraph is a 
+far easier transition for users who have existing NetworkX code and want GPU speedups
+with support going forward.
 
-It is that easy.  All algorithms in cuGraph support a NetworkX graph object as
-input and match the NetworkX API list of arguments.  
-
-Currently, cuGraph accepts both NetworkX Graph and DiGraph objects. We will be
-adding support for Bipartite graph and Multigraph over the next few releases.  
-
-|
 
 
 Differences in Algorithms
