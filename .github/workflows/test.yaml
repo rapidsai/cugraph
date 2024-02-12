@@ -79,7 +79,7 @@ jobs:
       matrix_filter: map(select(.ARCH == "amd64" and .CUDA_VER == "11.8.0"))
   wheel-tests-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@test-cuda-12.2
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
