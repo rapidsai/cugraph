@@ -327,10 +327,18 @@ dependencies:
           - matrix:
               cuda: "12.*"
             packages:
+              - cuda-cudart-dev
+              - cuda-nvtx-dev
+              - cuda-profiler-api
+              - libcublas-dev
+              - libcurand-dev
+              - libcusolver-dev
+              - libcusparse-dev
           - matrix:
               cuda: "11.*"
             packages:
               - cudatoolkit
+              - cuda-nvtx
   common_build:
     common:
       - output_types: [conda, pyproject]
@@ -345,6 +353,7 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
+          - libcudf==24.4.*
           - libcugraphops==24.4.*
           - libraft-headers==24.4.*
           - libraft==24.4.*
@@ -438,7 +447,6 @@ dependencies:
         packages:
           - aiohttp
           - fsspec>=0.6.0
-          - libcudf==24.4.*
           - requests
           - nccl>=2.9.9
           - ucx-proc=*=gpu
@@ -567,17 +575,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &rmm_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - rmm-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *rmm_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *rmm_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &rmm_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - rmm-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *rmm_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *rmm_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *rmm_packages_pip_cu11}
           - {matrix: null, packages: [*rmm_conda]}
 
   depends_on_cudf:
@@ -593,17 +596,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &cudf_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - cudf-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *cudf_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *cudf_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &cudf_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - cudf-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *cudf_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *cudf_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *cudf_packages_pip_cu11}
           - {matrix: null, packages: [*cudf_conda]}
 
   depends_on_dask_cudf:
@@ -619,17 +617,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &dask_cudf_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - dask-cudf-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *dask_cudf_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *dask_cudf_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &dask_cudf_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - dask-cudf-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *dask_cudf_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *dask_cudf_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *dask_cudf_packages_pip_cu11}
           - {matrix: null, packages: [*dask_cudf_conda]}
 
   depends_on_pylibraft:
@@ -645,17 +638,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &pylibraft_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - pylibraft-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *pylibraft_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *pylibraft_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &pylibraft_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - pylibraft-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *pylibraft_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *pylibraft_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *pylibraft_packages_pip_cu11}
           - {matrix: null, packages: [*pylibraft_conda]}
 
   depends_on_raft_dask:
@@ -671,17 +659,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &raft_dask_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - raft-dask-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *raft_dask_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *raft_dask_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &raft_dask_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - raft-dask-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *raft_dask_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *raft_dask_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *raft_dask_packages_pip_cu11}
           - {matrix: null, packages: [*raft_dask_conda]}
 
   depends_on_pylibcugraph:
@@ -697,17 +680,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &pylibcugraph_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - pylibcugraph-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *pylibcugraph_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *pylibcugraph_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &pylibcugraph_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - pylibcugraph-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *pylibcugraph_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *pylibcugraph_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *pylibcugraph_packages_pip_cu11}
           - {matrix: null, packages: [*pylibcugraph_conda]}
 
   depends_on_pylibcugraphops:
@@ -723,17 +701,12 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.2"}
-            packages: &pylibcugraphops_packages_pip_cu12
+          - matrix: {cuda: "12.*"}
+            packages:
               - pylibcugraphops-cu12==24.4.*
-          - {matrix: {cuda: "12.1"}, packages: *pylibcugraphops_packages_pip_cu12}
-          - {matrix: {cuda: "12.0"}, packages: *pylibcugraphops_packages_pip_cu12}
-          - matrix: {cuda: "11.8"}
-            packages: &pylibcugraphops_packages_pip_cu11
+          - matrix: {cuda: "11.*"}
+            packages:
               - pylibcugraphops-cu11==24.4.*
-          - {matrix: {cuda: "11.5"}, packages: *pylibcugraphops_packages_pip_cu11}
-          - {matrix: {cuda: "11.4"}, packages: *pylibcugraphops_packages_pip_cu11}
-          - {matrix: {cuda: "11.2"}, packages: *pylibcugraphops_packages_pip_cu11}
           - {matrix: null, packages: [*pylibcugraphops_conda]}
 
   depends_on_cupy:
@@ -744,33 +717,10 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          # All CUDA 12 + x86_64 versions
-          - matrix: {cuda: "12.2", arch: x86_64}
-            packages: &cupy_packages_cu12_x86_64
+          - matrix: {cuda: "12.*"}
+            packages:
               - cupy-cuda12x>=12.0.0
-          - {matrix: {cuda: "12.1", arch: x86_64}, packages: *cupy_packages_cu12_x86_64}
-          - {matrix: {cuda: "12.0", arch: x86_64}, packages: *cupy_packages_cu12_x86_64}
-
-          # All CUDA 12 + aarch64 versions
-          - matrix: {cuda: "12.2", arch: aarch64}
-            packages: &cupy_packages_cu12_aarch64
-              - cupy-cuda12x -f https://pip.cupy.dev/aarch64 # TODO: Verify that this works.
-          - {matrix: {cuda: "12.1", arch: aarch64}, packages: *cupy_packages_cu12_aarch64}
-          - {matrix: {cuda: "12.0", arch: aarch64}, packages: *cupy_packages_cu12_aarch64}
-
-          # All CUDA 11 + x86_64 versions
-          - matrix: {cuda: "11.8", arch: x86_64}
-            packages: &cupy_packages_cu11_x86_64
+          - matrix: {cuda: "11.*"}
+            packages: &cupy_packages_cu11
               - cupy-cuda11x>=12.0.0
-          - {matrix: {cuda: "11.5", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
-          - {matrix: {cuda: "11.4", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
-          - {matrix: {cuda: "11.2", arch: x86_64}, packages: *cupy_packages_cu11_x86_64}
-
-          # All CUDA 11 + aarch64 versions
-          - matrix: {cuda: "11.8", arch: aarch64}
-            packages: &cupy_packages_cu11_aarch64
-              - cupy-cuda11x -f https://pip.cupy.dev/aarch64 # TODO: Verify that this works.
-          - {matrix: {cuda: "11.5", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
-          - {matrix: {cuda: "11.4", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
-          - {matrix: {cuda: "11.2", arch: aarch64}, packages: *cupy_packages_cu11_aarch64}
-          - {matrix: null, packages: [cupy-cuda11x>=12.0.0]}
+          - {matrix: null, packages: *cupy_packages_cu11}
