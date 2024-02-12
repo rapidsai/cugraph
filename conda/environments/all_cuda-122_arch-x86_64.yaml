@@ -14,7 +14,10 @@ dependencies:
 - breathe
 - c-compiler
 - cmake>=3.26.4
+- cuda-cudart-dev
 - cuda-nvcc
+- cuda-nvtx-dev
+- cuda-profiler-api
 - cuda-version=12.2
 - cudf==24.4.*
 - cupy>=12.0.0
@@ -29,8 +32,12 @@ dependencies:
 - graphviz
 - gtest>=1.13.0
 - ipython
+- libcublas-dev
 - libcudf==24.4.*
 - libcugraphops==24.4.*
+- libcurand-dev
+- libcusolver-dev
+- libcusparse-dev
 - libraft-headers==24.4.*
 - libraft==24.4.*
 - librmm==24.4.*

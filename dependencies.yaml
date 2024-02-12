@@ -331,10 +331,18 @@ dependencies:
           - matrix:
               cuda: "12.*"
             packages:
+              - cuda-cudart-dev
+              - cuda-nvtx-dev
+              - cuda-profiler-api
+              - libcublas-dev
+              - libcurand-dev
+              - libcusolver-dev
+              - libcusparse-dev
           - matrix:
               cuda: "11.*"
             packages:
               - cudatoolkit
+              - cuda-nvtx
   common_build:
     common:
       - output_types: [conda, pyproject]
@@ -349,6 +357,7 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
+          - libcudf==24.4.*
           - libcugraphops==24.4.*
           - libraft-headers==24.4.*
           - libraft==24.4.*
@@ -442,7 +451,6 @@ dependencies:
         packages:
           - aiohttp
           - fsspec>=0.6.0
-          - libcudf==24.4.*
           - requests
           - nccl>=2.9.9
           - ucx-proc=*=gpu
