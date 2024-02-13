@@ -1,5 +1,5 @@
 ﻿#=============================================================================
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -257,7 +257,7 @@ ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - EGO tests -------------------------------------------------------------------------------------
-ConfigureTest(EGO_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
+ConfigureTest(EGONET_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
@@ -312,6 +312,11 @@ ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 # - Count self-loops and multi-edges tests --------------------------------------------------------
 ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
               "structure/count_self_loops_and_multi_edges_test.cpp")
+
+###################################################################################################
+# - Query edge existence and multiplicity tests ---------------------------------------------------
+ConfigureTest(HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+              "structure/has_edge_and_compute_multiplicity_test.cpp")
 
 ###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
@@ -480,6 +485,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
           "structure/mg_count_self_loops_and_multi_edges_test.cpp")
 
     ###############################################################################################
+    # - MG Query edge existence and multiplicity tests --------------------------------------------
+    ConfigureTestMG(MG_HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+          "structure/mg_has_edge_and_compute_multiplicity_test.cpp")
+
+    ###############################################################################################
     # - MG PAGERANK tests -------------------------------------------------------------------------
     ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
@@ -522,6 +532,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
+    # - MG ECG tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
+
+    ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
 
@@ -531,7 +545,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cu)
+    ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
@@ -738,9 +752,16 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     # - MTMG tests -------------------------------------------------------------------------
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
     target_link_libraries(MTMG_TEST
-                        PRIVATE
-                        UCP::UCP
-                        )
+                          PRIVATE
+                          UCP::UCP
+                         )
+
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    target_link_libraries(MTMG_LOUVAIN_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          UCP::UCP
+                         )
 
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################

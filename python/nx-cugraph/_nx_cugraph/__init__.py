@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,11 @@
 # limitations under the License.
 """Tell NetworkX about the cugraph backend. This file can update itself:
 
-$ make plugin-info  # Recommended method for development
+$ make plugin-info
+
+or
+
+$ make all  # Recommended - runs 'plugin-info' followed by 'lint'
 
 or
 
@@ -24,26 +28,38 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": "https://github.com/rapidsai/cugraph/tree/branch-23.12/python/nx-cugraph",
+    "url": "https://github.com/rapidsai/cugraph/tree/branch-24.02/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "ancestors",
+        "average_clustering",
         "barbell_graph",
         "betweenness_centrality",
+        "bfs_edges",
+        "bfs_layers",
+        "bfs_predecessors",
+        "bfs_successors",
+        "bfs_tree",
         "bull_graph",
         "caveman_graph",
         "chvatal_graph",
         "circular_ladder_graph",
+        "clustering",
+        "complement",
         "complete_bipartite_graph",
         "complete_graph",
         "complete_multipartite_graph",
         "connected_components",
+        "core_number",
         "cubical_graph",
         "cycle_graph",
         "davis_southern_women_graph",
         "degree_centrality",
         "desargues_graph",
+        "descendants",
+        "descendants_at_distance",
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
@@ -53,14 +69,21 @@ _info = {
         "from_pandas_edgelist",
         "from_scipy_sparse_array",
         "frucht_graph",
+        "generic_bfs_edges",
         "heawood_graph",
         "hits",
         "house_graph",
         "house_x_graph",
         "icosahedral_graph",
         "in_degree_centrality",
+        "is_arborescence",
+        "is_bipartite",
+        "is_branching",
         "is_connected",
+        "is_forest",
         "is_isolate",
+        "is_tree",
+        "is_weakly_connected",
         "isolates",
         "k_truss",
         "karate_club_graph",
@@ -76,39 +99,55 @@ _info = {
         "number_connected_components",
         "number_of_isolates",
         "number_of_selfloops",
+        "number_weakly_connected_components",
         "octahedral_graph",
         "out_degree_centrality",
+        "overall_reciprocity",
         "pagerank",
         "pappus_graph",
         "path_graph",
         "petersen_graph",
+        "reciprocity",
+        "reverse",
         "sedgewick_maze_graph",
         "single_source_shortest_path_length",
         "single_target_shortest_path_length",
         "star_graph",
         "tadpole_graph",
         "tetrahedral_graph",
+        "transitivity",
+        "triangles",
         "trivial_graph",
         "truncated_cube_graph",
         "truncated_tetrahedron_graph",
         "turan_graph",
         "tutte_graph",
+        "weakly_connected_components",
         "wheel_graph",
         # END: functions
     },
     "extra_docstrings": {
         # BEGIN: extra_docstrings
-        "betweenness_centrality": "`weight` parameter is not yet supported.",
-        "edge_betweenness_centrality": "`weight` parameter is not yet supported.",
+        "average_clustering": "Directed graphs and `weight` parameter are not yet supported.",
+        "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
+        "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_successors": "`sort_neighbors` parameter is not yet supported.",
+        "bfs_tree": "`sort_neighbors` parameter is not yet supported.",
+        "clustering": "Directed graphs and `weight` parameter are not yet supported.",
+        "core_number": "Directed graphs are not yet supported.",
+        "edge_betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
-        "from_pandas_edgelist": "cudf.DataFrame inputs also supported.",
+        "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
+        "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
         "k_truss": (
             "Currently raises `NotImplementedError` for graphs with more than one connected\n"
             "component when k >= 3. We expect to fix this soon."
         ),
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
-        "louvain_communities": "`seed` parameter is currently ignored.",
+        "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
+        "transitivity": "Directed graphs are not yet supported.",
         # END: extra_docstrings
     },
     "extra_parameters": {
@@ -160,7 +199,7 @@ def get_info():
 
 
 # FIXME: can this use the standard VERSION file and update mechanism?
-__version__ = "23.12.00"
+__version__ = "24.02.00"
 
 if __name__ == "__main__":
     from pathlib import Path

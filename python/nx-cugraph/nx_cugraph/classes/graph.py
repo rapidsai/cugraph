@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,6 +65,7 @@ class Graph:
     key_to_id: dict[NodeKey, IndexValue] | None
     _id_to_key: list[NodeKey] | None
     _N: int
+    _node_ids: cp.ndarray[IndexValue] | None  # holds plc.SGGraph.vertices_array data
 
     # Used by graph._get_plc_graph
     _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
@@ -116,6 +117,7 @@ class Graph:
         new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
         new_graph._id_to_key = None if id_to_key is None else list(id_to_key)
         new_graph._N = op.index(N)  # Ensure N is integral
+        new_graph._node_ids = None
         new_graph.graph = new_graph.graph_attr_dict_factory()
         new_graph.graph.update(attr)
         size = new_graph.src_indices.size
@@ -157,6 +159,16 @@ class Graph:
                     f"(got {new_graph.dst_indices.dtype.name})."
                 )
             new_graph.dst_indices = dst_indices
+
+        # If the graph contains isolates, plc.SGGraph() must be passed a value
+        # for vertices_array that contains every vertex ID, since the
+        # src/dst_indices arrays will not contain IDs for isolates. Create this
+        # only if needed. Like src/dst_indices, the _node_ids array must be
+        # maintained for the lifetime of the plc.SGGraph
+        isolates = nxcg.algorithms.isolate._isolates(new_graph)
+        if len(isolates) > 0:
+            new_graph._node_ids = cp.arange(new_graph._N, dtype=index_dtype)
+
         return new_graph
 
     @classmethod
@@ -405,6 +417,7 @@ class Graph:
         self.src_indices = cp.empty(0, self.src_indices.dtype)
         self.dst_indices = cp.empty(0, self.dst_indices.dtype)
         self._N = 0
+        self._node_ids = None
         self.key_to_id = None
         self._id_to_key = None
 
@@ -458,6 +471,24 @@ class Graph:
                 return False
         return bool(((self.src_indices == u) & (self.dst_indices == v)).any())
 
+    def _neighbors(self, n: NodeKey) -> cp.ndarray[NodeValue]:
+        if n not in self:
+            hash(n)  # To raise TypeError if appropriate
+            raise nx.NetworkXError(
+                f"The node {n} is not in the {self.__class__.__name__.lower()}."
+            )
+        if self.key_to_id is not None:
+            n = self.key_to_id[n]
+        nbrs = self.dst_indices[self.src_indices == n]
+        if self.is_multigraph():
+            nbrs = cp.unique(nbrs)
+        return nbrs
+
+    @networkx_api
+    def neighbors(self, n: NodeKey) -> Iterator[NodeKey]:
+        nbrs = self._neighbors(n)
+        return iter(self._nodeiter_to_iter(nbrs.tolist()))
+
     @networkx_api
     def has_node(self, n: NodeKey) -> bool:
         return n in self
@@ -491,7 +522,7 @@ class Graph:
         if weight is not None:
             raise NotImplementedError
         # If no self-edges, then `self.src_indices.size // 2`
-        return int((self.src_indices <= self.dst_indices).sum())
+        return int(cp.count_nonzero(self.src_indices <= self.dst_indices))
 
     @networkx_api
     def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
@@ -500,7 +531,7 @@ class Graph:
     @networkx_api
     def to_undirected(self, as_view: bool = False) -> Graph:
         # Does deep copy in networkx
-        return self.copy(as_view)
+        return self._copy(as_view, self.to_undirected_class())
 
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
@@ -561,6 +592,7 @@ class Graph:
         store_transposed: bool = False,
         switch_indices: bool = False,
         edge_array: cp.ndarray[EdgeValue] | None = None,
+        symmetrize: str | None = None,
     ):
         if edge_array is not None or edge_attr is None:
             pass
@@ -619,11 +651,32 @@ class Graph:
         dst_indices = self.dst_indices
         if switch_indices:
             src_indices, dst_indices = dst_indices, src_indices
+        if symmetrize is not None:
+            if edge_array is not None:
+                raise NotImplementedError(
+                    "edge_array must be None when symmetrizing the graph"
+                )
+            N = self._N
+            # Upcast to int64 so indices don't overflow
+            src_dst = N * src_indices.astype(np.int64) + dst_indices
+            src_dst_T = src_indices + N * dst_indices.astype(np.int64)
+            if symmetrize == "union":
+                src_dst_new = cp.union1d(src_dst, src_dst_T)
+            elif symmetrize == "intersection":
+                src_dst_new = cp.intersect1d(src_dst, src_dst_T)
+            else:
+                raise ValueError(
+                    f'symmetrize must be "union" or "intersection"; got "{symmetrize}"'
+                )
+            src_indices, dst_indices = cp.divmod(src_dst_new, N)
+            src_indices = src_indices.astype(index_dtype)
+            dst_indices = dst_indices.astype(index_dtype)
+
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
-                is_multigraph=self.is_multigraph(),
-                is_symmetric=not self.is_directed(),
+                is_multigraph=self.is_multigraph() and symmetrize is None,
+                is_symmetric=not self.is_directed() or symmetrize is not None,
             ),
             src_or_offset_array=src_indices,
             dst_or_index_array=dst_indices,
@@ -631,6 +684,7 @@ class Graph:
             store_transposed=store_transposed,
             renumber=False,
             do_expensive_check=False,
+            vertices_array=self._node_ids,
         )
 
     def _sort_edge_indices(self, primary="src"):
@@ -680,16 +734,30 @@ class Graph:
         self.graph = graph
         return self
 
-    def _degrees_array(self):
-        degrees = cp.bincount(self.src_indices, minlength=self._N)
+    def _degrees_array(self, *, ignore_selfloops=False):
+        src_indices = self.src_indices
+        dst_indices = self.dst_indices
+        if ignore_selfloops:
+            not_selfloops = src_indices != dst_indices
+            src_indices = src_indices[not_selfloops]
+            if self.is_directed():
+                dst_indices = dst_indices[not_selfloops]
+        if src_indices.size == 0:
+            return cp.zeros(self._N, dtype=np.int64)
+        degrees = cp.bincount(src_indices, minlength=self._N)
         if self.is_directed():
-            degrees += cp.bincount(self.dst_indices, minlength=self._N)
+            degrees += cp.bincount(dst_indices, minlength=self._N)
         return degrees
 
     _in_degrees_array = _degrees_array
     _out_degrees_array = _degrees_array
 
     # Data conversions
+    def _nodekeys_to_nodearray(self, nodes: Iterable[NodeKey]) -> cp.array[IndexValue]:
+        if self.key_to_id is None:
+            return cp.fromiter(nodes, dtype=index_dtype)
+        return cp.fromiter(map(self.key_to_id.__getitem__, nodes), dtype=index_dtype)
+
     def _nodeiter_to_iter(self, node_ids: Iterable[IndexValue]) -> Iterable[NodeKey]:
         """Convert an iterable of node IDs to an iterable of node keys."""
         if (id_to_key := self.id_to_key) is not None:
@@ -700,6 +768,11 @@ class Graph:
         if self.key_to_id is None:
             return node_ids.tolist()
         return list(self._nodeiter_to_iter(node_ids.tolist()))
+
+    def _list_to_nodearray(self, nodes: list[NodeKey]) -> cp.ndarray[IndexValue]:
+        if (key_to_id := self.key_to_id) is not None:
+            nodes = [key_to_id[node] for node in nodes]
+        return cp.array(nodes, dtype=index_dtype)
 
     def _nodearray_to_set(self, node_ids: cp.ndarray[IndexValue]) -> set[NodeKey]:
         if self.key_to_id is None:

@@ -171,7 +171,7 @@ int test_hits(const cugraph_resource_handle_t* handle)
   weight_t h_hubs[]        = {0.347296, 0.532089, 1, 0.00003608, 0.00003608, 0};
   weight_t h_authorities[] = {0.652703, 0.879385, 0, 1, 0.347296, 0.00009136};
 
-  double epsilon        = 0.0001;
+  double epsilon        = 0.00002;
   size_t max_iterations = 20;
 
   // hits wants store_transposed = TRUE
@@ -203,7 +203,7 @@ int test_hits_with_transpose(const cugraph_resource_handle_t* handle)
   weight_t h_hubs[]        = {0.347296, 0.532089, 1, 0.00003608, 0.00003608, 0};
   weight_t h_authorities[] = {0.652703, 0.879385, 0, 1, 0.347296, 0.00009136};
 
-  double epsilon        = 0.0001;
+  double epsilon        = 0.00002;
   size_t max_iterations = 20;
 
   // Hits wants store_transposed = TRUE

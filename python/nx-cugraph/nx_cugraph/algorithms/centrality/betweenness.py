@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,11 +18,16 @@ from nx_cugraph.utils import _seed_to_int, networkx_algorithm
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
 
 
-@networkx_algorithm
+@networkx_algorithm(
+    is_incomplete=True,  # weight not supported
+    is_different=True,  # RNG with seed is different
+    version_added="23.10",
+    _plc="betweenness_centrality",
+)
 def betweenness_centrality(
     G, k=None, normalized=True, weight=None, endpoints=False, seed=None
 ):
-    """`weight` parameter is not yet supported."""
+    """`weight` parameter is not yet supported, and RNG with seed may be different."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
@@ -46,9 +51,14 @@ def _(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
     return weight is None
 
 
-@networkx_algorithm
+@networkx_algorithm(
+    is_incomplete=True,  # weight not supported
+    is_different=True,  # RNG with seed is different
+    version_added="23.10",
+    _plc="edge_betweenness_centrality",
+)
 def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=None):
-    """`weight` parameter is not yet supported."""
+    """`weight` parameter is not yet supported, and RNG with seed may be different."""
     if weight is not None:
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"

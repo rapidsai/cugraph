@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -69,28 +69,11 @@ class Tests_Louvain
       handle, input_usecase, true);
     auto graph_view = graph->view();
 
-    // "FIXME": remove this check once we drop support for Pascal
-    //
-    // Calling louvain on Pascal will throw an exception, we'll check that
-    // this is the behavior while we still support Pascal (device_prop.major < 7)
-    //
-    cudaDeviceProp device_prop;
-    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
-
-    if (device_prop.major < 7) {
-      EXPECT_THROW(louvain_legacy(graph_view,
-                                  graph_view.get_number_of_vertices(),
-                                  louvain_usecase.check_correctness_,
-                                  louvain_usecase.expected_level_,
-                                  louvain_usecase.expected_modularity_),
-                   cugraph::logic_error);
-    } else {
-      louvain_legacy(graph_view,
-                     graph_view.get_number_of_vertices(),
-                     louvain_usecase.check_correctness_,
-                     louvain_usecase.expected_level_,
-                     louvain_usecase.expected_modularity_);
-    }
+    louvain_legacy(graph_view,
+                   graph_view.get_number_of_vertices(),
+                   louvain_usecase.check_correctness_,
+                   louvain_usecase.expected_level_,
+                   louvain_usecase.expected_modularity_);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
@@ -124,41 +107,20 @@ class Tests_Louvain
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    // "FIXME": remove this check once we drop support for Pascal
-    //
-    // Calling louvain on Pascal will throw an exception, we'll check that
-    // this is the behavior while we still support Pascal (device_prop.major < 7)
-    //
-    cudaDeviceProp device_prop;
-    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Louvain");
     }
 
-    if (device_prop.major < 7) {
-      EXPECT_THROW(louvain(graph_view,
-                           edge_weight_view,
-                           graph_view.local_vertex_partition_range_size(),
-                           louvain_usecase.max_level_,
-                           louvain_usecase.threshold_,
-                           louvain_usecase.resolution_,
-                           louvain_usecase.check_correctness_,
-                           louvain_usecase.expected_level_,
-                           louvain_usecase.expected_modularity_),
-                   cugraph::logic_error);
-    } else {
-      louvain(graph_view,
-              edge_weight_view,
-              graph_view.local_vertex_partition_range_size(),
-              louvain_usecase.max_level_,
-              louvain_usecase.threshold_,
-              louvain_usecase.resolution_,
-              louvain_usecase.check_correctness_,
-              louvain_usecase.expected_level_,
-              louvain_usecase.expected_modularity_);
-    }
+    louvain(graph_view,
+            edge_weight_view,
+            graph_view.local_vertex_partition_range_size(),
+            louvain_usecase.max_level_,
+            louvain_usecase.threshold_,
+            louvain_usecase.resolution_,
+            louvain_usecase.check_correctness_,
+            louvain_usecase.expected_level_,
+            louvain_usecase.expected_modularity_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -212,27 +174,39 @@ class Tests_Louvain
     weight_t modularity;
 
     if (resolution) {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle,
-                         graph_view,
-                         edge_weight_view,
-                         clustering_v.data(),
-                         max_level ? *max_level : size_t{100},
-                         threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
-                         static_cast<weight_t>(*resolution));
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        max_level ? *max_level : size_t{100},
+        threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
+        static_cast<weight_t>(*resolution));
     } else if (threshold) {
-      std::tie(level, modularity) = cugraph::louvain(handle,
-                                                     graph_view,
-                                                     edge_weight_view,
-                                                     clustering_v.data(),
-                                                     max_level ? *max_level : size_t{100},
-                                                     static_cast<weight_t>(*threshold));
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        max_level ? *max_level : size_t{100},
+        static_cast<weight_t>(*threshold));
     } else if (max_level) {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data(), *max_level);
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data(),
+        *max_level);
     } else {
-      std::tie(level, modularity) =
-        cugraph::louvain(handle, graph_view, edge_weight_view, clustering_v.data());
+      std::tie(level, modularity) = cugraph::louvain(
+        handle,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        graph_view,
+        edge_weight_view,
+        clustering_v.data());
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

@@ -1,53 +1,46 @@
 # Building from Source
 
-The following instructions are for users wishing to build cuGraph from source code.  These instructions are tested on supported distributions of Linux, CUDA, and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of supported environments.  Other operating systems _might be_ compatible, but are not currently tested.
-
-The cuGraph package include both a C/C++ CUDA portion and a python portion.  Both libraries need to be installed in order for cuGraph to operate correctly.
+These instructions are tested on supported versions/distributions of Linux,
+CUDA, and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html)
+for the list of supported environments.  Other environments _might be_
+compatible, but are not currently tested.
 
 ## Prerequisites
 
-__Compiler:__
+__Compilers:__
 * `gcc`           version 9.3+
-* `nvcc`          version 11.0+
-* `cmake`         version 3.20.1+
+* `nvcc`          version 11.5+
 
 __CUDA:__
-* CUDA 11.0+
+* CUDA 11.2+
 * NVIDIA driver 450.80.02+
 * Pascal architecture or better
 
-You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
+Further details and download links for these prerequisites are available on the
+[RAPIDS System Requirements page](https://docs.rapids.ai/install#system-req).
 
-__Packages:__
-* `cmake`         version 3.20.1+
-* `libcugraphops` (version matching source branch version, eg. `23.10`)
+## Setting up the development environment
 
-You can obtain `libcugraphops` using `conda`/`mamba` from the `nvidia` channel, or using `pip` with the `--extra-index-url=https://pypi.nvidia.com` option.  See the [RAPIDS docs](https://docs.rapids.ai/install#environment) for more details.
+### Clone the repository:
+```bash
+CUGRAPH_HOME=$(pwd)/cugraph
+git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
+cd $CUGRAPH_HOME
+```
 
-## Building cuGraph
-To install cuGraph from source, ensure the dependencies are met.
+### Create the conda environment
 
-
-### Clone Repo and Configure Conda Environment
-__GIT clone a version of the repository__
-
-  ```bash
-  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
-  export CUGRAPH_HOME=$(pwd)/cugraph
-
-  # Download the cuGraph repo - if you have a folked version, use that path here instead
-  git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
-
-  cd $CUGRAPH_HOME
-  ```
-
-__Create the conda development environment__
+Using conda is the easiest way to install both the build and runtime
+dependencies for cugraph. While it is possible to build and run cugraph without
+conda, the required packages occasionally change, making it difficult to
+document here. The best way to see the current dependencies needed for a build
+and run environment is to examine the list of packages in the [conda
+environment YAML
+files](https://github.com/rapidsai/cugraph/blob/main/conda/environments).
 
 ```bash
-# create the conda environment (assuming in base `cugraph` directory)
-
 # for CUDA 11.x
-conda env create --name cugraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
+conda env create --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-118_arch-x86_64.yaml
 
 # activate the environment
 conda activate cugraph_dev
@@ -56,101 +49,53 @@ conda activate cugraph_dev
 conda deactivate
 ```
 
-  - The environment can be updated as development includes/changes the dependencies. To do so, run:
-
+The environment can be updated as cugraph adds/removes/updates its dependencies. To do so, run:
 
 ```bash
-
-# Where XXX is the CUDA 11 version
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.XXX.yml
-
+# for CUDA 11.x
+conda env update --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-118_arch-x86_64.yaml
 conda activate cugraph_dev
 ```
 
+### Build and Install
 
-### Build and Install Using the `build.sh` Script
-Using the `build.sh` script make compiling and installing cuGraph a breeze.  To build and install, simply do:
+#### Build and install using `build.sh`
+Using the `build.sh` script, located in the `$CUGRAPH_HOME` directory, is the
+recommended way to build and install the cugraph libraries. By default,
+`build.sh` will build and install a predefined set of targets
+(packages/libraries), but can also accept a list of targets to build.
+
+For example, to build only the cugraph C++ library (`libcugraph`) and the
+high-level python library (`cugraph`) without building the C++ test binaries,
+run this command:
 
 ```bash
 $ cd $CUGRAPH_HOME
-$ ./build.sh clean
-$ ./build.sh libcugraph
-$ ./build.sh cugraph
+$ ./build.sh libcugraph pylibcugraph cugraph --skip_cpp_tests
 ```
 
-There are several other options available on the build script for advanced users.
-`build.sh` options:
-```bash
-build.sh [<target> ...] [<flag> ...]
- where <target> is:
-   clean                      - remove all existing build artifacts and configuration (start over)
-   uninstall                  - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   libcugraph                 - build libcugraph.so and SG test binaries
-   libcugraph_etl             - build libcugraph_etl.so and SG test binaries
-   pylibcugraph               - build the pylibcugraph Python package
-   cugraph                    - build the cugraph Python package
-   nx-cugraph                 - build the nx-cugraph Python package
-   cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
-   cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
-   cugraph-dgl                - build the cugraph-dgl extensions for DGL
-   cugraph-pyg                - build the cugraph-dgl extensions for PyG
-   docs                       - build the docs
- and <flag> is:
-   -v                         - verbose build mode
-   -g                         - build for debug
-   -n                         - do not install after a successful build
-   --pydevelop                - use setup.py develop instead of install
-   --allgpuarch               - build for all supported GPU architectures
-   --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
-   --without_cugraphops       - do not build algos that require cugraph-ops
-   --cmake_default_generator  - use the default cmake generator instead of ninja
-   --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
-   -h                         - print this text
+There are several other options available on the build script for advanced
+users. Refer to the output of `--help` for details.
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
-
-examples:
-$ ./build.sh clean                        # remove prior build artifacts (start over)
-$ ./build.sh libcugraph -v                # compile and install libcugraph with verbose output
-$ ./build.sh libcugraph -g                # compile and install libcugraph for debug
-$ ./build.sh libcugraph -n                # compile libcugraph but do not install
-
-# make parallelism options can also be defined: Example build jobs using 4 threads (make -j4)
-$ PARALLEL_LEVEL=4 ./build.sh libcugraph
-
-Note that the libraries will be installed to the location set in `$PREFIX` if set (i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
-```
-
-
-## Building each section independently
-#### Build and Install the C++/CUDA `libcugraph` Library
-CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
-
-This project uses cmake for building the C/C++ library. To configure cmake, run:
-
-  ```bash
-  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
-  export CUGRAPH_HOME=$(pwd)/cugraph
-
-  cd $CUGRAPH_HOME
-  cd cpp                                        # enter cpp directory
-  mkdir build                                   # create build directory
-  cd build                                      # enter the build directory
-  cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
-
-  # now build the code
-  make -j                                       # "-j" starts multiple threads
-  make install                                  # install the libraries
-  ```
-The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
+Note that libraries will be installed to the location set in `$PREFIX` if set
+(i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
 
 #### Updating the RAFT branch
 
-`libcugraph` uses the [RAFT](https://github.com/rapidsai/raft) library and there are times when it might be desirable to build against a different RAFT branch, such as when working on new features that might span both RAFT and cuGraph.
+`libcugraph` uses the [RAFT](https://github.com/rapidsai/raft) library and
+there are times when it might be desirable to build against a different RAFT
+branch, such as when working on new features that might span both RAFT and
+cuGraph.
 
-For local development, the `CPM_raft_SOURCE=<path/to/raft/source>` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch.
+For local development, the `CPM_raft_SOURCE=<path/to/raft/source>` option can
+be passed to the `cmake` command to enable `libcugraph` to use the local RAFT
+branch. The `build.sh` script calls `cmake` to build the C/C++ targets, but
+developers can call `cmake` directly in order to pass it options like those
+described here. Refer to the `build.sh` script to see how to call `cmake` and
+other commands directly.
 
-To have CI test a `cugraph` pull request against a different RAFT branch, modify the bottom of the `cpp/cmake/thirdparty/get_raft.cmake` file as follows:
+To have CI test a `cugraph` pull request against a different RAFT branch,
+modify the bottom of the `cpp/cmake/thirdparty/get_raft.cmake` file as follows:
 
 ```cmake
 # Change pinned tag and fork here to test a commit in CI
@@ -167,24 +112,10 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         )
 ```
 
-When the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. After the changes in the RAFT branch are merged to the release branch, remember to revert the `get_raft.cmake` file back to the original cuGraph branch.
-
-### Building and installing the Python package
-
-2) Install the Python packages to your Python path:
-
-```bash
-cd $CUGRAPH_HOME
-cd python
-cd pylibcugraph
-python setup.py build_ext --inplace
-python setup.py install    # install pylibcugraph
-cd ../cugraph
-python setup.py build_ext --inplace
-python setup.py install    # install cugraph python bindings
-
-```
-
+When the above change is pushed to a pull request, the continuous integration
+servers will use the specified RAFT branch to run the cuGraph tests. After the
+changes in the RAFT branch are merged to the release branch, remember to revert
+the `get_raft.cmake` file back to the original cuGraph branch.
 
 
 ## Run tests
@@ -240,7 +171,10 @@ Note: This conda installation only applies to Linux and Python versions 3.8/3.10
 
 ### (OPTIONAL) Set environment variable on activation
 
-It is possible to configure the conda environment to set environmental variables on activation. Providing instructions to set PATH to include the CUDA toolkit bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be helpful.
+It is possible to configure the conda environment to set environment variables
+on activation. Providing instructions to set PATH to include the CUDA toolkit
+bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be
+helpful.
 
 ```bash
 cd  ~/anaconda3/envs/cugraph_dev
@@ -271,7 +205,8 @@ unset LD_LIBRARY_PATH
 
 ## Creating documentation
 
-Python API documentation can be generated from _./docs/cugraph directory_. Or through using "./build.sh docs"
+Python API documentation can be generated from _./docs/cugraph directory_. Or
+through using "./build.sh docs"
 
 ## Attribution
 Portions adopted from https://github.com/pytorch/pytorch/blob/master/CONTRIBUTING.md

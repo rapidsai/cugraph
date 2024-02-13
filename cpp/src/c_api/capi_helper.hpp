@@ -36,6 +36,18 @@ void sort_by_key(raft::handle_t const& handle,
                  raft::device_span<key_t> keys,
                  raft::device_span<value_t> values);
 
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<size_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+reorder_extracted_egonets(raft::handle_t const& handle,
+                          rmm::device_uvector<size_t>&& source_indices,
+                          rmm::device_uvector<size_t>&& offsets,
+                          rmm::device_uvector<vertex_t>&& edge_srcs,
+                          rmm::device_uvector<vertex_t>&& edge_dsts,
+                          std::optional<rmm::device_uvector<weight_t>>&& edge_weights);
+
 }  // namespace detail
 }  // namespace c_api
 }  // namespace cugraph

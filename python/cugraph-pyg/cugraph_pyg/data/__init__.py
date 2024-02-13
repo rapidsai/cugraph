@@ -11,8 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.api_tools import experimental_warning_wrapper
-
-from cugraph_pyg.data.cugraph_store import EXPERIMENTAL__CuGraphStore
-
-CuGraphStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphStore)
+from cugraph_pyg.data.cugraph_store import CuGraphStore

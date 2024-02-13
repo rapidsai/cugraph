@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -432,7 +432,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   // 1. check input arguments
 
   auto const num_vertices = graph_view.number_of_vertices();
-  auto const num_edges    = graph_view.number_of_edges();
+  auto const num_edges    = graph_view.compute_number_of_edges(handle);
 
   CUGRAPH_EXPECTS(num_vertices != 0 || (origins.size() == 0 && destinations.size() == 0),
                   "Invalid input argument: the input graph is empty but origins.size() > 0 or "
@@ -639,13 +639,14 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         static_cast<od_idx_t>(origins.size()),
         cutoff,
         invalid_distance};
-      detail::call_e_op_t<thrust::tuple<vertex_t, od_idx_t>,
-                          weight_t,
-                          vertex_t,
-                          thrust::nullopt_t,
-                          thrust::nullopt_t,
-                          weight_t,
-                          e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
+      detail::transform_reduce_v_frontier_call_e_op_t<
+        thrust::tuple<vertex_t, od_idx_t>,
+        weight_t,
+        vertex_t,
+        thrust::nullopt_t,
+        thrust::nullopt_t,
+        weight_t,
+        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
         e_op_wrapper{e_op};
 
       auto new_frontier_tagged_vertex_buffer =
@@ -1049,7 +1050,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   auto const num_vertices = graph_view.number_of_vertices();
-  auto const num_edges    = graph_view.number_of_edges();
+  auto const num_edges    = graph_view.compute_number_of_edges(handle);
 
   weight_t average_vertex_degree =
     static_cast<weight_t>(num_edges) / static_cast<weight_t>(num_vertices);

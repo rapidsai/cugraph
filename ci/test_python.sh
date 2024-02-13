@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -63,7 +63,16 @@ pytest \
   tests
 popd
 
-# FIXME: TEMPORARILY disable single-GPU "MG" testing
+# Test runs that include tests that use dask require
+# --import-mode=append. Those tests start a LocalCUDACluster that inherits
+# changes from pytest's modifications to PYTHONPATH (which defaults to
+# prepending source tree paths to PYTHONPATH).  This causes the
+# LocalCUDACluster subprocess to import cugraph from the source tree instead of
+# the install location, and in most cases, the source tree does not have
+# extensions built in-place and will result in ImportErrors.
+#
+# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
+# bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 DASK_WORKER_DEVICES="0" \
@@ -72,6 +81,7 @@ DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
 DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
 pytest \
   -v \
+  --import-mode=append \
   --benchmark-disable \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
@@ -79,7 +89,7 @@ pytest \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
-  -k "not test_property_graph_mg" \
+  -k "not test_property_graph_mg and not test_bulk_sampler_io" \
   tests
 popd
 
@@ -110,12 +120,33 @@ popd
 
 rapids-logger "pytest networkx using nx-cugraph backend"
 pushd python/nx-cugraph
+# Use editable install to make coverage work
+pip install -e . --no-deps
 ./run_nx_tests.sh
 # run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
 # in case nx-cugraph failed to load but fallback mode allowed the run to pass.
 _coverage=$(coverage report|grep "^TOTAL")
 echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
+# Ensure all algorithms were called by comparing covered lines to function lines.
+# Run our tests again (they're fast enough) to add their coverage, then create coverage.json
+pytest \
+  --pyargs nx_cugraph \
+  --config-file=./pyproject.toml \
+  --cov-config=./pyproject.toml \
+  --cov=nx_cugraph \
+  --cov-append \
+  --cov-report=
+coverage report \
+  --include="*/nx_cugraph/algorithms/*" \
+  --omit=__init__.py \
+  --show-missing \
+  --rcfile=./pyproject.toml
+coverage json --rcfile=./pyproject.toml
+python -m nx_cugraph.tests.ensure_algos_covered
+# Exercise (and show results of) scripts that show implemented networkx algorithms
+python -m nx_cugraph.scripts.print_tree --dispatch-name --plc --incomplete --different
+python -m nx_cugraph.scripts.print_table
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
@@ -208,7 +239,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       "cugraph-pyg" \
       "pytorch>=2.0,<2.1" \
       "pytorch-cuda=11.8"
-    
+
     # Install pyg dependencies (which requires pip)
     pip install \
         pyg_lib \
@@ -225,7 +256,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # rmat is not tested because of multi-GPU testing
     pytest \
       --cache-clear \
-      --ignore=tests/int \
       --ignore=tests/mg \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
       --cov-config=../../.coveragerc \
@@ -246,6 +276,47 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   fi
 else
   rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
+fi
+
+# test cugraph-equivariant
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+    # Reuse cugraph-dgl's test env for cugraph-equivariant
+    set +u
+    conda activate test_cugraph_dgl
+    set -u
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      --channel pytorch \
+      --channel nvidia \
+      cugraph-equivariant
+    pip install e3nn==0.5.1
+
+    rapids-print-env
+
+    rapids-logger "pytest cugraph-equivariant"
+    pushd python/cugraph-equivariant/cugraph_equivariant
+    pytest \
+      --cache-clear \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_equivariant \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+  else
+    rapids-logger "skipping cugraph-equivariant pytest on ARM64"
+  fi
+else
+  rapids-logger "skipping cugraph-equivariant pytest on CUDA!=11.8"
 fi
 
 rapids-logger "Test script exiting with value: $EXITCODE"

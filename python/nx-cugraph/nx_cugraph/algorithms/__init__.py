@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,15 +13,25 @@
 from . import (
     bipartite,
     centrality,
+    cluster,
     community,
     components,
-    shortest_paths,
     link_analysis,
+    operators,
+    shortest_paths,
+    traversal,
+    tree,
 )
-from .bipartite import complete_bipartite_graph
+from .bipartite import complete_bipartite_graph, is_bipartite
 from .centrality import *
+from .cluster import *
 from .components import *
 from .core import *
+from .dag import *
 from .isolate import *
-from .shortest_paths import *
 from .link_analysis import *
+from .operators import *
+from .reciprocity import *
+from .shortest_paths import *
+from .traversal import *
+from .tree.recognition import *

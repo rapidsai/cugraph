@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import os
 import sys
 
 import networkx as nx
@@ -67,25 +68,42 @@ class BackendInterface:
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
 
-        xfail = {}
+        xfail = {
+            # This is removed while strongly_connected_components() is not
+            # dispatchable. See algorithms/components/strongly_connected.py for
+            # details.
+            #
+            # key(
+            #     "test_strongly_connected.py:"
+            #     "TestStronglyConnected.test_condensation_mapping_and_members"
+            # ): "Strongly connected groups in different iteration order",
+        }
 
         from packaging.version import parse
 
         nxver = parse(nx.__version__)
 
         if nxver.major == 3 and nxver.minor <= 2:
-            # Networkx versions prior to 3.2.1 have tests written to expect
-            # sp.sparse.linalg.ArpackNoConvergence exceptions raised on no
-            # convergence in HITS. Newer versions since the merge of
-            # https://github.com/networkx/networkx/pull/7084 expect
-            # nx.PowerIterationFailedConvergence, which is what nx_cugraph.hits
-            # raises, so we mark them as xfail for previous versions of NX.
             xfail.update(
                 {
+                    # NetworkX versions prior to 3.2.1 have tests written to
+                    # expect sp.sparse.linalg.ArpackNoConvergence exceptions
+                    # raised on no convergence in HITS. Newer versions since
+                    # the merge of
+                    # https://github.com/networkx/networkx/pull/7084 expect
+                    # nx.PowerIterationFailedConvergence, which is what
+                    # nx_cugraph.hits raises, so we mark them as xfail for
+                    # previous versions of NX.
                     key(
                         "test_hits.py:TestHITS.test_hits_not_convergent"
                     ): "nx_cugraph.hits raises updated exceptions not caught in "
                     "these tests",
+                    # NetworkX versions 3.2 and older contain tests that fail
+                    # with pytest>=8. Assume pytest>=8 and mark xfail.
+                    key(
+                        "test_strongly_connected.py:"
+                        "TestStronglyConnected.test_connected_raise"
+                    ): "test is incompatible with pytest>=8",
                 }
             )
 
@@ -241,12 +259,45 @@ class BackendInterface:
                     )
 
         too_slow = "Too slow to run"
-        maybe_oom = "out of memory in CI"
         skip = {
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
-            key("test_efficiency.py:TestEfficiency.test_using_ego_graph"): maybe_oom,
+            # These repeatedly call `bfs_layers`, which converts the graph every call
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph2_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph3_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph3_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp.test_custom_graph4_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_all_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_all_different_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestGraphISOVF2pp."
+                "test_disconnected_graph_some_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp.py:TestMultiGraphISOVF2pp."
+                "test_custom_multigraph3_same_labels"
+            ): too_slow,
+            key(
+                "test_vf2pp_helpers.py:TestNodeOrdering."
+                "test_matching_order_all_branches"
+            ): too_slow,
         }
+        if os.environ.get("PYTEST_NO_SKIP", False):
+            skip.clear()
 
         for item in items:
             kset = set(item.keywords)

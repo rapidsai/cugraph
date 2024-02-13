@@ -19,11 +19,14 @@
 #include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/optional.h>
+
+#include <cuda/functional>
 
 #include <optional>
 #include <tuple>
@@ -43,7 +46,8 @@ std::tuple<std::vector<vertex_t>, std::vector<edge_t>> compute_offset_aligned_ed
 {
   auto search_offset_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{1}),
-    [approx_edge_chunk_size] __device__(auto i) { return i * approx_edge_chunk_size; });
+    cuda::proclaim_return_type<size_t>(
+      [approx_edge_chunk_size] __device__(auto i) { return i * approx_edge_chunk_size; }));
   auto num_chunks = (num_edges + approx_edge_chunk_size - 1) / approx_edge_chunk_size;
 
   if (num_chunks > 1) {

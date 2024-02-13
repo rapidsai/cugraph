@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ void leiden_partition_at_level(raft::handle_t const& handle,
     thrust::make_counting_iterator<size_t>(0),
     thrust::make_counting_iterator<size_t>((level - 1) / 2),
     [&handle, &dendrogram, &local_vertex_ids_v, &d_partition, local_num_verts](size_t l) {
-      cugraph::relabel<vertex_t, false>(
+      cugraph::relabel<vertex_t, multi_gpu>(
         handle,
         std::tuple<vertex_t const*, vertex_t const*>(dendrogram.get_level_ptr_nocheck(2 * l + 1),
                                                      dendrogram.get_level_ptr_nocheck(2 * l + 2)),

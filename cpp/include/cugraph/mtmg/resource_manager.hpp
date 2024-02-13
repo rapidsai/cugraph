@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class resource_manager_t {
 
     local_rank_map_.insert(std::pair(global_rank, local_device_id));
 
-    RAFT_CUDA_TRY(cudaSetDevice(local_device_id.value()));
+    rmm::cuda_set_device_raii local_set_device(local_device_id);
 
     // FIXME: There is a bug in the cuda_memory_resource that results in a Hang.
     //   using the pool resource as a work-around.
@@ -106,9 +106,9 @@ class resource_manager_t {
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{global_rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
 #else
-    auto const [free, total] = rmm::detail::available_device_memory();
+    auto const [free, total] = rmm::available_device_memory();
     auto const min_alloc =
-      rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
+      rmm::align_down(std::min(free, total / 6), rmm::CUDA_ALLOCATION_ALIGNMENT);
 
     auto per_device_it = per_device_rmm_resources_.insert(
       std::pair{global_rank,
@@ -182,14 +182,12 @@ class resource_manager_t {
       --gpu_row_comm_size;
     }
 
-    int current_device{};
-    RAFT_CUDA_TRY(cudaGetDevice(&current_device));
     RAFT_NCCL_TRY(ncclGroupStart());
 
     for (size_t i = 0; i < local_ranks_to_include.size(); ++i) {
       int rank = local_ranks_to_include[i];
       auto pos = local_rank_map_.find(rank);
-      RAFT_CUDA_TRY(cudaSetDevice(pos->second.value()));
+      rmm::cuda_set_device_raii local_set_device(pos->second);
 
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
@@ -204,7 +202,6 @@ class resource_manager_t {
         handles[i].get(), *nccl_comms[i], ranks_to_include.size(), rank);
     }
     RAFT_NCCL_TRY(ncclGroupEnd());
-    RAFT_CUDA_TRY(cudaSetDevice(current_device));
 
     std::vector<std::thread> running_threads;
 
@@ -217,9 +214,7 @@ class resource_manager_t {
                                     &device_ids,
                                     &nccl_comms,
                                     &handles]() {
-        int rank = local_ranks_to_include[idx];
-        RAFT_CUDA_TRY(cudaSetDevice(device_ids[idx].value()));
-
+        rmm::cuda_set_device_raii local_set_device(device_ids[idx]);
         cugraph::partition_manager::init_subcomm(*handles[idx], gpu_row_comm_size);
       });
     }

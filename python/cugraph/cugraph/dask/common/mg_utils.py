@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import os
-
+import gc
 import numba.cuda
 
 
@@ -68,3 +68,8 @@ def get_visible_devices():
     else:
         visible_devices = _visible_devices.strip().split(",")
     return visible_devices
+
+
+def run_gc_on_dask_cluster(client):
+    gc.collect()
+    client.run(gc.collect)

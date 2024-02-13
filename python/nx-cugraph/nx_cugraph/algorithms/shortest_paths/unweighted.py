@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,12 +21,12 @@ from nx_cugraph.utils import index_dtype, networkx_algorithm
 __all__ = ["single_source_shortest_path_length", "single_target_shortest_path_length"]
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12", _plc="bfs")
 def single_source_shortest_path_length(G, source, cutoff=None):
     return _single_shortest_path_length(G, source, cutoff, "Source")
 
 
-@networkx_algorithm
+@networkx_algorithm(version_added="23.12", _plc="bfs")
 def single_target_shortest_path_length(G, target, cutoff=None):
     return _single_shortest_path_length(G, target, cutoff, "Target")
 

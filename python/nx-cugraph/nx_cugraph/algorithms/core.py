@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,14 +15,47 @@ import networkx as nx
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
-from nx_cugraph.utils import _get_int_dtype, networkx_algorithm, not_implemented_for
+from nx_cugraph.convert import _to_undirected_graph
+from nx_cugraph.utils import (
+    _get_int_dtype,
+    index_dtype,
+    networkx_algorithm,
+    not_implemented_for,
+)
 
-__all__ = ["k_truss"]
+__all__ = ["core_number", "k_truss"]
 
 
 @not_implemented_for("directed")
 @not_implemented_for("multigraph")
-@networkx_algorithm
+@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="core_number")
+def core_number(G):
+    """Directed graphs are not yet supported."""
+    G = _to_undirected_graph(G)
+    if len(G) == 0:
+        return {}
+    if nxcg.number_of_selfloops(G) > 0:
+        raise nx.NetworkXNotImplemented(
+            "Input graph has self loops which is not permitted; "
+            "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
+        )
+    node_ids, core_numbers = plc.core_number(
+        resource_handle=plc.ResourceHandle(),
+        graph=G._get_plc_graph(),
+        degree_type="bidirectional",
+        do_expensive_check=False,
+    )
+    return G._nodearrays_to_dict(node_ids, core_numbers)
+
+
+@core_number._can_run
+def _(G):
+    return not G.is_directed()
+
+
+@not_implemented_for("directed")
+@not_implemented_for("multigraph")
+@networkx_algorithm(is_incomplete=True, version_added="23.12", _plc="k_truss_subgraph")
 def k_truss(G, k):
     """
     Currently raises `NotImplementedError` for graphs with more than one connected
@@ -31,7 +64,11 @@ def k_truss(G, k):
     if is_nx := isinstance(G, nx.Graph):
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     if nxcg.number_of_selfloops(G) > 0:
-        raise nx.NetworkXError(
+        if nx.__version__[:3] <= "3.2":
+            exc_class = nx.NetworkXError
+        else:
+            exc_class = nx.NetworkXNotImplemented
+        raise exc_class(
             "Input graph has self loops which is not permitted; "
             "Consider using G.remove_edges_from(nx.selfloop_edges(G))."
         )
@@ -77,10 +114,8 @@ def k_truss(G, k):
         edge_values = {key: val[edge_indices] for key, val in G.edge_values.items()}
         edge_masks = {key: val[edge_indices] for key, val in G.edge_masks.items()}
     # Renumber step 2: edge indices
-    mapper = cp.zeros(len(G), src_indices.dtype)
-    mapper[node_indices] = cp.arange(node_indices.size, dtype=mapper.dtype)
-    src_indices = mapper[src_indices]
-    dst_indices = mapper[dst_indices]
+    src_indices = cp.searchsorted(node_indices, src_indices).astype(index_dtype)
+    dst_indices = cp.searchsorted(node_indices, dst_indices).astype(index_dtype)
     # Renumber step 3: node values
     node_values = {key: val[node_indices] for key, val in G.node_values.items()}
     node_masks = {key: val[node_indices] for key, val in G.node_masks.items()}

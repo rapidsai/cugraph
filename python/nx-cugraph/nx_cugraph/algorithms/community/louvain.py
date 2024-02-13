@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,8 +23,6 @@ from nx_cugraph.utils import (
     not_implemented_for,
 )
 
-from ..isolate import _isolates
-
 __all__ = ["louvain_communities"]
 
 
@@ -35,7 +33,11 @@ __all__ = ["louvain_communities"]
             "Upper limit of the number of macro-iterations (max: 500)."
         ),
         **_dtype_param,
-    }
+    },
+    is_incomplete=True,  # seed not supported; self-loops not supported
+    is_different=True,  # RNG different
+    version_added="23.10",
+    _plc="louvain",
 )
 def louvain_communities(
     G,
@@ -47,12 +49,11 @@ def louvain_communities(
     max_level=None,
     dtype=None,
 ):
-    """`seed` parameter is currently ignored."""
+    """`seed` parameter is currently ignored, and self-loops are not yet supported."""
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.
     seed = _seed_to_int(seed)  # Unused, but ensure it's valid for future compatibility
     G = _to_undirected_graph(G, weight)
     if G.src_indices.size == 0:
-        # TODO: PLC doesn't handle empty graphs gracefully!
         return [{key} for key in G._nodeiter_to_iter(range(len(G)))]
     if max_level is None:
         max_level = 500
@@ -72,14 +73,7 @@ def louvain_communities(
         do_expensive_check=False,
     )
     groups = _groupby(clusters, node_ids, groups_are_canonical=True)
-    rv = [set(G._nodearray_to_list(ids)) for ids in groups.values()]
-    # TODO: PLC doesn't handle isolated node_ids yet, so this is a temporary fix
-    isolates = _isolates(G)
-    if isolates.size > 0:
-        isolates = isolates[isolates > node_ids.max()]
-        if isolates.size > 0:
-            rv.extend({node} for node in G._nodearray_to_list(isolates))
-    return rv
+    return [set(G._nodearray_to_list(ids)) for ids in groups.values()]
 
 
 @louvain_communities._can_run
