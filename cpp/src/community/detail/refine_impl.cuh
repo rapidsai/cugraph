@@ -504,10 +504,8 @@ refine_clustering(
     //
     // Decide best/positive move for each vertex
     //
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    raft::random::RngState rng_state(seed);
-    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
 
+    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
