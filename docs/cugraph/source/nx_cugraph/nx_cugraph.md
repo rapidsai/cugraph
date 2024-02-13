@@ -7,7 +7,7 @@ is now a [networkX backend](<https://networkx.org/documentation/stable/reference
 The user now need only [install nx-cugraph](<https://github.com/rapidsai/cugraph/blob/branch-24.04/python/nx-cugraph/README.md#install>)
 to experience GPU speedups.
 
-Lets look at some examples of algorithm speedups comparing GPU based 
+Lets look at some examples of algorithm speedups comparing CPU based NetworkX to dispatched versions run on GPU with nx_cugraph.
 
 ![Ancestors](../images/ancestors.png)
 ![BFS Tree](../images/bfs_tree.png)
