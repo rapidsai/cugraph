@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ function(find_and_configure_cudf)
       BUILD_EXPORT_SET    cugraph_etl-exports
       INSTALL_EXPORT_SET  cugraph_etl-exports
         CPM_ARGS
-            GIT_REPOSITORY https://github.com/${PKG_FORK}/cudf.git
-            GIT_TAG        ${PKG_PINNED_TAG}
+            GIT_REPOSITORY https://github.com/PointKernel/cudf.git
+            GIT_TAG        fix-cuco-conflicts
             SOURCE_SUBDIR  cpp
             OPTIONS "BUILD_TESTS OFF"
     )
