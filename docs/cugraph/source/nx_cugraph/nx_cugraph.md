@@ -9,6 +9,14 @@ to experience GPU speedups.
 
 Lets look at some examples of algorithm speedups comparing CPU based NetworkX to dispatched versions run on GPU with nx_cugraph.
 
+Each chart has three measurements.
+* NX - running the algorithm natively with networkX on CPU.
+* nx-cugraph - running with GPU accelerated networkX achieved by simply calling the cugraph backend. This pays the overhead of building the GPU resident object for each algorithm called. This achieves significant improvement but stil isn't compleltely optimum.
+* nx-cugraph (preconvert) - This is a bit more complicated since it involves building (precomputing) the GPU resident graph ahead and reusing it for each algorithm. 
+
+
+
+
 ![Ancestors](../images/ancestors.png)
 ![BFS Tree](../images/bfs_tree.png)
 ![Connected Components](../images/conn_component.png)
