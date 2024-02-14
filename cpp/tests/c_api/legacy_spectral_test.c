@@ -19,8 +19,6 @@
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/graph.h>
 
-#include <gtest/gtest.h>
-
 #include <math.h>
 
 typedef int32_t vertex_t;
@@ -271,10 +269,6 @@ int test_spectral()
 
 int test_balanced_cut_unequal_weight()
 {
-  // This test is skipped due to a bug in cuSparse 12.2 that affects RAFT.
-  // See https://github.com/rapidsai/cugraph/issues/4173
-  // See https://github.com/rapidsai/raft/issues/2186
-  GTEST_SKIP();
   size_t num_clusters        = 2;
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
@@ -313,10 +307,6 @@ int test_balanced_cut_unequal_weight()
 
 int test_balanced_cut_equal_weight()
 {
-  // This test is skipped due to a bug in cuSparse 12.2 that affects RAFT.
-  // See https://github.com/rapidsai/cugraph/issues/4173
-  // See https://github.com/rapidsai/raft/issues/2186
-  GTEST_SKIP();
   size_t num_clusters        = 2;
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
@@ -355,10 +345,6 @@ int test_balanced_cut_equal_weight()
 
 int test_balanced_cut_no_weight()
 {
-  // This test is skipped due to a bug in cuSparse 12.2 that affects RAFT.
-  // See https://github.com/rapidsai/cugraph/issues/4173
-  // See https://github.com/rapidsai/raft/issues/2186
-  GTEST_SKIP();
   size_t num_clusters        = 2;
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
