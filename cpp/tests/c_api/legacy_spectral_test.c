@@ -19,6 +19,8 @@
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/graph.h>
 
+#include <gtest/gtest.h>
+
 #include <math.h>
 
 typedef int32_t vertex_t;
