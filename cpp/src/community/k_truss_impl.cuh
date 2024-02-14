@@ -155,7 +155,7 @@ struct generate_pr {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
 
-  VertexPairIterator vertex_pairs_begin;
+  VertexPairIterator vertex_pairs_begin{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -174,7 +174,7 @@ struct generate_qr {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
 
-  VertexPairIterator vertex_pairs_begin;
+  VertexPairIterator vertex_pairs_begin{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -421,7 +421,6 @@ void k_truss(raft::handle_t const& handle,
       handle.get_thrust_policy(), vertex_pairs_begin, vertex_pairs_begin + edgelist_srcs.size());
 
     size_t num_vertex_pairs = edgelist_srcs.size();
-    auto out_degrees        = cur_graph_view.compute_out_degrees(handle);
 
     auto [intersection_offsets, intersection_indices] =
       detail::nbr_intersection(handle,
@@ -431,9 +430,6 @@ void k_truss(raft::handle_t const& handle,
                                vertex_pairs_begin + num_vertex_pairs,
                                std::array<bool, 2>{true, true},
                                do_expensive_check);
-
-    auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-      num_vertex_pairs, handle.get_stream());
 
     // stores all the pairs (p, q), (p, r) and (q, r)
     auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
@@ -485,6 +481,8 @@ void k_truss(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> num_triangles(num_vertex_pairs, handle.get_stream());
 
+    auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+      num_vertex_pairs, handle.get_stream());
     thrust::reduce_by_key(handle.get_thrust_policy(),
                           get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                           get_dataframe_buffer_end(vertex_pair_buffer_tmp),
