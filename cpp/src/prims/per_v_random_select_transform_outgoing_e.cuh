@@ -1704,8 +1704,6 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          std::optional<T> invalid_value,
                                          bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   return detail::per_v_random_select_transform_e<false>(handle,
                                                         graph_view,
                                                         frontier,
