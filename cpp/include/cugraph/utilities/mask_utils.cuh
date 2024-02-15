@@ -72,13 +72,12 @@ find_nth_set_bits(MaskIterator mask_first, size_t start_offset, size_t num_bits,
 {
   static_assert(
     std::is_same_v<typename thrust::iterator_traits<MaskIterator>::value_type, uint32_t>);
-  assert(n < num_bits);
 
   size_t tot_num_set_bits{0};
 
   mask_first   = mask_first + packed_bool_offset(start_offset);
   start_offset = start_offset % packed_bools_per_word();
-  if (start_offset != 0) {
+  if ((start_offset != 0) && (n < num_bits)) {
     auto mask = ~packed_bool_partial_mask(start_offset);
     if (start_offset + num_bits < packed_bools_per_word()) {
       mask &= packed_bool_partial_mask(start_offset + num_bits);
@@ -94,7 +93,7 @@ find_nth_set_bits(MaskIterator mask_first, size_t start_offset, size_t num_bits,
     ++mask_first;
   }
 
-  while (num_bits > 0) {
+  while (n < num_bits) {
     auto mask         = (num_bits >= packed_bools_per_word()) ? packed_bool_full_mask()
                                                               : packed_bool_partial_mask(num_bits);
     auto word         = *mask_first & mask;
