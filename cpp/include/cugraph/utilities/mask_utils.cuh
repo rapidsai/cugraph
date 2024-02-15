@@ -66,6 +66,49 @@ __device__ size_t count_set_bits(MaskIterator mask_first, size_t start_offset, s
     thrust::plus<size_t>{});
 }
 
+template <typename MaskIterator>  // should be packed bool
+__device__ size_t
+find_nth_set_bits(MaskIterator mask_first, size_t start_offset, size_t num_bits, size_t n)
+{
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<MaskIterator>::value_type, uint32_t>);
+  assert(n < num_bits);
+
+  size_t tot_num_set_bits{0};
+
+  mask_first   = mask_first + packed_bool_offset(start_offset);
+  start_offset = start_offset % packed_bools_per_word();
+  if (start_offset != 0) {
+    auto mask = ~packed_bool_partial_mask(start_offset);
+    if (start_offset + num_bits < packed_bools_per_word()) {
+      mask &= packed_bool_partial_mask(start_offset + num_bits);
+    }
+    auto word         = *mask_first & mask;
+    auto num_set_bits = __popc(word);
+    if (n < num_set_bits) {
+      return static_cast<size_t>(__fns(word, start_offset, n)) - start_offset;
+    }
+    num_bits -= __popc(mask);
+    n -= num_set_bits;
+    tot_num_set_bits += num_set_bits;
+    ++mask_first;
+  }
+
+  while (num_bits > 0) {
+    auto mask         = (num_bits >= packed_bools_per_word()) ? packed_bool_full_mask()
+                                                              : packed_bool_partial_mask(num_bits);
+    auto word         = *mask_first & mask;
+    auto num_set_bits = __popc(word);
+    if (n < num_set_bits) { return tot_num_set_bits + static_cast<size_t>(__fns(word, 0, n)); }
+    num_bits -= __popc(mask);
+    n -= num_set_bits;
+    tot_num_set_bits += num_set_bits;
+    ++mask_first;
+  }
+
+  return std::numeric_limits<size_t>::max();
+}
+
 template <typename InputIterator,
           typename MaskIterator,  // should be packed bool
           typename OutputIterator,
