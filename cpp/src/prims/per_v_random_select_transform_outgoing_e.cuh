@@ -114,9 +114,9 @@ struct convert_pair_to_quadruplet_t {
   __device__ thrust::tuple<int, size_t, edge_t, size_t> operator()(
     thrust::tuple<edge_t, size_t> index_pair) const
   {
-    auto nbr_idx = thrust::get<0>(index_pair);
-    auto key_idx = thrust::get<1>(index_pair);
-    edge_t local_nbr_idx{0};
+    auto nbr_idx       = thrust::get<0>(index_pair);
+    auto key_idx       = thrust::get<1>(index_pair);
+    auto local_nbr_idx = nbr_idx;
     int minor_comm_rank{-1};
     size_t intra_partition_offset{};
     if (nbr_idx != invalid_idx) {
