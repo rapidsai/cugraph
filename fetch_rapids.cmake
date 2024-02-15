@@ -11,11 +11,6 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-
-set(CPM_DOWNLOAD_cuco ON)
-set(rapids-cmake-repo PointKernel/rapids-cmake)
-set(rapids-cmake-branch cuco-experimental)
-
 if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS.cmake)
   file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-24.04/RAPIDS.cmake
        ${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS.cmake
