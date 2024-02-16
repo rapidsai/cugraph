@@ -207,7 +207,7 @@ def main(args):
         from pylibwholegraph.torch.initialize import (
             get_global_communicator,
             get_local_node_communicator,
-            init
+            init,
         )
 
         logger.info("initializing WG comms...")

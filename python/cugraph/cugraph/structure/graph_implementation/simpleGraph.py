@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -264,7 +264,7 @@ class simpleGraphImpl:
                 source,
                 destination,
                 edge_attr,
-                multi=self.properties.multi_edge,
+                multi=self.properties.multi_edge,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -279,7 +279,7 @@ class simpleGraphImpl:
                 elist,
                 source,
                 destination,
-                multi=self.properties.multi_edge,
+                multi=self.properties.multi_edge,  # Deprecated parameter
                 symmetrize=not self.properties.directed,
             )
 
@@ -298,7 +298,10 @@ class simpleGraphImpl:
             self._replicate_edgelist()
 
         self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+            value_col=value_col,
+            store_transposed=store_transposed,
+            renumber=renumber,
+            drop_multi_edges=not self.properties.multi_edge,
         )
 
     def to_pandas_edgelist(
@@ -477,6 +480,7 @@ class simpleGraphImpl:
                     edgelist_df[simpleGraphImpl.srcCol]
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
+
         elif not use_initial_input_df and self.properties.renumbered:
             # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
@@ -484,6 +488,7 @@ class simpleGraphImpl:
                     edgelist_df[simpleGraphImpl.srcCol]
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
+
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
             )
@@ -1084,6 +1089,7 @@ class simpleGraphImpl:
         value_col: Dict[str, cudf.DataFrame] = None,
         store_transposed: bool = False,
         renumber: bool = True,
+        drop_multi_edges: bool = False,
     ):
         """
         Parameters
@@ -1100,6 +1106,8 @@ class simpleGraphImpl:
             Whether to renumber the vertices of the graph.
             Required if inputted vertex ids are not of
             int32 or int64 type.
+        drop_multi_edges: bool (default=False)
+            Whether to drop multi edges
         """
 
         if value_col is None:
@@ -1163,6 +1171,7 @@ class simpleGraphImpl:
             renumber=renumber,
             do_expensive_check=True,
             input_array_format=input_array_format,
+            drop_multi_edges=drop_multi_edges,
         )
 
     def to_directed(self, DiG, store_transposed=False):

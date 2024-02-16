@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -288,12 +288,22 @@ class DGLCuGraphTrainer(DGLTrainer):
         np.random.seed(epoch)
         np.random.shuffle(splits)
 
-        ex = re.compile(r'batch=([0-9]+)\-([0-9]+).parquet')
-        num_batches = min([
-            sum([int(ex.match(fname.split('/')[-1])[2]) - int(ex.match(fname.split('/')[-1])[1]) for fname in s])
-            for s in splits
-        ])
+        ex = re.compile(r"batch=([0-9]+)\-([0-9]+).parquet")
+        num_batches = min(
+            [
+                sum(
+                    [
+                        int(ex.match(fname.split("/")[-1])[2])
+                        - int(ex.match(fname.split("/")[-1])[1])
+                        for fname in s
+                    ]
+                )
+                for s in splits
+            ]
+        )
         if num_batches == 0:
-            raise ValueError(f"Too few batches for training with world size {self.__world_size}")
+            raise ValueError(
+                f"Too few batches for training with world size {self.__world_size}"
+            )
 
         return splits[self.rank], num_batches
