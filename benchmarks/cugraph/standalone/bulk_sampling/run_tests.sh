@@ -30,13 +30,15 @@ LOGS_DIR=/logs
 MG_UTILS_DIR=${SCRIPTS_DIR}/mg_utils
 SCHEDULER_FILE=${MG_UTILS_DIR}/dask_scheduler.json
 
-export WORKER_RMM_POOL_SIZE=75G
-#export UCX_MAX_RNDV_RAILS=1
+export WORKER_RMM_POOL_SIZE=28G
+export UCX_MAX_RNDV_RAILS=1
 export RAPIDS_NO_INITIALIZE=1
 export CUDF_SPILL=1
 export LIBCUDF_CUFILE_POLICY="OFF"
 export GPUS_PER_NODE=8
-#export NCCL_CUMEM_ENABLE=0
+export NCCL_DEBUG="INFO"
+export NCCL_DEBUG_SUBSYS="NET,COLL,INIT" 
+export NCCL_CUMEM_ENABLE=0
 #export NCCL_DEBUG="TRACE"
 export NCCL_DEBUG_FILE=/logs/nccl_debug.%h.%p
 
@@ -57,15 +59,15 @@ function handleTimeout {
 
 DASK_STARTUP_ERRORCODE=0
 if [[ $SLURM_NODEID == 0 ]]; then
-    ${MG_UTILS_DIR}/run-dask-process.sh scheduler workers --ucx-ib &
+    ${MG_UTILS_DIR}/run-dask-process.sh scheduler workers &
 else
-    ${MG_UTILS_DIR}/run-dask-process.sh workers --ucx-ib &
+    ${MG_UTILS_DIR}/run-dask-process.sh workers &
 fi
 
 echo "properly waiting for workers to connect"
 export NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
 SEEDS_PER_CALL=$(python -c "import os; print(int(os.environ['NUM_GPUS'])*65536)")
-handleTimeout 630 python ${MG_UTILS_DIR}/wait_for_workers.py \
+handleTimeout 600 python ${MG_UTILS_DIR}/wait_for_workers.py \
                     --num-expected-workers ${NUM_GPUS} \
                     --scheduler-file-path ${SCHEDULER_FILE}
 

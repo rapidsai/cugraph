@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#SBATCH -J coreai_mlperf_training-cugraphgnn.bulksampling
-#SBATCH -N 256
-#SBATCH -t 02:25:00 
+#SBATCH -J coreai_mlperf_training-cugraphgnn.bulksamplingPyG
+#SBATCH -N 128
+#SBATCH -t 01:00:00 
 
 CONTAINER_IMAGE=${CONTAINER_IMAGE:="please_specify_container"}
 SCRIPTS_DIR=$(pwd)
@@ -32,7 +32,7 @@ NUM_EPOCHS=1
 REPLICATION_FACTOR=1024
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
-FRAMEWORK="cuGraphDGL"
+FRAMEWORK="cuGraphPyG"
 GPUS_PER_NODE=8
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
@@ -50,16 +50,18 @@ echo Num GPUs Per Node: $gpus_per_node
 
 set -e
 
+#NCCL_DEBUG=TRACE srun -N 64 --ntasks-per-node 8 -p batch -A coreai_mlperf_training -J coreai_mlperf_training-cugraphgnn.nccldebug --container-image  /lustre/fsw/datascience_rapids_cugraphgnn/benchmark_image.squash --container-mounts "/lustre/fsw/datascience_rapids_cugraphgnn:/workspace" --mpi=pmix /workspace/nccl-tests/build/all_reduce_perf -b 8 -e 128M -f 2 -g 1
+
 # First run without cuGraph to get data
 
 if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
     # Generate samples
-    srun \
+    NCCL_DEBUG=TRACE srun \
         --container-image $CONTAINER_IMAGE \
         --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
         bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg"
 elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
-    srun \
+    NCCL_NVLS_ENABLE=0 NCCL_COLLNET_ENABLE=1 NCCL_IB_RETRY_CNT=21 srun \
         --container-image $CONTAINER_IMAGE \
         --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
         bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr"
@@ -67,7 +69,7 @@ fi
 
 # Train
 # Should always use WholeGraph for benchmarks since it will eventually become the default feature store backend
-srun \
+NCCL_COLLNET_ENABLE=1 srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
     torchrun \

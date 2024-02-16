@@ -12,6 +12,7 @@
 # limitations under the License.
 import os
 import time
+import re
 
 from .trainers_dgl import DGLTrainer
 from models.dgl import GraphSAGE
