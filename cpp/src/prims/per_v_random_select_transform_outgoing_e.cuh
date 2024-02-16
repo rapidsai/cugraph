@@ -234,7 +234,7 @@ struct transform_local_nbr_indices_t {
       if (edge_partition_e_mask) {
         if (local_degree < compute_valid_local_nbr_count_inclusive_sum_local_degree_threshold) {
           local_nbr_idx = find_nth_set_bits(
-            (*edge_partition_e_mask).value_first(), edge_offset, local_degree, local_nbr_idx);
+            (*edge_partition_e_mask).value_first(), edge_offset, local_degree, local_nbr_idx + 1);
         } else {
           auto inclusive_sum_first =
             thrust::get<1>(*key_valid_local_nbr_count_inclusive_sums).begin();
@@ -246,13 +246,13 @@ struct transform_local_nbr_indices_t {
                                                  inclusive_sum_first + start_offset,
                                                  inclusive_sum_first + end_offset,
                                                  local_nbr_idx)));
-          local_nbr_idx =
-            word_idx * packed_bools_per_word() +
-            find_nth_set_bits(
-              (*edge_partition_e_mask).value_first(),
-              edge_offset + word_idx * packed_bools_per_word(),
-              local_degree - word_idx * packed_bools_per_word(),
-              local_nbr_idx - ((word_idx > 0) ? *(inclusive_sum_first + start_offset + word_idx - 1)
+          local_nbr_idx = word_idx * packed_bools_per_word() +
+                          find_nth_set_bits(
+                            (*edge_partition_e_mask).value_first(),
+                            edge_offset + word_idx * packed_bools_per_word(),
+                            local_degree - word_idx * packed_bools_per_word(),
+                            (local_nbr_idx + 1) -
+                              ((word_idx > 0) ? *(inclusive_sum_first + start_offset + word_idx - 1)
                                               : edge_t{0}));
         }
       }
@@ -359,8 +359,9 @@ __global__ void compute_valid_local_nbr_inclusive_sums_mid_local_degree(
     auto edge_offset  = edge_partition.local_offset(major_idx);
     auto local_degree = edge_partition.local_degree(major_idx);
 
-    auto num_inclusive_sums =
-      inclusive_sum_offsets[frontier_idx + 1] - inclusive_sum_offsets[frontier_idx];
+    auto start_offset       = inclusive_sum_offsets[frontier_idx];
+    auto end_offset         = inclusive_sum_offsets[frontier_idx + 1];
+    auto num_inclusive_sums = end_offset - start_offset;
     auto rounded_up_num_inclusive_sums =
       ((num_inclusive_sums + raft::warp_size() - 1) / raft::warp_size()) * raft::warp_size();
     edge_t sum{0};
@@ -373,7 +374,7 @@ __global__ void compute_valid_local_nbr_inclusive_sums_mid_local_degree(
               cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j)))
           : edge_t{0};
       WarpScan(temp_storage).InclusiveSum(inc, inc);
-      inclusive_sums[j] = sum + inc;
+      inclusive_sums[start_offset + j] = sum + inc;
       sum += __shfl_sync(raft::warp_full_mask(), inc, raft::warp_size() - 1);
     }
 
@@ -411,8 +412,9 @@ __global__ void compute_valid_local_nbr_inclusive_sums_high_local_degree(
     auto edge_offset  = edge_partition.local_offset(major_idx);
     auto local_degree = edge_partition.local_degree(major_idx);
 
-    auto num_inclusive_sums =
-      inclusive_sum_offsets[frontier_idx + 1] - inclusive_sum_offsets[frontier_idx];
+    auto start_offset       = inclusive_sum_offsets[frontier_idx];
+    auto end_offset         = inclusive_sum_offsets[frontier_idx + 1];
+    auto num_inclusive_sums = end_offset - start_offset;
     auto rounded_up_num_inclusive_sums =
       ((num_inclusive_sums + per_v_random_select_transform_outgoing_e_block_size - 1) /
        per_v_random_select_transform_outgoing_e_block_size) *
@@ -427,7 +429,7 @@ __global__ void compute_valid_local_nbr_inclusive_sums_high_local_degree(
               cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j)))
           : edge_t{0};
       BlockScan(temp_storage).InclusiveSum(inc, inc);
-      inclusive_sums[j] = sum + inc;
+      inclusive_sums[start_offset + j] = sum + inc;
       __syncthreads();
       if (threadIdx.x == per_v_random_select_transform_outgoing_e_block_size - 1) { sum += inc; }
     }
@@ -525,12 +527,14 @@ compute_valid_local_nbr_count_inclusive_sums(
       auto edge_offset  = edge_partition.local_offset(major_idx);
       auto local_degree = edge_partition.local_degree(major_idx);
       edge_t sum{0};
-      for (size_t j = offsets[i]; j <= offsets[i + 1]; ++j) {
+      auto start_offset = offsets[i];
+      auto end_offset   = offsets[i + 1];
+      for (size_t j = 0; j < end_offset - start_offset; ++j) {
         sum += count_set_bits(
           edge_partition_e_mask.value_first(),
           edge_offset + packed_bools_per_word() * j,
           cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j));
-        inclusive_sums[j] = sum;
+        inclusive_sums[start_offset + j] = sum;
       }
     });
 
@@ -1622,8 +1626,6 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          std::optional<T> invalid_value,
                                          bool do_expensive_check = false)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   CUGRAPH_FAIL("unimplemented.");
 
   return std::make_tuple(std::nullopt,
