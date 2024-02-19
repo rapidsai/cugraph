@@ -57,7 +57,7 @@ class CuGraphSAGE(nn.Module):
 
         for i, conv in enumerate(self.convs):
             if i > 0:
-                new_num_edges = edge[1][-2]
+                new_num_edges = int(edge[1][-2])
                 edge[0] = edge[0].narrow(
                     dim=0,
                     start=0,
