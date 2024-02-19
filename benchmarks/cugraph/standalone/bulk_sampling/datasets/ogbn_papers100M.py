@@ -332,7 +332,7 @@ class OGBNPapers100MDataset(Dataset):
 
     @property
     def num_labels(self) -> int:
-        return int(self.y_dict["paper"].max()) + 1
+        return 172
 
     def num_nodes(self, node_type: str) -> int:
         if node_type != "paper":
