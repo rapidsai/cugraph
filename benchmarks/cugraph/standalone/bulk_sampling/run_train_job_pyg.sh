@@ -54,22 +54,22 @@ set -e
 
 # First run without cuGraph to get data
 
-if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
-    # Generate samples
-    NCCL_DEBUG=TRACE srun \
-        --container-image $CONTAINER_IMAGE \
-        --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg"
-elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
-    NCCL_NVLS_ENABLE=0 NCCL_COLLNET_ENABLE=1 NCCL_IB_RETRY_CNT=21 srun \
-        --container-image $CONTAINER_IMAGE \
-        --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr"
-fi
+#if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
+#    # Generate samples
+#    srun \
+#        --container-image $CONTAINER_IMAGE \
+#        --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
+#        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg"
+#elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
+#    NCCL_NVLS_ENABLE=0 NCCL_COLLNET_ENABLE=1 NCCL_IB_RETRY_CNT=21 srun \
+#        --container-image $CONTAINER_IMAGE \
+#        --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
+#        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr"
+#fi
 
 # Train
 # Should always use WholeGraph for benchmarks since it will eventually become the default feature store backend
-NCCL_COLLNET_ENABLE=1 srun \
+srun \
     --container-image $CONTAINER_IMAGE \
     --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
     torchrun \

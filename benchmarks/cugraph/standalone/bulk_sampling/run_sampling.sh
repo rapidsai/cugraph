@@ -57,9 +57,9 @@ function handleTimeout {
 
 DASK_STARTUP_ERRORCODE=0
 if [[ $SLURM_NODEID == 0 ]]; then
-    ${MG_UTILS_DIR}/run-dask-process.sh scheduler workers --ucx-ib &
+    ${MG_UTILS_DIR}/run-dask-process.sh scheduler workers &
 else
-    ${MG_UTILS_DIR}/run-dask-process.sh workers --ucx-ib &
+    ${MG_UTILS_DIR}/run-dask-process.sh workers &
 fi
 
 echo "properly waiting for workers to connect"

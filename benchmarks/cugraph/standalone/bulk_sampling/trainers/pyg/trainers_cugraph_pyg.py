@@ -226,14 +226,27 @@ class PyGCuGraphTrainer(PyGTrainer):
         return self.__data
 
     def get_model(self, name="GraphSAGE"):
+        import logging
+        logger = logging.getLogger('PyGCuGraphTrainer')
+
+        logger.info("Creating model...")
+
         if name != "GraphSAGE":
             raise ValueError("only GraphSAGE is currently supported")
-
+        
+        logger.info("getting input features...")
         num_input_features = self.__dataset.num_input_features
+
+        logger.info("getting output features...")
         num_output_features = self.__dataset.num_labels
+
+        logger.info("getting num neighbors...")
         num_layers = len(self.__loader_kwargs["num_neighbors"])
 
+        logger.info("Got input features, output features, num neighbors")
+
         with torch.cuda.device(self.__device):
+            logger.info("Constructing CuGraphSAGE model...")
             model = (
                 CuGraphSAGE(
                     in_channels=num_input_features,
@@ -245,8 +258,10 @@ class PyGCuGraphTrainer(PyGTrainer):
                 .to(self.__device)
             )
 
+            logger.info("Parallelizing model with ddp...")
             model = ddp(model, device_ids=[self.__device])
-            print("done creating model")
+        
+        logger.info("done creating model")
 
         return model
 

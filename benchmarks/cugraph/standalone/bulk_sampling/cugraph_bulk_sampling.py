@@ -190,6 +190,10 @@ def sample_graph(
     val_perc=0.5,
     sampling_kwargs={},
 ):
+    logger = logging.getLogger('__main__')
+    logger.info("Starting sampling phase...")
+
+    logger.info("Calculating random splits...")
     cupy.random.seed(seed)
     train_df, test_df = label_df.random_split(
         [train_perc, 1 - train_perc], random_state=seed, shuffle=True
@@ -197,6 +201,7 @@ def sample_graph(
     val_df, test_df = label_df.random_split(
         [val_perc, 1 - val_perc], random_state=seed, shuffle=True
     )
+    logger.info("Calculated random splits")
 
     total_time = 0.0
     for epoch in range(num_epochs):
@@ -206,7 +211,9 @@ def sample_graph(
             steps.append(("test", test_df))
 
         for step, batch_df in steps:
-            batch_df = batch_df.sample(frac=1.0, random_state=seed)
+            logger.info("Shuffling batch dataframe...")
+            batch_df = batch_df.sample(frac=1.0, random_state=seed).persist()
+            logger.info("Shuffled and persisted batch dataframe...")
 
             if step == "train":
                 output_sample_path = os.path.join(
@@ -216,6 +223,7 @@ def sample_graph(
                 output_sample_path = os.path.join(output_path, step, "samples")
             os.makedirs(output_sample_path)
 
+            logger.info("Creating bulk sampler...")
             sampler = BulkSampler(
                 batch_size=batch_size,
                 output_path=output_sample_path,
@@ -228,6 +236,7 @@ def sample_graph(
                 log_level=logging.INFO,
                 **sampling_kwargs,
             )
+            logger.info("Bulk sampler created and ready for input")
 
             n_workers = len(default_client().scheduler_info()["workers"])
 
@@ -245,13 +254,13 @@ def sample_graph(
             # should always persist the batch dataframe or performance may be suboptimal
             batch_df = batch_df.persist()
 
-            print("created batches")
+            logger.info("created and persisted batches")
 
             start_time = perf_counter()
             sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
             sampler.flush()
             end_time = perf_counter()
-            print("flushed all batches")
+            logger.info("flushed all batches")
             total_time += end_time - start_time
 
     return total_time
