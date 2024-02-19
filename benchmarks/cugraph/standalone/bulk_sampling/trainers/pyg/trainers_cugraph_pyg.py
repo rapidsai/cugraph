@@ -179,10 +179,15 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             for node_type, y in self.__dataset.y_dict.items():
                 logger.debug(f"getting y for {node_type}")
-                y = y.reshape((y.shape[0], 1))
-                if self.__backend != "wholegraph":
+                
+                if self.__backend == "wholegraph":
+                    logger.info("using wholegraph backend")
+                    fs.add_data(y, node_type, 'y')
+                    wm_comm.barrier()
+                else:
                     y = y.cuda()
-                fs.add_data(y, node_type, "y")
+                    y = y.reshape((y.shape[0], 1))
+                    fs.add_data(y, node_type, "y")
 
             """
             for node_type, train in self.__dataset.train_dict.items():

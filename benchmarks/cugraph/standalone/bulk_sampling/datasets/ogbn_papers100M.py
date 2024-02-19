@@ -356,14 +356,27 @@ class OGBNPapers100MDataset(Dataset):
             "0.bin",
         )
 
-        node_label_1x = torch.as_tensor(np.fromfile(label_path, dtype='int16'), device='cpu')
+        if self.__backend == 'wholegraph':
+            import pylibwholegraph.torch as wgth
 
-        if self.__replication_factor > 1:
-            node_label = torch.concatenate(
-                [node_label_1x] * self.__replication_factor
+            node_label = wgth.create_embedding_from_filelist(
+                wgth.get_global_communicator(),
+                "distributed",  # TODO support other options
+                "cpu",  # TODO support GPU
+                [label_path] * self.__replication_factor,
+                torch.int16,
+                1,
             )
+
         else:
-            node_label = node_label_1x
+            node_label_1x = torch.as_tensor(np.fromfile(label_path, dtype='int16'), device='cpu')
+
+            if self.__replication_factor > 1:
+                node_label = torch.concatenate(
+                    [node_label_1x] * self.__replication_factor
+                )
+            else:
+                node_label = node_label_1x
 
         self.__y = {"paper": node_label}
 
