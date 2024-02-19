@@ -304,26 +304,26 @@ class OGBNPapers100MDataset(Dataset):
     @property
     def y_dict(self) -> Dict[str, torch.Tensor]:
         if self.__y is None:
-            self.__get_labels()
+            self.__get_y()
 
         return self.__y
 
     @property
     def train_dict(self) -> Dict[str, torch.Tensor]:
         if self.__train is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__train
 
     @property
     def test_dict(self) -> Dict[str, torch.Tensor]:
         if self.__test is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__test
 
     @property
     def val_dict(self) -> Dict[str, torch.Tensor]:
         if self.__val is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__val
 
     @property
@@ -346,46 +346,36 @@ class OGBNPapers100MDataset(Dataset):
 
         return 1_615_685_872 * self.__replication_factor
 
-    def __get_labels(self):
+    def __get_y(self):
         label_path = os.path.join(
             self.__dataset_dir,
             "ogbn_papers100M",
-            "parquet",
+            "wgb",
             "paper",
-            "node_label.parquet",
+            "node_label.d",
+            "0.bin",
         )
 
-        node_label = pandas.read_parquet(label_path)
+        node_label_1x = torch.as_tensor(np.fromfile(label_path, dtype='int16'), device='cpu')
 
         if self.__replication_factor > 1:
-            orig_num_nodes = self.num_nodes("paper") // self.__replication_factor
-            dfr = pandas.DataFrame(
-                {
-                    "node": pandas.concat(
-                        [
-                            node_label.node + (r * orig_num_nodes)
-                            for r in range(1, self.__replication_factor)
-                        ]
-                    ),
-                    "label": pandas.concat(
-                        [node_label.label for r in range(1, self.__replication_factor)]
-                    ),
-                }
+            node_label = torch.concatenate(
+                [node_label_1x] * self.__replication_factor
             )
-            node_label = pandas.concat([node_label, dfr]).reset_index(drop=True)
+        else:
+            node_label = node_label_1x
 
+        self.__y = {"paper": node_label}
+
+    def __get_split(self):
         num_nodes = self.num_nodes("paper")
-        node_label_tensor = torch.full(
-            (num_nodes,), -1, dtype=torch.float32, device="cpu"
-        )
-        node_label_tensor[
-            torch.as_tensor(node_label.node.values, device="cpu")
-        ] = torch.as_tensor(node_label.label.values, device="cpu")
 
-        self.__y = {"paper": node_label_tensor.to(torch.int16).contiguous()}
+        node = self.y_dict['paper'][
+            self.y_dict['paper'] > 0
+        ]
 
         train_ix, test_val_ix = train_test_split(
-            torch.as_tensor(node_label.node.values),
+            node,
             train_size=self.__train_split,
             random_state=num_nodes,
         )
