@@ -553,6 +553,8 @@ void k_truss(raft::handle_t const& handle,
 
     // Unroll and remove/mask edges as long as there are still edges part
     // of the K-Truss.
+    printf("\nRight before the while loop and k = %d\n", k);
+    printf("the number of invalid edges = %d, and num_edges = %d\n", num_invalid_edges, num_edges);
     auto num_valid_edges = num_edges - num_invalid_edges;
     while ((num_valid_edges != 0) && (num_invalid_edges !=0)) {
 
