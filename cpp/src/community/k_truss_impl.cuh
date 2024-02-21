@@ -807,7 +807,7 @@ void k_truss(raft::handle_t const& handle,
         invalid_edges_buffer, num_edges, handle.get_stream());
 
       // Need to run prefix_sum again to get new ranges because some incoming edges were removed
-      prefix_sum.resize(num_edges + 1, handle.get_stream());
+      prefix_sum.resize(num_invalid_edges + 1, handle.get_stream());
       indices.resize(num_invalid_edges, handle.get_stream());
 
       // FIXME: need to sort 'incoming_vertex_pairs'. No need because a stable partition was
