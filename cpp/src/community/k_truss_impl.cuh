@@ -520,7 +520,6 @@ void k_truss(raft::handle_t const& handle,
       edges, num_triangles.begin());
 
     // 'invalid_edge_first' marks the beginning of the edges to be removed
-
     auto invalid_edge_last =
       thrust::stable_partition(handle.get_thrust_policy(),
                                edges_to_num_triangles,
@@ -553,11 +552,8 @@ void k_truss(raft::handle_t const& handle,
 
     // Unroll and remove/mask edges as long as there are still edges part
     // of the K-Truss.
-    printf("\nRight before the while loop and k = %d\n", k);
-    printf("the number of invalid edges = %d, and num_edges = %d\n", num_invalid_edges, num_edges);
     auto num_valid_edges = num_edges - num_invalid_edges;
     while ((num_valid_edges != 0) && (num_invalid_edges !=0)) {
-
       // case 2: unroll (q, r)
       // FIXME: Update the num_edges when removing edges
 
@@ -609,14 +605,14 @@ void k_truss(raft::handle_t const& handle,
         });
       thrust::exclusive_scan(
         handle.get_thrust_policy(), prefix_sum.begin(), prefix_sum.end(), prefix_sum.begin());
-      
+
       auto vertex_pair_buffer_p_q = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
 
       auto vertex_pair_buffer_p_r = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
 
-      rmm::device_uvector<vertex_t> indices(num_edges, handle.get_stream());
+      rmm::device_uvector<vertex_t> indices(num_invalid_edges, handle.get_stream());
       thrust::tabulate(
         handle.get_thrust_policy(), indices.begin(), indices.end(), thrust::identity<vertex_t>());
 
@@ -635,6 +631,7 @@ void k_truss(raft::handle_t const& handle,
           auto dst             = invalid_first_dst[idx];
           auto dst_array_begin = invalid_first_dst;
           auto dst_array_end   = invalid_first_dst + num_edges;
+
           auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
           auto idx_lower = thrust::distance(
             dst_array_begin, itr_lower);  // Need a binary search to find the begining of the range
