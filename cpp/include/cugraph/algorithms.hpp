@@ -1844,7 +1844,7 @@ void weakly_connected_components(raft::handle_t const& handle,
 enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
- * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
  * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
  * supported.
@@ -1857,11 +1857,11 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param core_numbers Pointer to the output core number array.
- * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * @param degree_type Dictate whether to compute the K-Core decomposition based on in-degrees,
  * out-degrees, or in-degrees + out_degrees.
- * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * @param k_first Find K-Cores from K = k_first. Any vertices that do not belong to k_first-core
  * will have core numbers of 0.
- * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * @param k_last Find K-Cores to K = k_last. Any vertices that belong to (k_last)-core will have
  * their core numbers set to their degrees on k_last-core.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
@@ -1875,7 +1875,7 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
- * @brief   Extract K Core of a graph
+ * @brief   Extract K-Core of a graph
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
@@ -1886,7 +1886,7 @@ void core_number(raft::handle_t const& handle,
  * @param  graph_view      Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param  k               Order of the core. This value must not be negative.
- * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ * @param degree_type Optional parameter to dictate whether to compute the K-Core decomposition
  *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
  *                    degree_type and @p core_numbers must be specified.
  * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
@@ -2053,7 +2053,7 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param k The desired k to be used for extracting the k-truss subgraph
+ * @param k The desired k to be used for extracting the K-Truss subgraph
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
