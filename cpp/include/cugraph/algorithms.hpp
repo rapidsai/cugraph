@@ -2043,9 +2043,9 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 /*
- * @brief Compute k_truss.
+ * @brief Compute K-Truss.
  *
- * Extract the k_truss subgraph of a graph
+ * Extract the K-Truss subgraph of a graph
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
