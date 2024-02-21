@@ -259,8 +259,6 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do.
   }
@@ -271,6 +269,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                init);
 
   auto edge_mask_view = graph_view.edge_mask_view();
+
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
