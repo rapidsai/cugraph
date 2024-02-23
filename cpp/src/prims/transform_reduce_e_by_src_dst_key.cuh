@@ -856,8 +856,6 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -945,8 +943,6 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
   static_assert(std::is_same<typename EdgeDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do

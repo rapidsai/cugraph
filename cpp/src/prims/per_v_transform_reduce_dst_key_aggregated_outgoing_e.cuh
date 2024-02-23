@@ -206,7 +206,7 @@ struct reduce_with_init_t {
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
  * used to map keys to processes). (Key, value) pairs may be provided by
- * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
+ * transform_reduce_e_by_src_key() or transform_reduce_e_by_dst_key().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU).
  * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
