@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,14 +15,12 @@ import gc
 
 import pytest
 
-import cudf
-from cudf.testing.testing import assert_frame_equal
-import dask_cudf
 import cugraph
 import cugraph.dask as dcg
-from cugraph.testing import utils
+import dask_cudf
+from cudf.testing.testing import assert_frame_equal
 from cugraph.dask.common.mg_utils import is_single_gpu
-from pylibcugraph.testing import gen_fixture_params_product
+from cugraph.datasets import karate, dolphins, email_Eu_core
 
 
 # =============================================================================
@@ -34,101 +32,47 @@ def setup_function():
     gc.collect()
 
 
-IS_DIRECTED = [True, False]
-NUM_SEEDS = [2, 5, 10, 20]
+# =============================================================================
+# Parameters
+# =============================================================================
 
-# FIXME: This parameter will be tested in the next release when updating the
-# SG implementation
+DATASETS = [karate, dolphins, email_Eu_core]
+IS_DIRECTED = [True, False]
+NUM_VERTICES = [2, 5, 10, 20]
 OFFSETS = [None]
 
-
 # =============================================================================
-# Pytest fixtures
+# Helper functions
 # =============================================================================
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
-]
 
-fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    (IS_DIRECTED, "directed"),
-    (NUM_SEEDS, "num_seeds"),
-    (OFFSETS, "offsets"),
-)
+def get_sg_graph(dataset, directed):
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+
+    return G
 
 
-@pytest.fixture(scope="module", params=fixture_params)
-def input_combo(request):
-    """
-    Simply return the current combination of params as a dictionary for use in
-    tests or other parameterized fixtures.
-    """
-    parameters = dict(
-        zip(("graph_file", "directed", "seeds", "offsets"), request.param)
-    )
-
-    return parameters
-
-
-@pytest.fixture(scope="module")
-def input_expected_output(input_combo):
-    """
-    This fixture returns the inputs and expected results from the induced_subgraph algo.
-    (based on cuGraph subgraph) which can be used for validation.
-    """
-
-    input_data_path = input_combo["graph_file"]
-    directed = input_combo["directed"]
-    num_seeds = input_combo["seeds"]
-
-    # FIXME: This parameter is not tested
-    # offsets= input_combo["offsets"]
-    G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=directed, edgevals=True
-    )
-
-    # Sample k vertices from the cuGraph graph
-    # FIXME: Leverage the method 'select_random_vertices' instead
-    srcs = G.view_edge_list()["0"]
-    dsts = G.view_edge_list()["1"]
-    vertices = cudf.concat([srcs, dsts]).drop_duplicates()
-    vertices = vertices.sample(num_seeds, replace=True).astype("int32")
-
-    # print randomly sample n seeds from the graph
-    print("\nvertices: \n", vertices)
-
-    input_combo["vertices"] = vertices
-
-    sg_induced_subgraph, _ = cugraph.induced_subgraph(G, vertices=vertices)
-
-    # Save the results back to the input_combo dictionary to prevent redundant
-    # cuGraph runs. Other tests using the input_combo fixture will look for
-    # them, and if not present they will have to re-run the same cuGraph call.
-
-    input_combo["sg_cugraph_results"] = sg_induced_subgraph
-    chunksize = dcg.get_chunksize(input_data_path)
+def get_mg_graph(dataset, directed):
+    input_data_path = dataset.get_path()
+    blocksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
+        blocksize=blocksize,
+        delimiter=dataset.metadata["delim"],
+        names=dataset.metadata["col_names"],
+        dtype=dataset.metadata["col_types"],
     )
-
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
         ddf,
         source="src",
         destination="dst",
-        edge_attr="value",
+        edge_attr="wgt",
         renumber=True,
         store_transposed=True,
     )
 
-    input_combo["MGGraph"] = dg
-
-    return input_combo
+    return dg
 
 
 # =============================================================================
@@ -138,28 +82,38 @@ def input_expected_output(input_combo):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-def test_mg_induced_subgraph(dask_client, benchmark, input_expected_output):
+@pytest.mark.parametrize("dataset", DATASETS)
+@pytest.mark.parametrize("is_directed", IS_DIRECTED)
+@pytest.mark.parametrize("num_vertices", NUM_VERTICES)
+@pytest.mark.parametrize("offsets", OFFSETS)
+def test_mg_induced_subgraph(
+    dask_client, benchmark, dataset, is_directed, num_vertices, offsets
+):
+    # Create SG and MG Graphs
+    g = get_sg_graph(dataset, is_directed)
+    dg = get_mg_graph(dataset, is_directed)
 
-    dg = input_expected_output["MGGraph"]
-    vertices = input_expected_output["vertices"]
+    # Sample N random vertices to create the induced subgraph
+    vertices = g.select_random_vertices(num_vertices=num_vertices)
+    # print randomly sample n seeds from the graph
+    print("\nvertices: \n", vertices)
 
+    sg_induced_subgraph, _ = cugraph.induced_subgraph(g, vertices=vertices)
     result_induced_subgraph = benchmark(
         dcg.induced_subgraph,
         dg,
         vertices,
-        input_expected_output["offsets"],
+        offsets,
     )
 
+    # FIXME: This parameter is not yet tested
+    # mg_offsets = mg_offsets.compute().reset_index(drop=True)
     mg_df, mg_offsets = result_induced_subgraph
 
-    # mg_offsets = mg_offsets.compute().reset_index(drop=True)
-
-    sg = input_expected_output["sg_cugraph_results"]
-
-    if mg_df is not None and sg is not None:
+    if mg_df is not None and sg_induced_subgraph is not None:
         # FIXME: 'edges()' or 'view_edgelist()' takes half the edges out if
         # 'directed=False'.
-        sg_result = sg.input_df
+        sg_result = sg_induced_subgraph.input_df
 
         sg_df = sg_result.sort_values(["src", "dst"]).reset_index(drop=True)
         mg_df = mg_df.compute().sort_values(["src", "dst"]).reset_index(drop=True)
@@ -170,5 +124,5 @@ def test_mg_induced_subgraph(dask_client, benchmark, input_expected_output):
         # There is no edges between the vertices provided
         # FIXME: Once k-hop neighbors is implemented, find one hop neighbors
         # of all the vertices and ensure that there is None
-        assert sg is None
+        assert sg_induced_subgraph is None
         assert mg_df is None
