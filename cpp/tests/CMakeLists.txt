@@ -595,6 +595,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_E _BY_SRC_DST_KEY tests -----------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_E_BY_SRC_DST_KEY_TEST
+                    prims/mg_transform_reduce_e_by_src_dst_key.cu)
+    target_link_libraries(MG_TRANSFORM_REDUCE_E_BY_SRC_DST_KEY_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
     # - MG PRIMS TRANSFORM_E tests ----------------------------------------------------------------
     ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
     target_link_libraries(MG_TRANSFORM_E_TEST PRIVATE cuco::cuco)
