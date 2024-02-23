@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,30 +24,35 @@ from test_betweenness_centrality import (
     compare_scores,
 )
 
-DIRECTED_GRAPH_OPTIONS = [False, True]
-WEIGHTED_GRAPH_OPTIONS = [False, True]
-ENDPOINTS_OPTIONS = [False, True]
-NORMALIZED_OPTIONS = [False, True]
-DEFAULT_EPSILON = 0.0001
-SUBSET_SIZE_OPTIONS = [4, None]
-SUBSET_SEED_OPTIONS = [42]
-
 
 # =============================================================================
 # Parameters
 # =============================================================================
+
 DATASETS = [karate]
+DEFAULT_EPSILON = 0.0001
+DIRECTED_GRAPH_OPTIONS = [False, True]
+ENDPOINTS_OPTIONS = [False, True]
+NORMALIZED_OPTIONS = [False, True]
+RESULT_DTYPE_OPTIONS = [np.float64]
+SUBSET_SIZE_OPTIONS = [4, None]
+SUBSET_SEED_OPTIONS = [42]
 # FIXME: The "preset_gpu_count" from 21.08 and below are currently not
 # supported and have been removed
-
-RESULT_DTYPE_OPTIONS = [np.float64]
-
+WEIGHTED_GRAPH_OPTIONS = [False, True]
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 
 
 @pytest.mark.mg
