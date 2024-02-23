@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,13 +15,13 @@ import gc
 
 import pytest
 
-import dask_cudf
 import cupy
 import cudf
 import cugraph
 import cugraph.dask as dcg
+import dask_cudf
+from cugraph.datasets import karate, dolphins
 from cugraph.testing import utils
-from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -33,48 +33,50 @@ def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+DATASETS = [karate, dolphins]
 IS_DIRECTED = [True, False]
-
+NORMALIZED = [False, True]
+ENDPOINTS = [False, True]
+SUBSET_SEED = [42, None]
+SUBSET_SIZE = [None, 15]
+VERTEX_LIST_TYPE = [list, cudf]
 
 # =============================================================================
-# Pytest fixtures
+# Helper functions
 # =============================================================================
 
-datasets = utils.DATASETS_UNDIRECTED
 
-fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    ([False, True], "normalized"),
-    ([False, True], "endpoints"),
-    ([42, None], "subset_seed"),
-    ([None, 15], "subset_size"),
-    (IS_DIRECTED, "directed"),
-    ([list, cudf], "vertex_list_type"),
-)
+def get_sg_graph(dataset, directed):
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+
+    return G
 
 
-@pytest.fixture(scope="module", params=fixture_params)
-def input_combo(request):
-    """
-    Simply return the current combination of params as a dictionary for use in
-    tests or other parameterized fixtures.
-    """
-    parameters = dict(
-        zip(
-            (
-                "graph_file",
-                "normalized",
-                "endpoints",
-                "subset_seed",
-                "subset_size",
-                "directed",
-                "vertex_list_type",
-            ),
-            request.param,
-        )
+def get_mg_graph(dataset, directed):
+    input_data_path = dataset.get_path()
+    blocksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        blocksize=blocksize,
+        delimiter=dataset.metadata["delim"],
+        names=dataset.metadata["col_names"],
+        dtype=dataset.metadata["col_types"],
+    )
+    dg = cugraph.Graph(directed=directed)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="wgt",
+        renumber=True,
+        store_transposed=True,
     )
 
-    return parameters
+    return dg
 
 
 @pytest.fixture(scope="module")
