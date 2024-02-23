@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,8 +106,6 @@ extract_transform_e(raft::handle_t const& handle,
                                          EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   // FIXME: Consider updating detail::extract_transform_v_forntier_e to take std::nullopt to as a
   // frontier or create a new key bucket type that just stores [vertex_first, vertex_last) for

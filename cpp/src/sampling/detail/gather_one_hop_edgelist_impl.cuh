@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ struct return_edges_with_properties_e_op {
                                       vertex_t dst,
                                       thrust::nullopt_t,
                                       thrust::nullopt_t,
-                                      EdgeProperties edge_properties)
+                                      EdgeProperties edge_properties) const
   {
     static_assert(std::is_same_v<key_t, vertex_t> ||
                   std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
