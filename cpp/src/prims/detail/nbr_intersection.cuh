@@ -213,8 +213,7 @@ struct update_rx_major_local_nbrs_t {
         auto mask_first = (*edge_partition_e_mask).value_first();
         if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
           auto input_first =
-            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first()) +
-            edge_offset;
+            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first());
           copy_if_mask_set(input_first,
                            mask_first,
                            thrust::make_zip_iterator(local_nbrs_for_rx_majors.begin(),

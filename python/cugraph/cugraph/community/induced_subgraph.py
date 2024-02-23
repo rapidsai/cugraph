@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +35,7 @@ networkx = import_optional("networkx")
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph: Graph, input: cudf.Series, input_name: str):
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     input_dtype = input.dtype
     if input_dtype != vertex_dtype:
         warning_msg = (

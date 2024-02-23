@@ -107,8 +107,7 @@ __global__ void transform_e_packed_bool(
                             : int{0};
       }
     }
-
-    uint32_t new_val = __ballot_sync(uint32_t{0xffffffff}, predicate);
+    uint32_t new_val = __ballot_sync(raft::warp_full_mask(), predicate);
     if (lane_id == 0) {
       if constexpr (check_edge_mask) {
         *(edge_partition_e_value_output.value_first() + idx) = new_val;
