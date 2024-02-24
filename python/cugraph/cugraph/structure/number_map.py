@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -497,7 +497,7 @@ class NumberMap:
             # can't determine the edgelist input type
             unrenumbered_id_type = None
         else:
-            unrenumbered_id_type = df.dtypes[0]
+            unrenumbered_id_type = df.dtypes.iloc[0]
 
         if np.int64 in list(df.dtypes):
             renumber_id_type = np.int64
