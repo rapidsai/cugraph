@@ -29,14 +29,14 @@ from test_edge_betweenness_centrality import (
 # Parameters
 # =============================================================================
 
+
 DATASETS = [karate, netscience]
-DIRECTED_GRAPH_OPTIONS = [False, True]
-NORMALIZED_OPTIONS = [False, True]
+IS_DIRECTED = [True, False]
+IS_NORMALIZED = [True, False]
 DEFAULT_EPSILON = 0.0001
-SUBSET_SIZE_OPTIONS = [4, None]
-# FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
-# been removed
-RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
+SUBSET_SIZES = [4, None]
+RESULT_DTYPES = [np.float32, np.float64]
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -51,16 +51,17 @@ def setup_function():
 # Tests
 # =============================================================================
 
+
 # FIXME: Fails for directed = False(bc score twice as much) and normalized = True.
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
 )
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
-@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+@pytest.mark.parametrize("subset_size", SUBSET_SIZES)
+@pytest.mark.parametrize("normalized", IS_NORMALIZED)
+@pytest.mark.parametrize("result_dtype", RESULT_DTYPES)
 def test_mg_edge_betweenness_centrality(
     graph_file,
     directed,

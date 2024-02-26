@@ -15,11 +15,11 @@ import gc
 
 import pytest
 
-import cudf
-import dask_cudf
 import cugraph
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.datasets import karate_asymmetric, polbooks, email_Eu_core
 from cudf.testing import assert_series_equal
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -30,44 +30,55 @@ def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+
+DATASETS = [karate_asymmetric, polbooks, email_Eu_core]
 IS_DIRECTED = [True, False]
 
-DATA_PATH = [
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv").as_posix(),
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "polbooks.csv").as_posix(),
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv").as_posix(),
-]
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+
+
+def get_sg_graph(dataset, directed):
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+
+    return G
+
+
+def get_mg_graph(dataset, directed):
+    ddf = dataset.get_dask_edgelist()
+    dg = cugraph.Graph(directed=directed)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="wgt",
+        renumber=True,
+        store_transposed=True,
+    )
+
+    return dg
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-@pytest.mark.parametrize("data_file", DATA_PATH)
-def test_dask_mg_degree(dask_client, directed, data_file):
-
-    input_data_path = data_file
-    chunksize = cugraph.dask.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+def test_dask_mg_degree(dask_client, dataset, directed):
+    dg = get_mg_graph(dataset, directed)
     dg.compute_renumber_edge_list()
 
-    g = cugraph.Graph(directed=directed)
-    g.from_cudf_edgelist(df, "src", "dst")
+    g = get_sg_graph(dataset, directed)
 
     merge_df_in_degree = (
         dg.in_degree()
