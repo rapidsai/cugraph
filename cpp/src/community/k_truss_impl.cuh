@@ -98,16 +98,16 @@ struct extract_low_to_high_degree_edges_t {
 };
 
 
-template <typename vertex_t, typename edge_t, typename VertexPairIterator>
+template <typename vertex_t, typename EdgeIterator>
 struct extract_p_r {
   size_t num_edges{}; // rename to num_edges
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t> num_triangles{};
 
-  VertexPairIterator edges{};
+  EdgeIterator edges{};
 
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
+  __device__ thrust::tuple<vertex_t, vertex_t> operator()(size_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
@@ -127,16 +127,16 @@ struct extract_p_r {
 };
 
 
-template <typename vertex_t, typename edge_t, typename VertexPairIterator>
+template <typename vertex_t, typename EdgeIterator>
 struct extract_q_r {
   size_t num_edges; // rename to num_edges
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t> num_triangles{};
 
-  VertexPairIterator edges{};
+  EdgeIterator edges{};
 
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
+  __device__ thrust::tuple<vertex_t, vertex_t> operator()(size_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
@@ -157,12 +157,12 @@ struct extract_q_r {
 };
 
 
-template <typename vertex_t, typename edge_t, typename VertexPairIterator>
+template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   raft::device_span<vertex_t> num_triangles{};
-  VertexPairIterator edge_unrolled{};
-  VertexPairIterator edges{};
-  VertexPairIterator edges_last{};
+  EdgeIterator edge_unrolled{};
+  EdgeIterator edges{};
+  EdgeIterator edges_last{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -184,12 +184,12 @@ struct unroll_edge {
 };
 
 
-template <typename vertex_t, typename edge_t, typename VertexPairIterator>
+template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct generate_p_r {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
 
-  VertexPairIterator edges{};
+  EdgeIterator edges{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -205,12 +205,12 @@ struct generate_p_r {
 
 
 
-template <typename vertex_t, typename edge_t, typename VertexPairIterator>
+template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct generate_q_r {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
 
-  VertexPairIterator edges{};
+  EdgeIterator edges{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -511,7 +511,7 @@ void k_truss(raft::handle_t const& handle,
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator<edge_t>(0),
                      thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                     extract_p_r<vertex_t, edge_t, decltype(edges)>{
+                     extract_p_r<vertex_t, decltype(edges)>{
                      num_edges,
                      raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
                      raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
@@ -524,7 +524,7 @@ void k_truss(raft::handle_t const& handle,
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator<edge_t>(0),
                      thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                     extract_q_r<vertex_t, edge_t, decltype(edges)>{
+                     extract_q_r<vertex_t, decltype(edges)>{
                      num_edges,
                      raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
                      raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
