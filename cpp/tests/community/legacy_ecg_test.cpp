@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -22,7 +22,7 @@
 //         of 24 this fails.  It also fails with the SG Louvain change
 //         for PR 1271
 #if 0
-TEST(ecg, success)
+TEST(legacy_ecg, success)
 {
   // FIXME: verify that this is the karate dataset
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
@@ -77,7 +77,7 @@ TEST(ecg, success)
 }
 #endif
 
-TEST(ecg, dolphin)
+TEST(legacy_ecg, dolphin)
 {
   raft::handle_t handle;
 

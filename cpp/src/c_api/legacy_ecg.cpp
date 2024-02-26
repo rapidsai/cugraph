@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@
 
 namespace {
 
-struct ecg_functor : public cugraph::c_api::abstract_functor {
+struct legacy_ecg_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_;
   double min_weight_;
@@ -39,11 +39,11 @@ struct ecg_functor : public cugraph::c_api::abstract_functor {
   bool do_expensive_check_;
   cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
-  ecg_functor(::cugraph_resource_handle_t const* handle,
-              ::cugraph_graph_t* graph,
-              double min_weight,
-              size_t ensemble_size,
-              bool do_expensive_check)
+  legacy_ecg_functor(::cugraph_resource_handle_t const* handle,
+                     ::cugraph_graph_t* graph,
+                     double min_weight,
+                     size_t ensemble_size,
+                     bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
@@ -120,15 +120,16 @@ struct ecg_functor : public cugraph::c_api::abstract_functor {
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
-                                            cugraph_graph_t* graph,
-                                            double min_weight,
-                                            size_t ensemble_size,
-                                            bool_t do_expensive_check,
-                                            cugraph_hierarchical_clustering_result_t** result,
-                                            cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_legacy_ecg(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  double min_weight,
+  size_t ensemble_size,
+  bool_t do_expensive_check,
+  cugraph_hierarchical_clustering_result_t** result,
+  cugraph_error_t** error)
 {
-  ecg_functor functor(handle, graph, min_weight, ensemble_size, do_expensive_check);
+  legacy_ecg_functor functor(handle, graph, min_weight, ensemble_size, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
