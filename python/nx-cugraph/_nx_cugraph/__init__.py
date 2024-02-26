@@ -126,8 +126,8 @@ _info = {
         "wheel_graph",
         # END: functions
     },
-    "extra_docstrings": {
-        # BEGIN: extra_docstrings
+    "additional_docs": {
+        # BEGIN: additional_docs
         "average_clustering": "Directed graphs and `weight` parameter are not yet supported.",
         "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
@@ -148,10 +148,10 @@ _info = {
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
         "transitivity": "Directed graphs are not yet supported.",
-        # END: extra_docstrings
+        # END: additional_docs
     },
-    "extra_parameters": {
-        # BEGIN: extra_parameters
+    "additional_parameters": {
+        # BEGIN: additional_parameters
         "eigenvector_centrality": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
@@ -168,7 +168,7 @@ _info = {
         "pagerank": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
-        # END: extra_parameters
+        # END: additional_parameters
     },
 }
 
@@ -178,20 +178,24 @@ def get_info():
 
     This tells NetworkX about the cugraph backend without importing nx_cugraph.
     """
-    # Convert to e.g. `{"functions": {"myfunc": {"extra_docstring": ...}}}`
+    # Convert to e.g. `{"functions": {"myfunc": {"additional_docs": ...}}}`
     d = _info.copy()
-    info_keys = {
-        "extra_docstrings": "extra_docstring",
-        "extra_parameters": "extra_parameters",
-    }
+    info_keys = {"additional_docs", "additional_parameters"}
     d["functions"] = {
         func: {
-            new_key: vals[func]
-            for old_key, new_key in info_keys.items()
-            if func in (vals := d[old_key])
+            info_key: vals[func]
+            for info_key in info_keys
+            if func in (vals := d[info_key])
         }
         for func in d["functions"]
     }
+    # Add keys for Networkx <3.3
+    for func_info in d["functions"].values():
+        if "additional_docs" in func_info:
+            func_info["extra_docstring"] = func_info["additional_docs"]
+        if "additional_parameters" in func_info:
+            func_info["extra_parameters"] = func_info["additional_parameters"]
+
     for key in info_keys:
         del d[key]
     return d
