@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -283,7 +283,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           },
           property_initial_value,
           cugraph::reduce_op::plus<result_t>{});
-        thrust::sort_by_key(handle->get_thrust_policy(),
+        thrust::sort_by_key(handle_->get_thrust_policy(),
                             sg_by_src_keys.begin(),
                             sg_by_src_keys.end(),
                             cugraph::get_dataframe_buffer_begin(sg_by_src_values));
@@ -305,7 +305,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           },
           property_initial_value,
           cugraph::reduce_op::plus<result_t>{});
-        thrust::sort_by_key(handle->get_thrust_policy(),
+        thrust::sort_by_key(handle_->get_thrust_policy(),
                             sg_by_dst_keys.begin(),
                             sg_by_dst_keys.end(),
                             cugraph::get_dataframe_buffer_begin(sg_by_dst_values));

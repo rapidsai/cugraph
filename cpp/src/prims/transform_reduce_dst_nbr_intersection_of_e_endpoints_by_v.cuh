@@ -19,6 +19,7 @@
 #include <prims/detail/nbr_intersection.cuh>
 #include <prims/property_op_utils.cuh>
 
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -129,7 +130,9 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
                         vertices.end(),
                         get_dataframe_buffer_begin(value_buffer),
                         reduced_vertices.begin(),
-                        get_dataframe_buffer_begin(reduced_value_buffer));
+                        get_dataframe_buffer_begin(reduced_value_buffer),
+                        thrust::equal_to<vertex_t>{},
+                        property_op<value_t, thrust::plus>{});
 
   vertices.resize(size_t{0}, handle.get_stream());
   resize_dataframe_buffer(value_buffer, size_t{0}, handle.get_stream());
@@ -200,14 +203,14 @@ struct accumulate_vertex_property_t {
  * @param graph_view Non-owning graph object.
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
- * wrapper.
+ * (if @p intersection_op needs to access source property values) or
+ * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
+ * values). Use update_edge_src_property to fill the wrapper.
  * @param edge_dst_value_input Wrapper used to access destination input property values (for the
  * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
- * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_dst_property to fill the wrapper.
+ * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
+ * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
  * @param intersection_op quinary operator takes edge source, edge destination, property values for
  * the source, property values for the destination, and a list of vertices in the intersection of
  * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three
@@ -482,7 +485,9 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                             merged_vertices.end(),
                             get_dataframe_buffer_begin(merged_value_buffer),
                             reduced_vertices.begin(),
-                            get_dataframe_buffer_begin(reduced_value_buffer));
+                            get_dataframe_buffer_begin(reduced_value_buffer),
+                            thrust::equal_to<vertex_t>{},
+                            property_op<T, thrust::plus>{});
       merged_vertices.resize(size_t{0}, handle.get_stream());
       merged_vertices.shrink_to_fit(handle.get_stream());
       resize_dataframe_buffer(merged_value_buffer, size_t{0}, handle.get_stream());
