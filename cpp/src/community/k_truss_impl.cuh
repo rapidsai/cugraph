@@ -100,7 +100,7 @@ struct extract_low_to_high_degree_edges_t {
 
 template <typename vertex_t, typename edge_t, typename VertexPairIterator>
 struct extract_p_r {
-  size_t num_vertex_pair{}; // rename to num_edges
+  size_t num_edges{}; // rename to num_edges
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t> num_triangles{};
@@ -117,7 +117,7 @@ struct extract_p_r {
     // Find its position in 'edges'
     auto itr_p_r = thrust::lower_bound(thrust::seq,
                                        edges,
-                                       edges + num_vertex_pair, // pass the number of vertex pairs
+                                       edges + num_edges, // pass the number of vertex pairs
                                        p_r_pair);
     
     idx = thrust::distance(edges, itr_p_r);
@@ -129,7 +129,7 @@ struct extract_p_r {
 
 template <typename vertex_t, typename edge_t, typename VertexPairIterator>
 struct extract_q_r {
-  size_t num_vertex_pair; // rename to num_edges
+  size_t num_edges; // rename to num_edges
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t> num_triangles{};
@@ -147,7 +147,7 @@ struct extract_q_r {
     // Find its position in 'edges'
     auto itr_q_r = thrust::lower_bound(thrust::seq,
                                        edges,
-                                       edges + num_vertex_pair,
+                                       edges + num_edges,
                                        q_r_pair);
     
     idx = thrust::distance(edges, itr_q_r);
