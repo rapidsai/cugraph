@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ struct induced_subgraph_weighted_edge_op {
                                     vertex_t dst,
                                     property_t sv,
                                     property_t dv,
-                                    weight_t wgt)
+                                    weight_t wgt) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
@@ -95,7 +95,7 @@ struct induced_subgraph_unweighted_edge_op {
                                     vertex_t dst,
                                     property_t sv,
                                     property_t dv,
-                                    thrust::nullopt_t)
+                                    thrust::nullopt_t) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,

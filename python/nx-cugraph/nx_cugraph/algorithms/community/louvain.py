@@ -12,6 +12,7 @@
 # limitations under the License.
 import warnings
 
+import networkx as nx
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_undirected_graph
@@ -25,13 +26,21 @@ from nx_cugraph.utils import (
 
 __all__ = ["louvain_communities"]
 
+# max_level argument was added to NetworkX 3.3
+if nx.__version__[:3] <= "3.2":
+    _max_level_param = {
+        "max_level : int, optional": (
+            "Upper limit of the number of macro-iterations (max: 500)."
+        )
+    }
+else:
+    _max_level_param = {}
+
 
 @not_implemented_for("directed")
 @networkx_algorithm(
     extra_params={
-        "max_level : int, optional": (
-            "Upper limit of the number of macro-iterations (max: 500)."
-        ),
+        **_max_level_param,
         **_dtype_param,
     },
     is_incomplete=True,  # seed not supported; self-loops not supported
@@ -44,9 +53,9 @@ def louvain_communities(
     weight="weight",
     resolution=1,
     threshold=0.0000001,
+    max_level=None,
     seed=None,
     *,
-    max_level=None,
     dtype=None,
 ):
     """`seed` parameter is currently ignored, and self-loops are not yet supported."""
@@ -82,9 +91,9 @@ def _(
     weight="weight",
     resolution=1,
     threshold=0.0000001,
+    max_level=None,
     seed=None,
     *,
-    max_level=None,
     dtype=None,
 ):
     # NetworkX allows both directed and undirected, but cugraph only allows undirected.

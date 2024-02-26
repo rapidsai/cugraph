@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,9 +14,12 @@ import importlib
 import inspect
 
 import networkx as nx
+from packaging.version import parse
 
 import nx_cugraph as nxcg
 from nx_cugraph.utils import networkx_algorithm
+
+nxver = parse(nx.__version__)
 
 
 def test_match_signature_and_names():
@@ -40,6 +43,11 @@ def test_match_signature_and_names():
             orig_func = dispatchable_func._orig_func
         else:
             orig_func = dispatchable_func.orig_func
+
+        if nxver.major == 3 and nxver.minor <= 2 and name == "louvain_communities":
+            # The signature of louvain_communities changed in NetworkX 3.3, and
+            # we updated to match, so we skip this check in older versions.
+            continue
 
         # Matching signatures?
         orig_sig = inspect.signature(orig_func)
