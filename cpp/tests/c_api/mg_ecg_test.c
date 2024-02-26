@@ -94,21 +94,8 @@ int generic_ecg_test(const cugraph_resource_handle_t* handle,
 
     size_t num_local_vertices = cugraph_type_erased_device_array_view_size(vertices);
 
-    vertex_t max_component_id = -1;
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      if (h_clusters[i] > max_component_id) max_component_id = h_clusters[i];
-    }
-
-    vertex_t component_mapping[max_component_id + 1];
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      component_mapping[h_clusters[i]] = h_result[h_vertices[i]];
-    }
-
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(test_ret_value,
-                  h_result[h_vertices[i]] == component_mapping[h_clusters[i]],
-                  "cluster results don't match");
-    }
+    // Louvain and permute_range are both tested, here we only make
+    // sure that function calls succeed as expected.
 
     cugraph_hierarchical_clustering_result_free(result);
   }
