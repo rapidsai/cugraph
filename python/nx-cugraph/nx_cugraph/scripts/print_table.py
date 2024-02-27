@@ -61,7 +61,8 @@ def main(path_to_info=None, *, file=sys.stdout):
     lines = ["networkx_path,dispatch_name,version_added,plc,is_incomplete,is_different"]
     lines.extend(",".join(map(str, info)) for info in path_to_info.values())
     text = "\n".join(lines)
-    print(text, file=file)
+    if file is not None:
+        print(text, file=file)
     return text
 
 
