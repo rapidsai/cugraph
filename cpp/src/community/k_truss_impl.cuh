@@ -99,52 +99,6 @@ struct extract_low_to_high_degree_edges_t {
 
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
-struct update_edges_p_r_q_r_num_triangles {
-  size_t num_edges{}; // rename to num_edges
-  const edge_t edge_first_or_second{}; 
-  raft::device_span<size_t const> intersection_offsets{};
-  raft::device_span<vertex_t const> intersection_indices{};
-  raft::device_span<vertex_t> num_triangles{};
-
-  EdgeIterator edge_first{};
-
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(size_t i) const
-  {
-    auto itr = thrust::upper_bound(
-      thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
-    auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
-    if (edge_first_or_second == 0){
-      auto p_r_pair =
-        thrust::make_tuple(thrust::get<0>(*(edge_first + idx)), intersection_indices[i]);
-      
-      // Find its position in 'edges'
-      auto itr_p_r_p_q = thrust::lower_bound(thrust::seq,
-                                        edge_first,
-                                        edge_first + num_edges, // pass the number of vertex pairs
-                                        p_r_pair);
-      idx = thrust::distance(edge_first, itr_p_r_p_q);  
-    }
-    else {
-      auto p_r_pair =
-        thrust::make_tuple(thrust::get<1>(*(edge_first + idx)), intersection_indices[i]);
-      
-      // Find its position in 'edges'
-      auto itr_p_r_p_q = thrust::lower_bound(thrust::seq,
-                                        edge_first,
-                                        edge_first + num_edges, // pass the number of vertex pairs
-                                        p_r_pair);
-      
-      idx = thrust::distance(edge_first, itr_p_r_p_q);
-    
-    }
-    cuda::atomic_ref<vertex_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
-    auto r = atomic_counter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-    
-  }
-};
-
-
-template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   raft::device_span<vertex_t> num_triangles{};
   EdgeIterator edge_unrolled{};
@@ -158,9 +112,7 @@ struct unroll_edge {
     // Find its position in 'edges'
     auto itr = thrust::lower_bound(thrust::seq,
                                    edge_first,
-                                   //edges + 6, // pass the number of vertex pairs
                                    edge_last,
-                                   //thrust::make_tuple(0, 3)
                                    pair
                                    );
 
@@ -477,56 +429,14 @@ void k_truss(raft::handle_t const& handle,
                                edge_first + num_edges,
                                std::array<bool, 2>{true, true},
                                do_expensive_check);
+    
+    auto num_triangles =  edge_triangle_count<vertex_t, edge_t, false, false>(handle,
+                                              cur_graph_view,
+                                              raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
+                                              raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+                            
+    
   
-    rmm::device_uvector<vertex_t> num_triangles(num_edges, handle.get_stream());
-    thrust::fill(
-      handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), size_t{0});
-    
-
-    // Update the number of triangles of each (p, q) edges by looking at their intersection
-    // size
-    thrust::adjacent_difference(handle.get_thrust_policy(),
-                                intersection_offsets.begin() + 1,
-                                intersection_offsets.end(),
-                                num_triangles.begin());
-    /*
-    printf("\nnum triangles from (p, q)\n");
-    raft::print_device_vector("intersection_offsets", intersection_offsets.data(), intersection_offsets.size(), std::cout);
-    raft::print_device_vector("intersection_indices", intersection_indices.data(), intersection_indices.size(), std::cout);
-    raft::print_device_vector("num_triangles", num_triangles.data(), num_triangles.size(), std::cout);
-    */
-
-   // Given intersection offsets and indices that are used to update the number of
-   // triangles of (p, q) edges where `r`s are the intersection indices, update
-   // the number of triangles of the pairs (p, r) and (q, r).
-
-    thrust::for_each(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                     update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
-                     num_edges,
-                     0,
-                     raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-                     raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-                     raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                     edge_first});
-    
-    //printf("\nnum triangles from (p, r)\n");
-    //raft::print_device_vector("num_triangles", num_triangles.data(), num_triangles.size(), std::cout);
-    
-    thrust::for_each(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                     update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
-                     num_edges,
-                     1,
-                     raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-                     raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-                     raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                     edge_first});
-    
-    //printf("\nnum triangles from (q, r)\n");
-    //raft::print_device_vector("num_triangles", num_triangles.data(), num_triangles.size(), std::cout);
 
     auto edges_to_num_triangles = thrust::make_zip_iterator(
       edge_first, num_triangles.begin());
@@ -700,14 +610,7 @@ void k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(), prefix_sum.begin(), prefix_sum.end(), prefix_sum.begin());
       
       raft::print_device_vector("prefix_sum", prefix_sum.data(), prefix_sum.size(), std::cout);
-      /*
-      2 7
-      8 3
-      
-      0 1 2 3 5   0 7
-      8 8 8 8 8   3 3
-      */
-      
+
       auto vertex_pair_buffer_p_q = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
 
