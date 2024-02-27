@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -504,10 +504,8 @@ refine_clustering(
     //
     // Decide best/positive move for each vertex
     //
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    raft::random::RngState rng_state(seed);
-    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
 
+    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 

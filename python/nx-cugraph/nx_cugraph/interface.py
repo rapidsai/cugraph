@@ -257,6 +257,12 @@ class BackendInterface:
                             ): different_iteration_order,
                         }
                     )
+                elif nxver.minor >= 3:
+                    xfail.update(
+                        {
+                            key("test_louvain.py:test_max_level"): louvain_different,
+                        }
+                    )
 
         too_slow = "Too slow to run"
         skip = {

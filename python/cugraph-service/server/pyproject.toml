@@ -71,4 +71,3 @@ include = [
     "cugraph_service_server",
     "cugraph_service_server.*"
 ]
-exclude = ["*tests*"]
