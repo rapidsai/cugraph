@@ -63,7 +63,7 @@ std::
     raft::handle_t const& handle,
     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::optional<raft::device_span<vertex_t const>> source_vertices,
+    std::optional<raft::device_span<vertex_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check)
 {
@@ -72,7 +72,7 @@ std::
   return detail::all_pairs_similarity(handle,
                                       graph_view,
                                       edge_weight_view,
-                                      source_vertices,
+                                      vertices,
                                       topk,
                                       detail::overlap_functor_t{},
                                       do_expensive_check);

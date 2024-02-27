@@ -148,10 +148,10 @@ cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_
 /**
  * @brief     Perform All-Pairs Jaccard similarity computation
  *
- * Compute the similarity for all vertex pairs derived from an optional specified
- * vertex list.  This function will identify the two-hop neighbors of the specified
- * vertices (all vertices in the graph if not specified) and compute similarity
- * for those vertices.
+ * Compute the similarity for all vertex pairs derived from the two-hop neighbors
+ * of an optional specified vertex list.  This function will identify the two-hop
+ * neighbors of the specified vertices (all vertices in the graph if not specified)
+ * and compute similarity for those vertices.
  *
  * If the topk parameter is specified then the result will only contain the top k
  * highest scoring results.
@@ -186,10 +186,10 @@ cugraph_error_code_t cugraph_all_pairs_jaccard_coefficients(
 /**
  * @brief     Perform All Pairs Sorensen similarity computation
  *
- * Compute the similarity for all vertex pairs derived from an optional specified
- * vertex list.  This function will identify the two-hop neighbors of the specified
- * vertices (all vertices in the graph if not specified) and compute similarity
- * for those vertices.
+ * Compute the similarity for all vertex pairs derived from the two-hop neighbors
+ * of an optional specified vertex list.  This function will identify the two-hop
+ * neighbors of the specified vertices (all vertices in the graph if not specified)
+ * and compute similarity for those vertices.
  *
  * If the topk parameter is specified then the result will only contain the top k
  * highest scoring results.
@@ -224,10 +224,10 @@ cugraph_error_code_t cugraph_all_pairs_sorensen_coefficients(
 /**
  * @brief     Perform All Pairs overlap similarity computation
  *
- * Compute the similarity for all vertex pairs derived from an optional specified
- * vertex list.  This function will identify the two-hop neighbors of the specified
- * vertices (all vertices in the graph if not specified) and compute similarity
- * for those vertices.
+ * Compute the similarity for all vertex pairs derived from the two-hop neighbors
+ * of an optional specified vertex list.  This function will identify the two-hop
+ * neighbors of the specified vertices (all vertices in the graph if not specified)
+ * and compute similarity for those vertices.
  *
  * If the topk parameter is specified then the result will only contain the top k
  * highest scoring results.

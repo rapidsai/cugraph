@@ -65,7 +65,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int32_t, int32_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
-    std::optional<raft::device_span<int32_t const>> source_vertices,
+    std::optional<raft::device_span<int32_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
@@ -75,7 +75,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int32_t, int64_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-    std::optional<raft::device_span<int32_t const>> source_vertices,
+    std::optional<raft::device_span<int32_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
@@ -85,7 +85,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int64_t, int64_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-    std::optional<raft::device_span<int64_t const>> source_vertices,
+    std::optional<raft::device_span<int64_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
@@ -95,7 +95,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int32_t, int32_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
-    std::optional<raft::device_span<int32_t const>> source_vertices,
+    std::optional<raft::device_span<int32_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
@@ -105,7 +105,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int32_t, int64_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-    std::optional<raft::device_span<int32_t const>> source_vertices,
+    std::optional<raft::device_span<int32_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
@@ -115,7 +115,7 @@ template std::
     raft::handle_t const& handle,
     graph_view_t<int64_t, int64_t, false, false> const& graph_view,
     std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-    std::optional<raft::device_span<int64_t const>> source_vertices,
+    std::optional<raft::device_span<int64_t const>> vertices,
     std::optional<size_t> topk,
     bool do_expensive_check);
 
