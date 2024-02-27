@@ -149,8 +149,10 @@ exclude_lines = [
 # https://github.com/charliermarsh/ruff/
 line-length = 88
 target-version = "py39"
+[tool.ruff.lint]
 unfixable = [
     "F841",  # unused-variable (Note: can leave useless expression)
+    "B905",  # zip-without-explicit-strict (Note: prefer `zip(x, y, strict=True)`)
 ]
 select = [
     "ALL",
@@ -172,7 +174,6 @@ ignore = [
     # "SIM401",  # Use dict.get ... instead of if-else-block (Note: if-else better for coverage and sometimes clearer)
     # "TRY004",  # Prefer `TypeError` exception for invalid type (Note: good advice, but not worth the nuisance)
     "B904",  # Bare `raise` inside exception clause (like TRY200; sometimes okay)
-    "TRY200",  # Use `raise from` to specify exception cause (Note: sometimes okay to raise original exception)
 
     # Intentionally ignored
     "A003",  # Class attribute ... is shadowing a python builtin
@@ -224,22 +225,22 @@ ignore = [
     "PD",  # pandas-vet (Intended for scripts that use pandas, not libraries)
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports (w/o defining `__all__`)
 # Allow assert, print, RNG, and no docstring
 "nx_cugraph/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
 "_nx_cugraph/__init__.py" = ["E501"]
 "nx_cugraph/algorithms/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for algorithms
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 mypy-init-return = true
 
-[tool.ruff.flake8-builtins]
+[tool.ruff.lint.flake8-builtins]
 builtins-ignorelist = ["copyright"]
 
-[tool.ruff.flake8-pytest-style]
+[tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
 mark-parentheses = false
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"
