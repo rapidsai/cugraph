@@ -48,6 +48,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
+#include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/set_operations.h>
@@ -1230,9 +1231,11 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_sizes.size() + 1, handle.get_stream());
         rx_v_pair_nbr_intersection_offsets.set_element_to_zero_async(size_t{0},
                                                                      handle.get_stream());
+        auto size_first = thrust::make_transform_iterator(
+          rx_v_pair_nbr_intersection_sizes.begin(), cugraph::detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               rx_v_pair_nbr_intersection_sizes.begin(),
-                               rx_v_pair_nbr_intersection_sizes.end(),
+                               size_first,
+                               size_first + rx_v_pair_nbr_intersection_sizes.size(),
                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         rx_v_pair_nbr_intersection_indices.resize(
@@ -1342,8 +1345,8 @@ nbr_intersection(raft::handle_t const& handle,
         }
 
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               rx_v_pair_nbr_intersection_sizes.begin(),
-                               rx_v_pair_nbr_intersection_sizes.end(),
+                               size_first,
+                               size_first + rx_v_pair_nbr_intersection_sizes.size(),
                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         std::vector<size_t> h_rx_v_pair_lasts(rx_v_pair_counts.size());
