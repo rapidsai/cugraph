@@ -31,7 +31,7 @@ repos:
       - id: validate-pyproject
         name: Validate pyproject.toml
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.1
+    rev: v2.3.0
     hooks:
       - id: autoflake
         args: [--in-place]
@@ -40,17 +40,17 @@ repos:
     hooks:
       - id: isort
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.0
+    rev: v3.15.1
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.2.0
     hooks:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.14
+    rev: v0.2.2
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]  # --unsafe-fixes]
@@ -62,7 +62,7 @@ repos:
         additional_dependencies: &flake8_dependencies
           # These versions need updated manually
           - flake8==7.0.0
-          - flake8-bugbear==24.1.17
+          - flake8-bugbear==24.2.6
           - flake8-simplify==0.21.0
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
@@ -77,7 +77,7 @@ repos:
         additional_dependencies: [tomli]
         files: ^(nx_cugraph|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.14
+    rev: v0.2.2
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks

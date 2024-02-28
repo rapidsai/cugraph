@@ -220,9 +220,9 @@ class BackendInterface:
             )
             if sys.version_info[:2] == (3, 9):
                 # This test is sensitive to RNG, which depends on Python version
-                xfail[
-                    key("test_louvain.py:test_threshold")
-                ] = "Louvain does not support seed parameter"
+                xfail[key("test_louvain.py:test_threshold")] = (
+                    "Louvain does not support seed parameter"
+                )
             if nxver.major == 3 and nxver.minor >= 2:
                 xfail.update(
                     {
