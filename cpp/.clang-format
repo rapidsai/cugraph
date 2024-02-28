@@ -15,7 +15,7 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: true 
+AllowShortBlocksOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
@@ -27,7 +27,7 @@ AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments:  false       
+BinPackArguments:  false
 BinPackParameters: false
 BraceWrapping:
   AfterClass:            false
@@ -71,8 +71,30 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks: Preserve
-IncludeIsMainRegex: '([-_](test|unittest))?$'
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^"' # quoted includes
+    Priority:        1
+  - Regex:           '^<(prims|common|benchmarks|tests)/' # benchmark/test/common includes
+    Priority:        2
+  - Regex:           '^<cugraph_c/' # cuGraph C API includes
+    Priority:        3
+  - Regex:           '^<c_api/' # cuGraph C API includes
+    Priority:        4
+  - Regex:           '^<(cugraph|cugraph-ops|cugraph_etl)/' # cuGraph includes
+    Priority:        5
+  - Regex:           '^<(cudf|raft|cuml|kvikio|cumlprims)' # Other RAPIDS includes
+    Priority:        6
+  - Regex:           '^<rmm/' # RMM includes
+    Priority:        7
+  - Regex:           '^<(thrust|cub|cuda)/' # CCCL includes
+    Priority:        8
+  - Regex:           '^<(cooperative_groups|cuco|cuda|device_types|driver_types|math_constants|nvtx3)' # CUDA includes
+    Priority:        9
+  - Regex:           '^<.*\..*' # other system includes (e.g. with a '.')
+    Priority:        10
+  - Regex:           '^<[^.]+' # STL includes (no '.')
+    Priority:        11
 IndentCaseLabels: true
 IndentPPDirectives: None
 IndentWidth:     2
