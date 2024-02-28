@@ -78,9 +78,9 @@ def pagerank(
         "graph": G._get_plc_graph(weight, 1, dtype, store_transposed=True),
         "precomputed_vertex_out_weight_vertices": None,
         "precomputed_vertex_out_weight_sums": None,
-        "initial_guess_vertices": None
-        if nstart is None
-        else cp.arange(N, dtype=index_dtype),
+        "initial_guess_vertices": (
+            None if nstart is None else cp.arange(N, dtype=index_dtype)
+        ),
         "initial_guess_values": nstart,
         "alpha": alpha,
         "epsilon": N * tol,
