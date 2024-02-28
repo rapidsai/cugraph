@@ -42,7 +42,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "cudf==24.4.*",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "pandas",
     "pytest",
     "pytest-benchmark",
