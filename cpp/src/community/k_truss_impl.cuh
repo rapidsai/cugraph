@@ -234,6 +234,10 @@ void k_truss(raft::handle_t const& handle,
   // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core (FIXME: better mask-out
   // once we add masking support).
   // FIXME: Call k-core instead of core number
+  // FIXME: There is concern when calling k_core/core_number to filter out some vertices. In fact,
+  // this preprocessing step alters the structure of the original graph as it already reduces the
+  // number of triangles per edge therefore, we would need to reflect that on the new K Truss
+  // we would like to find.
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
@@ -312,18 +316,6 @@ void k_truss(raft::handle_t const& handle,
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
-    // FIXME: REmove
-    // this**********************************************************************************
-    rmm::device_uvector<vertex_t> srcs_(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts_(0, handle.get_stream());
-
-    std::tie(srcs_, dsts_, std::ignore, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-
     auto vertex_partition_range_lasts =
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
@@ -383,7 +375,6 @@ void k_truss(raft::handle_t const& handle,
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
-    std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
 
@@ -502,14 +493,10 @@ void k_truss(raft::handle_t const& handle,
       auto vertex_pair_buffer_p_r = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
 
-      rmm::device_uvector<vertex_t> indices(num_invalid_edges, handle.get_stream());
-
-      thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
-
       thrust::for_each(
         handle.get_thrust_policy(),
-        indices.begin(),
-        indices.end(),
+        thrust::make_counting_iterator<edge_t>(0),
+        thrust::make_counting_iterator<edge_t>(num_edge_exists),
         [invalid_first_dst      = std::get<1>(invalid_edges_buffer).begin(),
          invalid_first_src      = std::get<0>(invalid_edges_buffer).begin(),
          dst_array_begin        = edgelist_dsts.begin(),
@@ -620,7 +607,6 @@ void k_truss(raft::handle_t const& handle,
 
       // Need to run prefix_sum again to get new ranges because some incoming edges were removed
       prefix_sum.resize(num_invalid_edges + 1, handle.get_stream());
-      indices.resize(num_invalid_edges, handle.get_stream());
 
       thrust::tabulate(
         handle.get_thrust_policy(),
@@ -651,8 +637,8 @@ void k_truss(raft::handle_t const& handle,
 
       thrust::for_each(
         handle.get_thrust_policy(),
-        indices.begin(),
-        indices.end(),
+        thrust::make_counting_iterator<edge_t>(0),
+        thrust::make_counting_iterator<edge_t>(num_edge_exists),
         [invalid_first_dst      = std::get<1>(invalid_edges_buffer).begin(),
          invalid_first_src      = std::get<0>(invalid_edges_buffer).begin(),
          dst_array_begin        = edgelist_dsts.begin(),
