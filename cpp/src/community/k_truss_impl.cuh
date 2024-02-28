@@ -58,26 +58,6 @@ struct exclude_self_loop_t {
   }
 };
 
-template <typename edge_t>
-struct in_k_plus_one_or_greater_t {
-  edge_t k{};
-  __device__ bool operator()(edge_t core_number) const { return core_number >= k-1; }
-};
-
-template <typename vertex_t>
-struct extract_k_plus_one_core_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src,
-    vertex_t dst,
-    bool src_in_k_plus_one_core,
-    bool dst_in_k_plus_one_core,
-    thrust::nullopt_t) const
-  {
-    return (src_in_k_plus_one_core && dst_in_k_plus_one_core)
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
-  }
-};
 
 template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_t {
@@ -164,21 +144,6 @@ struct generate_q_r {
   }
 };
 
-template <typename vertex_t, typename edge_t>
-struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t> operator()(
-    vertex_t v0,
-    vertex_t v1,
-    edge_t v0_prop /* out degree */,
-    edge_t v1_prop /* out degree */,
-    raft::device_span<vertex_t const> intersection,
-    std::byte, /* dummy */
-    std::byte  /* dummy */
-  ) const
-  {
-    return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
-  }
-};
 
 }  // namespace
 
@@ -253,37 +218,22 @@ k_truss(raft::handle_t const& handle,
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
         : std::nullopt;
-
-    rmm::device_uvector<edge_t> core_numbers(cur_graph_view.local_vertex_partition_range_size(),
+    
+    rmm::device_uvector<edge_t> d_core_numbers(cur_graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
-    core_number(handle,
-                cur_graph_view,
-                core_numbers.data(),
-                k_core_degree_type_t::OUT,
-                size_t{k-1},
-                size_t{k-1});
+    raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_k_plus_one_cores(
-      handle, cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_k_plus_one_cores(
-      handle, cur_graph_view);
-    auto in_k_plus_one_core_first =
-      thrust::make_transform_iterator(core_numbers.begin(), in_k_plus_one_or_greater_t<edge_t>{k});
-    rmm::device_uvector<bool> in_k_plus_one_core_flags(core_numbers.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 in_k_plus_one_core_first,
-                 in_k_plus_one_core_first + core_numbers.size(),
-                 in_k_plus_one_core_flags.begin());
-    update_edge_src_property(
-      handle, cur_graph_view, in_k_plus_one_core_flags.begin(), edge_src_in_k_plus_one_cores);
-    update_edge_dst_property(
-      handle, cur_graph_view, in_k_plus_one_core_flags.begin(), edge_dst_in_k_plus_one_cores);
-    auto [srcs, dsts] = extract_transform_e(handle,
-                                            cur_graph_view,
-                                            edge_src_in_k_plus_one_cores.view(),
-                                            edge_dst_in_k_plus_one_cores.view(),
-                                            edge_dummy_property_t{}.view(),
-                                            extract_k_plus_one_core_t<vertex_t>{});
+    rmm::device_uvector<vertex_t> srcs{0, handle.get_stream()};
+    rmm::device_uvector<vertex_t> dsts{0, handle.get_stream()};
+    std::tie(srcs, dsts, std::ignore) = k_core(handle,
+                        cur_graph_view,
+                        std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+                        size_t{k+1},
+                        std::make_optional(k_core_degree_type_t::OUT),
+                        // Seems like the below argument is required. passing a std::nullopt
+                        // create a compiler error
+                        std::make_optional(core_number_span)
+                        );
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
@@ -907,9 +857,7 @@ k_truss(raft::handle_t const& handle,
                           num_triangles.begin());
 
     }
-
-    return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
-  
+    printf("\nreturning a non empty graph with num_edges = %d\n", edgelist_srcs.size());
     
   
   }
