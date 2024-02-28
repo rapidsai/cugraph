@@ -57,3 +57,12 @@ repos:
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]
+  - repo: local
+    hooks:
+      - id: nx-cugraph-readme-check
+        name: nx-cugraph-readme-check
+        entry: bash -c PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/scripts/update_readme.py ./python/nx-cugraph/README.md
+        files: ^python/nx-cugraph/
+        types: [python]
+        language: python
+        pass_filenames: false

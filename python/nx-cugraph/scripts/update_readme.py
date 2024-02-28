@@ -16,9 +16,12 @@ import re
 import zlib
 from collections import namedtuple
 from pathlib import Path
+import urllib.request
 from warnings import warn
 
 from nx_cugraph.scripts.print_tree import create_tree, tree_lines
+
+_objs_file_url = "https://networkx.org/documentation/stable/objects.inv"
 
 # See: https://sphobjinv.readthedocs.io/en/stable/syntax.html
 DocObject = namedtuple(
@@ -190,14 +193,36 @@ def main(readme_file, objects_filename):
     return text
 
 
+def find_or_download_objs_file(objs_file_dir):
+    """
+    Returns the path to <objs_file_dir>/objects.inv, downloading it from
+    _objs_file_url if it does not already exist.
+    """
+    objs_file_path = objs_file_dir / "objects.inv"
+    if not objs_file_path.exists():
+        request = urllib.request.Request(_objs_file_url)
+        with urllib.request.urlopen(request) as response:
+            with open(objs_file_path, "wb") as out:
+                out.write(response.read())
+    return objs_file_path
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         "Update README.md to show NetworkX functions implemented by nx-cugraph"
     )
     parser.add_argument("readme_filename", help="Path to the README.md file")
     parser.add_argument(
-        "networkx_objects", help="Path to the objects.inv file from networkx docs"
+        "networkx_objects", nargs="?", default=None,
+        help="Path to the objects.inv file from networkx docs. Optional."
     )
     args = parser.parse_args()
-    with Path(args.readme_filename).open("a+") as readme_file:
-        main(readme_file, args.networkx_objects)
+
+    readme_filename = args.readme_filename
+    readme_path = Path(readme_filename)
+    objects_filename = args.networkx_objects
+    if objects_filename is None:
+        objects_filename = find_or_download_objs_file(readme_path.parent)
+
+    with readme_path.open("a+") as readme_file:
+        main(readme_filename, objects_filename)
