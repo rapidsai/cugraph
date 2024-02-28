@@ -322,18 +322,6 @@ void k_truss(raft::handle_t const& handle,
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
-
-
-    // FIXME: REmove this**********************************************************************************
-    rmm::device_uvector<vertex_t> srcs_(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts_(0, handle.get_stream());
-
-    std::tie(srcs_, dsts_, std::ignore, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
   
     auto vertex_partition_range_lasts =
       renumber_map
