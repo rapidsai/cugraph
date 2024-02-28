@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
-from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -63,13 +62,10 @@ def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
         create_using=cugraph.Graph(directed=False), ignore_weights=not use_weight
     )
     # cugraph Overlap Call
-    df = benchmark_callable(cugraph.overlap, G, pairs)
+    df = benchmark_callable(cugraph.overlap, G, pairs, use_weight=use_weight)
     df = df.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
         drop=True
     )
-    if use_weight:
-        res_w_overlap = cugraph.overlap_w(G, vertex_pair=pairs)
-        assert_frame_equal(res_w_overlap, df, check_dtype=False, check_like=True)
 
     return df[OVERLAP_COEFF_COL].to_numpy()
 
