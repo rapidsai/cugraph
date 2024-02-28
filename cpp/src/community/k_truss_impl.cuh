@@ -183,7 +183,9 @@ struct intersection_op_t {
 }  // namespace
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void k_truss(raft::handle_t const& handle,
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>>
+k_truss(raft::handle_t const& handle,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              edge_t k,
              bool do_expensive_check)
@@ -520,7 +522,6 @@ void k_truss(raft::handle_t const& handle,
          vertex_pair_buffer_p_q      = get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
          vertex_pair_buffer_p_r      = get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
          num_edges                   = edgelist_srcs.size()] __device__(auto idx) {
-          printf("\nidx =%d\n", idx);
           auto src             = invalid_first_src[idx];
           auto dst             = invalid_first_dst[idx];
           auto dst_array_end   = dst_array_begin + num_edges;
@@ -878,11 +879,6 @@ void k_truss(raft::handle_t const& handle,
       edgelist_dsts.resize(last_edge_with_triangles_idx, handle.get_stream());
       num_triangles.resize(last_edge_with_triangles_idx, handle.get_stream());
 
-      printf("\n*******final*******\n");
-      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
-
       auto invalid_edge_last_ =
       thrust::stable_partition(handle.get_thrust_policy(),
                                edge_triangle_count_pair_first,
@@ -912,18 +908,7 @@ void k_truss(raft::handle_t const& handle,
 
     }
 
-    if (num_invalid_edges == edgelist_srcs.size()) {
-      // return empty graph view
-      std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> empty_graph_view{std::nullopt};
-      printf("\nreturning an empty graph");
-      // FIXME: To be updated
-      // return empty_graph_view;
-    }
-    else{
-      // FIXME: To be updated
-      // return cur_graph_view;
-      printf("\nreturning a non empty graph with num_edges = %d\n", edgelist_srcs.size());
-    }
+    return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
   
     
   
