@@ -29,6 +29,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -41,7 +42,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
-#include <thrust/adjacent_difference.h>
 
 namespace cugraph {
 
@@ -61,7 +61,7 @@ struct exclude_self_loop_t {
 template <typename edge_t>
 struct in_k_plus_one_or_greater_t {
   edge_t k{};
-  __device__ bool operator()(edge_t core_number) const { return core_number >= k-1; }
+  __device__ bool operator()(edge_t core_number) const { return core_number >= k - 1; }
 };
 
 template <typename vertex_t>
@@ -97,7 +97,6 @@ struct extract_low_to_high_degree_edges_t {
   }
 };
 
-
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   raft::device_span<vertex_t> num_triangles{};
@@ -108,22 +107,16 @@ struct unroll_edge {
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
     // edges are sort with destination as key so reverse the edge when looking it
-    auto pair =
-      thrust::make_tuple(thrust::get<1>(*(edge_unrolled + i)), thrust::get<0>(*(edge_unrolled + i)));        
+    auto pair = thrust::make_tuple(thrust::get<1>(*(edge_unrolled + i)),
+                                   thrust::get<0>(*(edge_unrolled + i)));
     // Find its position in 'edges'
-    auto itr = thrust::lower_bound(thrust::seq,
-                                   edge_first,
-                                   edge_last,
-                                   pair
-                                   );
+    auto itr = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
 
     auto idx = thrust::distance(edge_first, itr);
     cuda::atomic_ref<vertex_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
     auto r = atomic_counter.fetch_sub(vertex_t{1}, cuda::std::memory_order_relaxed);
-    
   }
 };
-
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct generate_p_r {
@@ -136,14 +129,12 @@ struct generate_p_r {
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
-    auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
-    auto pair =
-      thrust::make_tuple(thrust::get<0>(*(edge_first + idx)), intersection_indices[i]);
+    auto idx  = thrust::distance(intersection_offsets.begin() + 1, itr);
+    auto pair = thrust::make_tuple(thrust::get<0>(*(edge_first + idx)), intersection_indices[i]);
 
     return pair;
   }
 };
-
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct generate_q_r {
@@ -156,9 +147,8 @@ struct generate_q_r {
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
-    auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
-    auto pair =
-      thrust::make_tuple(thrust::get<1>(*(edge_first + idx)), intersection_indices[i]);
+    auto idx  = thrust::distance(intersection_offsets.begin() + 1, itr);
+    auto pair = thrust::make_tuple(thrust::get<1>(*(edge_first + idx)), intersection_indices[i]);
 
     return pair;
   }
@@ -217,7 +207,6 @@ void k_truss(raft::handle_t const& handle,
                                             edge_dummy_property_t{}.view(),
                                             exclude_self_loop_t<vertex_t>{});
 
-
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
@@ -259,8 +248,8 @@ void k_truss(raft::handle_t const& handle,
                 cur_graph_view,
                 core_numbers.data(),
                 k_core_degree_type_t::OUT,
-                size_t{k-1},
-                size_t{k-1});
+                size_t{k - 1},
+                size_t{k - 1});
 
     edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_k_plus_one_cores(
       handle, cur_graph_view);
@@ -323,8 +312,8 @@ void k_truss(raft::handle_t const& handle,
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
-
-    // FIXME: REmove this**********************************************************************************
+    // FIXME: REmove
+    // this**********************************************************************************
     rmm::device_uvector<vertex_t> srcs_(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts_(0, handle.get_stream());
 
@@ -334,7 +323,7 @@ void k_truss(raft::handle_t const& handle,
       std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-  
+
     auto vertex_partition_range_lasts =
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
@@ -375,7 +364,7 @@ void k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
-        false); //******************FIXME:        hardcoded to False
+        false);  //******************FIXME:        hardcoded to False
 
     modified_graph_view = (*modified_graph).view();
 
@@ -405,93 +394,84 @@ void k_truss(raft::handle_t const& handle,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-    auto edge_first =
-      thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
-    
-    auto num_triangles =  edge_triangle_count<vertex_t, edge_t, false, false>(handle,
-                                              cur_graph_view,
-                                              raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
-                                              raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
-                            
-  
-    auto edge_triangle_count_pair_first = thrust::make_zip_iterator(
-      edge_first, num_triangles.begin());
-  
+    auto edge_first = thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
+
+    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false, false>(
+      handle,
+      cur_graph_view,
+      raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
+      raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+
+    auto edge_triangle_count_pair_first =
+      thrust::make_zip_iterator(edge_first, num_triangles.begin());
+
     // Note: ensure 'edges_with_triangles' and 'cur_graph_view' have the same transpose flag
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_with_triangles(handle);
 
-  
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_value_output(handle,
                                                                                cur_graph_view);
-    
+
     edge_t num_valid_edges = edgelist_srcs.size();
     edge_t num_invalid_edges{0};
     size_t num_edges_with_triangles{0};
 
     while (true) {
+      // Remove edges that have a triangle count of zero. Those should not be accounted
+      // for during the unroling phase.
+      auto edges_with_triangle_last =
+        thrust::stable_partition(handle.get_thrust_policy(),
+                                 edge_triangle_count_pair_first,
+                                 edge_triangle_count_pair_first + num_triangles.size(),
+                                 [k] __device__(auto e) {
+                                   auto num_triangles = thrust::get<1>(e);
+                                   return num_triangles > 0;
+                                 });
 
-    // Remove edges that have a triangle count of zero. Those should not be accounted
-    // for during the unroling phase.
-    auto edges_with_triangle_last =
-      thrust::stable_partition(handle.get_thrust_policy(),
-                               edge_triangle_count_pair_first,
-                               edge_triangle_count_pair_first + num_triangles.size(),
-                               [k] __device__(auto e) {
-                                 auto num_triangles = thrust::get<1>(e);
-                                 return num_triangles > 0;
-                               });
-    
-    num_edges_with_triangles = static_cast<size_t>(
-      thrust::distance(edge_triangle_count_pair_first, edges_with_triangle_last));
-    
+      num_edges_with_triangles = static_cast<size_t>(
+        thrust::distance(edge_triangle_count_pair_first, edges_with_triangle_last));
 
-    
-    edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
-    edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
-    num_triangles.resize(num_edges_with_triangles, handle.get_stream());
+      edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
+      edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
+      num_triangles.resize(num_edges_with_triangles, handle.get_stream());
 
-    // 'invalid_edge_first' marks the beginning of the edges to be removed
-    auto invalid_edge_first =
-      thrust::stable_partition(handle.get_thrust_policy(),
-                               edge_triangle_count_pair_first,
-                               edge_triangle_count_pair_first + num_triangles.size(),
-                               [k] __device__(auto e) {
-                                 auto num_triangles = thrust::get<1>(e);
-                                 return num_triangles >= k - 2;
-                               });
-    
-    num_invalid_edges = static_cast<size_t>(
-      thrust::distance(invalid_edge_first, edge_triangle_count_pair_first + edgelist_srcs.size()));
+      // 'invalid_edge_first' marks the beginning of the edges to be removed
+      auto invalid_edge_first =
+        thrust::stable_partition(handle.get_thrust_policy(),
+                                 edge_triangle_count_pair_first,
+                                 edge_triangle_count_pair_first + num_triangles.size(),
+                                 [k] __device__(auto e) {
+                                   auto num_triangles = thrust::get<1>(e);
+                                   return num_triangles >= k - 2;
+                                 });
 
-    auto num_valid_edges = edgelist_srcs.size() - num_invalid_edges;
-    if (num_invalid_edges == 0){
-        break;
-    }
+      num_invalid_edges = static_cast<size_t>(thrust::distance(
+        invalid_edge_first, edge_triangle_count_pair_first + edgelist_srcs.size()));
 
-    // copy invalid edges
-    auto invalid_edges_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-      num_invalid_edges, handle.get_stream());
-    
+      auto num_valid_edges = edgelist_srcs.size() - num_invalid_edges;
+      if (num_invalid_edges == 0) { break; }
 
+      // copy invalid edges
+      auto invalid_edges_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        num_invalid_edges, handle.get_stream());
 
-    
-    thrust::copy(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(edgelist_srcs.begin() + num_valid_edges, edgelist_dsts.begin() + num_valid_edges),
-                 thrust::make_zip_iterator(edgelist_srcs.begin() + edgelist_srcs.size(), edgelist_dsts.begin() + edgelist_srcs.size()),
-                 get_dataframe_buffer_begin(invalid_edges_buffer));
-    
-    // resize the 'edgelist_srcs' and 'edgelist_dst'
-    edgelist_srcs.resize(num_valid_edges, handle.get_stream());
-    edgelist_dsts.resize(num_valid_edges, handle.get_stream());
-    num_triangles.resize(num_valid_edges, handle.get_stream());
-    
-      
-    // sort back the edge as those are needed later when running a binary tree
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + edgelist_srcs.size(),
-                        num_triangles.begin());
-    
+      thrust::copy(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(edgelist_srcs.begin() + num_valid_edges,
+                                             edgelist_dsts.begin() + num_valid_edges),
+                   thrust::make_zip_iterator(edgelist_srcs.begin() + edgelist_srcs.size(),
+                                             edgelist_dsts.begin() + edgelist_srcs.size()),
+                   get_dataframe_buffer_begin(invalid_edges_buffer));
+
+      // resize the 'edgelist_srcs' and 'edgelist_dst'
+      edgelist_srcs.resize(num_valid_edges, handle.get_stream());
+      edgelist_dsts.resize(num_valid_edges, handle.get_stream());
+      num_triangles.resize(num_valid_edges, handle.get_stream());
+
+      // sort back the edge as those are needed later when running a binary tree
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          edge_first,
+                          edge_first + edgelist_srcs.size(),
+                          num_triangles.begin());
+
       // case 2: unroll (q, r)
       // FIXME: Update the num_edges when removing edges
       // For each (q, r) edges to unroll, find the incoming edges to 'r' let's say from 'p' and
@@ -501,8 +481,8 @@ void k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         prefix_sum.begin(),
         prefix_sum.end(),
-        [invalid_first   = get_dataframe_buffer_begin(invalid_edges_buffer),
-         //dst_array_begin = std::get<0>(incoming_vertex_pairs).begin(),
+        [invalid_first = get_dataframe_buffer_begin(invalid_edges_buffer),
+         // dst_array_begin = std::get<0>(incoming_vertex_pairs).begin(),
          dst_array_begin = edgelist_dsts.begin(),
          num_edges       = edgelist_srcs.size()] __device__(auto idx) {
           auto src           = thrust::get<0>(*(invalid_first + idx));
@@ -523,38 +503,37 @@ void k_truss(raft::handle_t const& handle,
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
 
       rmm::device_uvector<vertex_t> indices(num_invalid_edges, handle.get_stream());
-  
-      thrust::sequence(
-        handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+
+      thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
 
       thrust::for_each(
         handle.get_thrust_policy(),
         indices.begin(),
         indices.end(),
-        [invalid_first_dst           = std::get<1>(invalid_edges_buffer).begin(),
-         invalid_first_src           = std::get<0>(invalid_edges_buffer).begin(),
-         dst_array_begin             = edgelist_dsts.begin(),
-         prefix_sum                  = prefix_sum.data(),
-         incoming_vertex_pairs       = edge_first,
-         vertex_pair_buffer_p_q      = get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
-         vertex_pair_buffer_p_r      = get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
-         num_edges                   = edgelist_srcs.size()] __device__(auto idx) {
-          auto src             = invalid_first_src[idx];
-          auto dst             = invalid_first_dst[idx];
-          auto dst_array_end   = dst_array_begin + num_edges;
+        [invalid_first_dst      = std::get<1>(invalid_edges_buffer).begin(),
+         invalid_first_src      = std::get<0>(invalid_edges_buffer).begin(),
+         dst_array_begin        = edgelist_dsts.begin(),
+         prefix_sum             = prefix_sum.data(),
+         incoming_vertex_pairs  = edge_first,
+         vertex_pair_buffer_p_q = get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
+         vertex_pair_buffer_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
+         num_edges              = edgelist_srcs.size()] __device__(auto idx) {
+          auto src           = invalid_first_src[idx];
+          auto dst           = invalid_first_dst[idx];
+          auto dst_array_end = dst_array_begin + num_edges;
 
           auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
           auto idx_lower = thrust::distance(
             dst_array_begin, itr_lower);  // Need a binary search to find the begining of the range
-        
+
           thrust::tabulate(
             thrust::seq,
             vertex_pair_buffer_p_q + prefix_sum[idx],
             vertex_pair_buffer_p_q + prefix_sum[idx + 1],
             [incoming_vertex_pairs = incoming_vertex_pairs,
-             dst                         = dst,
-             src                         = src,
-             idx_lower                   = idx_lower](auto idx_in_segment) {
+             dst                   = dst,
+             src                   = src,
+             idx_lower             = idx_lower](auto idx_in_segment) {
               return thrust::make_tuple(
                 thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)), src);
             });
@@ -564,10 +543,10 @@ void k_truss(raft::handle_t const& handle,
             vertex_pair_buffer_p_r + prefix_sum[idx],
             vertex_pair_buffer_p_r + prefix_sum[idx + 1],
             [incoming_vertex_pairs = incoming_vertex_pairs,
-             dst                         = dst,
-             src                         = src,
+             dst                   = dst,
+             src                   = src,
              idx,
-             idx_lower                   = idx_lower](auto idx_in_segment) {
+             idx_lower = idx_lower](auto idx_in_segment) {
               return thrust::make_tuple(
                 thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)), dst);
             });
@@ -589,10 +568,10 @@ void k_truss(raft::handle_t const& handle,
                                              edge_to_existance,
                                              edge_to_existance + edges_exist.size(),
                                              [] __device__(auto e) {
-                                             auto edge_exists = thrust::get<1>(e);
-                                             return edge_exists == 0;
-                                            });
-      
+                                               auto edge_exists = thrust::get<1>(e);
+                                               return edge_exists == 0;
+                                             });
+
       auto num_edge_exists = thrust::distance(edge_to_existance, has_edge_last);
 
       // After pushing the non-existant edges to the second partition,
@@ -605,22 +584,22 @@ void k_truss(raft::handle_t const& handle,
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                       raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                       get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
-                       edge_first,
-                       edge_last,
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
+                         edge_first,
+                         edge_last,
                        });
 
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                       raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                       get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
-                       edge_first,
-                       edge_last,
-                       });     
-      
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
+                         edge_first,
+                         edge_last,
+                       });
+
       // Put edges with triangle count == 0 in the second partition
       // FIXME: revisit all the 'stable_partition' and only used them
       // when necessary otherwise simply call 'thrust::partition'
@@ -636,8 +615,9 @@ void k_truss(raft::handle_t const& handle,
                                    return thrust::get<1>(edge_to_num_triangles) > 0;
                                  });
 
-      auto last_edge_with_triangles_idx = thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
-         
+      auto last_edge_with_triangles_idx =
+        thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
+
       // Need to run prefix_sum again to get new ranges because some incoming edges were removed
       prefix_sum.resize(num_invalid_edges + 1, handle.get_stream());
       indices.resize(num_invalid_edges, handle.get_stream());
@@ -646,11 +626,11 @@ void k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         prefix_sum.begin(),
         prefix_sum.end(),
-        [invalid_first               = get_dataframe_buffer_begin(invalid_edges_buffer),
+        [invalid_first   = get_dataframe_buffer_begin(invalid_edges_buffer),
          dst_array_begin = edgelist_dsts.begin(),
-         num_edges                   = edgelist_srcs.size()] __device__(auto idx) {
-          auto src = thrust::get<0>(*(invalid_first + idx));
-          auto dst = thrust::get<1>(*(invalid_first + idx));
+         num_edges       = edgelist_srcs.size()] __device__(auto idx) {
+          auto src           = thrust::get<0>(*(invalid_first + idx));
+          auto dst           = thrust::get<1>(*(invalid_first + idx));
           auto dst_array_end = dst_array_begin + num_edges;
           auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
           // FIXME: revisit dst_array_begin vs itr_lower
@@ -661,7 +641,7 @@ void k_truss(raft::handle_t const& handle,
 
       thrust::exclusive_scan(
         handle.get_thrust_policy(), prefix_sum.begin(), prefix_sum.end(), prefix_sum.begin());
-      
+
       // case 3 unroll (p, r)
       vertex_pair_buffer_p_q = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         prefix_sum.back_element(handle.get_stream()), handle.get_stream());
@@ -673,17 +653,17 @@ void k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         indices.begin(),
         indices.end(),
-        [invalid_first_dst           = std::get<1>(invalid_edges_buffer).begin(),
-         invalid_first_src           = std::get<0>(invalid_edges_buffer).begin(),
-         dst_array_begin             = edgelist_dsts.begin(),
-         prefix_sum                  = prefix_sum.data(),
-         incoming_vertex_pairs       = edge_first,
-         vertex_pair_buffer_p_q      = get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
-         vertex_pair_buffer_q_r      = get_dataframe_buffer_begin(vertex_pair_buffer_q_r),
-         num_edges                   = edgelist_srcs.size()] __device__(auto idx) {
-          auto src             = invalid_first_src[idx];
-          auto dst             = invalid_first_dst[idx];
-          auto dst_array_end   = dst_array_begin + num_edges;
+        [invalid_first_dst      = std::get<1>(invalid_edges_buffer).begin(),
+         invalid_first_src      = std::get<0>(invalid_edges_buffer).begin(),
+         dst_array_begin        = edgelist_dsts.begin(),
+         prefix_sum             = prefix_sum.data(),
+         incoming_vertex_pairs  = edge_first,
+         vertex_pair_buffer_p_q = get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
+         vertex_pair_buffer_q_r = get_dataframe_buffer_begin(vertex_pair_buffer_q_r),
+         num_edges              = edgelist_srcs.size()] __device__(auto idx) {
+          auto src           = invalid_first_src[idx];
+          auto dst           = invalid_first_dst[idx];
+          auto dst_array_end = dst_array_begin + num_edges;
           auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
           auto idx_lower = thrust::distance(
             dst_array_begin, itr_lower);  // Need a binary search to find the begining of the range
@@ -693,9 +673,9 @@ void k_truss(raft::handle_t const& handle,
             vertex_pair_buffer_p_q + prefix_sum[idx],
             vertex_pair_buffer_p_q + prefix_sum[idx + 1],
             [incoming_vertex_pairs = incoming_vertex_pairs,
-             dst                         = dst,
-             src                         = src,
-             idx_lower                   = idx_lower](auto idx_in_segment) {
+             dst                   = dst,
+             src                   = src,
+             idx_lower             = idx_lower](auto idx_in_segment) {
               return thrust::make_tuple(
                 src, thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)));
             });
@@ -705,9 +685,9 @@ void k_truss(raft::handle_t const& handle,
             vertex_pair_buffer_q_r + prefix_sum[idx],
             vertex_pair_buffer_q_r + prefix_sum[idx + 1],
             [incoming_vertex_pairs = incoming_vertex_pairs,
-             dst                         = dst,
-             src                         = src,
-             idx_lower                   = idx_lower](auto idx_in_segment) {
+             dst                   = dst,
+             src                   = src,
+             idx_lower             = idx_lower](auto idx_in_segment) {
               return thrust::make_tuple(
                 thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)), dst);
             });
@@ -724,15 +704,15 @@ void k_truss(raft::handle_t const& handle,
         thrust::make_zip_iterator(get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
                                   get_dataframe_buffer_begin(vertex_pair_buffer_q_r)),
         edges_exist.begin());
-      
+
       has_edge_last = thrust::remove_if(handle.get_thrust_policy(),
-                                             edge_to_existance,
-                                             edge_to_existance + edges_exist.size(),
-                                             [] __device__(auto e) {
-                                             auto edge_exists = thrust::get<1>(e);
-                                             return edge_exists == 0;
-                                            });
-      
+                                        edge_to_existance,
+                                        edge_to_existance + edges_exist.size(),
+                                        [] __device__(auto e) {
+                                          auto edge_exists = thrust::get<1>(e);
+                                          return edge_exists == 0;
+                                        });
+
       num_edge_exists = thrust::distance(edge_to_existance, has_edge_last);
 
       // After pushing the non-existant edges to the second partition,
@@ -746,21 +726,21 @@ void k_truss(raft::handle_t const& handle,
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                       raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                       get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
-                       edge_first,
-                       edge_last,
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_p_q),
+                         edge_first,
+                         edge_last,
                        });
 
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                       raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                       get_dataframe_buffer_begin(vertex_pair_buffer_q_r),
-                       edge_first,
-                       edge_last,
-                       });     
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_q_r),
+                         edge_first,
+                         edge_last,
+                       });
 
       // Put edges with triangle count == 0 in the second partition
       // FIXME: revisit all the 'stable_partition' and only used them
@@ -774,24 +754,21 @@ void k_truss(raft::handle_t const& handle,
                                    return thrust::get<1>(edge_to_num_triangles) > 0;
                                  });
 
-      last_edge_with_triangles_idx = thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
-
-   
+      last_edge_with_triangles_idx =
+        thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
 
       // resize the 'edgelist_srcs' and 'edgelsit_dst'
       edgelist_srcs.resize(last_edge_with_triangles_idx, handle.get_stream());
       edgelist_dsts.resize(last_edge_with_triangles_idx, handle.get_stream());
       num_triangles.resize(last_edge_with_triangles_idx, handle.get_stream());
 
-
       edge_value_output.clear(handle);
       // rename the above it to last_edge_with_triangles
       // rename the below to edges_with_triangles
       edges_with_triangles.clear();  // FIXME: is this needed?
 
-      edges_with_triangles.insert(edgelist_srcs.begin(),
-                       edgelist_srcs.begin(),
-                       edgelist_dsts.end());                  
+      edges_with_triangles.insert(
+        edgelist_srcs.begin(), edgelist_srcs.begin(), edgelist_dsts.end());
 
       cugraph::transform_e(
         handle,
@@ -811,7 +788,8 @@ void k_truss(raft::handle_t const& handle,
       // case 1. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
       // FIXME: check if 'invalid_edge_first' is necessery as I operate on 'vertex_pair_buffer'
       // which contains the ordering with the number of triangles.
-      // FIXME: debug this stage. There are edges that have been removed that are still found in nbr intersection
+      // FIXME: debug this stage. There are edges that have been removed that are still found in nbr
+      // intersection
       auto [intersection_offsets, intersection_indices] =
         detail::nbr_intersection(handle,
                                  cur_graph_view,
@@ -821,62 +799,59 @@ void k_truss(raft::handle_t const& handle,
                                  std::array<bool, 2>{true, true},
                                  do_expensive_check);
 
-      size_t accumulate_pair_size =
-        intersection_indices.size();
-      
+      size_t accumulate_pair_size = intersection_indices.size();
+
       auto vertex_pair_buffer_p_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-          accumulate_pair_size, handle.get_stream());
-      
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(accumulate_pair_size,
+                                                                     handle.get_stream());
+
       thrust::tabulate(
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
         get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
-          generate_p_r<vertex_t, edge_t, decltype(get_dataframe_buffer_begin(invalid_edges_buffer))>{
-            raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-            raft::device_span<vertex_t const>(intersection_indices.data(),
-                                              intersection_indices.size()),
-            get_dataframe_buffer_begin(invalid_edges_buffer)
-          });
-        
-      edge_last = edge_first + edgelist_srcs.size();
+        generate_p_r<vertex_t, edge_t, decltype(get_dataframe_buffer_begin(invalid_edges_buffer))>{
+          raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
+          raft::device_span<vertex_t const>(intersection_indices.data(),
+                                            intersection_indices.size()),
+          get_dataframe_buffer_begin(invalid_edges_buffer)});
+
+      edge_last       = edge_first + edgelist_srcs.size();
       num_edge_exists = accumulate_pair_size;
       thrust::for_each(handle.get_thrust_policy(),
-                      thrust::make_counting_iterator<edge_t>(0),
-                      thrust::make_counting_iterator<edge_t>(num_edge_exists),
-                      unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                      raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                      get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
-                      edge_first,
-                      edge_last,
-                      });
+                       thrust::make_counting_iterator<edge_t>(0),
+                       thrust::make_counting_iterator<edge_t>(num_edge_exists),
+                       unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
+                         edge_first,
+                         edge_last,
+                       });
 
       auto vertex_pair_buffer_q_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-          accumulate_pair_size, handle.get_stream());
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(accumulate_pair_size,
+                                                                     handle.get_stream());
 
       thrust::tabulate(
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
-        get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q) +
-          accumulate_pair_size,
+        get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q) + accumulate_pair_size,
         generate_q_r<vertex_t, edge_t, decltype(get_dataframe_buffer_begin(invalid_edges_buffer))>{
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
           get_dataframe_buffer_begin(invalid_edges_buffer)  // FIXME: verify this is accurate
         });
-      
+
       thrust::for_each(handle.get_thrust_policy(),
-                      thrust::make_counting_iterator<edge_t>(0),
-                      thrust::make_counting_iterator<edge_t>(num_edge_exists),
-                      unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                      raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
-                      get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
-                      edge_first,
-                      edge_last,
-                      });
-        
+                       thrust::make_counting_iterator<edge_t>(0),
+                       thrust::make_counting_iterator<edge_t>(num_edge_exists),
+                       unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
+                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
+                         edge_first,
+                         edge_last,
+                       });
+
       // Put edges with triangle count == 0 in the second partition
       // FIXME: revisit all the 'stable_partition' and only used them
       // when necessary otherwise simply call 'thrust::partition'
@@ -890,8 +865,8 @@ void k_truss(raft::handle_t const& handle,
                                    return thrust::get<1>(edge_to_num_triangles) > 0;
                                  });
 
-
-      last_edge_with_triangles_idx = thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
+      last_edge_with_triangles_idx =
+        thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
       // rename the above it to last_edge_with_triangles
 
       // resize the 'edgelist_srcs' and 'edgelsit_dst'
@@ -900,49 +875,44 @@ void k_truss(raft::handle_t const& handle,
       num_triangles.resize(last_edge_with_triangles_idx, handle.get_stream());
 
       auto invalid_edge_last_ =
-      thrust::stable_partition(handle.get_thrust_policy(),
-                               edge_triangle_count_pair_first,
-                               edge_triangle_count_pair_first + num_triangles.size(),
-                               [k] __device__(auto e) {
-                                 auto num_triangles = thrust::get<1>(e);
-                                 return num_triangles < k - 2;
-                               });
-    
-      num_invalid_edges = static_cast<size_t>(
-        thrust::distance(edge_triangle_count_pair_first, invalid_edge_last_));
+        thrust::stable_partition(handle.get_thrust_policy(),
+                                 edge_triangle_count_pair_first,
+                                 edge_triangle_count_pair_first + num_triangles.size(),
+                                 [k] __device__(auto e) {
+                                   auto num_triangles = thrust::get<1>(e);
+                                   return num_triangles < k - 2;
+                                 });
 
+      num_invalid_edges =
+        static_cast<size_t>(thrust::distance(edge_triangle_count_pair_first, invalid_edge_last_));
 
       // copy invalid edges
       resize_dataframe_buffer(invalid_edges_buffer, num_invalid_edges, handle.get_stream());
-      
+
       thrust::copy(handle.get_thrust_policy(),
-                  edge_first,
-                  edge_first + num_invalid_edges,
-                  get_dataframe_buffer_begin(invalid_edges_buffer));
-      
+                   edge_first,
+                   edge_first + num_invalid_edges,
+                   get_dataframe_buffer_begin(invalid_edges_buffer));
+
       // sort back the edges as those are needed later when running a binary tree
       thrust::sort_by_key(handle.get_thrust_policy(),
                           edge_first,
                           edge_first + edgelist_srcs.size(),
                           num_triangles.begin());
-
     }
 
     if (num_invalid_edges == edgelist_srcs.size()) {
       // return empty graph view
-      std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> empty_graph_view{std::nullopt};
+      std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> empty_graph_view{
+        std::nullopt};
       printf("\nreturning an empty graph");
       // FIXME: To be updated
       // return empty_graph_view;
-    }
-    else{
+    } else {
       // FIXME: To be updated
       // return cur_graph_view;
       printf("\nreturning a non empty graph with num_edges = %d\n", edgelist_srcs.size());
     }
-  
-    
-  
   }
 }
 

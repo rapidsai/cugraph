@@ -1051,7 +1051,6 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                    bool keep_min_value_edge = false);
 
-
 /**
  * @brief Count the number of triangles for each edge.
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
@@ -1062,12 +1061,8 @@ remove_multi_edges(raft::handle_t const& handle,
  * @param edgelist_srcs  List of source vertex ids
  * @param edgelist_dsts  List of destination vertex ids
  */
-template <typename vertex_t,
-          typename edge_t,
-          bool store_transposed,
-          bool multi_gpu>
-rmm::device_uvector<vertex_t>
-edge_triangle_count(
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> edgelist_srcs,
