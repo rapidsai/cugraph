@@ -33,6 +33,8 @@ _info = {
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "all_pairs_bellman_ford_path",
+        "all_pairs_bellman_ford_path_length",
         "all_pairs_shortest_path",
         "all_pairs_shortest_path_length",
         "ancestors",
@@ -162,6 +164,12 @@ _info = {
     },
     "additional_parameters": {
         # BEGIN: additional_parameters
+        "all_pairs_bellman_ford_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "all_pairs_bellman_ford_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         "eigenvector_centrality": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },

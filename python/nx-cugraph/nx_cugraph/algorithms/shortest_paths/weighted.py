@@ -28,8 +28,8 @@ __all__ = [
     # "single_source_bellman_ford",
     "single_source_bellman_ford_path",
     "single_source_bellman_ford_path_length",
-    # "all_pairs_bellman_ford_path",
-    # "all_pairs_bellman_ford_path_length",
+    "all_pairs_bellman_ford_path",
+    "all_pairs_bellman_ford_path_length",
     # "bellman_ford_predecessor_and_distance",
 ]
 
@@ -59,6 +59,14 @@ def single_source_bellman_ford_path_length(G, source, weight="weight", *, dtype=
     )
     mask = distances != np.finfo(distances.dtype).max
     return G._nodearrays_to_dict(node_ids[mask], distances[mask])
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+def all_pairs_bellman_ford_path_length(G, weight="weight", *, dtype=None):
+    # TODO PERF: batched bfs to compute many at once
+    G = _to_graph(G, weight, 1, np.float32)
+    for n in G:
+        yield (n, single_source_bellman_ford_path_length(G, n, weight, dtype=dtype))
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -100,3 +108,11 @@ def single_source_bellman_ford_path(G, source, weight="weight", *, dtype=None):
             paths[node] = [*pred_path, node]
         preds.extend(nodes & groups.keys())
     return paths
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+def all_pairs_bellman_ford_path(G, weight="weight", *, dtype=None):
+    # TODO PERF: batched bfs to compute many at once
+    G = _to_graph(G, weight, 1, np.float32)
+    for n in G:
+        yield (n, single_source_bellman_ford_path(G, n, weight, dtype=dtype))

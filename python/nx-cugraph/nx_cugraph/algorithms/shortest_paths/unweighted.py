@@ -70,6 +70,7 @@ def _single_shortest_path_length(G, source, cutoff, kind):
 @networkx_algorithm(version_added="24.04", _plc="bfs")
 def all_pairs_shortest_path_length(G, cutoff=None):
     # TODO PERF: batched bfs to compute many at once
+    G = _to_graph(G)
     for n in G:
         yield (n, single_source_shortest_path_length(G, n, cutoff))
 
@@ -173,5 +174,6 @@ def _single_shortest_path(G, source, cutoff, kind, reverse_path):
 @networkx_algorithm(version_added="24.04", _plc="bfs")
 def all_pairs_shortest_path(G, cutoff=None):
     # TODO PERF: batched bfs to compute many at once
+    G = _to_graph(G)
     for n in G:
         yield (n, single_source_shortest_path(G, n, cutoff))
