@@ -130,6 +130,19 @@ void find_unroll_p_r_and_q_r_edges(
       auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
       auto idx_lower = thrust::distance(
         dst_array_begin, itr_lower);  // Need a binary search to find the begining of the range
+      
+      thrust::tabulate(thrust::seq,
+                         incoming_edges_to_r + prefix_sum[idx],
+                         incoming_edges_to_r + prefix_sum[idx + 1],
+                         [incoming_vertex_pairs = incoming_vertex_pairs,
+                          dst                   = dst,
+                          src                   = src,
+                          idx,
+                          idx_lower = idx_lower](auto idx_in_segment) {
+                           return thrust::make_tuple(
+                             thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)),
+                             dst);
+                         });
 
       if (edge_type == 0) {
         thrust::tabulate(thrust::seq,
@@ -143,20 +156,6 @@ void find_unroll_p_r_and_q_r_edges(
                              thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)),
                              src);
                          });
-
-        thrust::tabulate(thrust::seq,
-                         incoming_edges_to_r + prefix_sum[idx],
-                         incoming_edges_to_r + prefix_sum[idx + 1],
-                         [incoming_vertex_pairs = incoming_vertex_pairs,
-                          dst                   = dst,
-                          src                   = src,
-                          idx,
-                          idx_lower = idx_lower](auto idx_in_segment) {
-                           return thrust::make_tuple(
-                             thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)),
-                             dst);
-                         });
-
       } else {
         thrust::tabulate(thrust::seq,
                          potential_closing_edges + prefix_sum[idx],
@@ -170,17 +169,6 @@ void find_unroll_p_r_and_q_r_edges(
                              thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)));
                          });
 
-        thrust::tabulate(thrust::seq,
-                         incoming_edges_to_r + prefix_sum[idx],
-                         incoming_edges_to_r + prefix_sum[idx + 1],
-                         [incoming_vertex_pairs = incoming_vertex_pairs,
-                          dst                   = dst,
-                          src                   = src,
-                          idx_lower             = idx_lower](auto idx_in_segment) {
-                           return thrust::make_tuple(
-                             thrust::get<1>(*(incoming_vertex_pairs + idx_lower + idx_in_segment)),
-                             dst);
-                         });
       }
     });
 
