@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,19 @@
 //
 #pragma once
 
+#include "utilities/graph_utils.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <utilities/graph_utils.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -52,17 +53,15 @@
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
 
-#include <cuda/functional>
-
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <limits>
 //
+#include "rw_traversals.hpp"
+
 #include <optional>
 #include <tuple>
 #include <type_traits>
-
-#include "rw_traversals.hpp"
 
 namespace cugraph {
 

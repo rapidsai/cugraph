@@ -15,18 +15,18 @@
  */
 #pragma once
 
-#include <prims/count_if_v.cuh>
-#include <prims/edge_bucket.cuh>
-#include <prims/extract_transform_e.cuh>
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/fill_edge_property.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_v.cuh>
-#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/update_v_frontier.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/count_if_v.cuh"
+#include "prims/edge_bucket.cuh"
+#include "prims/extract_transform_e.cuh"
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/transform_e.cuh"
+#include "prims/transform_reduce_v.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/update_v_frontier.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -34,11 +34,11 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <raft/core/handle.hpp>
+
 #include <thrust/functional.h>
 #include <thrust/optional.h>
 #include <thrust/reduce.h>
-
-#include <raft/core/handle.hpp>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of

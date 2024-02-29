@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>

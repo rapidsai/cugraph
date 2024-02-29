@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/property_op_utils.cuh>
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -33,6 +33,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
+#include <cuda/functional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -43,8 +44,6 @@
 #include <thrust/tabulate.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-
-#include <cuda/functional>
 
 #include <optional>
 #include <tuple>
