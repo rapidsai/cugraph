@@ -25,6 +25,7 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>

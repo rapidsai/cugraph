@@ -18,6 +18,7 @@
 #include <cugraph/algorithms.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <gtest/gtest.h>

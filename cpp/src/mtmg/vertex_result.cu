@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+#include "detail/graph_partition_utils.cuh"
+
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_result_view.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
-
-#include <detail/graph_partition_utils.cuh>
 
 #include <thrust/functional.h>
 #include <thrust/gather.h>

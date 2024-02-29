@@ -15,8 +15,9 @@
  */
 #pragma once
 
+#include "link_prediction/similarity_impl.cuh"
+
 #include <cugraph/algorithms.hpp>
-#include <link_prediction/similarity_impl.cuh>
 
 #include <raft/core/handle.hpp>
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <link_prediction/jaccard_impl.cuh>
+#include "link_prediction/jaccard_impl.cuh"
 
 namespace cugraph {
 

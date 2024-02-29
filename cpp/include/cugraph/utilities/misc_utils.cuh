@@ -15,18 +15,19 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/atomic>
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/optional.h>
-
-#include <cuda/functional>
 
 #include <optional>
 #include <tuple>

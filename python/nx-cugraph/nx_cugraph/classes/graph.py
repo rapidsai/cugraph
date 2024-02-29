@@ -634,8 +634,7 @@ class Graph:
                             "pylibcugraph only supports float16 and float32 dtypes."
                         )
                 elif (
-                    edge_array.dtype == np.uint64
-                    and edge_array.max().tolist() > 2**53
+                    edge_array.dtype == np.uint64 and edge_array.max().tolist() > 2**53
                 ):
                     raise ValueError(
                         f"Integer value of value is too large (> 2**53): {val}; "
