@@ -8,14 +8,14 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <utilities/base_fixture.hpp>
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <rmm/device_vector.hpp>
 
 #include <thrust/host_vector.h>
+
+#include <utilities/base_fixture.hpp>
 
 // FIXME:  Temporarily disable this test.  Something is wrong with
 //         ECG, or the expectation of this test.  If I run ensemble size
