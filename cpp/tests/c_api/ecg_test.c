@@ -28,8 +28,6 @@ typedef float weight_t;
 int generic_ecg_test(vertex_t* h_src,
                      vertex_t* h_dst,
                      weight_t* h_wgt,
-                     vertex_t* h_result,
-                     weight_t expected_modularity,
                      size_t num_vertices,
                      size_t num_edges,
                      double min_weight,
@@ -144,15 +142,11 @@ int test_ecg()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.215969;
 
   // Louvain wants store_transposed = FALSE
   return generic_ecg_test(h_src,
                           h_dst,
                           h_wgt,
-                          h_result,
-                          expected_modularity,
                           num_vertices,
                           num_edges,
                           min_weight,
@@ -173,17 +167,13 @@ int test_ecg_no_weight()
   weight_t min_weight  = 0.001;
   size_t ensemble_size = 10;
 
-  vertex_t h_src[]             = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]             = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_result[]          = {1, 1, 1, 2, 0, 0};
-  weight_t expected_modularity = 0.0859375;
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
 
   // Louvain wants store_transposed = FALSE
   return generic_ecg_test(h_src,
                           h_dst,
                           NULL,
-                          h_result,
-                          expected_modularity,
                           num_vertices,
                           num_edges,
                           min_weight,

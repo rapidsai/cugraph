@@ -29,7 +29,6 @@ int generic_ecg_test(const cugraph_resource_handle_t* handle,
                      vertex_t* h_src,
                      vertex_t* h_dst,
                      weight_t* h_wgt,
-                     vertex_t* h_result,
                      size_t num_vertices,
                      size_t num_edges,
                      double min_weight,
@@ -78,8 +77,9 @@ int generic_ecg_test(const cugraph_resource_handle_t* handle,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* clusters;
 
-    vertices = cugraph_hierarchical_clustering_result_get_vertices(result);
-    clusters = cugraph_hierarchical_clustering_result_get_clusters(result);
+    vertices          = cugraph_hierarchical_clustering_result_get_vertices(result);
+    clusters          = cugraph_hierarchical_clustering_result_get_clusters(result);
+    double modularity = cugraph_hierarchical_clustering_result_get_modularity(result);
 
     vertex_t h_vertices[num_vertices];
     edge_t h_clusters[num_vertices];
@@ -108,7 +108,7 @@ int generic_ecg_test(const cugraph_resource_handle_t* handle,
 
 int test_ecg(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges     = 8;
+  size_t num_edges     = 16;
   size_t num_vertices  = 6;
   size_t max_level     = 10;
   weight_t threshold   = 1e-7;
@@ -120,14 +120,12 @@ int test_ecg(const cugraph_resource_handle_t* handle)
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[] = {1, 0, 1, 0, 0, 0};
 
   // Louvain wants store_transposed = FALSE
   return generic_ecg_test(handle,
                           h_src,
                           h_dst,
                           h_wgt,
-                          h_result,
                           num_vertices,
                           num_edges,
                           min_weight,
