@@ -60,7 +60,7 @@ repos:
   - repo: local
     hooks:
       - id: nx-cugraph-readme-check
-        name: nx-cugraph-readme-check
+        name: nx-cugraph README updater
         entry: bash -c PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/scripts/update_readme.py ./python/nx-cugraph/README.md
         files: ^python/nx-cugraph/
         types: [python]
