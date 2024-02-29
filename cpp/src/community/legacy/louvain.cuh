@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@
 
 // #define TIMING
 
-#include <cugraph/legacy/graph.hpp>
-
-#include <converters/legacy/COOtoCSR.cuh>
-#include <utilities/graph_utils.cuh>
+#include "converters/legacy/COOtoCSR.cuh"
+#include "utilities/graph_utils.cuh"
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/legacy/graph.hpp>
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
