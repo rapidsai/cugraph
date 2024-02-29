@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 {% set version = environ['RAPIDS_PACKAGE_VERSION'].lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
@@ -28,7 +28,7 @@ requirements:
   run:
     - rapids-dask-dependency ={{ minor_version }}
     - numba >=0.57
-    - numpy >=1.21
+    - numpy >=1.23
     - python
     - pytorch >=2.0
     - cupy >=12.0.0
