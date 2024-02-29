@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -25,12 +26,12 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include <cuda_profiler_api.h>
 #include <thrust/copy.h>
 #include <thrust/extrema.h>
 #include <thrust/functional.h>
@@ -39,13 +40,14 @@
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 
+#include <cuda_profiler_api.h>
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <iostream>
 #include <limits>
 #include <tuple>
-#include <utilities/thrust_wrapper.hpp>
 #include <vector>
 
 struct MsBfs_Usecase {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include <c_api/error.hpp>
+#include "c_api/error.hpp"
+
 #include <cugraph_c/error.h>
 
 extern "C" const char* cugraph_error_message(const cugraph_error_t* error)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,18 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <memory>
-#include <utility>
-
-#include <ctime>
-#include <rmm/exec_policy.hpp>
-#include <thrust/transform.h>
-
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/sparse/solver/mst.cuh>
+
+#include <rmm/exec_policy.hpp>
+
+#include <thrust/transform.h>
+
+#include <ctime>
+#include <memory>
+#include <utility>
 
 namespace cugraph {
 

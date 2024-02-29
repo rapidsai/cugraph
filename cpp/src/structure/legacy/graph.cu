@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#include "utilities/graph_utils.cuh"
+
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <utilities/graph_utils.cuh>
 
 #include <raft/util/device_atomics.cuh>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
@@ -150,5 +152,6 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
 }  // namespace legacy
 }  // namespace cugraph
 
+#include "utilities/eidir_graph_utils.hpp"
+
 #include <cugraph/legacy/eidir_graph.hpp>
-#include <utilities/eidir_graph_utils.hpp>

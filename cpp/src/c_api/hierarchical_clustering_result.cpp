@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/community_algorithms.h>
+#include "c_api/hierarchical_clustering_result.hpp"
 
-#include <c_api/hierarchical_clustering_result.hpp>
+#include <cugraph_c/community_algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t*
 cugraph_hierarchical_clustering_result_get_vertices(
