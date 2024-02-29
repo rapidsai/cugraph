@@ -2057,12 +2057,11 @@ void triangle_count(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>>
-k_truss(raft::handle_t const& handle,
-        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-        edge_t k,
-        bool do_expensive_check = false);
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_t k,
+  bool do_expensive_check = false);
 
 /**
  * @brief     Compute Jaccard similarity coefficient
