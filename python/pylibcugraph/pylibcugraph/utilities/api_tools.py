@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,7 @@ import types
 experimental_prefix = "EXPERIMENTAL"
 
 
-def experimental_warning_wrapper(obj):
+def experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     Wrap obj in a function or class that prints a warning about it being
     "experimental" (ie. it is in the public API but subject to change or
@@ -31,6 +31,13 @@ def experimental_warning_wrapper(obj):
     public API so it can remain hidden while it is still experimental, but
     have a public name within the experimental namespace so it can be easily
     discovered and used.
+
+    obj_namespace_name can be passed in to make the warning message
+    clearer. For example, if the obj is the function sssp and is accessed as
+    part of a package like "pylibcugraph.experimental.sssp", obj_namespace_name
+    should be "pylibcugraph.experimental".  If obj_namespace_name is not
+    passed, the namespace will be found using inspect.stack(), which can be
+    expensive.
     """
     obj_type = type(obj)
     if not callable(obj):
@@ -40,16 +47,17 @@ def experimental_warning_wrapper(obj):
     obj_name = obj_name.lstrip(experimental_prefix)
     obj_name = obj_name.lstrip("__")
 
-    # Assume the caller of this function is the module containing the
-    # experimental obj and try to get its namespace name. Default to no
-    # namespace name if it could not be found.
-    call_stack = inspect.stack()
-    calling_frame = call_stack[1].frame
-    ns_name = calling_frame.f_locals.get("__name__")
-    dot = "." if ns_name is not None else ""
+    if obj_namespace_name is None:
+        # Assume the caller of this function is the module containing the
+        # experimental obj and try to get its namespace name. Default to no
+        # namespace name if it could not be found.
+        call_stack = inspect.stack()
+        calling_frame = call_stack[1].frame
+        obj_namespace_name = calling_frame.f_locals.get("__name__")
 
+    dot = "." if obj_namespace_name is not None else ""
     warning_msg = (
-        f"{ns_name}{dot}{obj_name} is experimental and will "
+        f"{obj_namespace_name}{dot}{obj_name} is experimental and may "
         "change or be removed in a future release."
     )
 
@@ -73,7 +81,7 @@ def experimental_warning_wrapper(obj):
                 else:
                     self = obj(*args, **kwargs)
 
-        WarningWrapperClass.__module__ = ns_name
+        WarningWrapperClass.__module__ = obj_namespace_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
         WarningWrapperClass.__doc__ = obj.__doc__
@@ -88,7 +96,7 @@ def experimental_warning_wrapper(obj):
         warnings.warn(warning_msg, PendingDeprecationWarning)
         return obj(*args, **kwargs)
 
-    warning_wrapper_function.__module__ = ns_name
+    warning_wrapper_function.__module__ = obj_namespace_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
     warning_wrapper_function.__doc__ = obj.__doc__
@@ -96,7 +104,7 @@ def experimental_warning_wrapper(obj):
     return warning_wrapper_function
 
 
-def promoted_experimental_warning_wrapper(obj):
+def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     Wrap obj in a function of class that prints a warning about it being
     close to being removed, prior to calling obj and returning its value.
@@ -106,6 +114,13 @@ def promoted_experimental_warning_wrapper(obj):
     same object. This wrapper is applied to the one with the "private" name,
     urging the user to instead use the one in the public API, which does not
     have the experimental namespace.
+
+    obj_namespace_name can be passed in to make the warning message
+    clearer. For example, if the obj is the function sssp and is accessed as
+    part of a package like "pylibcugraph.experimental.sssp", obj_namespace_name
+    should be "pylibcugraph.experimental".  If obj_namespace_name is not
+    passed, the namespace will be found using inspect.stack(), which can be
+    expensive.
     """
     obj_type = type(obj)
     if not callable(obj):
@@ -115,13 +130,17 @@ def promoted_experimental_warning_wrapper(obj):
     obj_name = obj_name.lstrip(experimental_prefix)
     obj_name = obj_name.lstrip("__")
 
-    call_stack = inspect.stack()
-    calling_frame = call_stack[1].frame
-    ns_name = calling_frame.f_locals.get("__name__")
-    dot = "." if ns_name is not None else ""
+    if obj_namespace_name is None:
+        # Assume the caller of this function is the module containing the
+        # experimental obj and try to get its namespace name. Default to no
+        # namespace name if it could not be found.
+        call_stack = inspect.stack()
+        calling_frame = call_stack[1].frame
+        obj_namespace_name = calling_frame.f_locals.get("__name__")
 
+    dot = "." if obj_namespace_name is not None else ""
     warning_msg = (
-        f"{ns_name}{dot}{obj_name} has been promoted out of "
+        f"{obj_namespace_name}{dot}{obj_name} has been promoted out of "
         "experimental. Use the non-experimental version instead, "
         "as this one will be removed in a future release."
     )
@@ -139,7 +158,7 @@ def promoted_experimental_warning_wrapper(obj):
                 else:
                     self = obj(*args, **kwargs)
 
-        WarningWrapperClass.__module__ = ns_name
+        WarningWrapperClass.__module__ = obj_namespace_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
 
@@ -150,33 +169,43 @@ def promoted_experimental_warning_wrapper(obj):
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
 
-    warning_wrapper_function.__module__ = ns_name
+    warning_wrapper_function.__module__ = obj_namespace_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
 
     return warning_wrapper_function
 
 
-def deprecated_warning_wrapper(obj):
+def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     """
     Wrap obj in a function or class that prints a warning about it being
     deprecated (ie. it is in the public API but will be removed or replaced
     by a refactored version), prior to calling obj and returning its value.
+
+    obj_namespace_name can be passed in to make the warning message
+    clearer. For example, if the obj is the function sssp and is accessed as
+    part of a package like "pylibcugraph.experimental.sssp", obj_namespace_name
+    should be "pylibcugraph.experimental".  If obj_namespace_name is not
+    passed, the namespace will be found using inspect.stack(), which can be
+    expensive.
     """
     obj_type = type(obj)
     if not callable(obj):
         raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
 
     obj_name = obj.__name__
-    call_stack = inspect.stack()
-    calling_frame = call_stack[1].frame
-    ns_name = calling_frame.f_locals.get("__name__")
-    dot = "." if ns_name is not None else ""
+    if obj_namespace_name is None:
+        # Assume the caller of this function is the module containing the
+        # deprecated obj and try to get its namespace name. Default to no
+        # namespace name if it could not be found.
+        call_stack = inspect.stack()
+        calling_frame = call_stack[1].frame
+        obj_namespace_name = calling_frame.f_locals.get("__name__")
 
+    dot = "." if obj_namespace_name is not None else ""
     warning_msg = (
-        f"{ns_name}{dot}{obj_name} has been deprecated and will "
-        "be removed next release. If an experimental version "
-        "exists, it may replace this version in a future release."
+        f"{obj_namespace_name}{dot}{obj_name} has been deprecated and will "
+        "be removed in a future release."
     )
 
     if obj_type is type:
@@ -192,7 +221,7 @@ def deprecated_warning_wrapper(obj):
                 else:
                     self = obj(*args, **kwargs)
 
-        WarningWrapperClass.__module__ = ns_name
+        WarningWrapperClass.__module__ = obj_namespace_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
 
@@ -203,7 +232,7 @@ def deprecated_warning_wrapper(obj):
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
 
-    warning_wrapper_function.__module__ = ns_name
+    warning_wrapper_function.__module__ = obj_namespace_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
 
