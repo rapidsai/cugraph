@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -12,19 +12,16 @@
 // strongly connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <components/legacy/scc_matrix.cuh>
-#include <converters/legacy/COOtoCSR.cuh>
+#include "components/legacy/scc_matrix.cuh"
+#include "converters/legacy/COOtoCSR.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <rmm/device_vector.hpp>
-
-#include <cuda_profiler_api.h>
 
 #include <thrust/device_vector.h>
 #include <thrust/distance.h>
@@ -35,6 +32,8 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
+
+#include <cuda_profiler_api.h>
 
 #include <algorithm>
 #include <iterator>

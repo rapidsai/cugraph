@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-#include <tuple>
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_utilities.hpp"
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
@@ -24,6 +23,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 #include <vector>
 
 // this function assumes that vertex IDs are not scrambled

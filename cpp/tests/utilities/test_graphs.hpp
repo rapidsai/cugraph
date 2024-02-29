@@ -15,6 +15,9 @@
  */
 #pragma once
 
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -22,9 +25,6 @@
 #include <cugraph/legacy/functions.hpp>  // legacy coo_to_csr
 
 #include <raft/random/rng_state.hpp>
-
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
 
 #include <memory>
 

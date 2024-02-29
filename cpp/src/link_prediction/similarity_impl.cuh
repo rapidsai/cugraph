@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <prims/count_if_e.cuh>
-#include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/error_check_utils.cuh>
+#include "prims/count_if_e.cuh"
+#include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>

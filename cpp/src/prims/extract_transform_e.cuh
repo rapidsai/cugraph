@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <prims/detail/extract_transform_v_frontier_e.cuh>
-#include <prims/property_op_utils.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/property_op_utils.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>

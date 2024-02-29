@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph_c/algorithms.h>
+#include "c_api/random.hpp"
 
-#include <c_api/abstract_functor.hpp>
-#include <c_api/error.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/random.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
+#include "c_api/abstract_functor.hpp"
+#include "c_api/error.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
+
+#include <cugraph_c/algorithms.h>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>

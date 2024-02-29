@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph_c/graph_generators.h>
+#include "c_api/array.hpp"
+#include "c_api/error.hpp"
+#include "c_api/random.hpp"
+#include "c_api/resource_handle.hpp"
 
-#include <c_api/array.hpp>
-#include <c_api/error.hpp>
-#include <c_api/random.hpp>
-#include <c_api/resource_handle.hpp>
+#include <cugraph_c/graph_generators.h>
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>

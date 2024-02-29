@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/centrality_result.hpp"
 
-#include <c_api/centrality_result.hpp>
+#include <cugraph_c/algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
   cugraph_centrality_result_t* result)

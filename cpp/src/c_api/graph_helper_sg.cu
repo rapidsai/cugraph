@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <c_api/graph_helper_impl.cuh>
+#include "c_api/graph_helper_impl.cuh"
 
 namespace cugraph {
 namespace c_api {

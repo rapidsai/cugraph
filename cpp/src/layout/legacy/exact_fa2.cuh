@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,21 @@
 
 #pragma once
 
-#include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
-
-#include <converters/legacy/COOtoCSR.cuh>
+#include "converters/legacy/COOtoCSR.cuh"
+#include "exact_repulsion.cuh"
+#include "fa2_kernels.cuh"
+#include "utils.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
+
 #include <thrust/fill.h>
 #include <thrust/reduce.h>
-
-#include "exact_repulsion.cuh"
-#include "fa2_kernels.cuh"
-#include "utils.hpp"
 
 namespace cugraph {
 namespace detail {

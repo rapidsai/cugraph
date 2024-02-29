@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/array.hpp"
 
-#include <c_api/array.hpp>
+#include <cugraph_c/algorithms.h>
 
 namespace cugraph {
 namespace c_api {

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/induced_subgraph_result.hpp"
 
-#include <c_api/induced_subgraph_result.hpp>
+#include <cugraph_c/algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
   cugraph_induced_subgraph_result_t* induced_subgraph)

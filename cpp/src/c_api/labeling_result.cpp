@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/labeling_algorithms.h>
+#include "c_api/labeling_result.hpp"
 
-#include <c_api/labeling_result.hpp>
+#include <cugraph_c/labeling_algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
   cugraph_labeling_result_t* result)

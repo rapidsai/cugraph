@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <c_api/generic_cascaded_dispatch.hpp>
-#include <c_api/graph.hpp>
+#include "c_api/generic_cascaded_dispatch.hpp"
+#include "c_api/graph.hpp"
 
 namespace cugraph {
 namespace c_api {

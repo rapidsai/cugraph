@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/resource_handle.h>
+#include "c_api/resource_handle.hpp"
 
-#include <c_api/resource_handle.hpp>
+#include <cugraph_c/resource_handle.h>
 
 extern "C" cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle)
 {

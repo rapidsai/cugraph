@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include <c_api/array.hpp>
-#include <c_api/error.hpp>
-#include <c_api/resource_handle.hpp>
+#include "c_api/array.hpp"
+
+#include "c_api/error.hpp"
+#include "c_api/resource_handle.hpp"
 
 namespace cugraph {
 namespace c_api {

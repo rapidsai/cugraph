@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/community_algorithms.h>
+#include "c_api/abstract_functor.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/graph_helper.hpp"
+#include "c_api/hierarchical_clustering_result.hpp"
+#include "c_api/random.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
 
-#include <c_api/abstract_functor.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/graph_helper.hpp>
-#include <c_api/hierarchical_clustering_result.hpp>
-#include <c_api/random.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
+#include <cugraph_c/community_algorithms.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>

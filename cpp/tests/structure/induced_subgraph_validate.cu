@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,19 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <structure/induced_subgraph_validate.hpp>
+#include "structure/induced_subgraph_validate.hpp"
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
-
-#include <gtest/gtest.h>
 
 #include <thrust/binary_search.h>
 #include <thrust/equal.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
+
+#include <gtest/gtest.h>
 
 template <typename vertex_t, typename weight_t>
 void induced_subgraph_validate(

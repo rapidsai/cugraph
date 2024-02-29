@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/community_algorithms.h>
+#include "c_api/hierarchical_clustering_result.hpp"
 
-#include <c_api/hierarchical_clustering_result.hpp>
+#include <cugraph_c/community_algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t*
 cugraph_hierarchical_clustering_result_get_vertices(

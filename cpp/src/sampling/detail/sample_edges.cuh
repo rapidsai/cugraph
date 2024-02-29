@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <prims/per_v_random_select_transform_outgoing_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>  // ??
-#include <prims/vertex_frontier.cuh>
-#include <structure/detail/structure_utils.cuh>
+#include "prims/per_v_random_select_transform_outgoing_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"  // ??
+#include "prims/vertex_frontier.cuh"
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -28,11 +28,11 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-
-#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {

@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <prims/detail/optional_dataframe_buffer.hpp>
-#include <prims/detail/prim_functors.cuh>
-#include <prims/property_op_utils.cuh>
+#include "prims/detail/optional_dataframe_buffer.hpp"
+#include "prims/detail/prim_functors.cuh"
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -33,6 +33,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
