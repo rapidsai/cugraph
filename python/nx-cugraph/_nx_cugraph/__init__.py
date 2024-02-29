@@ -114,6 +114,8 @@ _info = {
         "reciprocity",
         "reverse",
         "sedgewick_maze_graph",
+        "single_source_bellman_ford_path",
+        "single_source_bellman_ford_path_length",
         "single_source_shortest_path",
         "single_source_shortest_path_length",
         "single_target_shortest_path",
@@ -153,6 +155,8 @@ _info = {
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
+        "single_source_bellman_ford_path": "Negative cycles are not yet supported!",
+        "single_source_bellman_ford_path_length": "Negative cycles are not yet supported!",
         "transitivity": "Directed graphs are not yet supported.",
         # END: additional_docs
     },
@@ -172,6 +176,12 @@ _info = {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "pagerank": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_bellman_ford_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_bellman_ford_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         # END: additional_parameters

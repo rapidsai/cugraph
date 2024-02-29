@@ -99,6 +99,7 @@ def bidirectional_shortest_path(G, source, target):
     d = dict(zip(node_ids.tolist(), predecessors.tolist()))
     if dst_index not in d:
         raise nx.NetworkXNoPath(f"No path between {source} and {target}.")
+    # Consider making utility functions for creating paths
     cur = dst_index
     path = [dst_index]
     while cur != src_index:
@@ -142,16 +143,13 @@ def _single_shortest_path(G, source, cutoff, kind, reverse_path):
         do_expensive_check=False,
     )
     mask = distances != np.iinfo(distances.dtype).max
-    distances = distances[mask]
-    predecessors = predecessors[mask]
-    node_ids = node_ids[mask]
-    groups = _groupby(distances, [predecessors, node_ids])
+    groups = _groupby(distances[mask], [predecessors[mask], node_ids[mask]])
 
     # `pred_node_iter` does the equivalent as these nested for loops:
     # for distance in range(1, len(groups)):
     #     preds, nodes = groups[distance]
     #     for pred, node in zip(preds.tolist(), nodes.tolist()):
-    if G.id_to_key is None:
+    if G.key_to_id is None:
         pred_node_iter = concat(
             zip(*(x.tolist() for x in groups[distance]))
             for distance in range(1, len(groups))
@@ -161,6 +159,7 @@ def _single_shortest_path(G, source, cutoff, kind, reverse_path):
             zip(*(G._nodeiter_to_iter(x.tolist()) for x in groups[distance]))
             for distance in range(1, len(groups))
         )
+    # Consider making utility functions for creating paths
     paths = {source: [source]}
     if reverse_path:
         for pred, node in pred_node_iter:

@@ -36,7 +36,7 @@ def eigenvector_centrality(
     G, max_iter=100, tol=1.0e-6, nstart=None, weight=None, *, dtype=None
 ):
     """`nstart` parameter is not used, but it is checked for validity."""
-    G = _to_graph(G, weight, np.float32)
+    G = _to_graph(G, weight, 1, np.float32)
     if len(G) == 0:
         raise nx.NetworkXPointlessConcept(
             "cannot compute centrality for the null graph"

@@ -265,7 +265,11 @@ class BackendInterface:
                     )
 
         too_slow = "Too slow to run"
+        negative_cycle = "negative cycles are not yet handled"
         skip = {
+            key(
+                "test_weighted.py:TestBellmanFordAndGoldbergRadzik.test_negative_cycle"
+            ): negative_cycle,
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
             # These repeatedly call `bfs_layers`, which converts the graph every call

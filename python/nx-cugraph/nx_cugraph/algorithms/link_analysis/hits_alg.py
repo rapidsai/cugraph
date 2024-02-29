@@ -46,7 +46,7 @@ def hits(
     weight="weight",
     dtype=None,
 ):
-    G = _to_graph(G, weight, np.float32)
+    G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}, {}
     if dtype is not None:
