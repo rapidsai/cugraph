@@ -136,6 +136,34 @@ int test_ecg(const cugraph_resource_handle_t* handle)
                           FALSE);
 }
 
+int test_ecg_no_weight(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges     = 16;
+  size_t num_vertices  = 6;
+  size_t max_level     = 10;
+  weight_t threshold   = 1e-7;
+  weight_t resolution  = 1.0;
+  weight_t min_weight  = 0.001;
+  size_t ensemble_size = 10;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+
+  // Louvain wants store_transposed = FALSE
+  return generic_ecg_test(handle,
+                          h_src,
+                          h_dst,
+                          NULL,
+                          num_vertices,
+                          num_edges,
+                          min_weight,
+                          ensemble_size,
+                          max_level,
+                          threshold,
+                          resolution,
+                          FALSE);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
