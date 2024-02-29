@@ -67,7 +67,7 @@ Example
     pr_df = dask_cugraph.pagerank(G, tol=1e-4)
 
     # need to call compute to generate results
-    pr_def.compute()
+    pr_df.compute()
 
     # cluster clean up
     Comms.destroy()
