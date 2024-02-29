@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,17 +41,17 @@ cdef extern from "cugraph_c/labeling_algorithms.h":
         cugraph_labeling_result_get_vertices(
             cugraph_labeling_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_labeling_result_get_labels(
             cugraph_labeling_result_t* result
         )
-    
+
     cdef void \
         cugraph_labeling_result_free(
             cugraph_labeling_result_t* result
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_weakly_connected_components(
             const cugraph_resource_handle_t* handle,
@@ -60,4 +60,3 @@ cdef extern from "cugraph_c/labeling_algorithms.h":
             cugraph_labeling_result_t** result,
             cugraph_error_t** error
         )
-    

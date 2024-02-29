@@ -1,7 +1,7 @@
 
 # Getting cuGraph Packages
 
-Start by reading the [RAPIDS Instalation guide](https://docs.rapids.ai/install)  
+Start by reading the [RAPIDS Instalation guide](https://docs.rapids.ai/install)
 and checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
 
 
@@ -55,4 +55,3 @@ pip install cugraph-cu11 --extra-index-url=https://pypi.ngc.nvidia.com
 pip packages for other packages are being worked and should be available in early 2023
 
 <br>
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -791,4 +791,3 @@ extern "C" int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t*
 
   return CUGRAPH_SUCCESS;
 }
-

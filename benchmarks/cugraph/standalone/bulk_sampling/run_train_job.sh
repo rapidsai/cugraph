@@ -16,7 +16,7 @@
 #SBATCH -p luna
 #SBATCH -J datascience_rapids_cugraphgnn-papers:bulkSamplingPyG
 #SBATCH -N 1
-#SBATCH -t 00:25:00 
+#SBATCH -t 00:25:00
 
 CONTAINER_IMAGE=${CONTAINER_IMAGE:="please_specify_container"}
 SCRIPTS_DIR=$(pwd)
@@ -81,4 +81,3 @@ srun \
             --fanout $FANOUT \
             --replication_factor $REPLICATION_FACTOR \
             --num_epochs $NUM_EPOCHS
-

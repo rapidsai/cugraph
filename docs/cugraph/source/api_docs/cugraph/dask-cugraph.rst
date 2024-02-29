@@ -48,12 +48,12 @@ Example
     )
     input_data.to_csv(input_data_path, index=False)
 
-    # helper function to set the reader chunk size to automatically get one partition per GPU  
+    # helper function to set the reader chunk size to automatically get one partition per GPU
     chunksize = dask_cugraph.get_chunksize(input_data_path)
 
     # multi-GPU CSV reader
     e_list = dask_cudf.read_csv(
-        input_data_path, 
+        input_data_path,
         chunksize=chunksize,
         names=['src', 'dst'],
         dtype=['int32', 'int32'],

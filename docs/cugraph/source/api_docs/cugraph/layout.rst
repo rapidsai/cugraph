@@ -10,4 +10,3 @@ Force Atlas 2
    :toctree: ../api/cugraph/
 
    cugraph.force_atlas2
-

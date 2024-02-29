@@ -5,8 +5,8 @@ The RAPIDS cuGraph Similarity folder contain a collection of Jupyter Notebooks t
 Results of Similarity algorithms are often used to answer questions like:
 * Could two vertices be duplicates or aliases of the same actor?
 * Can we predict missing edges based of the similarity between two nodes?
-* Are multiple similar communities within the graph? 
-* Can I create recommendations based on the similarity between vertices in the graph. 
+* Are multiple similar communities within the graph?
+* Can I create recommendations based on the similarity between vertices in the graph.
 
 
 Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
