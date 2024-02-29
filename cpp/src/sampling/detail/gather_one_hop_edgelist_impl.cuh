@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/vertex_frontier.cuh>
-#include <structure/detail/structure_utils.cuh>
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/vertex_frontier.cuh"
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -28,10 +28,10 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
-
-#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {

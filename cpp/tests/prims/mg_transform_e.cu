@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
+#include "prims/count_if_e.cuh"
+#include "prims/edge_bucket.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/transform_e.cuh"
 #include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/count_if_e.cuh>
-#include <prims/edge_bucket.cuh>
-#include <prims/fill_edge_property.cuh>
-#include <prims/transform_e.cuh>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -34,17 +32,19 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
+
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
 

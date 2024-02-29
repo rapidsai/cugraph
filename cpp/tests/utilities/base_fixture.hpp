@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <utilities/cxxopts.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
+#include "utilities/cxxopts.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/utilities/error.hpp>
 

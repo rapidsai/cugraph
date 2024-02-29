@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/detail/prim_functors.cuh>
-#include <prims/fill_edge_src_dst_property.cuh>
-#include <prims/property_op_utils.cuh>
-#include <prims/reduce_op.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/detail/prim_functors.cuh"
+#include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/property_op_utils.cuh"
+#include "prims/reduce_op.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -36,9 +36,11 @@
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/functional>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
@@ -51,8 +53,6 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
-
-#include <cuda/functional>
 
 #include <numeric>
 #include <type_traits>

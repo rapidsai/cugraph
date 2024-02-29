@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,10 @@
 #pragma once
 
 #include "bh_kernels.cuh"
+#include "converters/legacy/COOtoCSR.cuh"
 #include "fa2_kernels.cuh"
+#include "utilities/graph_utils.cuh"
 #include "utils.hpp"
-
-#include <converters/legacy/COOtoCSR.cuh>
-#include <utilities/graph_utils.cuh>
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>

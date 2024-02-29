@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <c_api/capi_helper.hpp>
-#include <structure/detail/structure_utils.cuh>
+#include "c_api/capi_helper.hpp"
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/misc_utils.cuh>

@@ -8,7 +8,7 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <utilities/base_fixture.hpp>
+#include "utilities/base_fixture.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>

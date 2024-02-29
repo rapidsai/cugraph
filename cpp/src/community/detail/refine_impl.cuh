@@ -15,22 +15,24 @@
  */
 #pragma once
 
-#include <community/detail/common_methods.hpp>
-#include <community/mis.hpp>
+#include "common_methods.hpp"
+#include "community/mis.hpp"
+#include "detail/graph_partition_utils.cuh"
+#include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
+#include "prims/transform_reduce_e_by_src_dst_key.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/collect_comm.cuh"
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <detail/graph_partition_utils.cuh>
-#include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e.cuh>
-#include <prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/collect_comm.cuh>
 
 #include <raft/random/rng_device.cuh>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -45,8 +47,6 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-
-#include <cuda/functional>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)

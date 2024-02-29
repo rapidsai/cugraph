@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/detail/extract_transform_v_frontier_e.cuh>
-#include <prims/property_op_utils.cuh>
-#include <prims/reduce_op.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/property_op_utils.cuh"
+#include "prims/reduce_op.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -35,6 +35,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 

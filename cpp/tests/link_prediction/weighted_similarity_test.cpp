@@ -13,12 +13,12 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <link_prediction/similarity_compare.hpp>
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
+#include "link_prediction/similarity_compare.hpp"
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>

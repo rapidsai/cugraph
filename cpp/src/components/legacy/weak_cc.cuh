@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,24 @@
  */
 #pragma once
 
+#include "utils.h"
+
+#include <raft/util/cudart_utils.hpp>
+#include <raft/util/device_atomics.cuh>
+
+#include <rmm/device_vector.hpp>
+
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 #include <thrust/swap.h>
 
 #include <cuda_runtime.h>
+
 #include <stdio.h>
 
 #include <iomanip>
 #include <iostream>
 #include <type_traits>
-
-#include <raft/util/cudart_utils.hpp>
-#include <raft/util/device_atomics.cuh>
-
-#include "utils.h"
-#include <rmm/device_vector.hpp>
 
 namespace MLCommon {
 

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
  */
 #pragma once
 
-#include <community/mis.hpp>
-#include <prims/fill_edge_src_dst_property.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
+#include "community/mis.hpp"
+#include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -27,6 +27,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <cuda/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -36,8 +37,6 @@
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-
-#include <cuda/functional>
 
 #include <cmath>
 
