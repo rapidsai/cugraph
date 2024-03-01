@@ -52,11 +52,11 @@ struct update_edges_p_r_q_r_num_triangles {
   const edge_t edge_first_or_second{};
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
-  raft::device_span<vertex_t> num_triangles{};
+  raft::device_span<edge_t> num_triangles{};
 
   EdgeIterator edge_first{};
 
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(size_t i) const
+  __device__ void operator()(size_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
@@ -71,6 +71,8 @@ struct update_edges_p_r_q_r_num_triangles {
                             edge_first,
                             edge_first + num_edges,  // pass the number of vertex pairs
                             p_r_pair);
+      
+      assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
     } else {
       auto p_r_pair =
@@ -82,16 +84,16 @@ struct update_edges_p_r_q_r_num_triangles {
                             edge_first,
                             edge_first + num_edges,  // pass the number of vertex pairs
                             p_r_pair);
-
+      assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
     }
-    cuda::atomic_ref<vertex_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
-    auto r = atomic_counter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
+    cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
+    auto r = atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
   }
 };
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> edge_triangle_count_impl(
+std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> edgelist_srcs,
@@ -110,7 +112,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> edge_triangle_count_
                              std::array<bool, 2>{true, true},
                              false /*FIXME: pass 'do_expensive_check' as argument*/);
 
-  rmm::device_uvector<vertex_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
+  rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
 
   // Update the number of triangles of each (p, q) edges by looking at their intersection
   // size
@@ -132,7 +134,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> edge_triangle_count_
       0,
       raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
       raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-      raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+      raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
       edge_first});
 
   thrust::for_each(
@@ -144,7 +146,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> edge_triangle_count_
       1,
       raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
       raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-      raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+      raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
       edge_first});
 
   // rmm::device_uvector<vertex_t> num_triangles(
@@ -155,7 +157,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> edge_triangle_count_
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<vertex_t> edge_triangle_count(
+rmm::device_uvector<edge_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> edgelist_srcs,

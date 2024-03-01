@@ -47,7 +47,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
-  raft::device_span<vertex_t> num_triangles{};
+  raft::device_span<edge_t> num_triangles{};
   EdgeIterator edge_unrolled{};
   EdgeIterator edge_first{};
   EdgeIterator edge_last{};
@@ -59,10 +59,11 @@ struct unroll_edge {
                                    thrust::get<0>(*(edge_unrolled + i)));
     // Find its position in 'edges'
     auto itr = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
+    assert(*itr == pair);
 
     auto idx = thrust::distance(edge_first, itr);
-    cuda::atomic_ref<vertex_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
-    auto r = atomic_counter.fetch_sub(vertex_t{1}, cuda::std::memory_order_relaxed);
+    cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
+    auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
   }
 };
 
@@ -80,7 +81,7 @@ void find_unroll_p_r_and_q_r_edges(
     0, rmm::cuda_stream_view{}))&& invalid_edges_buffer,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  rmm::device_uvector<vertex_t>&& num_triangles,
+  rmm::device_uvector<edge_t>&& num_triangles,
   EdgeIterator incoming_vertex_pairs,
   EdgeTriangleCountIterator edge_triangle_count_pair_first)
 {
@@ -222,7 +223,7 @@ void find_unroll_p_r_and_q_r_edges(
                    thrust::make_counting_iterator<edge_t>(0),
                    thrust::make_counting_iterator<edge_t>(num_edge_exists),
                    unroll_edge<vertex_t, edge_t, decltype(incoming_vertex_pairs)>{
-                     raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                     raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                      get_dataframe_buffer_begin(potential_closing_edges),
                      incoming_vertex_pairs,
                      incoming_vertex_pairs_last});
@@ -231,7 +232,7 @@ void find_unroll_p_r_and_q_r_edges(
                    thrust::make_counting_iterator<edge_t>(0),
                    thrust::make_counting_iterator<edge_t>(num_edge_exists),
                    unroll_edge<vertex_t, edge_t, decltype(incoming_vertex_pairs)>{
-                     raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                     raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                      get_dataframe_buffer_begin(incoming_edges_to_r),
                      incoming_vertex_pairs,
                      incoming_vertex_pairs_last});
@@ -733,7 +734,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                          get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
                          edge_first,
                          edge_last,
@@ -764,7 +765,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(num_edge_exists),
                        unroll_edge<vertex_t, edge_t, decltype(edge_first)>{
-                         raft::device_span<vertex_t>(num_triangles.data(), num_triangles.size()),
+                         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                          get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
                          edge_first,
                          edge_last,
