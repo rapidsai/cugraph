@@ -112,6 +112,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
                              std::array<bool, 2>{true, true},
                              false /*FIXME: pass 'do_expensive_check' as argument*/);
 
+  // FIXME: invalid type for unsigned integers.
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
 
   // Update the number of triangles of each (p, q) edges by looking at their intersection
@@ -149,8 +150,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
       raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
       edge_first});
 
-  // rmm::device_uvector<vertex_t> num_triangles(
-  //   2, handle.get_stream());
   return num_triangles;
 }
 

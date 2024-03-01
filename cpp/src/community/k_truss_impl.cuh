@@ -48,7 +48,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
-  raft::device_span<edge_t> num_triangles{};
+  raft::device_span<edge_t> num_triangles{};  // FIXME: invalid type for unsigned integers
   EdgeIterator edge_unrolled{};
   EdgeIterator transposed_edge_first{};
   EdgeIterator edge_last{};
