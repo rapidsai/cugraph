@@ -84,6 +84,10 @@ void find_unroll_p_r_and_q_r_edges(
   EdgeIterator incoming_vertex_pairs,
   EdgeTriangleCountIterator edge_triangle_count_pair_first)
 {
+  printf("\ninvalid edge buffer\n");
+  raft::print_device_vector("src", std::get<0>(invalid_edges_buffer).data(), std::get<0>(invalid_edges_buffer).size(), std::cout);
+  raft::print_device_vector("dst", std::get<1>(invalid_edges_buffer).data(), std::get<1>(invalid_edges_buffer).size(), std::cout);
+  printf("\n");
   auto num_edges = edgelist_dsts.size();
   rmm::device_uvector<vertex_t> prefix_sum(num_invalid_edges + 1, handle.get_stream());
   thrust::tabulate(
@@ -172,6 +176,13 @@ void find_unroll_p_r_and_q_r_edges(
       }
     });
 
+  printf("\npotential - incoming before\n");
+  raft::print_device_vector("***potential_closing_edges - src", std::get<0>(potential_closing_edges).data(), std::get<0>(potential_closing_edges).size(), std::cout);
+  raft::print_device_vector("***potential_closing_edges - dst", std::get<1>(potential_closing_edges).data(), std::get<1>(potential_closing_edges).size(), std::cout);
+  raft::print_device_vector("***incoming edges to r     - src", std::get<0>(incoming_edges_to_r).data(), std::get<0>(incoming_edges_to_r).size(), std::cout);
+  raft::print_device_vector("***incoming edges to r     - dst", std::get<1>(incoming_edges_to_r).data(), std::get<1>(incoming_edges_to_r).size(), std::cout);
+  printf("\n\n");
+
   auto edges_exist = graph_view.has_edge(
     handle,
     raft::device_span<vertex_t const>(std::get<0>(potential_closing_edges).data(),
@@ -199,6 +210,13 @@ void find_unroll_p_r_and_q_r_edges(
   resize_dataframe_buffer(potential_closing_edges, num_edge_exists, handle.get_stream());
   resize_dataframe_buffer(incoming_edges_to_r, num_edge_exists, handle.get_stream());
 
+  printf("\npotential - incoming after\n");
+  raft::print_device_vector("***potential_closing_edges - src", std::get<0>(potential_closing_edges).data(), std::get<0>(potential_closing_edges).size(), std::cout);
+  raft::print_device_vector("***potential_closing_edges - dst", std::get<1>(potential_closing_edges).data(), std::get<1>(potential_closing_edges).size(), std::cout);
+  raft::print_device_vector("***incoming edges to r     - src", std::get<0>(incoming_edges_to_r).data(), std::get<0>(incoming_edges_to_r).size(), std::cout);
+  raft::print_device_vector("***incoming edges to r     - dst", std::get<1>(incoming_edges_to_r).data(), std::get<1>(incoming_edges_to_r).size(), std::cout);
+  printf("\n\n");
+
   auto incoming_vertex_pairs_last = incoming_vertex_pairs + num_edges;
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<edge_t>(0),
@@ -217,6 +235,12 @@ void find_unroll_p_r_and_q_r_edges(
                      get_dataframe_buffer_begin(incoming_edges_to_r),
                      incoming_vertex_pairs,
                      incoming_vertex_pairs_last});
+  
+  printf("\nafter unrolling\n");
+  raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+  raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+  raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+  printf("\n");
 
   // Put edges with triangle count == 0 in the second partition
   // FIXME: revisit all the 'stable_partition' and only used them
@@ -239,6 +263,12 @@ void find_unroll_p_r_and_q_r_edges(
   edgelist_srcs.resize(last_edge_with_triangles_idx, handle.get_stream());
   edgelist_dsts.resize(last_edge_with_triangles_idx, handle.get_stream());
   num_triangles.resize(last_edge_with_triangles_idx, handle.get_stream());
+
+  printf("\nafter resizing and removing edges with no triangles\n");
+  raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+  raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+  raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+  printf("\n");
 }
 
 namespace {
@@ -354,7 +384,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
   }
 
   // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core
-
+  /*
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
@@ -412,11 +442,29 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
     }
     renumber_map = std::move(tmp_renumber_map);
   }
+  */
 
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
+
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+
+    // FIXME: REmove this**********************************************************************************
+    rmm::device_uvector<vertex_t> srcs_(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts_(0, handle.get_stream());
+
+    std::tie(srcs_, dsts_, std::ignore, std::ignore) = decompress_to_edgelist(
+      handle,
+      cur_graph_view,
+      std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    
+    printf("\nOriginal graph\n");
+    raft::print_device_vector("srcs", srcs_.data(), srcs_.size(), std::cout);
+    raft::print_device_vector("dsts", dsts_.data(), dsts_.size(), std::cout);
+    //*****************************************************************************************************
 
     auto vertex_partition_range_lasts =
       renumber_map
@@ -497,6 +545,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
     auto edge_triangle_count_pair_first =
       thrust::make_zip_iterator(edge_first, num_triangles.begin());
+    
+
+    printf("\nreduced edges from original\n");
+    raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+    raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+    raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+    printf("\n");
 
     // Note: ensure 'edges_with_triangles' and 'cur_graph_view' have the same transpose flag
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_with_triangles(handle);
@@ -518,6 +573,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                    auto num_triangles = thrust::get<1>(e);
                                    return num_triangles > 0;
                                  });
+      
+      printf("\before removing edges with no triangles\n");
+      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+      printf("\n");
 
       num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(edge_triangle_count_pair_first, edges_with_triangle_last));
@@ -525,6 +586,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
       edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
       num_triangles.resize(num_edges_with_triangles, handle.get_stream());
+
+      printf("\nafter removing edges with no triangles\n");
+      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+      printf("\n");
 
       // 'invalid_edge_first' marks the beginning of the edges to be removed
       auto invalid_edge_first =
@@ -538,6 +605,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       num_invalid_edges = static_cast<size_t>(thrust::distance(
         invalid_edge_first, edge_triangle_count_pair_first + edgelist_srcs.size()));
+      
+      printf("\nnumber of invalid edges = %d\n", num_invalid_edges);
+      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+      printf("\n");
 
       if (num_invalid_edges == 0) { break; }
 
@@ -558,12 +631,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       edgelist_srcs.resize(num_valid_edges, handle.get_stream());
       edgelist_dsts.resize(num_valid_edges, handle.get_stream());
       num_triangles.resize(num_valid_edges, handle.get_stream());
-
-      // sort back the edge as those are needed later when running a binary tree
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          edge_first,
-                          edge_first + edgelist_srcs.size(),
-                          num_triangles.begin());
 
       // case 2: unroll (q, r)
       // FIXME: Update the num_edges when removing edges
@@ -601,7 +668,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                                     edge_triangle_count_pair_first);
 
       edges_with_triangles.clear();  // FIXME: is this needed?
-
       edges_with_triangles.insert(
         edgelist_srcs.begin(), edgelist_srcs.begin(), edgelist_dsts.end());
 
@@ -653,6 +719,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                             intersection_indices.size()),
           get_dataframe_buffer_begin(invalid_edges_buffer)});
 
+      printf("\nbefore unrolling p_q\n");
+      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+
+      raft::print_device_vector("p_r", std::get<0>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_p_r_edge_p_q).size(), std::cout);
+      raft::print_device_vector("p_r", std::get<1>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<1>(vertex_pair_buffer_p_r_edge_p_q).size(), std::cout);
+
       auto edge_last       = edge_first + edgelist_srcs.size();
       auto num_edge_exists = accumulate_pair_size;
       thrust::for_each(handle.get_thrust_policy(),
@@ -682,6 +756,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                             intersection_indices.size()),
           get_dataframe_buffer_begin(invalid_edges_buffer)  // FIXME: verify this is accurate
         });
+      
+      raft::print_device_vector("q_r", std::get<0>(vertex_pair_buffer_q_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_q).size(), std::cout);
+      raft::print_device_vector("q_r", std::get<1>(vertex_pair_buffer_q_r_edge_p_q).data(), std::get<1>(vertex_pair_buffer_q_r_edge_p_q).size(), std::cout);
 
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<edge_t>(0),
@@ -692,56 +769,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                          edge_first,
                          edge_last,
                        });
+      
+      printf("\nafter unrolling p_q\n");
+      raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+      raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+      raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
 
-      // Put edges with triangle count == 0 in the second partition
-      // FIXME: revisit all the 'stable_partition' and only used them
-      // when necessary otherwise simply call 'thrust::partition'
-      // Stable_parition is needed because we want to keep src and dst sorted
-      // so that we don't need to sort it again.
-      auto last_edge_with_triangles =
-        thrust::stable_partition(handle.get_thrust_policy(),
-                                 edge_triangle_count_pair_first,
-                                 edge_triangle_count_pair_first + edgelist_srcs.size(),
-                                 [] __device__(auto edge_to_num_triangles) {
-                                   return thrust::get<1>(edge_to_num_triangles) > 0;
-                                 });
-
-      auto last_edge_with_triangles_idx =
-        thrust::distance(edge_triangle_count_pair_first, last_edge_with_triangles);
-
-      // resize the 'edgelist_srcs' and 'edgelsit_dst'
-      edgelist_srcs.resize(last_edge_with_triangles_idx, handle.get_stream());
-      edgelist_dsts.resize(last_edge_with_triangles_idx, handle.get_stream());
-      num_triangles.resize(last_edge_with_triangles_idx, handle.get_stream());
-
-      auto invalid_edge_last_p_q =
-        thrust::stable_partition(handle.get_thrust_policy(),
-                                 edge_triangle_count_pair_first,
-                                 edge_triangle_count_pair_first + num_triangles.size(),
-                                 [k] __device__(auto e) {
-                                   auto num_triangles = thrust::get<1>(e);
-                                   return num_triangles < k - 2;
-                                 });
-
-      num_invalid_edges = static_cast<size_t>(
-        thrust::distance(edge_triangle_count_pair_first, invalid_edge_last_p_q));
-
-      // copy invalid edges
-      resize_dataframe_buffer(invalid_edges_buffer, num_invalid_edges, handle.get_stream());
-
-      thrust::copy(handle.get_thrust_policy(),
-                   edge_first,
-                   edge_first + num_invalid_edges,
-                   get_dataframe_buffer_begin(invalid_edges_buffer));
-
-      // sort back the edges as those are needed later when running a binary tree
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          edge_first,
-                          edge_first + edgelist_srcs.size(),
-                          num_triangles.begin());
-
-      return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
     }
+  printf("\n*********final results*********\n");
+  raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+  raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+  raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
+  printf("\nthe number of edges = %d\n", edgelist_srcs.size());
+  return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
   }
 }
 }  // namespace cugraph
