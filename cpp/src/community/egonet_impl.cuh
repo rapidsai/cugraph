@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 // #define TIMING
 
-#include <utilities/graph_utils.cuh>
+#include "utilities/graph_utils.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -33,7 +33,6 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <ctime>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
@@ -42,6 +41,7 @@
 #include <thrust/transform.h>
 
 #include <cstddef>
+#include <ctime>
 #include <memory>
 #include <numeric>
 #include <tuple>

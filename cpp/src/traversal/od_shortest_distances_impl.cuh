@@ -15,16 +15,16 @@
  */
 #pragma once
 
-#include <prims/count_if_e.cuh>
-#include <prims/fill_edge_src_dst_property.cuh>
-#include <prims/key_store.cuh>
-#include <prims/kv_store.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e.cuh>
-#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/update_v_frontier.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/count_if_e.cuh"
+#include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/key_store.cuh"
+#include "prims/kv_store.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/update_v_frontier.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>

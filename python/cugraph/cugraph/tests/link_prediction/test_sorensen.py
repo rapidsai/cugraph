@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,6 @@ import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import netscience
 from cudf.testing import assert_series_equal
-from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -58,37 +57,29 @@ def compare_sorensen_two_hop(G, Gnx, use_weight=False):
 
     # print(f'G = {G.edgelist.edgelist_df}')
 
-    df = cugraph.sorensen(G, pairs)
+    df = cugraph.sorensen(G, pairs, use_weight=use_weight)
     df = df.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
         drop=True
     )
 
-    if not use_weight:
-        nx_pairs = list(pairs.to_records(index=False))
+    nx_pairs = list(pairs.to_records(index=False))
 
-        # print(f'nx_pairs = {len(nx_pairs)}')
+    # print(f'nx_pairs = {len(nx_pairs)}')
 
-        preds = nx.jaccard_coefficient(Gnx, nx_pairs)
+    preds = nx.jaccard_coefficient(Gnx, nx_pairs)
 
-        # FIXME: Use known correct values of Sorensen for few graphs,
-        # hardcode it and compare to Cugraph Sorensen to get a more robust test
+    # FIXME: Use known correct values of Sorensen for few graphs,
+    # hardcode it and compare to Cugraph Sorensen to get a more robust test
 
-        # Conversion from Networkx Jaccard to Sorensen
-        # No networkX equivalent
+    # Conversion from Networkx Jaccard to Sorensen
+    # No networkX equivalent
 
-        nx_coeff = list(map(lambda x: (2 * x[2]) / (1 + x[2]), preds))
+    nx_coeff = list(map(lambda x: (2 * x[2]) / (1 + x[2]), preds))
 
-        assert len(nx_coeff) == len(df)
-        for i in range(len(df)):
-            diff = abs(nx_coeff[i] - df[SORENSEN_COEFF_COL].iloc[i])
-            assert diff < 1.0e-6
-    else:
-        # FIXME: compare results against resultset api
-        res_w_sorensen = cugraph.sorensen_w(G, vertex_pair=pairs)
-        res_w_sorensen = res_w_sorensen.sort_values(
-            [VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]
-        ).reset_index(drop=True)
-        assert_frame_equal(res_w_sorensen, df, check_dtype=False, check_like=True)
+    assert len(nx_coeff) == len(df)
+    for i in range(len(df)):
+        diff = abs(nx_coeff[i] - df[SORENSEN_COEFF_COL].iloc[i])
+        assert diff < 1.0e-6
 
 
 def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False):

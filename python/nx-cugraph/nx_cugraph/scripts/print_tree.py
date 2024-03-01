@@ -12,29 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
-import re
 import sys
 
-import networkx as nx
-
-from nx_cugraph.scripts.print_table import get_path_to_info
+from nx_cugraph.scripts.print_table import Info, get_path_to_info
 
 
-def add_branch(G, path, extra="", *, skip=0):
-    branch = path.split(".")
-    prev = ".".join(branch[: skip + 1])
-    for i in range(skip + 2, len(branch)):
-        cur = ".".join(branch[:i])
-        G.add_edge(prev, cur)
-        prev = cur
-    if extra:
-        if not isinstance(extra, str):
-            extra = ", ".join(extra)
-        path += f" ({extra})"
-    G.add_edge(prev, path)
+def assoc_in(d, keys, value):
+    """Like Clojure's assoc-in, but modifies d in-place."""
+    inner = d
+    keys = iter(keys)
+    key = next(keys)
+    for next_key in keys:
+        if key not in inner:
+            inner[key] = {}
+        inner = inner[key]
+        key = next_key
+    inner[key] = value
+    return d
 
 
-def get_extra(
+def default_get_payload_internal(keys):
+    return keys[-1]
+
+
+def tree_lines(
+    tree,
+    parents=(),
+    are_levels_closing=(),
+    get_payload_internal=default_get_payload_internal,
+):
+    pre = "".join(
+        "    " if is_level_closing else " │  "
+        for is_level_closing in are_levels_closing
+    )
+    c = "├"
+    are_levels_closing += (False,)
+    for i, (key, val) in enumerate(tree.items(), 1):
+        if i == len(tree):  # Last item
+            c = "└"
+            are_levels_closing = are_levels_closing[:-1] + (True,)
+        if isinstance(val, str):
+            yield pre + f" {c}─ " + val
+        else:
+            yield pre + f" {c}─ " + get_payload_internal((*parents, key))
+            yield from tree_lines(
+                val,
+                (*parents, key),
+                are_levels_closing,
+                get_payload_internal=get_payload_internal,
+            )
+
+
+def get_payload(
     info,
     *,
     networkx_path=False,
@@ -64,7 +93,10 @@ def get_extra(
         extra.append("is-incomplete")
     if different and info.is_different:
         extra.append("is-different")
-    return extra
+    extra = ", ".join(extra)
+    if extra:
+        extra = f" ({extra})"
+    return info.networkx_path.rsplit(".", 1)[-1] + extra
 
 
 def create_tree(
@@ -80,12 +112,20 @@ def create_tree(
     incomplete=False,
     different=False,
     prefix="",
+    strip_networkx=True,
+    get_payload=get_payload,
 ):
     if path_to_info is None:
         path_to_info = get_path_to_info()
+    if strip_networkx:
+        path_to_info = {
+            key: Info(info.networkx_path.replace("networkx.", "", 1), *info[1:])
+            for key, info in path_to_info.items()
+        }
     if isinstance(by, str):
         by = [by]
-    G = nx.DiGraph()
+    # We rely on the fact that dicts maintain order
+    tree = {}
     for info in sorted(
         path_to_info.values(),
         key=lambda x: (*(getattr(x, b) for b in by), x.networkx_path),
@@ -93,7 +133,7 @@ def create_tree(
         if not all(getattr(info, b) for b in by):
             continue
         path = prefix + ".".join(getattr(info, b) for b in by)
-        extra = get_extra(
+        payload = get_payload(
             info,
             networkx_path=networkx_path,
             dispatch_name=dispatch_name,
@@ -103,8 +143,8 @@ def create_tree(
             incomplete=incomplete,
             different=different,
         )
-        add_branch(G, path, extra=extra, skip=skip)
-    return G
+        assoc_in(tree, path.split("."), payload)
+    return tree
 
 
 def main(
@@ -132,45 +172,33 @@ def main(
         "different": different,
     }
     if by == "networkx_path":
-        G = create_tree(path_to_info, by="networkx_path", **kwargs)
-        text = re.sub(
-            r" [A-Za-z_\./]+\.", " ", ("\n".join(nx.generate_network_text(G)))
-        )
+        tree = create_tree(path_to_info, by="networkx_path", **kwargs)
+        text = "\n".join(tree_lines(tree))
     elif by == "plc":
-        G = create_tree(
-            path_to_info, by=["plc", "networkx_path"], prefix="plc-", **kwargs
+        tree = create_tree(
+            path_to_info,
+            by=["plc", "networkx_path"],
+            prefix="plc-",
+            **kwargs,
         )
-        text = re.sub(
-            "plc-",
-            "plc.",
-            re.sub(
-                r" plc-[A-Za-z_\./]*\.",
-                " ",
-                "\n".join(nx.generate_network_text(G)),
-            ),
-        )
+        text = "\n".join(tree_lines(tree)).replace("plc-", "plc.")
     elif by == "version_added":
-        G = create_tree(
+        tree = create_tree(
             path_to_info,
             by=["version_added", "networkx_path"],
             prefix="version_added-",
             **kwargs,
         )
-        text = re.sub(
-            "version_added-",
-            "version: ",
-            re.sub(
-                r" version_added-[-0-9A-Za-z_\./]*\.",
-                " ",
-                "\n".join(nx.generate_network_text(G)),
-            ),
-        ).replace("-", ".")
+        text = "\n".join(tree_lines(tree)).replace("version_added-", "version: ")
+        for digit in "0123456789":
+            text = text.replace(f"2{digit}-", f"2{digit}.")
     else:
         raise ValueError(
             "`by` argument should be one of {'networkx_path', 'plc', 'version_added' "
             f"got: {by}"
         )
-    print(text, file=file)
+    if file is not None:
+        print(text, file=file)
     return text
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <utilities/collect_comm.cuh>
-#include <utilities/graph_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "utilities/collect_comm.cuh"
+#include "utilities/graph_utils.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -28,6 +28,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>

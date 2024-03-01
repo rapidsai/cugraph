@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <structure/remove_multi_edges_impl.cuh>
+#include "structure/remove_multi_edges_impl.cuh"
 
 namespace cugraph {
 
