@@ -633,11 +633,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       edgelist_dsts.resize(num_valid_edges, handle.get_stream());
       num_triangles.resize(num_valid_edges, handle.get_stream());
 
-      // case 2: unroll (q, r)
-      // FIXME: Update the num_edges when removing edges
+      // case 1: unroll (q, r)
       // For each (q, r) edges to unroll, find the incoming edges to 'r' let's say from 'p' and
       // create the pair (p, q)
-
       cugraph::find_unroll_p_r_and_q_r_edges<vertex_t,
                                              edge_t,
                                              decltype(edge_first),
@@ -653,6 +651,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                                     edge_first,
                                                     edge_triangle_count_pair_first);
 
+      // case 2: unroll (p, r)
       cugraph::find_unroll_p_r_and_q_r_edges<vertex_t,
                                              edge_t,
                                              decltype(edge_first),
@@ -687,7 +686,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       cur_graph_view.attach_edge_mask(edge_mask.view());
 
-      // case 1. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
+      // case 3. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
       // FIXME: check if 'invalid_edge_first' is necessery as I operate on 'vertex_pair_buffer'
       // which contains the ordering with the number of triangles.
       // FIXME: debug this stage. There are edges that have been removed that are still found in nbr
