@@ -356,7 +356,7 @@ class OGBNPapers100MDataset(Dataset):
             "0.bin",
         )
 
-        if self.__backend == 'wholegraph':
+        if self.__backend == "wholegraph":
             import pylibwholegraph.torch as wgth
 
             node_label = wgth.create_embedding_from_filelist(
@@ -369,7 +369,9 @@ class OGBNPapers100MDataset(Dataset):
             )
 
         else:
-            node_label_1x = torch.as_tensor(np.fromfile(label_path, dtype='int16'), device='cpu')
+            node_label_1x = torch.as_tensor(
+                np.fromfile(label_path, dtype="int16"), device="cpu"
+            )
 
             if self.__replication_factor > 1:
                 node_label = torch.concatenate(
@@ -383,9 +385,7 @@ class OGBNPapers100MDataset(Dataset):
     def __get_split(self):
         num_nodes = self.num_nodes("paper")
 
-        node = self.y_dict['paper'][
-            self.y_dict['paper'] > 0
-        ]
+        node = self.y_dict["paper"][self.y_dict["paper"] > 0]
 
         train_ix, test_val_ix = train_test_split(
             node,

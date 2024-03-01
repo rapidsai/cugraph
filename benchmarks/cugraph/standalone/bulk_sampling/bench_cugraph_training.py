@@ -44,8 +44,8 @@ def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool = False) -> Non
     rmm.reinitialize(
         devices=[rank],
         pool_allocator=False,
-        #pool_allocator=True,
-        #initial_pool_size=pool_size,
+        # pool_allocator=True,
+        # initial_pool_size=pool_size,
     )
 
     if use_rmm_torch_allocator:

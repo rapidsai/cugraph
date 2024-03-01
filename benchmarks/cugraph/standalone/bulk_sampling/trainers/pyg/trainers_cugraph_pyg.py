@@ -179,10 +179,10 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             for node_type, y in self.__dataset.y_dict.items():
                 logger.debug(f"getting y for {node_type}")
-                
+
                 if self.__backend == "wholegraph":
                     logger.info("using wholegraph backend")
-                    fs.add_data(y, node_type, 'y')
+                    fs.add_data(y, node_type, "y")
                     wm_comm.barrier()
                 else:
                     y = y.cuda()
@@ -232,13 +232,14 @@ class PyGCuGraphTrainer(PyGTrainer):
 
     def get_model(self, name="GraphSAGE"):
         import logging
-        logger = logging.getLogger('PyGCuGraphTrainer')
+
+        logger = logging.getLogger("PyGCuGraphTrainer")
 
         logger.info("Creating model...")
 
         if name != "GraphSAGE":
             raise ValueError("only GraphSAGE is currently supported")
-        
+
         logger.info("getting input features...")
         num_input_features = self.__dataset.num_input_features
 
@@ -265,7 +266,7 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             logger.info("Parallelizing model with ddp...")
             model = ddp(model, device_ids=[self.__device])
-        
+
         logger.info("done creating model")
 
         return model
@@ -277,14 +278,14 @@ class PyGCuGraphTrainer(PyGTrainer):
         np.random.seed(epoch)
         np.random.shuffle(file_list)
 
-        #splits = np.array_split(file_list, self.__world_size)
+        # splits = np.array_split(file_list, self.__world_size)
         splits = np.array_split(file_list, 8)
 
         import logging
 
         logger = logging.getLogger("PyGCuGraphTrainer")
 
-        #split = splits[self.rank]
+        # split = splits[self.rank]
         split = splits[self.__device]
         logger.info(f"rank {self.__rank} input files: {str(split)}")
 

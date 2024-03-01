@@ -214,7 +214,7 @@ class DGLCuGraphTrainer(DGLTrainer):
                 logger.debug(f"getting y for {node_type}")
                 if self.__backend == "wholegraph":
                     logger.info("using wholegraph backend")
-                    fs.add_data(y, node_type, 'y')
+                    fs.add_data(y, node_type, "y")
                     wm_comm.barrier()
                 else:
                     y = y.cuda()

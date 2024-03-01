@@ -141,9 +141,11 @@ class PyGTrainer(Trainer):
             ):
                 self.model.train()
                 loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
-                
-                max_num_batches = torch.tensor([max_num_batches], device='cuda')
-                torch.distributed.all_reduce(max_num_batches, op=torch.distributed.ReduceOp.MIN)
+
+                max_num_batches = torch.tensor([max_num_batches], device="cuda")
+                torch.distributed.all_reduce(
+                    max_num_batches, op=torch.distributed.ReduceOp.MIN
+                )
                 max_num_batches = int(max_num_batches[0])
 
                 for iter_i, data in enumerate(loader):
@@ -152,8 +154,8 @@ class PyGTrainer(Trainer):
 
                     time_feature_transfer_start = time.perf_counter()
 
-                    if len(data.edge_index_dict[('paper','cites','paper')][0]) < 3:
-                        logger.error(f'Invalid edge index in iteration {iter_i}')
+                    if len(data.edge_index_dict[("paper", "cites", "paper")][0]) < 3:
+                        logger.error(f"Invalid edge index in iteration {iter_i}")
                         data = old_data
 
                     old_data = data
@@ -199,10 +201,9 @@ class PyGTrainer(Trainer):
                         )
                         logger.info(f"total time: {total_time_iter}")
 
-                        #from pynvml.smi import nvidia_smi
-                        #mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
-                        #logger.info(f"rank {self.rank} memory: {mem_info}")
-
+                        # from pynvml.smi import nvidia_smi
+                        # mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
+                        # logger.info(f"rank {self.rank} memory: {mem_info}")
 
                     y_true = data.y
                     y_true = y_true.reshape((y_true.shape[0],))

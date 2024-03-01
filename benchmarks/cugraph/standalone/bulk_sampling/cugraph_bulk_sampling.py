@@ -190,7 +190,7 @@ def sample_graph(
     val_perc=0.5,
     sampling_kwargs={},
 ):
-    logger = logging.getLogger('__main__')
+    logger = logging.getLogger("__main__")
     logger.info("Starting sampling phase...")
 
     logger.info("Calculating random splits...")
@@ -226,6 +226,7 @@ def sample_graph(
 
             def func():
                 os.makedirs(output_sample_path, exist_ok=True)
+
             client.run(func)
 
             logger.info("Creating bulk sampler...")
@@ -373,18 +374,18 @@ def load_disk_dataset(
 
     logger = logging.getLogger("__main__")
 
-    logger.info('getting n workers...')
+    logger.info("getting n workers...")
     n_workers = get_n_workers()
-    logger.info(f'there are {n_workers} workers')
+    logger.info(f"there are {n_workers} workers")
 
     with open(os.path.join(path, "meta.json")) as meta_file:
         meta = json.load(meta_file)
 
-    logger.info('assigning offsets...')
+    logger.info("assigning offsets...")
     node_offsets, node_offsets_replicated, total_num_nodes = assign_offsets_pyg(
         meta["num_nodes"], replication_factor=replication_factor
     )
-    logger.info('offsets assigned')
+    logger.info("offsets assigned")
 
     edge_index_dict = {}
     for edge_type in meta["num_edges"].keys():
@@ -405,7 +406,7 @@ def load_disk_dataset(
         edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
 
         if replication_factor > 1:
-            logger.info('processing replications')
+            logger.info("processing replications")
             edge_index_dict[can_edge_type] = edge_index_dict[
                 can_edge_type
             ].map_partitions(
@@ -422,7 +423,7 @@ def load_disk_dataset(
                     }
                 ),
             )
-            logger.info('replications processed')
+            logger.info("replications processed")
 
         gc.collect()
 
@@ -430,27 +431,27 @@ def load_disk_dataset(
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(
                 columns={"src": "dst", "dst": "src"}
             )
-        logger.info('edge index loaded')
+        logger.info("edge index loaded")
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
     edge_count = 0
-    #for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
+    # for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
     #    if add_edge_types:
     #        edge_index_dict[can_edge_type]["etp"] = cupy.int32(num_edge_type)
     #    edge_offsets[can_edge_type] = edge_count
     #    edge_count += len(edge_index_dict[can_edge_type])
 
     if len(edge_index_dict) != 1:
-        raise ValueError('should only be 1 edge index')
+        raise ValueError("should only be 1 edge index")
 
-    logger.info('setting edge type')
+    logger.info("setting edge type")
 
     all_edges_df = list(edge_index_dict.values())[0]
     if add_edge_types:
-        all_edges_df['etp'] = cupy.int32(0)
+        all_edges_df["etp"] = cupy.int32(0)
 
-    #all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
+    # all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
 
     del edge_index_dict
     gc.collect()
@@ -497,7 +498,7 @@ def load_disk_dataset(
         node_offsets_replicated,
         edge_offsets,
         total_num_nodes,
-        sum(meta['num_edges'].values()) * replication_factor,
+        sum(meta["num_edges"].values()) * replication_factor,
     )
 
 
@@ -603,8 +604,10 @@ def benchmark_cugraph_bulk_sampling(
     )
 
     client = default_client()
+
     def func():
         os.makedirs(output_subdir, exist_ok=True)
+
     client.run(func)
 
     if sampling_target_framework == "cugraph_dgl_csr":
@@ -821,6 +824,7 @@ if __name__ == "__main__":
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
     import time
+
     time_dask_start = time.localtime()
 
     logger.info(f"{time.asctime(time_dask_start)}: starting dask client")
@@ -828,17 +832,18 @@ if __name__ == "__main__":
     from dask.distributed import Client
     from cugraph.dask.comms import comms as Comms
     import os, time
-    client = Client(scheduler_file=os.environ['SCHEDULER_FILE'], timeout=360)
+
+    client = Client(scheduler_file=os.environ["SCHEDULER_FILE"], timeout=360)
     time.sleep(30)
     cluster = Comms.initialize(p2p=True)
-    #client, cluster = start_dask_client()
+    # client, cluster = start_dask_client()
     time_dask_end = time.localtime()
     logger.info(f"{time.asctime(time_dask_end)}: dask client started")
 
-    logger.info('enabling spilling')
+    logger.info("enabling spilling")
     enable_spilling()
     client.run(enable_spilling)
-    logger.info('enabled spilling')
+    logger.info("enabled spilling")
 
     stats_ls = []
 
