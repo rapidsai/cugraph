@@ -18,7 +18,6 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
-#include <cuco/static_map.cuh>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
@@ -34,6 +33,8 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
+
+#include <cuco/static_map.cuh>
 
 #include <algorithm>
 #include <memory>

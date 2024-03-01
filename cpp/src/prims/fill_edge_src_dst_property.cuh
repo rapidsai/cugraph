@@ -20,6 +20,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>

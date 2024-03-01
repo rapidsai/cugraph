@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,15 @@
 
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/per_v_random_select_transform_outgoing_e.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/per_v_random_select_transform_outgoing_e.cuh"
+#include "prims/vertex_frontier.cuh"
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
