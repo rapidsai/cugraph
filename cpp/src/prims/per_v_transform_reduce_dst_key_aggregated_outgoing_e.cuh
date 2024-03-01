@@ -355,13 +355,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-      auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+      auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
         handle,
-        edge_partition.offsets(),
-        edge_partition.dcs_nzd_vertices()
-          ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
-              *(edge_partition.dcs_nzd_vertex_count())
-          : edge_partition.major_range_size(),
+        raft::device_span<edge_t const>{
+          edge_partition.offsets(),
+          static_cast<size_t>(
+            edge_partition.dcs_nzd_vertices()
+              ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
+                  *(edge_partition.dcs_nzd_vertex_count())
+              : edge_partition.major_range_size())},
         edge_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;

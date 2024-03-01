@@ -276,7 +276,8 @@ all_pairs_similarity(raft::handle_t const& handle,
       two_hop_degrees.begin());
 
     if (vertices) {
-      rmm::device_uvector<size_t> gathered_degrees(tmp_vertices.size() + 1, handle.get_stream());
+      rmm::device_uvector<size_t> gathered_two_hop_degrees(tmp_vertices.size() + 1,
+                                                           handle.get_stream());
 
       thrust::gather(
         handle.get_thrust_policy(),
@@ -287,9 +288,9 @@ all_pairs_similarity(raft::handle_t const& handle,
           tmp_vertices.end(),
           cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         two_hop_degrees.begin(),
-        gathered_degrees.begin());
+        gathered_two_hop_degrees.begin());
 
-      two_hop_degrees = std::move(gathered_degrees);
+      two_hop_degrees = std::move(gathered_two_hop_degrees);
     }
 
     thrust::sort_by_key(handle.get_thrust_policy(),
@@ -302,6 +303,8 @@ all_pairs_similarity(raft::handle_t const& handle,
                            two_hop_degrees.begin(),
                            two_hop_degrees.end(),
                            two_hop_degrees.begin());
+
+    auto two_hop_degree_offsets = std::move(two_hop_degrees);
 
     rmm::device_uvector<vertex_t> top_v1(0, handle.get_stream());
     rmm::device_uvector<vertex_t> top_v2(0, handle.get_stream());
@@ -316,16 +319,15 @@ all_pairs_similarity(raft::handle_t const& handle,
     std::vector<size_t> batch_offsets;
 
     raft::update_host(&sum_two_hop_degrees,
-                      two_hop_degrees.data() + two_hop_degrees.size() - 1,
+                      two_hop_degree_offsets.data() + two_hop_degree_offsets.size() - 1,
                       1,
                       handle.get_stream());
 
-    std::tie(batch_offsets, std::ignore) =
-      compute_offset_aligned_edge_chunks(handle,
-                                         two_hop_degrees.data(),
-                                         two_hop_degrees.size() - 1,
-                                         sum_two_hop_degrees,
-                                         MAX_PAIRS_PER_BATCH);
+    std::tie(batch_offsets, std::ignore) = compute_offset_aligned_element_chunks(
+      handle,
+      raft::device_span<size_t const>{two_hop_degree_offsets.data(), two_hop_degree_offsets.size()},
+      sum_two_hop_degrees,
+      MAX_PAIRS_PER_BATCH);
 
     for (size_t batch_number = 0; batch_number < (batch_offsets.size() - 1); ++batch_number) {
       if (batch_offsets[batch_number + 1] > batch_offsets[batch_number]) {
