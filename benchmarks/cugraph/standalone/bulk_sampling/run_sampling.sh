@@ -124,20 +124,20 @@ if [[ $SLURM_NODEID == 0 ]]; then
 fi
 
 torchrun \
-	        --nnodes $N_NODES \
-		        --nproc-per-node $GPUS_PER_NODE \
-			        --rdzv-id $JOB_ID \
-				        --rdzv-backend c10d \
-					        --rdzv-endpoint $HEAD_NODE_IP:29500 \
-						        /scripts/bench_cugraph_training.py \
-							            --output_file "/logs/output.txt" \
-								                --framework $SAMPLING_FRAMEWORK \
-										            --dataset_dir "/datasets" \
-											                --sample_dir "/samples" \
-													            --batch_size $BATCH_SIZE \
-														                --fanout $FANOUT \
-																            --replication_factor $REPLICATION_FACTOR \
-																	                --num_epochs $NUM_EPOCHS \
-																			            --use_wholegraph \
-																				                --skip_download
+    --nnodes $N_NODES \
+    --nproc-per-node $GPUS_PER_NODE \
+    --rdzv-id $JOB_ID \
+    --rdzv-backend c10d \
+    --rdzv-endpoint $HEAD_NODE_IP:29500 \
+    /scripts/bench_cugraph_training.py \
+        --output_file "/logs/output.txt" \
+        --framework $SAMPLING_FRAMEWORK \
+        --dataset_dir "/datasets" \
+        --sample_dir "/samples" \
+        --batch_size $BATCH_SIZE \
+        --fanout $FANOUT \
+        --replication_factor $REPLICATION_FACTOR \
+        --num_epochs $NUM_EPOCHS \
+        --use_wholegraph \
+        --skip_download
 
