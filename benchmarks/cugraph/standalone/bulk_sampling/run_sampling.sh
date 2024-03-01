@@ -22,6 +22,9 @@ REPLICATION_FACTOR=$3
 SCRIPTS_DIR=$4
 NUM_EPOCHS=$5
 SAMPLING_FRAMEWORK=$6
+N_NODES=$7
+HEAD_NODE_IP=$8
+JOB_ID=$9
 
 SAMPLES_DIR=/samples
 DATASET_DIR=/datasets
@@ -30,11 +33,15 @@ LOGS_DIR=/logs
 MG_UTILS_DIR=${SCRIPTS_DIR}/mg_utils
 SCHEDULER_FILE=${MG_UTILS_DIR}/dask_scheduler.json
 
+echo $SAMPLES_DIR
+ls $SAMPLES_DIR
+
 export WORKER_RMM_POOL_SIZE=75G
 #export UCX_MAX_RNDV_RAILS=1
 export RAPIDS_NO_INITIALIZE=1
 export CUDF_SPILL=1
-export LIBCUDF_CUFILE_POLICY="OFF"
+export LIBCUDF_CUFILE_POLICY="KVIKIO"
+export KVIKIO_NTHREADS=64
 export GPUS_PER_NODE=8
 #export NCCL_CUMEM_ENABLE=0
 #export NCCL_DEBUG="TRACE"
@@ -86,10 +93,10 @@ if [[ $SLURM_NODEID == 0 ]]; then
         --random_seed 42 \
         --sampling_target_framework $SAMPLING_FRAMEWORK
 
-    echo "DONE" > ${SAMPLES_DIR}/status.txt
+    echo "DONE" > ${LOGS_DIR}/status.txt
 fi
 
-while [ ! -f "${SAMPLES_DIR}"/status.txt ]
+while [ ! -f "${LOGS_DIR}"/status.txt ]
 do
     sleep 1
 done
@@ -113,5 +120,24 @@ fi
 sleep 2
 
 if [[ $SLURM_NODEID == 0 ]]; then
-    rm ${SAMPLES_DIR}/status.txt
+    rm ${LOGS_DIR}/status.txt
 fi
+
+torchrun \
+	        --nnodes $N_NODES \
+		        --nproc-per-node $GPUS_PER_NODE \
+			        --rdzv-id $JOB_ID \
+				        --rdzv-backend c10d \
+					        --rdzv-endpoint $HEAD_NODE_IP:29500 \
+						        /scripts/bench_cugraph_training.py \
+							            --output_file "/logs/output.txt" \
+								                --framework $SAMPLING_FRAMEWORK \
+										            --dataset_dir "/datasets" \
+											                --sample_dir "/samples" \
+													            --batch_size $BATCH_SIZE \
+														                --fanout $FANOUT \
+																            --replication_factor $REPLICATION_FACTOR \
+																	                --num_epochs $NUM_EPOCHS \
+																			            --use_wholegraph \
+																				                --skip_download
+

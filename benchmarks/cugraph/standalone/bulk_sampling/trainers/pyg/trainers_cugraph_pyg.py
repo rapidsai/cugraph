@@ -277,14 +277,16 @@ class PyGCuGraphTrainer(PyGTrainer):
         np.random.seed(epoch)
         np.random.shuffle(file_list)
 
-        splits = np.array_split(file_list, self.__world_size)
+        #splits = np.array_split(file_list, self.__world_size)
+        splits = np.array_split(file_list, 8)
 
         import logging
 
         logger = logging.getLogger("PyGCuGraphTrainer")
-        logger.info(f"rank {self.rank} input files: {str(splits[self.rank])}")
 
-        split = splits[self.rank]
+        #split = splits[self.rank]
+        split = splits[self.__device]
+        logger.info(f"rank {self.__rank} input files: {str(split)}")
 
         ex = re.compile(r"batch=([0-9]+)\-([0-9]+).parquet")
         num_batches = min(

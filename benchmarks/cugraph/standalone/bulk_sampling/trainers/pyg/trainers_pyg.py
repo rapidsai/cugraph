@@ -141,12 +141,22 @@ class PyGTrainer(Trainer):
             ):
                 self.model.train()
                 loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
+                
+                max_num_batches = torch.tensor([max_num_batches], device='cuda')
+                torch.distributed.all_reduce(max_num_batches, op=torch.distributed.ReduceOp.MIN)
+                max_num_batches = int(max_num_batches[0])
+
                 for iter_i, data in enumerate(loader):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
                     time_feature_transfer_start = time.perf_counter()
 
+                    if len(data.edge_index_dict[('paper','cites','paper')][0]) < 3:
+                        logger.error(f'Invalid edge index in iteration {iter_i}')
+                        data = old_data
+
+                    old_data = data
                     num_sampled_nodes = sum(
                         [
                             torch.as_tensor(n)
@@ -188,6 +198,11 @@ class PyGTrainer(Trainer):
                             f"feature transfer time: {time_feature_transfer / num_batches}"
                         )
                         logger.info(f"total time: {total_time_iter}")
+
+                        #from pynvml.smi import nvidia_smi
+                        #mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
+                        #logger.info(f"rank {self.rank} memory: {mem_info}")
+
 
                     y_true = data.y
                     y_true = y_true.reshape((y_true.shape[0],))
@@ -240,6 +255,7 @@ class PyGTrainer(Trainer):
 
             end_time = time.perf_counter()
 
+            """
             logger.info("Entering test stage...")
             with td.algorithms.join.Join(
                 [self.model], divide_by_initial_world_size=False
@@ -256,7 +272,9 @@ class PyGTrainer(Trainer):
                 print(
                     f"Accuracy: {acc * 100.0:.4f}%",
                 )
+            """
 
+        """
         logger.info("Entering validation stage")
         with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
             self.model.eval()
@@ -268,9 +286,9 @@ class PyGTrainer(Trainer):
             print(
                 f"Validation Accuracy: {acc * 100.0:.4f}%",
             )
+        """
 
         stats = {
-            "Accuracy": float(acc * 100.0),
             "# Batches": num_batches,
             "Loader Time": time_loader,
             "Feature Transfer Time": time_feature_transfer,

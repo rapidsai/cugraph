@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#SBATCH -J coreai_mlperf_training-cugraphgnn.bulksampling
-#SBATCH -N 256
-#SBATCH -t 02:25:00 
-
 CONTAINER_IMAGE=${CONTAINER_IMAGE:="please_specify_container"}
 SCRIPTS_DIR=$(pwd)
 LOGS_DIR=${LOGS_DIR:=$(pwd)"/logs"}
@@ -29,7 +25,8 @@ mkdir -p $DATASETS_DIR
 BATCH_SIZE=512
 FANOUT="10_10_10"
 NUM_EPOCHS=1
-REPLICATION_FACTOR=1024
+REPLICATION_FACTOR=2
+JOB_ID=$RANDOM
 
 # options: PyG, cuGraphPyG, or cuGraphDGL
 FRAMEWORK="cuGraphDGL"
@@ -50,6 +47,7 @@ echo Num GPUs Per Node: $gpus_per_node
 
 set -e
 
+
 # First run without cuGraph to get data
 
 if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
@@ -57,34 +55,11 @@ if [[ "$FRAMEWORK" == "cuGraphPyG" ]]; then
     srun \
         --container-image $CONTAINER_IMAGE \
         --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg"
+        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_pyg" $nnodes $head_node_ip $JOB_ID
 elif [[ "$FRAMEWORK" == "cuGraphDGL" ]]; then
     srun \
         --container-image $CONTAINER_IMAGE \
         --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr"
+        bash /scripts/run_sampling.sh $BATCH_SIZE $FANOUT $REPLICATION_FACTOR "/scripts" $NUM_EPOCHS "cugraph_dgl_csr" $nnodes $head_node_ip $JOB_ID
 fi
-
-# Train
-# Should always use WholeGraph for benchmarks since it will eventually become the default feature store backend
-srun \
-    --container-image $CONTAINER_IMAGE \
-    --container-mounts=${LOGS_DIR}":/logs",${SAMPLES_DIR}":/samples",${SCRIPTS_DIR}":/scripts",${DATASETS_DIR}":/datasets" \
-    torchrun \
-        --nnodes $nnodes \
-        --nproc-per-node $gpus_per_node \
-        --rdzv-id $RANDOM \
-        --rdzv-backend c10d \
-        --rdzv-endpoint $head_node_ip:29500 \
-        /scripts/bench_cugraph_training.py \
-            --output_file "/logs/output.txt" \
-            --framework $FRAMEWORK \
-            --dataset_dir "/datasets" \
-            --sample_dir "/samples" \
-            --batch_size $BATCH_SIZE \
-            --fanout $FANOUT \
-            --replication_factor $REPLICATION_FACTOR \
-            --num_epochs $NUM_EPOCHS \
-            --use_wholegraph \
-	    --skip_download
 

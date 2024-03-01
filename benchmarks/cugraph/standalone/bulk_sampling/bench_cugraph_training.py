@@ -43,8 +43,9 @@ def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool = False) -> Non
 
     rmm.reinitialize(
         devices=[rank],
-        pool_allocator=True,
-        initial_pool_size=pool_size,
+        pool_allocator=False,
+        #pool_allocator=True,
+        #initial_pool_size=pool_size,
     )
 
     if use_rmm_torch_allocator:
@@ -119,7 +120,7 @@ def parse_args():
     parser.add_argument(
         "--framework",
         type=str,
-        help="The framework to test (PyG, cuGraphPyG)",
+        help="The framework to test (PyG, cugraph_pyg, cugraph_dgl_csr)",
         required=True,
     )
 
@@ -202,7 +203,7 @@ def main(args):
 
     if args.use_wholegraph:
         # TODO support WG without cuGraph
-        if args.framework not in ["cuGraphPyG", "cuGraphDGL"]:
+        if args.framework.lower() not in ["cugraph_pyg", "cugraph_dgl_csr"]:
             raise ValueError("WG feature store only supported with cuGraph backends")
         from pylibwholegraph.torch.initialize import (
             get_global_communicator,
@@ -224,7 +225,7 @@ def main(args):
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
-        load_edge_index=(args.framework == "PyG"),
+        load_edge_index=(args.framework.lower() == "pyg"),
         backend="wholegraph" if args.use_wholegraph else "torch",
     )
 
@@ -236,7 +237,7 @@ def main(args):
 
     fanout = [int(f) for f in args.fanout.split("_")]
 
-    if args.framework == "PyG":
+    if args.framework.lower() == "pyg":
         from trainers.pyg import PyGNativeTrainer
 
         trainer = PyGNativeTrainer(
@@ -251,7 +252,7 @@ def main(args):
             num_neighbors=fanout,
             batch_size=args.batch_size,
         )
-    elif args.framework == "cuGraphPyG":
+    elif args.framework.lower() == "cugraph_pyg":
         sample_dir = os.path.join(
             args.sample_dir,
             f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
@@ -272,7 +273,7 @@ def main(args):
             batch_size=args.batch_size,
             backend="wholegraph" if args.use_wholegraph else "torch",
         )
-    elif args.framework == "cuGraphDGL":
+    elif args.framework.lower() == "cugraph_dgl_csr":
         sample_dir = os.path.join(
             args.sample_dir,
             f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",

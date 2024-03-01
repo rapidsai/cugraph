@@ -221,7 +221,12 @@ def sample_graph(
                 )
             else:
                 output_sample_path = os.path.join(output_path, step, "samples")
-            os.makedirs(output_sample_path)
+
+            client = default_client()
+
+            def func():
+                os.makedirs(output_sample_path, exist_ok=True)
+            client.run(func)
 
             logger.info("Creating bulk sampler...")
             sampler = BulkSampler(
@@ -596,7 +601,11 @@ def benchmark_cugraph_bulk_sampling(
         output_path,
         f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}",
     )
-    os.makedirs(output_subdir)
+
+    client = default_client()
+    def func():
+        os.makedirs(output_subdir, exist_ok=True)
+    client.run(func)
 
     if sampling_target_framework == "cugraph_dgl_csr":
         sampling_kwargs = {
