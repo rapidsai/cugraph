@@ -71,7 +71,7 @@ struct update_edges_p_r_q_r_num_triangles {
                             edge_first,
                             edge_first + num_edges,  // pass the number of vertex pairs
                             p_r_pair);
-      
+
       assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
     } else {

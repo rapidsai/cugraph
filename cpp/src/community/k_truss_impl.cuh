@@ -17,8 +17,8 @@
 
 // FIXME: remove all unused imports
 #include <prims/edge_bucket.cuh>
-#include <prims/fill_edge_property.cuh>
 #include <prims/extract_transform_e.cuh>
+#include <prims/fill_edge_property.cuh>
 #include <prims/reduce_op.cuh>
 #include <prims/transform_e.cuh>
 #include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
@@ -132,19 +132,29 @@ void find_unroll_p_r_and_q_r_edges(
       auto itr_lower = thrust::lower_bound(thrust::seq, dst_array_begin, dst_array_end, dst);
       auto idx_lower = thrust::distance(
         dst_array_begin, itr_lower);  // Need a binary search to find the begining of the range
-      
-      auto potential_closing_edges_first = thrust::make_zip_iterator(dst_array_begin + idx_lower, thrust::make_constant_iterator(dst));
-      thrust::copy(thrust::seq, potential_closing_edges_first, potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]), potential_closing_edges + prefix_sum[idx]);
+
+      auto potential_closing_edges_first =
+        thrust::make_zip_iterator(dst_array_begin + idx_lower, thrust::make_constant_iterator(dst));
+      thrust::copy(thrust::seq,
+                   potential_closing_edges_first,
+                   potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]),
+                   potential_closing_edges + prefix_sum[idx]);
 
       if (edge_type == 0) {
+        auto potential_closing_edges_first = thrust::make_zip_iterator(
+          dst_array_begin + idx_lower, thrust::make_constant_iterator(src));
+        thrust::copy(thrust::seq,
+                     potential_closing_edges_first,
+                     potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]),
+                     potential_closing_edges + prefix_sum[idx]);
 
-        auto potential_closing_edges_first = thrust::make_zip_iterator(dst_array_begin + idx_lower, thrust::make_constant_iterator(src));
-        thrust::copy(thrust::seq, potential_closing_edges_first, potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]), potential_closing_edges + prefix_sum[idx]);
-
-      } else {        
-        auto potential_closing_edges_first = thrust::make_zip_iterator(thrust::make_constant_iterator(src), dst_array_begin + idx_lower);
-        thrust::copy(thrust::seq, potential_closing_edges_first, potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]), potential_closing_edges + prefix_sum[idx]);
-
+      } else {
+        auto potential_closing_edges_first = thrust::make_zip_iterator(
+          thrust::make_constant_iterator(src), dst_array_begin + idx_lower);
+        thrust::copy(thrust::seq,
+                     potential_closing_edges_first,
+                     potential_closing_edges_first + (prefix_sum[idx + 1] - prefix_sum[idx]),
+                     potential_closing_edges + prefix_sum[idx]);
       }
     });
 
@@ -193,7 +203,7 @@ void find_unroll_p_r_and_q_r_edges(
                      get_dataframe_buffer_begin(incoming_edges_to_r),
                      incoming_vertex_pairs,
                      incoming_vertex_pairs_last});
-  
+
   // Put edges with triangle count == 0 in the second partition
   // FIXME: revisit all the 'stable_partition' and only used them
   // when necessary otherwise simply call 'thrust::partition'
@@ -262,9 +272,11 @@ struct generate_p_r_q_r {
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
 
     if (edge_first_src_or_dst == 0) {
-      return thrust::make_tuple(thrust::get<0>(*(transposed_edge_first + idx)), intersection_indices[i]);
+      return thrust::make_tuple(thrust::get<0>(*(transposed_edge_first + idx)),
+                                intersection_indices[i]);
     } else {
-      return thrust::make_tuple(thrust::get<1>(*(transposed_edge_first + idx)), intersection_indices[i]);
+      return thrust::make_tuple(thrust::get<1>(*(transposed_edge_first + idx)),
+                                intersection_indices[i]);
     }
   }
 };
@@ -462,7 +474,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-    auto transposed_edge_first = thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
+    auto transposed_edge_first =
+      thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
 
     auto num_triangles = edge_triangle_count<vertex_t, edge_t, false, false>(
       handle,
@@ -493,7 +506,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                    auto num_triangles = thrust::get<1>(e);
                                    return num_triangles > 0;
                                  });
-      
+
       num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(edge_triangle_count_pair_first, edges_with_triangle_last));
 
@@ -513,7 +526,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       num_invalid_edges = static_cast<size_t>(thrust::distance(
         invalid_edge_first, edge_triangle_count_pair_first + edgelist_srcs.size()));
-      
+
       if (num_invalid_edges == 0) { break; }
 
       auto num_valid_edges = edgelist_srcs.size() - num_invalid_edges;
@@ -660,10 +673,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                          transposed_edge_first,
                          edge_last,
                        });
-
     }
 
-  return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
+    return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
   }
 }
 }  // namespace cugraph
