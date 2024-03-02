@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_gat_n2n
@@ -162,6 +162,7 @@ class GATConv(BaseConv):
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_attr: Optional[torch.Tensor] = None,
         max_num_neighbors: Optional[int] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         r"""Runs the forward pass of the module.
 
@@ -178,11 +179,15 @@ class GATConv(BaseConv):
                 of a destination node. When enabled, it allows models to use
                 the message-flow-graph primitives in cugraph-ops.
                 (default: :obj:`None`)
+            **kwargs : Additional arguments of
+                `pylibcugraphops.pytorch.operators.mha_gat_n2n`.
         """
         bipartite = not isinstance(x, torch.Tensor)
         graph = self.get_cugraph(
             csc, bipartite=bipartite, max_num_neighbors=max_num_neighbors
         )
+        if kwargs.get("deterministic_dgrad", False):
+            graph.add_reverse_graph()
 
         if edge_attr is not None:
             if self.lin_edge is None:
@@ -220,6 +225,7 @@ class GATConv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=edge_attr,
+            **kwargs,
         )
 
         if self.bias is not None:

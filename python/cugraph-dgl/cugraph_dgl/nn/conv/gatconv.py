@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -186,6 +186,7 @@ class GATConv(BaseConv):
         nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         r"""Forward computation.
 
@@ -204,6 +205,8 @@ class GATConv(BaseConv):
             from a neighbor sampler, the value should be set to the corresponding
             :attr:`fanout`. This option is used to invoke the MFG-variant of
             cugraph-ops kernel.
+        **kwargs : Any
+            Additional arguments of `pylibcugraphops.pytorch.operators.mha_gat_n2n`.
 
         Returns
         -------
@@ -232,6 +235,8 @@ class GATConv(BaseConv):
         _graph = self.get_cugraph_ops_CSC(
             g, is_bipartite=bipartite, max_in_degree=max_in_degree
         )
+        if kwargs.get("deterministic_dgrad", False):
+            _graph.add_reverse_graph()
 
         if bipartite:
             nfeat = (self.feat_drop(nfeat[0]), self.feat_drop(nfeat[1]))
@@ -273,6 +278,7 @@ class GATConv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=efeat,
+            **kwargs,
         )[: g.num_dst_nodes()]
 
         if self.concat:
