@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
+#include "prims/per_v_random_select_transform_outgoing_e.cuh"
+#include "prims/vertex_frontier.cuh"
 #include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/per_v_random_select_transform_outgoing_e.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -38,6 +36,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/adjacent_difference.h>
@@ -78,6 +77,7 @@ struct Prims_Usecase {
   bool with_replacement{false};
   bool use_invalid_value{false};
   bool test_weighted{false};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -125,6 +125,13 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG per_v_random_select_transform_outgoing_e primitive
 
@@ -494,10 +501,14 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -507,10 +518,14 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -521,10 +536,15 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false},
-                      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false},
-                      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false},
-                      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false}),
+    ::testing::Values(
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

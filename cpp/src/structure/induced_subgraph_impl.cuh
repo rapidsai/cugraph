@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 
 // #define TIMING
 
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/vertex_frontier.cuh>
-#include <structure/detail/structure_utils.cuh>
-#include <utilities/collect_comm.cuh>
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/vertex_frontier.cuh"
+#include "structure/detail/structure_utils.cuh"
+#include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
@@ -36,6 +36,7 @@
 #endif
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -71,7 +72,7 @@ struct induced_subgraph_weighted_edge_op {
                                     vertex_t dst,
                                     property_t sv,
                                     property_t dv,
-                                    weight_t wgt)
+                                    weight_t wgt) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
@@ -95,7 +96,7 @@ struct induced_subgraph_unweighted_edge_op {
                                     vertex_t dst,
                                     property_t sv,
                                     property_t dv,
-                                    thrust::nullopt_t)
+                                    thrust::nullopt_t) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,

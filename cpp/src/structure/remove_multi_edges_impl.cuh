@@ -15,17 +15,17 @@
  */
 #pragma once
 
-#include <structure/detail/structure_utils.cuh>
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
 // FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
 //        It's used here without any notion of shuffling
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <cuco/hash_functions.cuh>
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -34,6 +34,8 @@
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <algorithm>
 #include <optional>

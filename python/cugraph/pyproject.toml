@@ -35,7 +35,7 @@ dependencies = [
     "dask-cudf==24.4.*",
     "fsspec[http]>=0.6.0",
     "numba>=0.57",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "pylibcugraph==24.4.*",
     "raft-dask==24.4.*",
     "rapids-dask-dependency==24.4.*",
@@ -47,12 +47,13 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 [project.optional-dependencies]
 test = [
     "networkx>=2.5.1",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "pandas",
     "pytest",
     "pytest-benchmark",
@@ -72,7 +73,6 @@ build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.minimum-version = "3.26.4"
 ninja.make-fallback = true
-sdist.exclude = ["*tests*"]
 sdist.reproducible = true
 wheel.packages = ["cugraph"]
 

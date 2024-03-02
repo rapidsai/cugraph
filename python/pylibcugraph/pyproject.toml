@@ -36,12 +36,13 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 [project.optional-dependencies]
 test = [
     "cudf==24.4.*",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "pandas",
     "pytest",
     "pytest-benchmark",
@@ -59,7 +60,6 @@ build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.minimum-version = "3.26.4"
 ninja.make-fallback = true
-sdist.exclude = ["*tests*"]
 sdist.reproducible = true
 wheel.packages = ["pylibcugraph"]
 

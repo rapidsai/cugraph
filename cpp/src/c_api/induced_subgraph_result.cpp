@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/induced_subgraph_result.hpp"
 
-#include <c_api/induced_subgraph_result.hpp>
+#include <cugraph_c/algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
   cugraph_induced_subgraph_result_t* induced_subgraph)

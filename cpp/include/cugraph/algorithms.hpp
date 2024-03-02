@@ -16,12 +16,10 @@
 #pragma once
 
 #include <cugraph/api_helpers.hpp>
-
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
-
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 

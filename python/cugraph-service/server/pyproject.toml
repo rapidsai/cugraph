@@ -26,7 +26,7 @@ dependencies = [
     "dask-cuda==24.4.*",
     "dask-cudf==24.4.*",
     "numba>=0.57",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "rapids-dask-dependency==24.4.*",
     "rmm==24.4.*",
     "thriftpy2",
@@ -37,6 +37,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 [project.scripts]
@@ -45,7 +46,7 @@ cugraph-service-server = "cugraph_service_server.__main__:main"
 [project.optional-dependencies]
 test = [
     "networkx>=2.5.1",
-    "numpy>=1.21",
+    "numpy>=1.23",
     "pandas",
     "pytest",
     "pytest-benchmark",
@@ -71,4 +72,3 @@ include = [
     "cugraph_service_server",
     "cugraph_service_server.*"
 ]
-exclude = ["*tests*"]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  */
 #pragma once
 
-#include <rmm/exec_policy.hpp>
-#include <sampling/random_walks.cuh>
+#include "sampling/random_walks.cuh"
 
 #include <raft/core/handle.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <algorithm>
 #include <iostream>

@@ -20,6 +20,7 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
