@@ -174,12 +174,13 @@ class FeatureStore:
             )
             return feat.gather(indices_tensor)
         elif not isinstance(torch, MissingModule) and isinstance(feat, torch.Tensor):
-            if not isinstance(indices, torch.Tensor):
-                indices = torch.as_tensor(indices)
+            if indices is not None:
+                if not isinstance(indices, torch.Tensor):
+                    indices = torch.as_tensor(indices)
 
-            if feat.is_cpu and indices.is_cuda:
-                # TODO maybe add a warning here
-                indices = indices.cpu()
+                if feat.is_cpu and indices.is_cuda:
+                    # TODO maybe add a warning here
+                    indices = indices.cpu()
         return feat[indices]
 
     def get_feature_list(self) -> list[str]:
