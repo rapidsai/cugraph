@@ -173,7 +173,7 @@ class FeatureStore:
                 else torch.as_tensor(indices, device="cuda")
             )
             return feat.gather(indices_tensor)
-        elif isinstance(feat, torch.Tensor):
+        elif not isinstance(torch, MissingModule) and isinstance(feat, torch.Tensor):
             if not isinstance(indices, torch.Tensor):
                 indices = torch.as_tensor(indices)
 
