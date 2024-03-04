@@ -536,10 +536,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
-    # - MG MIS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
-
-    ###############################################################################################
     # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
     ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
 
@@ -638,6 +634,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
     target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST sampling/mg_mis_test.cu)
 
     ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------

@@ -197,8 +197,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_sg.cu
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
-    src/community/detail/mis_sg.cu
-    src/community/detail/mis_mg.cu
+    src/community/detail/maximal_independent_moves_sg.cu
+    src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/structure/remove_self_loops.cu
@@ -238,6 +238,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/mis_sg.cu
+    src/sampling/mis_mg.cu
+    src/sampling/coloring_sg.cu
+    src/sampling/coloring_mg.cu
     src/sampling/renumber_sampled_edgelist_sg.cu
     src/sampling/sampling_post_processing_sg.cu
     src/cores/core_number_sg.cu

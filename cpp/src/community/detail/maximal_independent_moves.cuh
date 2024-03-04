@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "community/mis.hpp"
+#include "maximal_independent_moves.hpp"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
@@ -45,7 +45,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> maximal_independent_set(
+rmm::device_uvector<vertex_t> maximal_independent_moves(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
@@ -63,7 +63,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   // Compute out-degree
   auto out_degrees = graph_view.compute_out_degrees(handle);
 
-  // Vertices with non-zero out-degree are possible candidates for MIS.
+  // Only vertices with non-zero out-degree are possible can move
   remaining_vertices.resize(
     thrust::distance(remaining_vertices.begin(),
                      thrust::copy_if(handle.get_thrust_policy(),
@@ -309,14 +309,5 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   return mis;
 }
 }  // namespace detail
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> maximal_independent_set(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::random::RngState& rng_state)
-{
-  return detail::maximal_independent_set(handle, graph_view, rng_state);
-}
 
 }  // namespace cugraph
