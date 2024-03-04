@@ -288,7 +288,8 @@ class DGLCuGraphTrainer(DGLTrainer):
         file_list = np.array([f.path for f in os.scandir(path)])
         file_list.sort()
 
-        splits = np.array_split(file_list, self.__world_size)
+        #splits = np.array_split(file_list, self.__world_size)
+        splits = np.array_split(file_list, 8)
         np.random.seed(epoch)
         np.random.shuffle(splits)
 
@@ -310,4 +311,5 @@ class DGLCuGraphTrainer(DGLTrainer):
                 f"Too few batches for training with world size {self.__world_size}"
             )
 
-        return splits[self.rank], num_batches
+        #return splits[self.rank], num_batches
+        return splits[self.__device], num_batches
