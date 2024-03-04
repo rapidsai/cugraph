@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@
 
 #include <raft/core/device_span.hpp>
 
-#include <cuco/hash_functions.cuh>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <algorithm>
 #include <numeric>

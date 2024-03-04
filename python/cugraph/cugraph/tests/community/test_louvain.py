@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,6 @@
 
 import gc
 
-import time
 import pytest
 import networkx as nx
 
@@ -48,11 +47,7 @@ def cugraph_call(graph_file, edgevals=False, directed=False):
     G = graph_file.get_graph(
         create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
     )
-    # cugraph Louvain Call
-    t1 = time.time()
     parts, mod = cugraph.louvain(G)
-    t2 = time.time() - t1
-    print("Cugraph Time : " + str(t2))
 
     return parts, mod
 
@@ -62,13 +57,8 @@ def networkx_call(M):
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
-    # Networkx louvain Call
-    print("Solving... ")
-    t1 = time.time()
     parts = community.best_partition(Gnx)
-    t2 = time.time() - t1
 
-    print("Networkx Time : " + str(t2))
     return parts
 
 

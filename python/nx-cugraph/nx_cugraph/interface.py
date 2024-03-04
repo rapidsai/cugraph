@@ -69,10 +69,14 @@ class BackendInterface:
         no_string_dtype = "string edge values not currently supported"
 
         xfail = {
-            key(
-                "test_strongly_connected.py:"
-                "TestStronglyConnected.test_condensation_mapping_and_members"
-            ): "Strongly connected groups in different iteration order",
+            # This is removed while strongly_connected_components() is not
+            # dispatchable. See algorithms/components/strongly_connected.py for
+            # details.
+            #
+            # key(
+            #     "test_strongly_connected.py:"
+            #     "TestStronglyConnected.test_condensation_mapping_and_members"
+            # ): "Strongly connected groups in different iteration order",
         }
 
         from packaging.version import parse
@@ -80,18 +84,26 @@ class BackendInterface:
         nxver = parse(nx.__version__)
 
         if nxver.major == 3 and nxver.minor <= 2:
-            # Networkx versions prior to 3.2.1 have tests written to expect
-            # sp.sparse.linalg.ArpackNoConvergence exceptions raised on no
-            # convergence in HITS. Newer versions since the merge of
-            # https://github.com/networkx/networkx/pull/7084 expect
-            # nx.PowerIterationFailedConvergence, which is what nx_cugraph.hits
-            # raises, so we mark them as xfail for previous versions of NX.
             xfail.update(
                 {
+                    # NetworkX versions prior to 3.2.1 have tests written to
+                    # expect sp.sparse.linalg.ArpackNoConvergence exceptions
+                    # raised on no convergence in HITS. Newer versions since
+                    # the merge of
+                    # https://github.com/networkx/networkx/pull/7084 expect
+                    # nx.PowerIterationFailedConvergence, which is what
+                    # nx_cugraph.hits raises, so we mark them as xfail for
+                    # previous versions of NX.
                     key(
                         "test_hits.py:TestHITS.test_hits_not_convergent"
                     ): "nx_cugraph.hits raises updated exceptions not caught in "
                     "these tests",
+                    # NetworkX versions 3.2 and older contain tests that fail
+                    # with pytest>=8. Assume pytest>=8 and mark xfail.
+                    key(
+                        "test_strongly_connected.py:"
+                        "TestStronglyConnected.test_connected_raise"
+                    ): "test is incompatible with pytest>=8",
                 }
             )
 
@@ -208,9 +220,9 @@ class BackendInterface:
             )
             if sys.version_info[:2] == (3, 9):
                 # This test is sensitive to RNG, which depends on Python version
-                xfail[
-                    key("test_louvain.py:test_threshold")
-                ] = "Louvain does not support seed parameter"
+                xfail[key("test_louvain.py:test_threshold")] = (
+                    "Louvain does not support seed parameter"
+                )
             if nxver.major == 3 and nxver.minor >= 2:
                 xfail.update(
                     {
@@ -243,6 +255,12 @@ class BackendInterface:
                             key(
                                 "test_gml.py:TestGraph.test_special_float_label"
                             ): different_iteration_order,
+                        }
+                    )
+                elif nxver.minor >= 3:
+                    xfail.update(
+                        {
+                            key("test_louvain.py:test_max_level"): louvain_different,
                         }
                     )
 

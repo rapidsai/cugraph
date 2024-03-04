@@ -634,8 +634,7 @@ class Graph:
                             "pylibcugraph only supports float16 and float32 dtypes."
                         )
                 elif (
-                    edge_array.dtype == np.uint64
-                    and edge_array.max().tolist() > 2**53
+                    edge_array.dtype == np.uint64 and edge_array.max().tolist() > 2**53
                 ):
                     raise ValueError(
                         f"Integer value of value is too large (> 2**53): {val}; "
@@ -668,7 +667,9 @@ class Graph:
                 raise ValueError(
                     f'symmetrize must be "union" or "intersection"; got "{symmetrize}"'
                 )
-            src_indices, dst_indices = cp.divmod(src_dst_new, N, dtype=index_dtype)
+            src_indices, dst_indices = cp.divmod(src_dst_new, N)
+            src_indices = src_indices.astype(index_dtype)
+            dst_indices = dst_indices.astype(index_dtype)
 
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),

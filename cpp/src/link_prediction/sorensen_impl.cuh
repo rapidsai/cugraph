@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 #pragma once
 
+#include "link_prediction/similarity_impl.cuh"
+
 #include <cugraph/algorithms.hpp>
-#include <link_prediction/similarity_impl.cuh>
 
 #include <raft/core/handle.hpp>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 #pragma once
+#include <raft/core/handle.hpp>
+
+#include <rmm/device_buffer.hpp>
+
+#include <unistd.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
-#include <raft/core/handle.hpp>
-#include <rmm/device_buffer.hpp>
-#include <unistd.h>
 
 namespace cugraph {
 namespace legacy {

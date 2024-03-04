@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/binary_search.h>
 #include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/tuple.h>
-
-#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {

@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/count_if_e.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <utilities/error_check_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/count_if_e.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -33,9 +33,11 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/extrema.h>
@@ -51,8 +53,6 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-
-#include <cuda/functional>
 
 #include <algorithm>
 #include <cstdint>

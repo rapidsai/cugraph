@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <sampling/random_walks_check.hpp>
+#include "sampling/random_walks_check.hpp"
+#include "utilities/device_comm_wrapper.hpp"
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <utilities/device_comm_wrapper.hpp>
 
 #include <thrust/sort.h>
 

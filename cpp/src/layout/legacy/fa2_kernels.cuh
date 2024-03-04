@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #pragma once
 #define restrict __restrict__
 
-#include <utilities/graph_utils.cuh>
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {

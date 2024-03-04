@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/abstract_functor.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/paths_result.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
 
-#include <c_api/abstract_functor.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/paths_result.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
+#include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
