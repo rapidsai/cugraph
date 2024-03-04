@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(file_test,
                          Tests_KTruss_File,
                          ::testing::Combine(
                            // enable correctness checks
-                           ::testing::Values(KTruss_Usecase{4}),
+                           ::testing::Values(KTruss_Usecase{5}),
                            ::testing::Values(cugraph::test::File_Usecase(
                              "/home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx"))));
 
