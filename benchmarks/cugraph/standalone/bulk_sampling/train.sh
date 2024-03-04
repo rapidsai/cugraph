@@ -119,10 +119,6 @@ if [[ ${#python_processes[@]} -gt 1 || $dask_processes ]]; then
 fi
 sleep 2
 
-if [[ $SLURM_NODEID == 0 ]]; then
-    rm ${LOGS_DIR}/status.txt
-fi
-
 torchrun \
     --nnodes $N_NODES \
     --nproc-per-node $GPUS_PER_NODE \
@@ -141,3 +137,7 @@ torchrun \
         --use_wholegraph \
         --skip_download
 
+
+if [[ $SLURM_NODEID == 0 ]]; then
+    rm ${LOGS_DIR}/status.txt
+fi
