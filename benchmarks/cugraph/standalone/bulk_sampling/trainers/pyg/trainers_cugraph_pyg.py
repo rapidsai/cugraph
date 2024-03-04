@@ -42,6 +42,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         device: int = 0,
         rank: int = 0,
         world_size: int = 1,
+        gpus_per_node: int = 1,
         num_epochs: int = 1,
         sample_dir: str = ".",
         backend: str = "torch",
@@ -81,6 +82,7 @@ class PyGCuGraphTrainer(PyGTrainer):
         self.__device = device
         self.__rank = rank
         self.__world_size = world_size
+        self.__gpus_per_node = gpus_per_node
         self.__num_epochs = num_epochs
         self.__dataset = dataset
         self.__sample_dir = sample_dir
@@ -278,14 +280,12 @@ class PyGCuGraphTrainer(PyGTrainer):
         np.random.seed(epoch)
         np.random.shuffle(file_list)
 
-        # splits = np.array_split(file_list, self.__world_size)
-        splits = np.array_split(file_list, 8)
+        splits = np.array_split(file_list, self.__gpus_per_node)
 
         import logging
 
         logger = logging.getLogger("PyGCuGraphTrainer")
 
-        # split = splits[self.rank]
         split = splits[self.__device]
         logger.info(f"rank {self.__rank} input files: {str(split)}")
 

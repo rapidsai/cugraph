@@ -91,6 +91,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         device: int = 0,
         rank: int = 0,
         world_size: int = 1,
+        gpus_per_node: int = 1,
         num_epochs: int = 1,
         sample_dir: str = ".",
         backend: str = "torch",
@@ -125,6 +126,7 @@ class DGLCuGraphTrainer(DGLTrainer):
         self.__device = device
         self.__rank = rank
         self.__world_size = world_size
+        self.__gpus_per_node = gpus_per_node
         self.__num_epochs = num_epochs
         self.__dataset = dataset
         self.__sample_dir = sample_dir
@@ -287,11 +289,10 @@ class DGLCuGraphTrainer(DGLTrainer):
     def get_input_files(self, path, epoch=0, stage="train"):
         file_list = np.array([f.path for f in os.scandir(path)])
         file_list.sort()
-
-        #splits = np.array_split(file_list, self.__world_size)
-        splits = np.array_split(file_list, 8)
         np.random.seed(epoch)
-        np.random.shuffle(splits)
+        np.random.shuffle(file_list)
+
+        splits = np.array_split(file_list, self.__gpus_per_node)
 
         ex = re.compile(r"batch=([0-9]+)\-([0-9]+).parquet")
         num_batches = min(
@@ -311,5 +312,4 @@ class DGLCuGraphTrainer(DGLTrainer):
                 f"Too few batches for training with world size {self.__world_size}"
             )
 
-        #return splits[self.rank], num_batches
         return splits[self.__device], num_batches
