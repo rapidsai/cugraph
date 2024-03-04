@@ -37,12 +37,12 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename data_t, typename offset_t>
-std::tuple<std::vector<data_t>, std::vector<offset_t>> compute_offset_aligned_element_chunks(
+template <typename vertex_t, typename offset_t>
+std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_element_chunks(
   raft::handle_t const& handle,
   raft::device_span<offset_t const> offsets,
   offset_t num_elements,
-  data_t approx_element_chunk_size)
+  vertex_t approx_element_chunk_size)
 {
   auto search_offset_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{1}),
@@ -51,7 +51,7 @@ std::tuple<std::vector<data_t>, std::vector<offset_t>> compute_offset_aligned_el
   auto num_chunks = (num_elements + approx_element_chunk_size - 1) / approx_element_chunk_size;
 
   if (num_chunks > 1) {
-    rmm::device_uvector<data_t> d_chunk_offsets(num_chunks - 1, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_chunk_offsets(num_chunks - 1, handle.get_stream());
     thrust::lower_bound(handle.get_thrust_policy(),
                         offsets.begin(),
                         offsets.end(),
@@ -70,7 +70,7 @@ std::tuple<std::vector<data_t>, std::vector<offset_t>> compute_offset_aligned_el
                       d_element_offsets.data(),
                       d_element_offsets.size(),
                       handle.get_stream());
-    std::vector<data_t> h_chunk_offsets(num_chunks + 1, data_t{0});
+    std::vector<vertex_t> h_chunk_offsets(num_chunks + 1, vertex_t{0});
     h_chunk_offsets.back() = offsets.size() - 1;
     raft::update_host(h_chunk_offsets.data() + 1,
                       d_chunk_offsets.data(),
@@ -81,7 +81,7 @@ std::tuple<std::vector<data_t>, std::vector<offset_t>> compute_offset_aligned_el
 
     return std::make_tuple(h_chunk_offsets, h_element_offsets);
   } else {
-    return std::make_tuple(std::vector<data_t>{{0, offsets.size() - 1}},
+    return std::make_tuple(std::vector<vertex_t>{{0, offsets.size() - 1}},
                            std::vector<offset_t>{{0, num_elements}});
   }
 }
