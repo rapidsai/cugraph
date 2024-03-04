@@ -35,6 +35,7 @@ int generic_degrees_test(const cugraph_resource_handle_t* handle,
                          size_t num_vertices,
                          size_t num_edges,
                          bool_t store_transposed,
+                         bool_t is_symmetric,
                          edge_t* h_in_degrees,
                          edge_t* h_out_degrees)
 {
@@ -47,7 +48,7 @@ int generic_degrees_test(const cugraph_resource_handle_t* handle,
   cugraph_degrees_result_t* result = NULL;
 
   ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, is_symmetric, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -113,6 +114,32 @@ int test_degrees(const cugraph_resource_handle_t* handle)
                               num_vertices,
                               num_edges,
                               TRUE,
+                              FALSE,
+                              h_in_degrees,
+                              h_out_degrees);
+}
+
+int test_degrees_symmetric(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges         = 16;
+  size_t num_vertices      = 6;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
+                              0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_in_degrees[]  = {2, 4, 3, 3, 2, 2};
+  vertex_t h_out_degrees[] = {2, 4, 3, 3, 2, 2};
+
+  // Pagerank wants store_transposed = TRUE
+  return generic_degrees_test(handle,
+                              h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              TRUE,
+                              TRUE,
                               h_in_degrees,
                               h_out_degrees);
 }
@@ -126,6 +153,7 @@ int main(int argc, char** argv)
 
   int result = 0;
   result |= RUN_MG_TEST(test_degrees, handle);
+  result |= RUN_MG_TEST(test_degrees_symmetric, handle);
 
   cugraph_free_resource_handle(handle);
   free_mg_raft_handle(raft_handle);

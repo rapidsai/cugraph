@@ -34,6 +34,7 @@ int generic_degrees_test(vertex_t* h_src,
                          size_t num_vertices,
                          size_t num_edges,
                          bool_t store_transposed,
+                         bool_t is_symmetric,
                          edge_t *h_in_degrees,
                          edge_t *h_out_degrees)
 {
@@ -50,7 +51,7 @@ int generic_degrees_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, is_symmetric, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -117,6 +118,30 @@ int test_degrees()
                               num_vertices,
                               num_edges,
                               FALSE,
+                              FALSE,
+                              h_in_degrees,
+                              h_out_degrees);
+}
+
+int test_degrees_symmetric()
+{
+  size_t num_edges         = 16;
+  size_t num_vertices      = 6;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
+                              0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_in_degrees[]  = {2, 4, 3, 3, 2, 2};
+  vertex_t h_out_degrees[] = {2, 4, 3, 3, 2, 2};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              FALSE,
+                              TRUE,
                               h_in_degrees,
                               h_out_degrees);
 }
@@ -127,5 +152,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_degrees);
+  result |= RUN_TEST(test_degrees_symmetric);
   return result;
 }
