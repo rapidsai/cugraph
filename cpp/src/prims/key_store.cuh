@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cuco/static_set.cuh>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -25,6 +24,8 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/sort.h>
+
+#include <cuco/static_set.cuh>
 
 #include <algorithm>
 #include <memory>

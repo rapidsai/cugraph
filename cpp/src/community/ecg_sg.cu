@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <community/ecg_impl.cuh>
+#include "community/ecg_impl.cuh"
 
 namespace cugraph {
 template std::tuple<rmm::device_uvector<int32_t>, size_t, float> ecg(

@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e.cuh>
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -27,6 +27,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_scalar.hpp>
 
 #include <thrust/extrema.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,16 @@
  */
 #pragma once
 
-#include <community/detail/common_methods.hpp>
-
-#include <detail/graph_partition_utils.cuh>
-#include <prims/kv_store.cuh>
-#include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e.cuh>
-#include <prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/collect_comm.cuh>
+#include "common_methods.hpp"
+#include "detail/graph_partition_utils.cuh"
+#include "prims/kv_store.cuh"
+#include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
+#include "prims/transform_reduce_e_by_src_dst_key.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>

@@ -29,3 +29,11 @@ def example_scatter_data():
     }
 
     return src_feat, dst_indices, results
+
+
+@pytest.fixture
+def empty_scatter_data():
+    src_feat = torch.empty((0, 41))
+    dst_indices = torch.empty((0,))
+
+    return src_feat, dst_indices

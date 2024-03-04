@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,36 +14,32 @@
  * limitations under the License.
  */
 
-#include <prims/property_generator.cuh>
+#include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/property_generator.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
 
-#include <prims/fill_edge_src_dst_property.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-
+#include <cugraph/algorithms.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <cugraph/algorithms.hpp>
-#include <cugraph/edge_partition_view.hpp>
-#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/random/rng_state.hpp>
+
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <iostream>
 #include <random>
-
-#include <gtest/gtest.h>
 
 struct MaximalIndependentSet_Usecase {
   bool check_correctness{true};
