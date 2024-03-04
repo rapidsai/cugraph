@@ -296,6 +296,10 @@ class OGBNPapers100MDataset(Dataset):
             torch.float32,
             128,
         )
+        from pylibwholegraph.torch.initialize import get_global_communicator
+
+        wm_comm = get_global_communicator()
+        wm_comm.barrier()
 
         logger.info("created x wg embedding")
 
