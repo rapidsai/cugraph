@@ -740,7 +740,7 @@ renumber_sampled_edgelist(
     auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
       handle,
       raft::device_span<size_t const>{(*renumber_map_label_offsets).data(),
-                                      (*renumber_map_label_offsets).size() - 1},
+                                      (*renumber_map_label_offsets).size()},
       renumber_map.size(),
       approx_edges_to_sort_per_iteration);
     auto num_chunks = h_label_offsets.size() - 1;

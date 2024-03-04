@@ -359,11 +359,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         handle,
         raft::device_span<edge_t const>{
           edge_partition.offsets(),
-          static_cast<size_t>(
-            edge_partition.dcs_nzd_vertices()
-              ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
-                  *(edge_partition.dcs_nzd_vertex_count())
-              : edge_partition.major_range_size())},
+          1 + static_cast<size_t>(
+                edge_partition.dcs_nzd_vertices()
+                  ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
+                      *(edge_partition.dcs_nzd_vertex_count())
+                  : edge_partition.major_range_size())},
         edge_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
