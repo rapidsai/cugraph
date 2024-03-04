@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -228,6 +228,70 @@ cugraph_error_code_t cugraph_allgather(const cugraph_resource_handle_t* handle,
                                        const cugraph_type_erased_device_array_view_t* edge_type_ids,
                                        cugraph_induced_subgraph_result_t** result,
                                        cugraph_error_t** error);
+
+/**
+ * @brief       Opaque degree result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_degrees_result_t;
+
+/**
+ * @brief      Compute degrees
+ *
+ * Compute the degrees for the vertices in the graph.
+ *
+ * @param [in]  handle              Handle for accessing resources.
+ * @param [in]  graph               Pointer to graph
+ * @param [in]  do_expensive_check  A flag to run expensive checks for input arguments (if set to
+ * true)
+ * @param [out] result              Opaque pointer to gathered edgelist result
+ * @param [out] error               Pointer to an error object storing details of any error.  Will
+ *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
+                                     cugraph_graph_t* graph,
+                                     bool_t do_expensive_check,
+                                     cugraph_degrees_result_t** result,
+                                     cugraph_error_t** error);
+
+/**
+ * @brief       Get the vertex ids
+ *
+ * @param [in]     degrees_result   Opaque pointer to degree result
+ * @return type erased array view of vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_vertices(
+  cugraph_degrees_result_t* degrees_result);
+
+/**
+ * @brief       Get the in degrees
+ *
+ * @param [in]     degrees_result   Opaque pointer to degree result
+ * @return type erased array view of vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_in_degrees(
+  cugraph_degrees_result_t* degrees_result);
+
+/**
+ * @brief       Get the out degrees
+ *
+ * If the graph is symmetric, in degrees and out degrees will be equal (and
+ * will be stored in the same memory).
+ *
+ * @param [in]     degrees_result   Opaque pointer to degree result
+ * @return type erased array view of vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
+  cugraph_degrees_result_t* degrees_result);
+
+/**
+ * @brief     Free degree result
+ *
+ * @param [in]    degrees_result   Opaque pointer to degree result
+ */
+void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
 
 #ifdef __cplusplus
 }
