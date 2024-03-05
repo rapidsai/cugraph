@@ -81,14 +81,9 @@ rmm::device_uvector<vertex_t> coloring(
     auto mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
       handle, current_graph_view, rng_state);
 
-    auto mis_tile = std::string("mis_").append(std::to_string(comm_rank));
+    using flag_t = uint8_t;
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(mis_tile.c_str(), mis.begin(), mis.size(), std::cout);
-
-    using falg_type = vertex_t;
-
-    rmm::device_uvector<falg_type> is_vertex_in_mis = rmm::device_uvector<falg_type>(
+    rmm::device_uvector<flag_t> is_vertex_in_mis = rmm::device_uvector<flag_t>(
       current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     thrust::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
@@ -102,32 +97,18 @@ rmm::device_uvector<vertex_t> coloring(
        is_vertex_in_mis = is_vertex_in_mis.data(),
        v_first = current_graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
         auto v_offset              = v - v_first;
-        is_vertex_in_mis[v_offset] = falg_type{1};
+        is_vertex_in_mis[v_offset] = flag_t{1};
         colors[v_offset]           = (colors[v_offset] < color_id) ? colors[v_offset] : color_id;
       });
 
-    auto is_vertex_in_mis_tile = std::string("is_vertex_in_mis").append(std::to_string(comm_rank));
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(
-      is_vertex_in_mis_tile.c_str(), is_vertex_in_mis.begin(), is_vertex_in_mis.size(), std::cout);
-
-    cugraph::edge_src_property_t<graph_view_t, falg_type> src_mis_flags(handle, current_graph_view);
-    cugraph::edge_dst_property_t<graph_view_t, falg_type> dst_mis_flags(handle, current_graph_view);
+    cugraph::edge_src_property_t<graph_view_t, flag_t> src_mis_flags(handle, current_graph_view);
+    cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_mis_flags(handle, current_graph_view);
 
     cugraph::update_edge_src_property(
       handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags);
 
     cugraph::update_edge_dst_property(
       handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags);
-
-    // FIXME: remove
-    auto num_vertices = current_graph_view.number_of_vertices();
-    auto num_edges    = current_graph_view.compute_number_of_edges(handle);
-
-    std::cout << "(with new mask) #E : " << num_edges << std::endl;
-    std::cout << "(with new mask) #V:  " << num_vertices << std::endl;
-    //
 
     if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
     cugraph::transform_e(
@@ -138,16 +119,7 @@ rmm::device_uvector<vertex_t> coloring(
       edge_masks.view(),
       [] __device__(
         auto src, auto dst, auto is_src_to_remove, auto is_dst_to_remove, auto current_mask) {
-        auto rt = (is_src_to_remove == 0) && (is_dst_to_remove == 0);
-
-        // printf(
-        //   "src = %d ---> dst = %d : is_src_to_remove = %d is_dst_to_remove = %d current = %d =>
-        //   next = % d\n ", static_cast<int>(src), static_cast<int>(dst),
-        //   static_cast<int>(is_src_to_remove),
-        //   static_cast<int>(is_dst_to_remove),
-        //   static_cast<int>(current_mask),
-        //   static_cast<int>(rt));
-        return rt;
+        return (is_src_to_remove == 0) && (is_dst_to_remove == 0);
       },
       edge_masks.mutable_view());
 
@@ -155,9 +127,6 @@ rmm::device_uvector<vertex_t> coloring(
     current_graph_view.attach_edge_mask(edge_masks.view());
     color_id++;
   }
-
-  std::cout << "Used " << color_id << " colors\n";
-
   return colors;
 }
 }  // namespace detail

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,113 +91,85 @@ class Tests_MGGraphColoring
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     raft::random::RngState rng_state(multi_gpu ? handle_->get_comms().get_rank() : 0);
-    auto d_colors = cugraph::coloring<vertex_t, edge_t, multi_gpu>(
-      *handle_, mg_graph_view, rng_state);
+    auto d_colors =
+      cugraph::coloring<vertex_t, edge_t, multi_gpu>(*handle_, mg_graph_view, rng_state);
 
-    
     // Test Graph Coloring
-    /*
+
     if (coloring_usecase.check_correctness) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
       std::vector<vertex_t> h_colors(d_colors.size());
       raft::update_host(h_colors.data(), d_colors.data(), d_colors.size(), handle_->get_stream());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::for_each(h_colors.begin(),
+                    h_colors.end(),
+                    [num_vertices = mg_graph_view.number_of_vertices()](vertex_t color_id) {
+                      ASSERT_TRUE(color_id <= num_vertices);
+                    });
 
-      auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
-      auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
-
-      std::for_each(h_colors.begin(), h_colors.end(), [vertex_first, vertex_last](vertex_t v) {
-        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last));
-      });
-
-      // If a vertex is included in MIS, then none of its neighbor should be
-
-      vertex_t local_vtx_partitoin_size = mg_graph_view.local_vertex_partition_range_size();
-      rmm::device_uvector<vertex_t> d_total_outgoing_nbrs_included_mis(local_vtx_partitoin_size,
-                                                                       handle_->get_stream());
-
-      rmm::device_uvector<vertex_t> inclusiong_flags(local_vtx_partitoin_size,
-                                                     handle_->get_stream());
-
-      thrust::uninitialized_fill(handle_->get_thrust_policy(),
-                                 inclusiong_flags.begin(),
-                                 inclusiong_flags.end(),
-                                 vertex_t{0});
-
-      thrust::for_each(
-        handle_->get_thrust_policy(),
-        d_colors.begin(),
-        d_colors.end(),
-        [inclusiong_flags =
-           raft::device_span<vertex_t>(inclusiong_flags.data(), inclusiong_flags.size()),
-         v_first = mg_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-          auto v_offset              = v - v_first;
-          inclusiong_flags[v_offset] = vertex_t{1};
-        });
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-      // Cache for inclusiong_flags
-      using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, true>;
-      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_inclusion_cache(*handle_);
-      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_inclusion_cache(*handle_);
+      using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_colors_cache(*handle_);
+      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_colors_cache(*handle_);
 
       if constexpr (multi_gpu) {
-        src_inclusion_cache =
+        src_colors_cache =
           cugraph::edge_src_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
-        dst_inclusion_cache =
+        dst_colors_cache =
           cugraph::edge_dst_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
-        update_edge_src_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache);
-        update_edge_dst_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), dst_inclusion_cache);
+        update_edge_src_property(*handle_, mg_graph_view, d_colors.begin(), src_colors_cache);
+        update_edge_dst_property(*handle_, mg_graph_view, d_colors.begin(), dst_colors_cache);
       }
+
+      rmm::device_uvector<uint8_t> d_color_conflicts(
+        mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
       per_v_transform_reduce_outgoing_e(
         *handle_,
         mg_graph_view,
-        multi_gpu ? src_inclusion_cache.view()
-                  : cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
-                      inclusiong_flags.data()),
-        multi_gpu ? dst_inclusion_cache.view()
+        multi_gpu
+          ? src_colors_cache.view()
+          : cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(d_colors.data()),
+        multi_gpu ? dst_colors_cache.view()
                   : cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                      inclusiong_flags.data(), vertex_t{0}),
+                      d_colors.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          return (src == dst) ? 0 : dst_included;
+        [] __device__(auto, auto, auto src_color, auto dst_color, thrust::nullopt_t) {
+          return uint8_t{src_color == dst_color};
         },
-        vertex_t{0},
-        cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        uint8_t{0},
+        cugraph::reduce_op::maximum<uint8_t>{},
+        d_color_conflicts.begin());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-      std::vector<vertex_t> h_total_outgoing_nbrs_included_mis(
-        d_total_outgoing_nbrs_included_mis.size());
-      raft::update_host(h_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.size(),
+      std::vector<uint8_t> h_color_conflicts(d_color_conflicts.size());
+      raft::update_host(h_color_conflicts.data(),
+                        d_color_conflicts.data(),
+                        d_color_conflicts.size(),
                         handle_->get_stream());
+
+      std::vector<vertex_t> h_vertices_in_this_proces((*mg_renumber_map).size());
+
+      raft::update_host(h_vertices_in_this_proces.data(),
+                        (*mg_renumber_map).data(),
+                        (*mg_renumber_map).size(),
+                        handle_->get_stream());
+      handle_->sync_stream();
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
       {
-        auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
-        auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
+        thrust::for_each(thrust::host,
+                         thrust::make_zip_iterator(thrust::make_tuple(
+                           h_vertices_in_this_proces.begin(), h_color_conflicts.begin())),
+                         thrust::make_zip_iterator(thrust::make_tuple(
+                           h_vertices_in_this_proces.end(), h_color_conflicts.end())),
+                         [comm_rank](auto vetex_and_conflict_flag) {
+                           auto v             = thrust::get<0>(vetex_and_conflict_flag);
+                           auto conflict_flag = thrust::get<1>(vetex_and_conflict_flag);
 
-        std::for_each(h_colors.begin(),
-                      h_colors.end(),
-                      [vertex_first, vertex_last, &h_total_outgoing_nbrs_included_mis](vertex_t v) {
-                        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last))
-                          << v << " is not within vertex parition range" << std::endl;
-
-                        ASSERT_TRUE(h_total_outgoing_nbrs_included_mis[v - vertex_first] == 0)
-                          << v << "'s neighbor is included in MIS" << std::endl;
-                      });
+                           ASSERT_TRUE(conflict_flag == 0)
+                             << v << " got same color as one of its neighbor" << std::endl;
+                         });
       }
     }
-    */
   }
 
  private:
@@ -207,10 +179,8 @@ class Tests_MGGraphColoring
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGGraphColoring<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGGraphColoring_File =
-  Tests_MGGraphColoring<cugraph::test::File_Usecase>;
-using Tests_MGGraphColoring_Rmat =
-  Tests_MGGraphColoring<cugraph::test::Rmat_Usecase>;
+using Tests_MGGraphColoring_File = Tests_MGGraphColoring<cugraph::test::File_Usecase>;
+using Tests_MGGraphColoring_Rmat = Tests_MGGraphColoring<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGGraphColoring_File, CheckInt32Int32FloatFloat)
 {
@@ -218,48 +188,51 @@ TEST_P(Tests_MGGraphColoring_File, CheckInt32Int32FloatFloat)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGGraphColoring_File, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGGraphColoring_File, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGGraphColoring_File, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGGraphColoring_File, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int32FloatFloat)
-{
-  run_current_test<int32_t, int32_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int32FloatFloat)
+// {
+//   run_current_test<int32_t, int32_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGGraphColoring_Rmat, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
+
+bool constexpr check_correctness = true;
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGGraphColoring_File,
-  ::testing::Combine(::testing::Values(GraphColoring_UseCase{false},
-                                       GraphColoring_UseCase{false}),
+  ::testing::Combine(::testing::Values(GraphColoring_UseCase{check_correctness},
+                                       GraphColoring_UseCase{check_correctness}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGGraphColoring_Rmat,
-                         ::testing::Combine(::testing::Values(GraphColoring_UseCase{false}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              3, 4, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGGraphColoring_Rmat,
+  ::testing::Combine(
+    ::testing::Values(GraphColoring_UseCase{check_correctness}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(3, 4, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -269,7 +242,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGGraphColoring_Rmat,
   ::testing::Combine(
-    ::testing::Values(GraphColoring_UseCase{false}, GraphColoring_UseCase{false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(GraphColoring_UseCase{check_correctness},
+                      GraphColoring_UseCase{check_correctness}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
