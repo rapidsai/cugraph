@@ -93,6 +93,13 @@ thrust::optional<T> to_thrust_optional(std::optional<T> val)
   return ret;
 }
 
+template <typename T>
+std::optional<T> to_std_optional(thrust::optional<T> val) {
+  std::optional<T> ret{std::nullopt};
+  if (val) { ret = *val; }
+  return ret;
+}
+
 template <typename idx_t, typename offset_t>
 rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
                                                  idx_t base_idx,
