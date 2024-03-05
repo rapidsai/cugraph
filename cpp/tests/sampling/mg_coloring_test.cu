@@ -18,6 +18,7 @@
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/property_generator.cuh"
 #include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
@@ -107,16 +108,16 @@ class Tests_MGGraphColoring
                     });
 
       using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
-      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_colors_cache(*handle_);
-      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_colors_cache(*handle_);
+      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_color_cache(*handle_);
+      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_color_cache(*handle_);
 
       if constexpr (multi_gpu) {
-        src_colors_cache =
+        src_color_cache =
           cugraph::edge_src_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
-        dst_colors_cache =
+        dst_color_cache =
           cugraph::edge_dst_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
-        update_edge_src_property(*handle_, mg_graph_view, d_colors.begin(), src_colors_cache);
-        update_edge_dst_property(*handle_, mg_graph_view, d_colors.begin(), dst_colors_cache);
+        update_edge_src_property(*handle_, mg_graph_view, d_colors.begin(), src_color_cache);
+        update_edge_dst_property(*handle_, mg_graph_view, d_colors.begin(), dst_color_cache);
       }
 
       rmm::device_uvector<uint8_t> d_color_conflicts(
@@ -126,14 +127,17 @@ class Tests_MGGraphColoring
         *handle_,
         mg_graph_view,
         multi_gpu
-          ? src_colors_cache.view()
+          ? src_color_cache.view()
           : cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(d_colors.data()),
-        multi_gpu ? dst_colors_cache.view()
+        multi_gpu ? dst_color_cache.view()
                   : cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                       d_colors.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto, auto, auto src_color, auto dst_color, thrust::nullopt_t) {
-          return uint8_t{src_color == dst_color};
+        [] __device__(auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
+          if ((src != dst) && (src_color == dst_color))
+            return uint8_t{1};
+          else
+            return uint8_t{0};
         },
         uint8_t{0},
         cugraph::reduce_op::maximum<uint8_t>{},
@@ -155,19 +159,52 @@ class Tests_MGGraphColoring
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      {
-        thrust::for_each(thrust::host,
-                         thrust::make_zip_iterator(thrust::make_tuple(
-                           h_vertices_in_this_proces.begin(), h_color_conflicts.begin())),
-                         thrust::make_zip_iterator(thrust::make_tuple(
-                           h_vertices_in_this_proces.end(), h_color_conflicts.end())),
-                         [comm_rank](auto vetex_and_conflict_flag) {
-                           auto v             = thrust::get<0>(vetex_and_conflict_flag);
-                           auto conflict_flag = thrust::get<1>(vetex_and_conflict_flag);
+      weight_t sum_internal = cugraph::transform_reduce_e(
+        *handle_,
+        mg_graph_view,
+        multi_gpu ? src_color_cache.view()
+                  : cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
+                      d_colors.begin()),
+        multi_gpu ? dst_color_cache.view()
+                  : cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                      d_colors.begin(), vertex_t{0}),
+        cugraph::edge_dummy_property_t{}.view(),
+        [renumber_map = (*mg_renumber_map).data()] __device__(
+          auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
+          if ((src != dst) && (src_color == dst_color)) {
+            auto original_src = renumber_map[src];
+            auto original_dst = renumber_map[dst];
+            printf("original_src = %d  original_dst = %d src_color = %d dst_color = %d \n",
+                   static_cast<int>(original_src),
+                   static_cast<int>(original_dst),
+                   static_cast<int>(src_color),
+                   static_cast<int>(dst_color));
+            return vertex_t{1};
+          } else {
+            return vertex_t{0};
+          }
+        },
+        vertex_t{0});
 
-                           ASSERT_TRUE(conflict_flag == 0)
-                             << v << " got same color as one of its neighbor" << std::endl;
-                         });
+      {
+        thrust::for_each(
+          thrust::host,
+          thrust::make_zip_iterator(thrust::make_tuple(
+            h_colors.begin(), h_vertices_in_this_proces.begin(), h_color_conflicts.begin())),
+          thrust::make_zip_iterator(thrust::make_tuple(
+            h_colors.end(), h_vertices_in_this_proces.end(), h_color_conflicts.end())),
+          [comm_rank](auto color_vetex_and_conflict_flag) {
+            auto color         = thrust::get<0>(color_vetex_and_conflict_flag);
+            auto v             = thrust::get<1>(color_vetex_and_conflict_flag);
+            auto conflict_flag = thrust::get<2>(color_vetex_and_conflict_flag);
+            if (conflict_flag != 0) {
+              std::cout << "vertex: " << int{v} << " color:" << int{color}
+                        << " conflicting?: " << int{conflict_flag} << std::endl;
+            }
+
+            ASSERT_TRUE(conflict_flag == 0)
+              << v << " got same color as one of its neighbor" << std::endl;
+          });
       }
     }
   }
@@ -188,35 +225,35 @@ TEST_P(Tests_MGGraphColoring_File, CheckInt32Int32FloatFloat)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-// TEST_P(Tests_MGGraphColoring_File, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGGraphColoring_File, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGGraphColoring_File, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGGraphColoring_File, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int32FloatFloat)
-// {
-//   run_current_test<int32_t, int32_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGGraphColoring_Rmat, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGGraphColoring_Rmat, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGGraphColoring_Rmat, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
 bool constexpr check_correctness = true;
 

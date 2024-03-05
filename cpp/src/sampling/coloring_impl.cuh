@@ -98,7 +98,8 @@ rmm::device_uvector<vertex_t> coloring(
        v_first = current_graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
         auto v_offset              = v - v_first;
         is_vertex_in_mis[v_offset] = flag_t{1};
-        colors[v_offset]           = (colors[v_offset] < color_id) ? colors[v_offset] : color_id;
+        vertex_t initial_color_id  = colors[v_offset];
+        colors[v_offset]           = (color_id < initial_color_id) ? color_id : initial_color_id;
       });
 
     cugraph::edge_src_property_t<graph_view_t, flag_t> src_mis_flags(handle, current_graph_view);
