@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/detail/nbr_intersection.cuh>
-#include <prims/property_op_utils.cuh>
-#include <utilities/collect_comm.cuh>
-#include <utilities/error_check_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/detail/nbr_intersection.cuh"
+#include "prims/property_op_utils.cuh"
+#include "utilities/collect_comm.cuh"
+#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -29,6 +29,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>

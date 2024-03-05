@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,6 @@ import cugraph
 from cugraph.datasets import netscience
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal
-from cudf.testing.testing import assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -177,35 +176,20 @@ def test_jaccard(read_csv, gpubenchmark, use_weight):
     cu_src, cu_dst, cu_coeff = cugraph_call(
         gpubenchmark, graph_file, input_df=M_cu, use_weight=use_weight
     )
-    if not use_weight:
-        nx_src, nx_dst, nx_coeff = networkx_call(M)
 
-        # Calculating mismatch
-        err = 0
-        tol = 1.0e-06
+    nx_src, nx_dst, nx_coeff = networkx_call(M)
 
-        assert len(cu_coeff) == len(nx_coeff)
-        for i in range(len(cu_coeff)):
-            if abs(cu_coeff[i] - nx_coeff[i]) > tol * 1.1:
-                err += 1
+    # Calculating mismatch
+    err = 0
+    tol = 1.0e-06
 
-        print("Mismatches:  %d" % err)
-        assert err == 0
-    else:
-        G = graph_file.get_graph()
-        res_w_jaccard = cugraph.jaccard_w(G, vertex_pair=M_cu[[SRC_COL, DST_COL]])
-        res_w_jaccard = res_w_jaccard.sort_values(
-            [VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]
-        ).reset_index(drop=True)
-        res_jaccard = cudf.DataFrame()
-        res_jaccard[VERTEX_PAIR_FIRST_COL] = cu_src
-        res_jaccard[VERTEX_PAIR_SECOND_COL] = cu_dst
-        res_jaccard[JACCARD_COEFF_COL] = cu_coeff
-        assert_frame_equal(
-            res_w_jaccard, res_jaccard, check_dtype=False, check_like=True
-        )
+    assert len(cu_coeff) == len(nx_coeff)
+    for i in range(len(cu_coeff)):
+        if abs(cu_coeff[i] - nx_coeff[i]) > tol * 1.1:
+            err += 1
 
-        # FIXME: compare weighted jaccard results against resultset api
+    print("Mismatches:  %d" % err)
+    assert err == 0
 
 
 @pytest.mark.sg

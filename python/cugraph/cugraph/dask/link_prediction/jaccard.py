@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,38 +66,13 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
     of their intersection divided by the volume of their union. In the context
     of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
     similarity weight of each edge represents the strength of connection
-    between vertices based on the relative similarity of their neighbors. If
-    first is specified but second is not, or vice versa, an exception will be
-    thrown.
-
-    NOTE: If the vertex_pair parameter is not specified then the behavior
-    of cugraph.jaccard is different from the behavior of
-    networkx.jaccard_coefficient.
+    between vertices based on the relative similarity of their neighbors.
 
     cugraph.dask.jaccard, in the absence of a specified vertex pair list, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
     list and will return the jaccard coefficient for those vertex pairs. This is
     not advisable as the vertex_pairs can grow exponentially with respect to the
-    size of the datasets
-
-    networkx.jaccard_coefficient, in the absence of a specified vertex
-    pair list, will return an upper triangular dense matrix, excluding
-    the diagonal as well as vertex pairs that are directly connected
-    by an edge in the graph, of jaccard coefficients.  Technically, networkx
-    returns a lazy iterator across this upper triangular matrix where
-    the actual jaccard coefficient is computed when the iterator is
-    dereferenced.  Computing a dense matrix of results is not feasible
-    if the number of vertices in the graph is large (100,000 vertices
-    would result in 4.9 billion values in that iterator).
-
-    If your graph is small enough (or you have enough memory and patience)
-    you can get the interesting (non-zero) values that are part of the networkx
-    solution by doing the following:
-
-    But please remember that cugraph will fill the dataframe with the entire
-    solution you request, so you'll need enough memory to store the 2-hop
-    neighborhood dataframe.
-
+    size of the datasets.
 
     Parameters
     ----------

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <prims/extract_transform_e.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
+#include "prims/extract_transform_e.cuh"
+#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>

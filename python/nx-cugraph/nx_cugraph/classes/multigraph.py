@@ -360,9 +360,7 @@ class MultiGraph(Graph):
                 if k not in self.edge_masks or self.edge_masks[k][index]
             }
         return {
-            edge_keys[index]
-            if edge_keys is not None
-            else index: {
+            edge_keys[index] if edge_keys is not None else index: {
                 k: v[index].tolist()
                 for k, v in self.edge_values.items()
                 if k not in self.edge_masks or self.edge_masks[k][index]

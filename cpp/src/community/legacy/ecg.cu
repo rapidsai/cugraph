@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-#include <community/legacy/louvain.cuh>
+#include "community/legacy/louvain.cuh"
+#include "utilities/graph_utils.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <utilities/graph_utils.cuh>
 
 #include <rmm/exec_policy.hpp>
+
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>

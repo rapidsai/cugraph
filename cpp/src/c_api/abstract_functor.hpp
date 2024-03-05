@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/utilities/graph_traits.hpp>
+#include "c_api/error.hpp"
 
-#include <c_api/error.hpp>
+#include <cugraph/utilities/graph_traits.hpp>
 
 #include <memory>
 
