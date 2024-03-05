@@ -640,6 +640,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_MIS_TEST sampling/mg_mis_test.cu)
 
     ###############################################################################################
+    # - MG Graph Coloring tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_COLORING_TEST sampling/mg_coloring_test.cu)
+
+
+    ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)

@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
@@ -50,7 +51,6 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  std::cout << "Called MIS >>>>>>>>>>>>>>>>>>>>>>\n";
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
   vertex_t local_vtx_partitoin_size = graph_view.local_vertex_partition_range_size();
