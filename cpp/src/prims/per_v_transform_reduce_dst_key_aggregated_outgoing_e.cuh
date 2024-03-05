@@ -286,8 +286,6 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) { /* currently, nothing to do */
   }
 
@@ -317,24 +315,78 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
   // 1. aggregate each vertex out-going edges based on keys and transform-reduce.
 
+  auto edge_mask_view = graph_view.edge_mask_view();
+
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? thrust::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : thrust::nullopt;
 
     auto edge_partition_src_value_input =
       edge_partition_src_input_device_view_t(edge_src_value_input, i);
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
-    rmm::device_uvector<vertex_t> tmp_majors(edge_partition.number_of_edges(), handle.get_stream());
+    std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
+    if (edge_partition_e_mask) {
+      rmm::device_uvector<edge_t> degrees_with_mask(0, handle.get_stream());
+      if (edge_partition.dcs_nzd_vertices()) {
+        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+
+        auto major_sparse_range_size =
+          (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition];
+        degrees_with_mask = rmm::device_uvector<edge_t>(
+          major_sparse_range_size + *(edge_partition.dcs_nzd_vertex_count()), handle.get_stream());
+        auto major_first = thrust::make_transform_iterator(
+          thrust::make_counting_iterator(vertex_t{0}),
+          cuda::proclaim_return_type<vertex_t>(
+            [major_sparse_range_size,
+             major_range_first = edge_partition.major_range_first(),
+             dcs_nzd_vertices  = *(edge_partition.dcs_nzd_vertices())] __device__(vertex_t i) {
+              if (i < major_sparse_range_size) {  // sparse
+                return major_range_first + i;
+              } else {  // hypersparse
+                return *(dcs_nzd_vertices + (i - major_sparse_range_size));
+              }
+            }));
+        degrees_with_mask =
+          edge_partition.compute_local_degrees_with_mask((*edge_partition_e_mask).value_first(),
+                                                         major_first,
+                                                         major_first + degrees_with_mask.size(),
+                                                         handle.get_stream());
+      } else {
+        degrees_with_mask = edge_partition.compute_local_degrees_with_mask(
+          (*edge_partition_e_mask).value_first(),
+          thrust::make_counting_iterator(edge_partition.major_range_first()),
+          thrust::make_counting_iterator(edge_partition.major_range_last()),
+          handle.get_stream());
+      }
+      offsets_with_mask =
+        rmm::device_uvector<edge_t>(degrees_with_mask.size() + 1, handle.get_stream());
+      (*offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());
+      thrust::inclusive_scan(handle.get_thrust_policy(),
+                             degrees_with_mask.begin(),
+                             degrees_with_mask.end(),
+                             (*offsets_with_mask).begin() + 1);
+    }
+
+    rmm::device_uvector<vertex_t> tmp_majors(
+      edge_partition_e_mask ? (*offsets_with_mask).back_element(handle.get_stream())
+                            : edge_partition.number_of_edges(),
+      handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_majors.size(), handle.get_stream());
     // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
     rmm::device_uvector<edge_value_t> tmp_key_aggregated_edge_values(tmp_majors.size(),
                                                                      handle.get_stream());
 
-    if (edge_partition.number_of_edges() > 0) {
+    if (tmp_majors.size() > 0) {
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
       detail::decompress_edge_partition_to_fill_edgelist_majors<vertex_t,
@@ -342,7 +394,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                                                 GraphViewType::is_multi_gpu>(
         handle,
         edge_partition,
-        std::nullopt,
+        detail::to_std_optional(edge_partition_e_mask),
         raft::device_span<vertex_t>(tmp_majors.data(), tmp_majors.size()),
         segment_offsets);
 
@@ -357,12 +409,12 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
       auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
         handle,
-        edge_partition.offsets(),
+        offsets_with_mask ? (*offsets_with_mask).data() : edge_partition.offsets(),
         edge_partition.dcs_nzd_vertices()
           ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
               *(edge_partition.dcs_nzd_vertex_count())
           : edge_partition.major_range_size(),
-        edge_partition.number_of_edges(),
+        static_cast<edge_t>(tmp_majors.size()),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
 
@@ -381,22 +433,50 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       size_t reduced_size{0};
       for (size_t j = 0; j < num_chunks; ++j) {
-        thrust::copy(handle.get_thrust_policy(),
-                     minor_key_first + h_edge_offsets[j],
-                     minor_key_first + h_edge_offsets[j + 1],
-                     tmp_minor_keys.begin() + h_edge_offsets[j]);
+        if (edge_partition_e_mask) {
+          auto unmasked_range_first = *(edge_partition.offsets() + h_vertex_offsets[j]);
+          auto unmasked_range_last  = *(edge_partition.offsets() + h_vertex_offsets[j + 1]);
+          if constexpr (!std::is_same_v<edge_value_t, void>) {
+            detail::copy_if_mask_set(
+              handle,
+              thrust::make_zip_iterator(minor_key_first,
+                                        edge_partition_e_value_input.value_first()) +
+                unmasked_range_first,
+              thrust::make_zip_iterator(minor_key_first,
+                                        edge_partition_e_value_input.value_first()) +
+                unmasked_range_last,
+              (*edge_partition_e_mask).value_first() + unmasked_range_first,
+              thrust::make_zip_iterator(tmp_minor_keys.begin(),
+                                        tmp_key_aggregated_edge_values.begin()) +
+                h_edge_offsets[j]);
+          } else {
+            detail::copy_if_mask_set(handle,
+                                     minor_key_first + unmasked_range_first,
+                                     minor_key_first + unmasked_range_last,
+                                     (*edge_partition_e_mask).value_first() + unmasked_range_first,
+                                     tmp_minor_keys.begin() + h_edge_offsets[j]);
+          }
+        } else {
+          thrust::copy(handle.get_thrust_policy(),
+                       minor_key_first + h_edge_offsets[j],
+                       minor_key_first + h_edge_offsets[j + 1],
+                       tmp_minor_keys.begin() + h_edge_offsets[j]);
+        }
 
         size_t tmp_storage_bytes{0};
-        auto offset_first =
-          thrust::make_transform_iterator(edge_partition.offsets() + h_vertex_offsets[j],
-                                          detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
+        auto offset_first = thrust::make_transform_iterator(
+          (offsets_with_mask ? (*offsets_with_mask).data() : edge_partition.offsets()) +
+            h_vertex_offsets[j],
+          detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
         if constexpr (!std::is_same_v<edge_value_t, void>) {
           cub::DeviceSegmentedSort::SortPairs(
             static_cast<void*>(nullptr),
             tmp_storage_bytes,
             tmp_minor_keys.begin() + h_edge_offsets[j],
             unreduced_minor_keys.begin(),
-            edge_partition_e_value_input.value_first() + h_edge_offsets[j],
+            (edge_partition_e_mask ? tmp_key_aggregated_edge_values.begin()
+                                   : edge_partition_e_value_input.value_first()) +
+              h_edge_offsets[j],
             unreduced_key_aggregated_edge_values.begin(),
             h_edge_offsets[j + 1] - h_edge_offsets[j],
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
@@ -423,7 +503,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             tmp_storage_bytes,
             tmp_minor_keys.begin() + h_edge_offsets[j],
             unreduced_minor_keys.begin(),
-            edge_partition_e_value_input.value_first() + h_edge_offsets[j],
+            (edge_partition_e_mask ? tmp_key_aggregated_edge_values.begin()
+                                   : edge_partition_e_value_input.value_first()) +
+              h_edge_offsets[j],
             unreduced_key_aggregated_edge_values.begin(),
             h_edge_offsets[j + 1] - h_edge_offsets[j],
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
