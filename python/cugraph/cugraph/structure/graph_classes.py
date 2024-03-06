@@ -426,7 +426,7 @@ class Graph:
         ...                        edge_attr='2', renumber=False)
 
         """
-        if not isinstance(pdf, pd.core.frame.DataFrame):
+        if not isinstance(pdf, pd.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
@@ -450,7 +450,7 @@ class Graph:
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
         """
-        if not isinstance(pdf, pd.core.frame.DataFrame):
+        if not isinstance(pdf, pd.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
         np_array = pdf.to_numpy()
