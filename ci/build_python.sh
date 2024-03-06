@@ -23,10 +23,11 @@ echo "${version}" > VERSION
 rapids-logger "Begin py build"
 
 package_dir="python"
-for package_name in pylibcugraph cugraph nx-cugraph cugraph-pyg cugraph-dgl; do
+for package_name in pylibcugraph cugraph cugraph-pyg cugraph-dgl; do
   underscore_package_name=$(echo "${package_name}" | tr "-" "_")
   sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" "${package_dir}/${package_name}/${underscore_package_name}/_version.py"
 done
+sed -i "/^__git_commit__/ s/= .*/= \"${git_commit}\"/g" "${package_dir}/nx-cugraph/_nx_cugraph/_version.py"
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
