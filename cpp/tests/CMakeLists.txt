@@ -606,6 +606,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
       prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS PER_V_TRANSFORM_REDUCE_DST_KEY_AGGREGATED_OUTGOING_E tests -----------------------
+    ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_DST_KEY_AGGREGATED_OUTGOING_E_TEST
+      prims/mg_per_v_transform_reduce_dst_key_aggregated_outgoing_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_E tests --------------------------------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
 
