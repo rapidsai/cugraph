@@ -121,7 +121,7 @@ class Tests_MGGraphColoring
       edge_masks.view(),
       [] __device__(auto src, auto dst, auto, auto, auto current_mask) {
         if (src == dst)
-          printf("\nNO WAY %d %d  mask = %d\n",
+          printf("\nERROR: %d %d  mask = %d\n",
                  static_cast<int>(src),
                  static_cast<int>(dst),
                  static_cast<int>(current_mask));
