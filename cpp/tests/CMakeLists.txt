@@ -642,6 +642,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG Graph Coloring tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_COLORING_TEST sampling/mg_coloring_test.cu)
+    ConfigureTestMG(MG_EDGE_MASK_TEST sampling/mg_mask_test.cu)
 
 
     ###############################################################################################
