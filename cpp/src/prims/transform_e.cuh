@@ -197,9 +197,7 @@ struct update_e_value_t {
   __device__ void operator()(typename GraphViewType::edge_type i) const
   {
     if constexpr (check_edge_mask) {
-      if (!edge_partition_e_mask.get(i)) {
-        return;
-      }
+      if (!edge_partition_e_mask.get(i)) { return; }
     }
     auto major_idx    = edge_partition.major_idx_from_local_edge_idx_nocheck(i);
     auto major        = edge_partition.major_from_major_idx_nocheck(major_idx);
