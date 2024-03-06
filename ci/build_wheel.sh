@@ -21,7 +21,7 @@ PACKAGE_CUDA_SUFFIX="-${RAPIDS_PY_CUDA_SUFFIX}"
 
 # Patch project metadata files to include the CUDA version suffix and version override.
 version_package_name="$underscore_package_name"
-if [[ version_package_name = "nx_cugraph" ]]; then
+if [[ "${version_package_name}" = "nx_cugraph" ]]; then
     version_package_name="_nx_cugraph"
 fi
 pyproject_file="${package_dir}/pyproject.toml"
