@@ -85,7 +85,7 @@ __global__ void transform_e_packed_bool(
     if (local_edge_idx < num_edges) {
       bool compute_predicate = true;
       if constexpr (check_edge_mask) {
-        compute_predicate = (edge_mask & packed_bool_mask(lane_id) != packed_bool_empty_mask());
+        compute_predicate = ((edge_mask & packed_bool_mask(lane_id)) != packed_bool_empty_mask());
       }
 
       if (compute_predicate) {
