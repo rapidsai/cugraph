@@ -602,7 +602,6 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                                  this->partition_,
                                  this->edge_partition_segment_offsets_);
   } else {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   }
 }
@@ -622,7 +621,6 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
                                    : std::nullopt,
                                  this->local_vertex_partition_range_size());
   } else {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   }
 }
@@ -633,7 +631,6 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
   compute_out_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   } else {
     std::optional<std::vector<raft::device_span<uint32_t const>>> edge_partition_masks{
@@ -663,7 +660,6 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   compute_out_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
     return compute_minor_degrees(handle, *this);
   } else {
     return compute_major_degrees(handle,
@@ -681,8 +677,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_in_degree(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   auto in_degrees = compute_in_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
   rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
@@ -699,8 +693,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   compute_max_in_degree(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   auto in_degrees = compute_in_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
   edge_t ret{0};
@@ -713,8 +705,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_out_degree(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   auto out_degrees = compute_out_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
   rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
@@ -731,8 +721,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   compute_max_out_degree(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   auto out_degrees = compute_out_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
   edge_t ret{0};
@@ -745,8 +733,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   count_self_loops(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   return count_if_e(
     handle,
     *this,
@@ -760,8 +746,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   count_self_loops(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   return count_if_e(
     handle,
     *this,
@@ -775,8 +759,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   count_multi_edges(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   if (!this->is_multigraph()) { return edge_t{0}; }
 
   edge_t count{0};
@@ -795,8 +777,6 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   count_multi_edges(raft::handle_t const& handle) const
 {
-  CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-
   if (!this->is_multigraph()) { return edge_t{0}; }
 
   return count_edge_partition_multi_edges(
