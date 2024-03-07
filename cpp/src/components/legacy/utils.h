@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 
 #pragma once
 
-#include <cstdio>
+#include <cugraph/utilities/error.hpp>
+
+#include <raft/util/cudart_utils.hpp>
+
 #include <cuda_runtime.h>
+
 #include <execinfo.h>
+
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-#include <raft/util/cudart_utils.hpp>
-
-#include <cugraph/utilities/error.hpp>
 
 namespace MLCommon {
 

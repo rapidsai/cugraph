@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
+#include "prims/extract_transform_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/vertex_frontier.cuh"
 #include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/extract_transform_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -35,14 +33,13 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <sstream>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -54,9 +51,12 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuco/hash_functions.cuh>
+
 #include <gtest/gtest.h>
 
 #include <random>
+#include <sstream>
 #include <type_traits>
 
 template <typename key_t, typename vertex_t, typename property_t, typename output_payload_t>
