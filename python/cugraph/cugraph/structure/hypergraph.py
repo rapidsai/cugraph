@@ -596,6 +596,4 @@ def _prepend_str(col, val):
 
 # Make an empty categorical string dtype
 def _empty_cat_dt():
-    return cudf.CategoricalDtype(
-        categories=np.array([], dtype="str"), ordered=False
-    )
+    return cudf.CategoricalDtype(categories=np.array([], dtype="str"), ordered=False)
