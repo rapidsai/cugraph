@@ -549,6 +549,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     components/mg_weakly_connected_components_test.cpp)
 
     ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST components/mg_mis_test.cu)
+
+    ###############################################################################################
+    # - MG Graph Coloring tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_COLORING_TEST components/mg_coloring_test.cu)
+
+    ###############################################################################################
     # - MG Core Number tests ----------------------------------------------------------------------
     ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
@@ -634,14 +642,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
     target_link_libraries(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST PRIVATE cuco::cuco)
-
-    ###############################################################################################
-    # - MG MIS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_MIS_TEST sampling/mg_mis_test.cu)
-
-    ###############################################################################################
-    # - MG Graph Coloring tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_COLORING_TEST sampling/mg_coloring_test.cu)
 
     ###############################################################################################
     # - MG NBR SAMPLING tests ---------------------------------------------------------------------

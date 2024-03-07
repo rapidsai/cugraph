@@ -238,10 +238,6 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
-    src/sampling/mis_sg.cu
-    src/sampling/mis_mg.cu
-    src/sampling/coloring_sg.cu
-    src/sampling/coloring_mg.cu
     src/sampling/renumber_sampled_edgelist_sg.cu
     src/sampling/sampling_post_processing_sg.cu
     src/cores/core_number_sg.cu
@@ -299,6 +295,10 @@ set(CUGRAPH_SOURCES
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
+    src/components/mis_sg.cu
+    src/components/mis_mg.cu
+    src/components/coloring_sg.cu
+    src/components/coloring_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu

@@ -191,11 +191,6 @@ class Tests_MGGraphColoring
             auto color         = thrust::get<0>(color_vetex_and_conflict_flag);
             auto v             = thrust::get<1>(color_vetex_and_conflict_flag);
             auto conflict_flag = thrust::get<2>(color_vetex_and_conflict_flag);
-            if (conflict_flag != 0) {
-              std::cout << "vertex: " << int{v} << " color:" << int{color}
-                        << " conflicting?: " << int{conflict_flag} << std::endl;
-            }
-
             ASSERT_TRUE(conflict_flag == 0)
               << v << " got same color as one of its neighbor" << std::endl;
           });
