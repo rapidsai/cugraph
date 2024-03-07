@@ -164,6 +164,7 @@ _info = {
         },
         "louvain_communities": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+            "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         "pagerank": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
