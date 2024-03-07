@@ -133,9 +133,9 @@ def force_atlas2(
 
     if pos_list is not None:
         if not isinstance(pos_list, cudf.DataFrame):
-            raise TypeError('pos_list should be a cudf.DataFrame')
-        if set(pos_list.columns) != set(['x', 'y', 'vertex']):
-            raise ValueError('pos_list has wrong column names')
+            raise TypeError("pos_list should be a cudf.DataFrame")
+        if set(pos_list.columns) != set(["x", "y", "vertex"]):
+            raise ValueError("pos_list has wrong column names")
         if input_graph.renumbered is True:
             if input_graph.vertex_column_size() > 1:
                 cols = pos_list.columns[:-2].to_list()
