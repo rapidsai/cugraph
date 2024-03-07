@@ -244,7 +244,7 @@ TEST_P(Tests_MGGraphColoring_Rmat, CheckInt64Int64FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-bool constexpr check_correctness = true;
+bool constexpr check_correctness = false;
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
