@@ -111,7 +111,13 @@ class Tests_MGGraphColoring
         return !(src == dst);  // mask out self-loop
       },
       edge_masks.mutable_view());
-    mg_graph_view.attach_edge_mask(edge_masks.view());
+    
+      mg_graph_view.attach_edge_mask(edge_masks.view());
+
+
+      cugraph::edge_property_t<graph_view_t, bool> edge_masks_2(*handle_, mg_graph_view);
+      cugraph::fill_edge_property(*handle_, mg_graph_view, bool{true}, edge_masks_2);
+
 
     cugraph::transform_e(
       *handle_,
@@ -128,7 +134,7 @@ class Tests_MGGraphColoring
 
         return current_mask;
       },
-      edge_masks.mutable_view());
+      edge_masks_2.mutable_view());
   }
 
  private:
