@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -581,7 +581,7 @@ def _create_direct_edges(
 def _str_scalar_to_category(size, val):
     return cudf.core.column.build_categorical_column(
         categories=cudf.core.column.as_column([val], dtype="str"),
-        codes=cudf.core.column.column.full(size, 0, dtype=np.int32),
+        codes=cudf.core.column.as_column(0, length=size, dtype=np.int32),
         mask=None,
         size=size,
         offset=0,

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -129,9 +129,9 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # renumbered, the node ID must also be renumbered.
     if input_graph.renumbered:
         n = input_graph.lookup_internal_vertex_id(n)
-        n_type = input_graph.edgelist.edgelist_df.dtypes[0]
+        n_type = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     else:
-        n_type = input_graph.input_df.dtypes[0]
+        n_type = input_graph.input_df.dtypes.iloc[0]
 
     if isinstance(n, (cudf.Series, cudf.DataFrame)):
         n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))

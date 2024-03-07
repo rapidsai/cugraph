@@ -423,6 +423,7 @@ add_library(cugraph_c
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
+        src/c_api/ecg.cpp
         src/c_api/k_core.cpp
         src/c_api/hierarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
