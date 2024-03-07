@@ -134,10 +134,11 @@ class Tests_MGGraphColoring
                       d_colors.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
-          if ((src != dst) && (src_color == dst_color))
+          if ((src != dst) && (src_color == dst_color)) {
             return uint8_t{1};
-          else
+          } else {
             return uint8_t{0};
+          }
         },
         uint8_t{0},
         cugraph::reduce_op::maximum<uint8_t>{},
@@ -159,7 +160,7 @@ class Tests_MGGraphColoring
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      weight_t sum_internal = cugraph::transform_reduce_e(
+      weight_t nr_conflicts = cugraph::transform_reduce_e(
         *handle_,
         mg_graph_view,
         multi_gpu ? src_color_cache.view()
@@ -172,13 +173,6 @@ class Tests_MGGraphColoring
         [renumber_map = (*mg_renumber_map).data()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
-            auto original_src = renumber_map[src];
-            auto original_dst = renumber_map[dst];
-            printf("original_src = %d  original_dst = %d src_color = %d dst_color = %d \n",
-                   static_cast<int>(original_src),
-                   static_cast<int>(original_dst),
-                   static_cast<int>(src_color),
-                   static_cast<int>(dst_color));
             return vertex_t{1};
           } else {
             return vertex_t{0};

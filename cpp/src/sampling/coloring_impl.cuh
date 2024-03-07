@@ -68,7 +68,23 @@ rmm::device_uvector<vertex_t> coloring(
 
   // edge mask
   cugraph::edge_property_t<graph_view_t, bool> edge_masks(handle, current_graph_view);
-  cugraph::fill_edge_property(handle, current_graph_view, bool{true}, edge_masks);
+  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks);
+
+  cugraph::edge_property_t<graph_view_t, bool> edge_masks_2(handle, current_graph_view);
+  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_2);
+
+  cugraph::transform_e(
+    handle,
+    current_graph_view,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    cugraph::edge_dummy_property_t{}.view(),
+    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+      return !(src == dst);  // mask out self-loop
+    },
+    edge_masks.mutable_view());
+
+  current_graph_view.attach_edge_mask(edge_masks.view());
 
   // device vector to store colors of vertices
   rmm::device_uvector<vertex_t> colors = rmm::device_uvector<vertex_t>(
@@ -81,11 +97,9 @@ rmm::device_uvector<vertex_t> coloring(
     auto mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
       handle, current_graph_view, rng_state);
 
-    using flag_t = uint8_t;
-
+    using flag_t                                 = uint8_t;
     rmm::device_uvector<flag_t> is_vertex_in_mis = rmm::device_uvector<flag_t>(
       current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
     thrust::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
 
     thrust::for_each(
@@ -102,6 +116,8 @@ rmm::device_uvector<vertex_t> coloring(
         colors[v_offset]           = (color_id < initial_color_id) ? color_id : initial_color_id;
       });
 
+    if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
+
     cugraph::edge_src_property_t<graph_view_t, flag_t> src_mis_flags(handle, current_graph_view);
     cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_mis_flags(handle, current_graph_view);
 
@@ -111,21 +127,40 @@ rmm::device_uvector<vertex_t> coloring(
     cugraph::update_edge_dst_property(
       handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags);
 
-    if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
-    cugraph::transform_e(
-      handle,
-      current_graph_view,
-      src_mis_flags.view(),
-      dst_mis_flags.view(),
-      edge_masks.view(),
-      [] __device__(
-        auto src, auto dst, auto is_src_to_remove, auto is_dst_to_remove, auto current_mask) {
-        return (is_src_to_remove == 0) && (is_dst_to_remove == 0);
-      },
-      edge_masks.mutable_view());
+    if (color_id % 2 == 0) {
+      cugraph::transform_e(
+        handle,
+        current_graph_view,
+        src_mis_flags.view(),
+        dst_mis_flags.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [color_id] __device__(
+          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
+          return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
+        },
+        edge_masks_2.mutable_view());
 
-    if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-    current_graph_view.attach_edge_mask(edge_masks.view());
+      if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
+      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks);
+      current_graph_view.attach_edge_mask(edge_masks_2.view());
+    } else {
+      cugraph::transform_e(
+        handle,
+        current_graph_view,
+        src_mis_flags.view(),
+        dst_mis_flags.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [color_id] __device__(
+          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
+          return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
+        },
+        edge_masks.mutable_view());
+
+      if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
+      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_2);
+      current_graph_view.attach_edge_mask(edge_masks.view());
+    }
+
     color_id++;
   }
   return colors;
