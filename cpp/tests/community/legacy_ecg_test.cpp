@@ -8,8 +8,6 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include "utilities/base_fixture.hpp"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
@@ -17,12 +15,14 @@
 
 #include <thrust/host_vector.h>
 
+#include <utilities/base_fixture.hpp>
+
 // FIXME:  Temporarily disable this test.  Something is wrong with
 //         ECG, or the expectation of this test.  If I run ensemble size
 //         of 24 this fails.  It also fails with the SG Louvain change
 //         for PR 1271
 #if 0
-TEST(ecg, success)
+TEST(legacy_ecg, success)
 {
   // FIXME: verify that this is the karate dataset
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
@@ -77,7 +77,7 @@ TEST(ecg, success)
 }
 #endif
 
-TEST(ecg, dolphin)
+TEST(legacy_ecg, dolphin)
 {
   raft::handle_t handle;
 

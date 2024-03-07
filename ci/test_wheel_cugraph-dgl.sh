@@ -17,7 +17,7 @@ RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-f
 python -m pip install ./local-deps/*.whl
 
 # use 'ls' to expand wildcard before adding `[extra]` requires for pip
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-download-wheels-from-s3 ./dist
 # pip creates wheels using python package names
 python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
 
@@ -34,6 +34,6 @@ DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
 
 rapids-logger "Installing PyTorch and DGL"
 rapids-retry python -m pip install torch --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install dgl --find-links ${DGL_URL}
+rapids-retry python -m pip install dgl==2.0.0 --find-links ${DGL_URL}
 
 python -m pytest python/cugraph-dgl/tests
