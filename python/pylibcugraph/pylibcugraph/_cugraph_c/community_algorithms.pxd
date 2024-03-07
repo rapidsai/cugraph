@@ -153,13 +153,29 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_error_t** error
         )
     ###########################################################################
-    # ECG
+    # Legacy ECG
     cdef cugraph_error_code_t \
-        cugraph_ecg(
+        cugraph_legacy_ecg(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             double min_weight,
             size_t ensemble_size,
+            bool_t do_expensive_check,
+            cugraph_hierarchical_clustering_result_t** result,
+            cugraph_error_t** error
+        )
+
+    # ECG
+    cdef cugraph_error_code_t \
+        cugraph_ecg(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            double min_weight,
+            size_t ensemble_size,
+            size_t max_level,
+            double threshold,
+            double resolution,
             bool_t do_expensive_check,
             cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error

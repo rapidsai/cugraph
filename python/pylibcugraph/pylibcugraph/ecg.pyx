@@ -31,6 +31,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_hierarchical_clustering_result_t,
+    cugraph_legacy_ecg,
     cugraph_ecg,
     cugraph_hierarchical_clustering_result_get_vertices,
     cugraph_hierarchical_clustering_result_get_clusters,
@@ -124,7 +125,7 @@ def ecg(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_ecg(c_resource_handle_ptr,
+    error_code = cugraph_legacy_ecg(c_resource_handle_ptr,
                              c_graph_ptr,
                              min_weight,
                              ensemble_size,

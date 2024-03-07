@@ -60,11 +60,14 @@ Example
     )
 
     # create graph from input data
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(e_list, source='src', destination='dst')
 
     # run PageRank
     pr_df = dask_cugraph.pagerank(G, tol=1e-4)
+
+    # need to call compute to generate results
+    pr_df.compute()
 
     # cluster clean up
     Comms.destroy()
