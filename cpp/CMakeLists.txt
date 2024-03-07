@@ -584,7 +584,7 @@ find_package(Doxygen 1.8.11)
 if(Doxygen_FOUND)
     add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                       COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION=${RAPIDS_VERSION}" doxygen Doxyfile
+                       COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION_MAJOR_MINOR=${RAPIDS_VERSION_MAJOR_MINOR}" doxygen Doxyfile
                        VERBATIM)
 
     add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
