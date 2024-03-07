@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,18 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import warnings
+
+import cudf
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_nx_graph_type,
 )
 from cugraph.utilities import cugraph_to_nx
 
-import cudf
-
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
-
 from pylibcugraph import ResourceHandle
-import warnings
 
 
 def _convert_graph_to_output_type(G, input_type):
@@ -49,6 +49,7 @@ def _convert_df_series_to_output_type(df, offsets, input_type):
         return df, offsets
 
 
+# TODO: add support for a 'batch-mode' option.
 def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     """
     Compute the induced subgraph of neighbors centered at node n,
@@ -118,6 +119,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
     # Match the seed to the vertex dtype
     n_type = G.edgelist.edgelist_df["src"].dtype
+    # FIXME: 'n' should represent a single vertex, but is not being verified
     n = n.astype(n_type)
     do_expensive_check = False
 
@@ -154,6 +156,11 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
 def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distance=None):
     """
+    This function is deprecated.
+
+    Deprecated since 24.04. Batched support for multiple seeds will be added
+    to `ego_graph`.
+
     Compute the induced subgraph of neighbors for each node in seeds
     within a given radius.
 
@@ -196,6 +203,9 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
     ...                                                   radius=2)
 
     """
+    warning_msg = "This function is deprecated. Batched support for multiple vertices \
+         will be added to `ego_graph`"
+    warnings.warn(warning_msg, DeprecationWarning)
 
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
