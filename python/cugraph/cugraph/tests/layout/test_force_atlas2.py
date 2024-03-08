@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -122,9 +122,9 @@ MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
 
-class TestCallback(GraphBasedDimRedCallback):
+class ExampleCallback(GraphBasedDimRedCallback):
     def __init__(self):
-        super(TestCallback, self).__init__()
+        super().__init__()
         self.on_preprocess_end_called_count = 0
         self.on_epoch_end_called_count = 0
         self.on_train_end_called_count = 0
@@ -145,7 +145,7 @@ class TestCallback(GraphBasedDimRedCallback):
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = graph_file.get_edgelist(download=True)
-    test_callback = TestCallback()
+    test_callback = ExampleCallback()
     cu_pos = cugraph_call(
         cu_M,
         max_iter=max_iter,

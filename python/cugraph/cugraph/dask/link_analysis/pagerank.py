@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
             warnings.warn(warning_msg, UserWarning)
             input_df = input_df.astype({"values": edge_attr_dtype})
 
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     input_df_vertex_dtype = input_df["vertex"].dtype
     if input_df_vertex_dtype != vertex_dtype:
         warning_msg = (
@@ -406,7 +406,7 @@ def pagerank(
 
     wait(result)
 
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
 
     # Have each worker convert tuple of arrays and bool from PLC to cudf
     # DataFrames and bools. This will be a list of futures.

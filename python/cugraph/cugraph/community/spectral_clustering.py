@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -92,8 +92,8 @@ def spectralBalancedCutClustering(
     G, isNx = ensure_cugraph_obj_for_nx(G)
     # Check if vertex type is "int32"
     if (
-        G.edgelist.edgelist_df.dtypes[0] != np.int32
-        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+        G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
     ):
         raise ValueError(
             "'spectralBalancedCutClustering' requires the input graph's vertex to be "
@@ -186,8 +186,8 @@ def spectralModularityMaximizationClustering(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     if (
-        G.edgelist.edgelist_df.dtypes[0] != np.int32
-        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+        G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
     ):
         raise ValueError(
             "'spectralModularityMaximizationClustering' requires the input graph's "
@@ -271,8 +271,8 @@ def analyzeClustering_modularity(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     if (
-        G.edgelist.edgelist_df.dtypes[0] != np.int32
-        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+        G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
     ):
         raise ValueError(
             "'analyzeClustering_modularity' requires the input graph's "
@@ -354,8 +354,8 @@ def analyzeClustering_edge_cut(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if (
-        G.edgelist.edgelist_df.dtypes[0] != np.int32
-        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+        G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
     ):
         raise ValueError(
             "'analyzeClustering_edge_cut' requires the input graph's vertex to be "
@@ -367,7 +367,7 @@ def analyzeClustering_edge_cut(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+    if clustering.dtypes.iloc[0] != np.int32 or clustering.dtypes.iloc[1] != np.int32:
         raise ValueError(
             "'analyzeClustering_edge_cut' requires both the clustering 'vertex' "
             "and 'cluster' to be of type 'int32'"
@@ -437,7 +437,7 @@ def analyzeClustering_ratio_cut(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+    if clustering.dtypes.iloc[0] != np.int32 or clustering.dtypes.iloc[1] != np.int32:
         raise ValueError(
             "'analyzeClustering_ratio_cut' requires both the clustering 'vertex' "
             "and 'cluster' to be of type 'int32'"

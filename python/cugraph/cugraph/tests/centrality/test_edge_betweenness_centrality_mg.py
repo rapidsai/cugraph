@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -146,7 +146,7 @@ def input_expected_output(input_combo):
         weight = None
 
     if edge_ids:
-        dtype = ddf.dtypes[0]
+        dtype = ddf.dtypes.iloc[0]
         edge_id = "edge_id"
         ddf = ddf.assign(idx=1)
         ddf["edge_id"] = ddf.idx.cumsum().astype(dtype) - 1
