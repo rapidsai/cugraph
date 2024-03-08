@@ -185,7 +185,7 @@ def hypergraph(
     events.reset_index(drop=True, inplace=True)
 
     if EVENTID not in events.columns:
-        events[EVENTID] = cudf.core.index.RangeIndex(len(events))
+        events[EVENTID] = cudf.RangeIndex(len(events))
 
     events[EVENTID] = _prepend_str(events[EVENTID], EVENTID + DELIM)
     events[NODETYPE] = (
@@ -596,6 +596,4 @@ def _prepend_str(col, val):
 
 # Make an empty categorical string dtype
 def _empty_cat_dt():
-    return cudf.core.dtypes.CategoricalDtype(
-        categories=np.array([], dtype="str"), ordered=False
-    )
+    return cudf.CategoricalDtype(categories=np.array([], dtype="str"), ordered=False)

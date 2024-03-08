@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -172,7 +172,7 @@ def node2vec(ResourceHandle resource_handle,
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
     cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
                                            path_sizes_ptr)
-    
+
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(seed_view_ptr)
 

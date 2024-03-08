@@ -17,7 +17,7 @@ RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-f
 python -m pip install ./local-deps/*.whl
 
 # use 'ls' to expand wildcard before adding `[extra]` requires for pip
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-download-wheels-from-s3 ./dist
 # pip creates wheels using python package names
 python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
 
