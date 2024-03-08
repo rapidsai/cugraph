@@ -411,7 +411,7 @@ endif()
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
-        src/c_api/degrees.cpp
+        src/c_api/degrees.cu
         src/c_api/degrees_result.cpp
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
