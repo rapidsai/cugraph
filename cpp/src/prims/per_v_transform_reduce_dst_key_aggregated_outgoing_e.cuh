@@ -208,9 +208,8 @@ struct reduce_with_init_t {
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
- * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
- * coincide with vertex type).
- * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
+ * @tparam KVStoreViewType Type of the (key, value) store. Key type should coincide with vertex
+ * type.
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
@@ -230,15 +229,10 @@ struct reduce_with_init_t {
  * @param edge_dst_key_input Wrapper used to access destination input key values (for the edge
  * destinations assigned to this process in multi-GPU). Use  cugraph::edge_dst_property_t::view().
  * Use update_edge_dst_property to fill the wrapper.
- * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
- * used to map keys to processes). (Key, value) pairs may be provided by
- * transform_reduce_e_by_src_key() or transform_reduce_e_by_dst_key().
- * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU).
- * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
- * (assigned to this process in multi-GPU). `map_value_last` (exclusive) is deduced as @p
- * map_value_first + thrust::distance(@p map_unique_key_first, @p map_unique_key_last).
+ * @param kv_store_view view object of the (key, value) store (for the keys assigned to this process
+ * in multi-GPU). `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is used to map keys to
+ * processes). (Key, value) pairs may be provided by transform_reduce_e_by_src_key() or
+ * transform_reduce_e_by_dst_key().
  * @param key_aggregated_e_op Quinary operator takes 1) edge source, 2) key, 3) *(@p
  * edge_partition_src_value_input_first + i), 4) value for the key stored in the input (key, value)
  * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
