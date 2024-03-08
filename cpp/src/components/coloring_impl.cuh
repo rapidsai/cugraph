@@ -16,39 +16,13 @@
 #pragma once
 
 #include "prims/fill_edge_property.cuh"
-#include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/edge_partition_view.hpp>
-#include <cugraph/edge_property.hpp>
-#include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/graph_functions.hpp>
-#include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/comms/mpi_comms.hpp>
-#include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
-
-#include <cuda/functional>
-#include <thrust/count.h>
-#include <thrust/distance.h>
-#include <thrust/for_each.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/merge.h>
-#include <thrust/optional.h>
-#include <thrust/remove.h>
-#include <thrust/set_operations.h>
-#include <thrust/transform.h>
-#include <thrust/transform_reduce.h>
-
-#include <cmath>
-#include <iostream>
-#include <string>
 
 namespace cugraph {
 
@@ -67,11 +41,11 @@ rmm::device_uvector<vertex_t> coloring(
   graph_view_t current_graph_view(graph_view);
 
   // edge mask
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks(handle, current_graph_view);
-  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks);
+  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
+  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
 
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_2(handle, current_graph_view);
-  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_2);
+  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
+  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
 
   cugraph::transform_e(
     handle,
@@ -82,9 +56,9 @@ rmm::device_uvector<vertex_t> coloring(
     [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
       return !(src == dst);  // mask out self-loop
     },
-    edge_masks.mutable_view());
+    edge_masks_even.mutable_view());
 
-  current_graph_view.attach_edge_mask(edge_masks.view());
+  current_graph_view.attach_edge_mask(edge_masks_even.view());
 
   // device vector to store colors of vertices
   rmm::device_uvector<vertex_t> colors = rmm::device_uvector<vertex_t>(
@@ -138,11 +112,11 @@ rmm::device_uvector<vertex_t> coloring(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
           return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
         },
-        edge_masks_2.mutable_view());
+        edge_masks_odd.mutable_view());
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks);
-      current_graph_view.attach_edge_mask(edge_masks_2.view());
+      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
+      current_graph_view.attach_edge_mask(edge_masks_odd.view());
     } else {
       cugraph::transform_e(
         handle,
@@ -154,11 +128,11 @@ rmm::device_uvector<vertex_t> coloring(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
           return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
         },
-        edge_masks.mutable_view());
+        edge_masks_even.mutable_view());
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_2);
-      current_graph_view.attach_edge_mask(edge_masks.view());
+      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
+      current_graph_view.attach_edge_mask(edge_masks_even.view());
     }
 
     color_id++;
