@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -135,7 +135,7 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_random_walk_result_get_path_sizes(
             cugraph_random_walk_result_t* result
         )
-    
+
     cdef size_t \
         cugraph_random_walk_result_get_max_path_length(
             cugraph_random_walk_result_t* result
@@ -187,17 +187,17 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_destinations(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_majors(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_minors(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_major_offsets(
             const cugraph_sample_result_t* result
@@ -207,27 +207,27 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_index(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_weight(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_id(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_edge_type(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_hop(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_label_hop_offsets(
             const cugraph_sample_result_t* result
@@ -237,7 +237,7 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_start_labels(
             const cugraph_sample_result_t* result
         )
-    
+
     # Deprecated
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_offsets(
@@ -264,15 +264,15 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ctypedef struct cugraph_sampling_options_t:
         pass
-    
+
     ctypedef enum cugraph_prior_sources_behavior_t:
         DEFAULT=0
         CARRY_OVER
         EXCLUDE
-    
+
     ctypedef enum cugraph_compression_type_t:
         COO=0
         CSR
@@ -285,7 +285,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t** options,
             cugraph_error_t** error,
         )
-    
+
     cdef void \
         cugraph_sampling_set_renumber_results(
             cugraph_sampling_options_t* options,
@@ -297,7 +297,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t* options,
             bool_t value,
         )
-    
+
     cdef void \
         cugraph_sampling_set_return_hops(
             cugraph_sampling_options_t* options,
@@ -315,19 +315,19 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t* options,
             bool_t value,
         )
-    
+
     cdef void \
         cugraph_sampling_set_compress_per_hop(
             cugraph_sampling_options_t* options,
             bool_t value,
         )
-    
+
     cdef void \
         cugraph_sampling_set_compression_type(
             cugraph_sampling_options_t* options,
             cugraph_compression_type_t value,
         )
-    
+
     cdef void \
         cugraph_sampling_options_free(
             cugraph_sampling_options_t* options,
@@ -343,7 +343,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # biased random walks
     cdef cugraph_error_code_t \
         cugraph_based_random_walks(

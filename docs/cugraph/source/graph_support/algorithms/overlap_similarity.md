@@ -15,7 +15,7 @@ $overlap(A,B) = \frac{|A \cap B|}{min(|A|,|B|)}$
 ## When not to use Overlap Similarity
 * You are trying to compare graphs of extremely different sizes
 * In overly sparse or dense graph can overlap similarity can miss relationships or give fals positives respectively.
-* In directed graphs, there are better algorithms to use. 
+* In directed graphs, there are better algorithms to use.
 
 
 ## How computationally expensive is it?

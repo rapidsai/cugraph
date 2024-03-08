@@ -333,7 +333,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     if (renumber_results) {
       size_t num_vertex_ids = 2 * (h_result_offsets[label_id+1] - h_result_offsets[label_id]);
       vertex_t vertex_ids[num_vertex_ids];
-      
+
       for (size_t i = 0 ; (i < (h_result_offsets[label_id+1] - h_result_offsets[label_id])) && (test_ret_value == 0) ; ++i) {
         vertex_ids[2*i] = h_result_srcs[h_result_offsets[label_id] + i];
         vertex_ids[2*i+1] = h_result_dsts[h_result_offsets[label_id] + i];
@@ -345,7 +345,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
       for (size_t i = 0 ; (i < num_vertex_ids) && (test_ret_value == 0) ; ++i) {
         if (vertex_ids[i] == current_v)
           ++current_v;
-        else 
+        else
             TEST_ASSERT(test_ret_value,
                         vertex_ids[i] == (current_v - 1),
                         "vertices are not properly renumbered");
