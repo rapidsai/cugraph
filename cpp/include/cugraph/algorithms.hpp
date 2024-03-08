@@ -2350,7 +2350,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::random::RngState& rng_state);
 
 /*
- * @brief Find a greedy coloring
+ * @brief Find a Greedy Coloring using Maximal Independent Set
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
