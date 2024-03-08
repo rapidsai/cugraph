@@ -316,12 +316,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
   // to limit memory footprint ((1 << 20) is a tuning parameter)
   auto approx_edges_to_sort_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-  auto [h_vertex_offsets, h_edge_offsets] =
-    detail::compute_offset_aligned_edge_chunks(handle,
-                                               offsets.data(),
-                                               static_cast<vertex_t>(offsets.size() - 1),
-                                               num_edges,
-                                               approx_edges_to_sort_per_iteration);
+  auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
+    handle, offsets, num_edges, approx_edges_to_sort_per_iteration);
   auto num_chunks = h_vertex_offsets.size() - 1;
 
   // 3. Segmented sort each vertex's neighbors
@@ -451,12 +447,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
   // to limit memory footprint ((1 << 20) is a tuning parameter)
   auto approx_edges_to_sort_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-  auto [h_vertex_offsets, h_edge_offsets] =
-    detail::compute_offset_aligned_edge_chunks(handle,
-                                               offsets.data(),
-                                               static_cast<vertex_t>(offsets.size() - 1),
-                                               num_edges,
-                                               approx_edges_to_sort_per_iteration);
+  auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
+    handle, offsets, num_edges, approx_edges_to_sort_per_iteration);
   auto num_chunks = h_vertex_offsets.size() - 1;
 
   // 3. Segmented sort each vertex's neighbors

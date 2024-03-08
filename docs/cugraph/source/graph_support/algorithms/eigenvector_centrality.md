@@ -18,11 +18,11 @@ Where M(v) is the adjacency list for the set of vertices(v) and λ is a constant
 
 ## When to use Eigenvector Centrality
 * When the quality and quantity of edges matters, in other words, connections to other high-degree nodes is important
-* To calculate influence in nuanced networks like social and financial networks. 
+* To calculate influence in nuanced networks like social and financial networks.
 
 ## When not to use Eigenvector Centrality
 * in graphs with many disconnected groups
-* in graphs containing many distinct and different communities 
+* in graphs containing many distinct and different communities
 * in networks with negative weights
 * in huge networks eigenvector centrality can become computationally infeasible in single threaded systems.
 
@@ -39,4 +39,3 @@ Licensed under the Apache License, Version 2.0 (the "License");  you may not use
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 ___
-

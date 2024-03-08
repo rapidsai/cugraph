@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,6 +31,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_hierarchical_clustering_result_t,
+    cugraph_legacy_ecg,
     cugraph_ecg,
     cugraph_hierarchical_clustering_result_get_vertices,
     cugraph_hierarchical_clustering_result_get_clusters,
@@ -72,7 +73,7 @@ def ecg(ResourceHandle resource_handle,
 
     graph : SGGraph
         The input graph.
-    
+
     min_weight : double, optional (default=0.5)
         The minimum value to assign as an edgeweight in the ECG algorithm.
         It should be a value in the range [0,1] usually left as the default
@@ -82,7 +83,7 @@ def ecg(ResourceHandle resource_handle,
         The number of graph permutations to use for the ensemble.
         The default value is 16, larger values may produce higher quality
         partitions for some graphs.
-    
+
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -124,7 +125,7 @@ def ecg(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_ecg(c_resource_handle_ptr,
+    error_code = cugraph_legacy_ecg(c_resource_handle_ptr,
                              c_graph_ptr,
                              min_weight,
                              ensemble_size,

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,7 +65,7 @@ def sorensen_coefficients(ResourceHandle resource_handle,
         bool_t do_expensive_check):
     """
     Compute the Sorensen coefficients for the specified vertex_pairs.
-    
+
     Note that Sorensen similarity must run on a symmetric graph.
 
     Parameters
@@ -76,13 +76,13 @@ def sorensen_coefficients(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     first :
         Source of the vertex pair.
-    
+
     second :
         Destination of the vertex pair.
-    
+
     use_weight : bool, optional
         If set to True, the  compute weighted jaccard_coefficients(
             the input graph must be weighted in that case).

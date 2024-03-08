@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,13 +68,13 @@ cdef class SamplingResult:
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        
+
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_major_offsets(self.c_sample_result_ptr)
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -87,7 +87,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -100,7 +100,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -114,7 +114,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -128,7 +128,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -149,7 +149,7 @@ cdef class SamplingResult:
     def get_indices(self):
         # Deprecated
         return self.get_edge_weights()
-    
+
     def get_edge_ids(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -177,7 +177,7 @@ cdef class SamplingResult:
 
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-    
+
     def get_batch_ids(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -187,7 +187,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -200,7 +200,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -214,7 +214,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -228,7 +228,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -241,7 +241,7 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -254,6 +254,6 @@ cdef class SamplingResult:
         )
         if device_array_view_ptr is NULL:
             return None
-        
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
