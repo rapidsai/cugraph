@@ -2359,7 +2359,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @return A device vector containing vertices found in the maximal independent set
+ * @return A device vector containing color for each vertex
  */
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
