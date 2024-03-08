@@ -18,7 +18,7 @@ from cugraph_equivariant.utils import scatter_reduce
 
 @pytest.mark.parametrize("reduce", ["sum", "mean", "prod", "amax", "amin"])
 def test_scatter_reduce(example_scatter_data, reduce):
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
     src, index, out_true = example_scatter_data
     src = src.to(device)
     index = index.to(device)
@@ -26,3 +26,15 @@ def test_scatter_reduce(example_scatter_data, reduce):
     out = scatter_reduce(src, index, dim=0, dim_size=None, reduce=reduce)
 
     assert torch.allclose(out.cpu(), out_true[reduce])
+
+
+def test_scatter_reduce_empty(empty_scatter_data):
+    device = torch.device("cuda")
+    src, index = empty_scatter_data
+    src = src.to(device)
+    index = index.to(device)
+
+    out = scatter_reduce(src, index, dim=0, dim_size=None)
+
+    assert out.numel() == 0
+    assert out.size(1) == src.size(1)

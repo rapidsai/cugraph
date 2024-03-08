@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
+#include "utilities/base_fixture.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -24,10 +24,10 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
-#include <gtest/gtest.h>
-
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -38,7 +38,7 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
-#include <cuda/functional>
+#include <gtest/gtest.h>
 
 struct SamplingPostProcessing_Usecase {
   size_t num_labels{};

@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <prims/detail/extract_transform_v_frontier_e.cuh>
-#include <prims/property_op_utils.cuh>
+#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>

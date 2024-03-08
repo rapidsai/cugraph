@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,15 @@
  */
 
 #pragma once
-#include <prims/transform_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
+#include "prims/transform_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>
@@ -32,6 +31,8 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <tuple>
 #include <vector>
