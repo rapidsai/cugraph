@@ -1,7 +1,7 @@
 # License
 
 Most of the Graph code is open-sourced and developed under the Apache 2.0 licnese.
-The cugraph-ops code is closed sourced and developed under a NVIDIA copyright 
+The cugraph-ops code is closed sourced and developed under a NVIDIA copyright
 
 
 

@@ -6,4 +6,3 @@ Data Stores
    property_graph.md
    knowledge_stores.md
    feature_stores.md
-

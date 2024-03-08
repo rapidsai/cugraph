@@ -11,4 +11,3 @@ RMAT
    :toctree: ../api/cugraph/
 
    cugraph.generators.rmat
-

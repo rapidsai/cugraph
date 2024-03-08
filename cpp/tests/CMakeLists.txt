@@ -248,8 +248,8 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
-# - ECG tests -------------------------------------------------------------------------------------
-ConfigureTest(ECG_TEST community/ecg_test.cpp)
+# - Legacy ECG tests -------------------------------------------------------------------------------------
+ConfigureTest(LEGACY_ECG_TEST community/legacy_ecg_test.cpp)
 
 ###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
@@ -374,7 +374,7 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
-ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
+ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
 
 ###################################################################################################
 # - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
@@ -679,6 +679,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
     ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)
     ConfigureCTestMG(MG_CAPI_LEIDEN_TEST c_api/mg_leiden_test.c)
+    ConfigureCTestMG(MG_CAPI_ECG_TEST c_api/mg_ecg_test.c)
     ConfigureCTestMG(MG_CAPI_CORE_NUMBER_TEST c_api/mg_core_number_test.c)
     ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c)
     ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
@@ -738,6 +739,7 @@ ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
 ConfigureCTest(CAPI_LEIDEN_TEST c_api/leiden_test.c)
+ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
 #############################################################################
 # Skipping due to CUDA 12.2 failure that traces back to RAFT                #
 # TODO: Uncomment this once the issue is fixed.                             #

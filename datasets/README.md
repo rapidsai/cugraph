@@ -18,11 +18,11 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 
 
-### Modified datasets 
+### Modified datasets
 
 The datasets below were added to provide input that contains self-loops, string vertex IDs, isolated vertices, and multiple edges.
 
-| Graph               | V       | E          | Directed | Weighted  | self-loops | Isolated V | String V IDs | Multi-edges | 
+| Graph               | V       | E          | Directed | Weighted  | self-loops | Isolated V | String V IDs | Multi-edges |
 | ------------------- | ------- | ---------- | -------- | --------- | ---------- | ---------- | ------------ | ----------- |
 | karate_multi_edge   | 34      | 160        | No       | Yes       | No         | No         | No           | Yes         |
 | dolphins_multi_edge | 62      | 325        | No       | Yes       | No         | No         | No           | Yes         |
@@ -46,22 +46,22 @@ The datasets below were added to provide input that contains self-loops, string 
 
 ### Additional datasets
 
-Larger datasets containing self-loops can be downloaded by running the provided script from the `datasets` directory using the `--self_loops` 
-option: 
+Larger datasets containing self-loops can be downloaded by running the provided script from the `datasets` directory using the `--self_loops`
+option:
 ```
 cd <repo>/datasets
 ./get_test_data.sh --self_loops
 ```
 ```
 <repo>/datasets/self_loops
- |-ca-AstroPh  (5.3M) 
+ |-ca-AstroPh  (5.3M)
  |-ca-CondMat  (2.8M)
  |-ca-GrQc     (348K)
  |-ca-HepTh    (763K)
 ```
 These datasets are not currently used by any tests or benchmarks
 
-| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs | Multi-edges |  
+| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs | Multi-edges |
 | ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | ----------- |
 | ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes        | No         | No           | No          |
 | ca-CondMat    | 23,133  | 93,497     | No       | Yes      | Yes        | No         | No           | No          |
@@ -77,7 +77,7 @@ These datasets are not currently used by any tests or benchmarks
 **ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 
 
-## Custom path to larger datasets directory  
+## Custom path to larger datasets directory
 
 Cugraph's C++ and Python analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded by running the provided script from the `datasets` directory.
 ```
@@ -133,4 +133,4 @@ _NOTE: the benchmark datasets were converted to a CSV format from their original
 
 ## Reference
 The SuiteSparse Matrix Collection (formerly the University of Florida Sparse Matrix Collection) : https://sparse.tamu.edu/
-The Stanford Network Analysis Platform (SNAP) 
+The Stanford Network Analysis Platform (SNAP)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2017-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
  /*
  * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
- *     insert/find for 8 byte key-value pair size. The plan is to migrate to 
+ *     insert/find for 8 byte key-value pair size. The plan is to migrate to
  *     using the cuco when the feature is supported. At that point this file can be deleted.
  */
 #pragma once
