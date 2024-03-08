@@ -8,7 +8,7 @@ using nx_cugraph as a NetworkX backend will be the the primary method to acceler
 networkX with cuGraph*
 
 
-One of the goals of RAPIDS cuGraph is to give NetworkX users the most efficient to 
+One of the goals of RAPIDS cuGraph is to give NetworkX users the most efficient way to 
 accelerated GPU data science.  However, graph analysis,
 also called network science, is more than just running algorithms.  Graph data requires
 cleaning and prep (ETL) and then the construction of a graph object; that is all before the execution
