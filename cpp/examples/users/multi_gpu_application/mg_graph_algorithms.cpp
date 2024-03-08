@@ -139,13 +139,13 @@ void run_graph_algos(raft::handle_t const& handle,
 
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-  auto distances_title = std::string("distances").append(std::to_string(comm_rank));
+  auto distances_title = std::string("distances_0").append(std::to_string(comm_rank));
   raft::print_device_vector(distances_title.c_str(),
                             d_distances.begin(),
                             std::min<size_t>(d_distances.size(), max_nr_of_elements_to_print),
                             std::cout);
 
-  auto predecessors_title = std::string("predecessors").append(std::to_string(comm_rank));
+  auto predecessors_title = std::string("predecessors_0").append(std::to_string(comm_rank));
   raft::print_device_vector(predecessors_title.c_str(),
                             d_predecessors.begin(),
                             std::min<size_t>(d_predecessors.size(), max_nr_of_elements_to_print),
