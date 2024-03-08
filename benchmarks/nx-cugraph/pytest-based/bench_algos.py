@@ -849,71 +849,71 @@ def bench_weakly_connected_components(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_complete_bipartite_graph(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_connected_components(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_connected(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_node_connected_component(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_number_connected_components(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_isolate(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_isolates(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_number_of_isolates(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_complement(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_reverse(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_arborescence(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_branching(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_forest(benchmark, graph_obj, backend_wrapper):
     pass
 
 
-@pytest.mark.skip(reason="test not implemented")
+@pytest.mark.skip(reason="benchmark not implemented")
 def bench_is_tree(benchmark, graph_obj, backend_wrapper):
     pass
