@@ -270,6 +270,18 @@ class BackendInterface:
             key(
                 "test_weighted.py:TestBellmanFordAndGoldbergRadzik.test_negative_cycle"
             ): negative_cycle,
+            key(
+                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
+                "test_negative_weight_bf_path"
+            ): negative_cycle,
+            #            key(
+            #                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
+            #                "test_negative_cycle_consistency"
+            #            ): negative_cycle,
+            #            key(
+            #                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
+            #                "test_zero_cycle"
+            #            ): negative_cycle,
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
             # These repeatedly call `bfs_layers`, which converts the graph every call

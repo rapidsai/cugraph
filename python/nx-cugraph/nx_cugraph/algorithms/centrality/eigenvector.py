@@ -41,12 +41,7 @@ def eigenvector_centrality(
         raise nx.NetworkXPointlessConcept(
             "cannot compute centrality for the null graph"
         )
-    if dtype is not None:
-        dtype = _get_float_dtype(dtype)
-    elif weight in G.edge_values:
-        dtype = _get_float_dtype(G.edge_values[weight].dtype)
-    else:
-        dtype = np.float32
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     if nstart is not None:
         # Check if given nstart is valid even though we don't use it
         nstart = G._dict_to_nodearray(nstart, dtype=dtype)
