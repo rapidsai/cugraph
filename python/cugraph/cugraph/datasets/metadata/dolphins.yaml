@@ -1,6 +1,6 @@
 name: dolphins
 file_type: .csv
-description:  An undirected social network of frequent associations between 62 dolphins in a community living off Doubtful Sound, New Zealand, as compiled by Lusseau et al. (2003). 
+description:  An undirected social network of frequent associations between 62 dolphins in a community living off Doubtful Sound, New Zealand, as compiled by Lusseau et al. (2003).
 author:
   - D. Lusseau
   - K. Schneider
