@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -69,10 +69,10 @@ def induced_subgraph(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph.
-    
+
     subgraph_vertices : cupy array
         array of vertices to include in extracted subgraph.
-    
+
     subgraph_offsets : cupy array
         array of subgraph offsets into subgraph_vertices.
 

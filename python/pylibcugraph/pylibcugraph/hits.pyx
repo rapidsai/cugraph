@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,7 +78,7 @@ def hits(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.  This parameter is not currently supported.
@@ -104,7 +104,7 @@ def hits(ResourceHandle resource_handle,
     A tuple of device arrays, where the third item in the tuple is a device
     array containing the vertex identifiers, the first and second items are device
     arrays containing respectively the hubs and authorities values for the corresponding
-    vertices 
+    vertices
 
     Examples
     --------
@@ -118,13 +118,13 @@ def hits(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices_view_ptr = NULL
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_values_view_ptr = NULL
 
-    # FIXME: Add check ensuring that both initial_hubs_guess_vertices 
+    # FIXME: Add check ensuring that both initial_hubs_guess_vertices
     # and initial_hubs_guess_values are passed when calling only pylibcugraph HITS.
     # This is already True for cugraph HITS
-    
-    if initial_hubs_guess_vertices is not None:   
+
+    if initial_hubs_guess_vertices is not None:
         assert_CAI_type(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
-        
+
         cai_initial_hubs_guess_vertices_ptr = \
         initial_hubs_guess_vertices.__cuda_array_interface__["data"][0]
 
@@ -133,7 +133,7 @@ def hits(ResourceHandle resource_handle,
                 <void*>cai_initial_hubs_guess_vertices_ptr,
                 len(initial_hubs_guess_vertices),
                 get_c_type_from_numpy_type(initial_hubs_guess_vertices.dtype))
-    
+
     if initial_hubs_guess_values is not None:
         assert_CAI_type(initial_hubs_guess_values, "initial_hubs_guess_values")
 
@@ -179,13 +179,13 @@ def hits(ResourceHandle resource_handle,
     cupy_hubs = copy_to_cupy_array(c_resource_handle_ptr, hubs_ptr)
     cupy_authorities = copy_to_cupy_array(c_resource_handle_ptr,
                                           authorities_ptr)
-  
+
     cugraph_hits_result_free(result_ptr)
 
     if initial_hubs_guess_vertices is not None:
         cugraph_type_erased_device_array_view_free(
             initial_hubs_guess_vertices_view_ptr)
-    
+
     if initial_hubs_guess_values is not None:
         cugraph_type_erased_device_array_view_free(
             initial_hubs_guess_values_view_ptr)

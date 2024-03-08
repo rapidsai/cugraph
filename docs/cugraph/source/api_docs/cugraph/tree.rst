@@ -18,4 +18,3 @@ Maximum Spanning Tree
    :toctree: ../api/cugraph/
 
    cugraph.tree.minimum_spanning_tree.maximum_spanning_tree
-
