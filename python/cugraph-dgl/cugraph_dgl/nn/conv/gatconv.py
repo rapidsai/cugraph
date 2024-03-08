@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -186,7 +186,10 @@ class GATConv(BaseConv):
         nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
-        **kwargs: Any,
+        deterministic_dgrad: bool = False,
+        deterministic_wgrad: bool = False,
+        high_precision_dgrad: bool = False,
+        high_precision_wgrad: bool = False,
     ) -> torch.Tensor:
         r"""Forward computation.
 
@@ -205,8 +208,20 @@ class GATConv(BaseConv):
             from a neighbor sampler, the value should be set to the corresponding
             :attr:`fanout`. This option is used to invoke the MFG-variant of
             cugraph-ops kernel.
-        **kwargs : Any
-            Additional arguments of `pylibcugraphops.pytorch.operators.mha_gat_n2n`.
+        deterministic_dgrad : bool, default=False
+            Optional flag indicating whether the feature gradients
+            are computed deterministically using a dedicated workspace buffer.
+        deterministic_wgrad: bool, default=False
+            Optional flag indicating whether the weight gradients
+            are computed deterministically using a dedicated workspace buffer.
+        high_precision_dgrad: bool, default=False
+            Optional flag indicating whether gradients for inputs in half precision
+            are kept in single precision as long as possible and only casted to
+            the corresponding input type at the very end.
+        high_precision_wgrad: bool, default=False
+            Optional flag indicating whether gradients for weights in half precision
+            are kept in single precision as long as possible and only casted to
+            the corresponding input type at the very end.
 
         Returns
         -------
@@ -235,7 +250,7 @@ class GATConv(BaseConv):
         _graph = self.get_cugraph_ops_CSC(
             g, is_bipartite=bipartite, max_in_degree=max_in_degree
         )
-        if kwargs.get("deterministic_dgrad", False):
+        if deterministic_dgrad:
             _graph.add_reverse_graph()
 
         if bipartite:
@@ -278,7 +293,10 @@ class GATConv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=efeat,
-            **kwargs,
+            deterministic_dgrad=deterministic_dgrad,
+            deterministic_wgrad=deterministic_wgrad,
+            high_precision_dgrad=high_precision_dgrad,
+            high_precision_wgrad=high_precision_wgrad,
         )[: g.num_dst_nodes()]
 
         if self.concat:

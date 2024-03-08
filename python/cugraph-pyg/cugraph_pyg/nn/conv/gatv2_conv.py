@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_gat_v2_n2n
@@ -174,7 +174,8 @@ class GATv2Conv(BaseConv):
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_attr: Optional[torch.Tensor] = None,
-        **kwargs: Any,
+        deterministic_dgrad: bool = False,
+        deterministic_wgrad: bool = False,
     ) -> torch.Tensor:
         r"""Runs the forward pass of the module.
 
@@ -187,12 +188,16 @@ class GATv2Conv(BaseConv):
                 :meth:`to_csc` method to convert an :obj:`edge_index`
                 representation to the desired format.
             edge_attr: (torch.Tensor, optional) The edge features.
-            **kwargs : Additional arguments of
-                `pylibcugraphops.pytorch.operators.mha_gat_v2_n2n`.
+            deterministic_dgrad : bool, default=False
+                Optional flag indicating whether the feature gradients
+                are computed deterministically using a dedicated workspace buffer.
+            deterministic_wgrad: bool, default=False
+                Optional flag indicating whether the weight gradients
+                are computed deterministically using a dedicated workspace buffer.
         """
         bipartite = not isinstance(x, torch.Tensor) or not self.share_weights
         graph = self.get_cugraph(csc, bipartite=bipartite)
-        if kwargs.get("deterministic_dgrad", False):
+        if deterministic_dgrad:
             graph.add_reverse_graph()
 
         if edge_attr is not None:
@@ -222,7 +227,8 @@ class GATv2Conv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=edge_attr,
-            **kwargs,
+            deterministic_dgrad=deterministic_dgrad,
+            deterministic_wgrad=deterministic_wgrad,
         )
 
         if self.bias is not None:

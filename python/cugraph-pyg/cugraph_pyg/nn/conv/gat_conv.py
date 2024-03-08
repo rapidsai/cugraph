@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_gat_n2n
@@ -162,7 +162,10 @@ class GATConv(BaseConv):
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_attr: Optional[torch.Tensor] = None,
         max_num_neighbors: Optional[int] = None,
-        **kwargs: Any,
+        deterministic_dgrad: bool = False,
+        deterministic_wgrad: bool = False,
+        high_precision_dgrad: bool = False,
+        high_precision_wgrad: bool = False,
     ) -> torch.Tensor:
         r"""Runs the forward pass of the module.
 
@@ -179,14 +182,26 @@ class GATConv(BaseConv):
                 of a destination node. When enabled, it allows models to use
                 the message-flow-graph primitives in cugraph-ops.
                 (default: :obj:`None`)
-            **kwargs : Additional arguments of
-                `pylibcugraphops.pytorch.operators.mha_gat_n2n`.
+            deterministic_dgrad : bool, default=False
+                Optional flag indicating whether the feature gradients
+                are computed deterministically using a dedicated workspace buffer.
+            deterministic_wgrad: bool, default=False
+                Optional flag indicating whether the weight gradients
+                are computed deterministically using a dedicated workspace buffer.
+            high_precision_dgrad: bool, default=False
+                Optional flag indicating whether gradients for inputs in half precision
+                are kept in single precision as long as possible and only casted to
+                the corresponding input type at the very end.
+            high_precision_wgrad: bool, default=False
+                Optional flag indicating whether gradients for weights in half precision
+                are kept in single precision as long as possible and only casted to
+                the corresponding input type at the very end.
         """
         bipartite = not isinstance(x, torch.Tensor)
         graph = self.get_cugraph(
             csc, bipartite=bipartite, max_num_neighbors=max_num_neighbors
         )
-        if kwargs.get("deterministic_dgrad", False):
+        if deterministic_dgrad:
             graph.add_reverse_graph()
 
         if edge_attr is not None:
@@ -225,7 +240,10 @@ class GATConv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=edge_attr,
-            **kwargs,
+            deterministic_dgrad=deterministic_dgrad,
+            deterministic_wgrad=deterministic_wgrad,
+            high_precision_dgrad=high_precision_dgrad,
+            high_precision_wgrad=high_precision_wgrad,
         )
 
         if self.bias is not None:

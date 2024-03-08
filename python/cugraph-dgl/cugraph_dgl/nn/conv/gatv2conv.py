@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv, SparseGraph
 from cugraph.utilities.utils import import_optional
@@ -150,7 +150,8 @@ class GATv2Conv(BaseConv):
         nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
-        **kwargs: Any,
+        deterministic_dgrad: bool = False,
+        deterministic_wgrad: bool = False,
     ) -> torch.Tensor:
         r"""Forward computation.
 
@@ -167,8 +168,12 @@ class GATv2Conv(BaseConv):
             from a neighbor sampler, the value should be set to the corresponding
             :attr:`fanout`. This option is used to invoke the MFG-variant of
             cugraph-ops kernel.
-        **kwargs : Any
-            Additional arguments of `pylibcugraphops.pytorch.operators.mha_gat_v2_n2n`.
+        deterministic_dgrad : bool, default=False
+            Optional flag indicating whether the feature gradients
+            are computed deterministically using a dedicated workspace buffer.
+        deterministic_wgrad: bool, default=False
+            Optional flag indicating whether the weight gradients
+            are computed deterministically using a dedicated workspace buffer.
 
         Returns
         -------
@@ -199,7 +204,7 @@ class GATv2Conv(BaseConv):
         _graph = self.get_cugraph_ops_CSC(
             g, is_bipartite=graph_bipartite, max_in_degree=max_in_degree
         )
-        if kwargs.get("deterministic_dgrad", False):
+        if deterministic_dgrad:
             _graph.add_reverse_graph()
 
         if nfeat_bipartite:
@@ -233,7 +238,8 @@ class GATv2Conv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=efeat,
-            **kwargs,
+            deterministic_dgrad=deterministic_dgrad,
+            deterministic_wgrad=deterministic_wgrad,
         )[: g.num_dst_nodes()]
 
         if self.concat:
