@@ -33,15 +33,26 @@ namespace {
 struct degrees_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
-  bool do_expensive_check_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* source_vertices_;
+  bool in_degrees_{false};
+  bool out_degrees_{false};
+  bool do_expensive_check_{false};
   cugraph::c_api::cugraph_degrees_result_t* result_{};
 
   degrees_functor(cugraph_resource_handle_t const* handle,
                   cugraph_graph_t* graph,
+                  ::cugraph_type_erased_device_array_view_t const* source_vertices,
+                  bool in_degrees,
+                  bool out_degrees,
                   bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      source_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          source_vertices)),
+      in_degrees_{in_degrees},
+      out_degrees_{out_degrees},
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -66,35 +77,129 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<edge_t> in_degrees(0, handle_.get_stream());
-      rmm::device_uvector<edge_t> out_degrees(0, handle_.get_stream());
+      std::optional<rmm::device_uvector<edge_t>> in_degrees{std::nullopt};
+      std::optional<rmm::device_uvector<edge_t>> out_degrees{std::nullopt};
 
-      in_degrees = graph_view.compute_in_degrees(handle_);
-      if (!graph_view.is_symmetric()) { out_degrees = graph_view.compute_out_degrees(handle_); }
+      if (in_degrees_ && out_degrees_ && graph_view.is_symmetric()) {
+        in_degrees = store_transposed ? graph_view.compute_in_degrees(handle_)
+                                      : graph_view.compute_out_degrees(handle_);
+        // out_degrees will be extracted from in_degrees in the result
+      } else {
+        if (in_degrees_) in_degrees = graph_view.compute_in_degrees(handle_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
-      raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
+        if (out_degrees_) out_degrees = graph_view.compute_out_degrees(handle_);
+      }
+
+      rmm::device_uvector<vertex_t> vertex_ids(0, handle_.get_stream());
+
+      if (source_vertices) {
+        // FIXME: Would be more efficient if graph_view.compute_*_degrees could take a vertex
+        //  subset
+        vertex_ids.resize(source_vertices_->size, handle_.get_stream());
+        raft::copy(
+          vertex_ids.data(), source_vertices_->data(), vertex_ids.size(), handle_.get_stream());
+
+        cugraph::renumber_ext_vertices_local<vertex_t, multi_gpu>(
+          handle_,
+          vertex_ids.data(),
+          vertex_ids.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+
+        auto vertex_partition =
+          vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
+
+        auto vertices_iter = thrust::make_transform_iterator(
+          vertex_ids.begin(),
+          cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
+            return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+          }));
+
+        if (in_degrees && out_degrees) {
+          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle.get_stream());
+          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle.get_stream());
+          thrust::gather(
+            rmm::exec_policy(stream),
+            vertex_iter,
+            vertex_iter + vertex_ids.size(),
+            thrust::make_zip_iterator(in_degrees->begin(), out_degrees->begin()),
+            thrust::make_zip_iterator(tmp_in_degrees.begin(), tmp_out_degrees.begin()));
+          in_degrees  = std::move(tmp_in_degrees);
+          out_degrees = std::move(tmp_out_degrees);
+        } else if (in_degrees) {
+          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle.get_stream());
+          thrust::gather(rmm::exec_policy(stream),
+                         vertex_iter,
+                         vertex_iter + vertex_ids.size(),
+                         in_degrees->begin(),
+                         tmp_in_degrees.begin());
+          in_degrees = std::move(tmp_in_degrees);
+        } else {
+          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle.get_stream());
+          thrust::gather(rmm::exec_policy(stream),
+                         vertex_iter,
+                         vertex_iter + vertex_ids.size(),
+                         out_degrees->begin(),
+                         tmp_out_degrees.begin());
+          out_degrees = std::move(tmp_out_degrees);
+        }
+      } else {
+        vertex_ids.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
+        raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
+      }
 
       result_ = new cugraph::c_api::cugraph_degrees_result_t{
+        graph_view.is_symmetric(),
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(in_degrees, graph_->edge_type_),
-        graph_view.is_symmetric() ? nullptr
-                                  : new cugraph::c_api::cugraph_type_erased_device_array_t(
-                                      out_degrees, graph_->edge_type_)};
+        in_degrees
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*in_degrees, graph_->edge_type_)
+          : nullptr,
+        out_degrees
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*out_degrees, graph_->edge_type_)
+          : nullptr};
     }
   }
 };
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
-                                                cugraph_graph_t* graph,
-                                                bool_t do_expensive_check,
-                                                cugraph_degrees_result_t** result,
-                                                cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_in_degrees(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* source_vertices,
+  bool_t do_expensive_check,
+  cugraph_degrees_result_t** result,
+  cugraph_error_t** error)
 {
-  degrees_functor functor(handle, graph, do_expensive_check);
+  degrees_functor functor(handle, graph, source_vertices, true, false, do_expensive_check);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_out_degrees(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* source_vertices,
+  bool_t do_expensive_check,
+  cugraph_degrees_result_t** result,
+  cugraph_error_t** error)
+{
+  degrees_functor functor(handle, graph, source_vertices, false, true, do_expensive_check);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_degrees(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* source_vertices,
+  bool_t do_expensive_check,
+  cugraph_degrees_result_t** result,
+  cugraph_error_t** error)
+{
+  degrees_functor functor(handle, graph, source_vertices, true, true, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

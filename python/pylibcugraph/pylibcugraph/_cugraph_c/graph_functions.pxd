@@ -182,3 +182,55 @@ cdef extern from "cugraph_c/graph_functions.h":
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )
+
+    ###########################################################################
+    # degrees
+    ctypedef struct cugraph_degrees_result_t:
+        pass
+
+    cdef cugraph_error_code_t \
+        cugraph_in_degrees(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_degrees_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_out_degrees(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_degrees_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_degrees(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_degrees_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_degrees_result_get_vertices(
+            cugraph_degrees_result_t* degrees_result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_degrees_result_get_in_degrees(
+            cugraph_degrees_result_t* degrees_result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_degrees_result_get_out_degrees(
+            cugraph_degrees_result_t* degrees_result
+        )
+
+    cdef void \
+        cugraph_degrees_result_free(
+            cugraph_degrees_result_t* degrees_result
+        )

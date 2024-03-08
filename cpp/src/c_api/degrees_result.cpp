@@ -32,8 +32,10 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_i
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_degrees_result_t*>(degrees_result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->in_degrees_->view());
+  return internal_pointer->in_degrees_ == nullptr
+           ? nullptr
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->in_degrees_->view());
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
@@ -41,11 +43,13 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_o
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_degrees_result_t*>(degrees_result);
-  return internal_pointer->out_degrees_ == nullptr
+  return internal_pointer->out_degrees_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->out_degrees_->view())
+         : internal_pointer->is_symmetric
            ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->in_degrees_->view())
-           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->out_degrees_->view());
+           : nullptr;
 }
 
 extern "C" void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result)
