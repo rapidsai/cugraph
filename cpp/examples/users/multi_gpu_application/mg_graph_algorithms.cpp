@@ -34,9 +34,6 @@ void initialize_mpi_and_set_device(int argc, char** argv)
   int comm_rank{};
   RAFT_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
 
-  int comm_size{};
-  RAFT_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-
   int num_gpus_per_node{};
   RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
   RAFT_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
@@ -50,7 +47,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
   std::set<std::string> possible_allocation_modes = {"cuda", "pool", "binning", "managed"};
 
   if (possible_allocation_modes.find(allocation_mode) == possible_allocation_modes.end()) {
-    if (!comm_rank) {
+    if (comm_rank == 0) {
       std::cout << "'" << allocation_mode
                 << "' is not a valid allocation mode. It must be one of the followings -"
                 << std::endl;
@@ -63,7 +60,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
     exit(0);
   }
 
-  if (!comm_rank) {
+  if (comm_rank == 0) {
     std::cout << "Using '" << allocation_mode
               << "' allocation mode to create device memory resources." << std::endl;
   }
@@ -91,7 +88,11 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
  * @brief This function reads graph from an input csv file and run BFS and Louvain on it.
  */
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
 void run_graph_algos(raft::handle_t const& handle,
                      std::string const& csv_graph_file_path,
                      bool weighted = false)
@@ -100,9 +101,9 @@ void run_graph_algos(raft::handle_t const& handle,
   auto const comm_size = handle.get_comms().get_size();
 
   std::cout << "Rank_" << comm_rank << ", reading graph from " << csv_graph_file_path << std::endl;
-  bool renumber = true;  // must be true for distributed graph.
-  auto [graph, edge_weights, renumber_map] =
-    cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
+  bool renumber                            = true;  // must be true for distributed graph.
+  auto [graph, edge_weights, renumber_map] = cugraph::test::
+    read_graph_from_csv_file<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle, csv_graph_file_path, weighted, renumber);
 
   auto graph_view       = graph.view();
@@ -111,9 +112,10 @@ void run_graph_algos(raft::handle_t const& handle,
   if (renumber_map.has_value()) {
     assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
   }
-  // run example algorithms
 
-  // BFS
+  //
+  // Run BFS and Louvain as example algorithms
+  //
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
@@ -149,7 +151,9 @@ void run_graph_algos(raft::handle_t const& handle,
                             std::min<size_t>(d_predecessors.size(), max_nr_of_elements_to_print),
                             std::cout);
 
+  //
   // Louvain
+  //
 
   rmm::device_uvector<vertex_t> d_cluster_assignments(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -168,6 +172,10 @@ void run_graph_algos(raft::handle_t const& handle,
                      max_level,
                      threshold,
                      resolution);
+
+  //
+  // Print cluster assignments of vertices
+  //
 
   auto cluster_assignments_title =
     std::string("cluster_assignments_").append(std::to_string(comm_rank));
@@ -198,10 +206,12 @@ int main(int argc, char** argv)
   auto const comm_rank = handle->get_comms().get_rank();
   auto const comm_size = handle->get_comms().get_size();
 
-  using vertex_t           = int32_t;
-  using edge_t             = int32_t;
-  using weight_t           = float;
-  constexpr bool multi_gpu = true;
+  using vertex_t                  = int32_t;
+  using edge_t                    = int32_t;
+  using weight_t                  = float;
+  constexpr bool multi_gpu        = true;
+  constexpr bool store_transposed = false;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, csv_graph_file_path, true);
+  run_graph_algos<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    *handle, csv_graph_file_path, true);
 }

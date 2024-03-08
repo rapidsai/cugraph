@@ -56,15 +56,19 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle(std::string const& allocati
  * @brief This function reads graph from an input csv file and run BFS and Louvain on it.
  */
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
 void run_graph_algos(raft::handle_t const& handle,
                      std::string const& csv_graph_file_path,
                      bool weighted = false)
 {
   std::cout << "Reading graph from " << csv_graph_file_path << std::endl;
-  bool renumber = false;  // for single gpu, this can be true or false
-  auto [graph, edge_weights, renumber_map] =
-    cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
+  bool renumber                            = false;  // for single gpu, this can be true or false
+  auto [graph, edge_weights, renumber_map] = cugraph::test::
+    read_graph_from_csv_file<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle, csv_graph_file_path, weighted, renumber);
 
   auto graph_view       = graph.view();
@@ -73,9 +77,10 @@ void run_graph_algos(raft::handle_t const& handle,
   if (renumber_map.has_value()) {
     assert(graph_view.local_vertex_partition_range_size() == (*renumber_map).size());
   }
-  // run example algorithms
 
-  // BFS
+  //
+  // Run BFS and Louvain as example algorithms
+  //
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
@@ -107,7 +112,9 @@ void run_graph_algos(raft::handle_t const& handle,
                             std::min<size_t>(d_predecessors.size(), max_nr_of_elements_to_print),
                             std::cout);
 
+  //
   // Louvain
+  //
 
   rmm::device_uvector<vertex_t> cluster_assignments(graph_view.local_vertex_partition_range_size(),
                                                     handle.get_stream());
@@ -127,7 +134,10 @@ void run_graph_algos(raft::handle_t const& handle,
                      threshold,
                      resolution);
 
+  //
   // Print cluster assignments of vertices
+  //
+
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   raft::print_device_vector(
     "cluster_assignments",
@@ -149,11 +159,12 @@ int main(int argc, char** argv)
   std::string const& allocation_mode     = argc < 3 ? "cuda" : argv[2];
   std::unique_ptr<raft::handle_t> handle = initialize_sg_handle(allocation_mode);
 
-  constexpr bool multi_gpu = false;
+  constexpr bool multi_gpu        = false;
+  constexpr bool store_transposed = false;
 
   using vertex_t = int32_t;
   using edge_t   = int32_t;
   using weight_t = float;
 
-  run_graph_algos<vertex_t, edge_t, weight_t, multi_gpu>(*handle, argv[1], true);
+  run_graph_algos<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(*handle, argv[1], true);
 }
