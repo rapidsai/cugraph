@@ -18,7 +18,7 @@ import gc
 
 import torch
 
-from torch_geometric.nn import CuGraphSAGEConv
+from cugraph_pyg.nn import SAGEConv as CuGraphSAGEConv
 
 import torch.nn as nn
 import torch.nn.functional as F
