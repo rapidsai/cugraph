@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,7 +66,7 @@ def get_two_hop_neighbors(ResourceHandle resource_handle,
 
         graph : SGGraph or MGGraph
             The input graph, for either Single or Multi-GPU operations.
-        
+
         start_vertices : Optional array of starting vertices
                          If None use all, if specified compute two-hop
                          neighbors for these starting vertices
@@ -102,16 +102,16 @@ def get_two_hop_neighbors(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* first_ptr = \
         cugraph_vertex_pairs_get_first(result_ptr)
-    
+
     cdef cugraph_type_erased_device_array_view_t* second_ptr = \
         cugraph_vertex_pairs_get_second(result_ptr)
-    
+
     cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
     cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
 
     # Free all pointers
     cugraph_vertex_pairs_free(result_ptr)
     if start_vertices is not None:
-        cugraph_type_erased_device_array_view_free(start_vertices_view_ptr)    
+        cugraph_type_erased_device_array_view_free(start_vertices_view_ptr)
 
     return cupy_first, cupy_second

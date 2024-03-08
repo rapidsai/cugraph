@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ from cugraph import (
     uniform_neighbor_sample,
 )
 from cugraph.generators import rmat
-from cugraph.experimental import datasets
+from cugraph import datasets
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 
 from cugraph_benchmarking import params

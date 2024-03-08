@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -133,7 +133,7 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
                                                        &score,
                                                        &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_analyze_clustering_modularity")
-    
+
     if vertex is not None:
         cugraph_type_erased_device_array_view_free(vertex_view_ptr)
     if cluster is not None:

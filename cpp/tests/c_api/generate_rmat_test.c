@@ -32,7 +32,7 @@ int test_rmat_generation()
   typedef float weight_t;
 
   vertex_t expected_src[] =  { 17, 18, 0, 16, 1, 24, 16, 1, 6, 4, 2, 1, 14, 2, 16, 2, 5, 23, 4, 10, 4, 3, 0, 4, 11, 0, 0, 2, 24, 0};
-  vertex_t expected_dst[] = { 0, 10, 23, 0, 26, 0, 2, 1, 27, 8, 1, 0, 21, 21, 0, 4, 8, 14, 10, 17, 0, 16, 0, 16, 25, 5, 8, 8, 4, 19}; 
+  vertex_t expected_dst[] = { 0, 10, 23, 0, 26, 0, 2, 1, 27, 8, 1, 0, 21, 21, 0, 4, 8, 14, 10, 17, 0, 16, 0, 16, 25, 5, 8, 8, 4, 19};
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
@@ -47,7 +47,7 @@ int test_rmat_generation()
   ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
- 
+
   ret_code = cugraph_generate_rmat_edgelist(handle,
                                             rng_state,
                                             5,
@@ -130,7 +130,7 @@ int test_rmat_list_generation()
   size_t   num_lists = 3;
   vertex_t max_vertex_id[] = { 32, 16, 32 };
   size_t   expected_len[]  = { 20, 16, 20 };
-  
+
   ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
