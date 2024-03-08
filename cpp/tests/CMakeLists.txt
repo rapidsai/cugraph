@@ -1,5 +1,5 @@
 ﻿#=============================================================================
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -314,6 +314,11 @@ ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
               "structure/count_self_loops_and_multi_edges_test.cpp")
 
 ###################################################################################################
+# - Query edge existence and multiplicity tests ---------------------------------------------------
+ConfigureTest(HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+              "structure/has_edge_and_compute_multiplicity_test.cpp")
+
+###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
@@ -480,6 +485,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
           "structure/mg_count_self_loops_and_multi_edges_test.cpp")
 
     ###############################################################################################
+    # - MG Query edge existence and multiplicity tests --------------------------------------------
+    ConfigureTestMG(MG_HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
+          "structure/mg_has_edge_and_compute_multiplicity_test.cpp")
+
+    ###############################################################################################
     # - MG PAGERANK tests -------------------------------------------------------------------------
     ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
@@ -520,6 +530,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LEIDEN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
+
+    ###############################################################################################
+    # - MG ECG tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------

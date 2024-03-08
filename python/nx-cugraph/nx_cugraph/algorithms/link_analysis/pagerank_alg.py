@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,12 @@ from nx_cugraph.utils import (
 __all__ = ["pagerank"]
 
 
-@networkx_algorithm(extra_params=_dtype_param)
+@networkx_algorithm(
+    extra_params=_dtype_param,
+    is_incomplete=True,  # dangling not supported
+    version_added="23.12",
+    _plc={"pagerank", "personalized_pagerank"},
+)
 def pagerank(
     G,
     alpha=0.85,
@@ -97,7 +102,7 @@ def pagerank(
 
 
 @pagerank._can_run
-def pagerank(
+def _(
     G,
     alpha=0.85,
     personalization=None,

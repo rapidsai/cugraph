@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,41 +14,15 @@
 import pytest
 
 from pylibcugraph.testing.utils import gen_fixture_params
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
 from cugraph.datasets import (
-    Dataset,
     karate,
     netscience,
     email_Eu_core,
+    hollywood,
+    europe_osm,
+    cit_patents,
+    soc_livejournal,
 )
-
-# Create Dataset objects from .csv files.
-# Once the cugraph.dataset package is updated to include the metadata files for
-# these (like karate), these will no longer need to be explicitly instantiated.
-hollywood = Dataset(
-    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/undirected/hollywood.csv",
-    csv_col_names=["src", "dst"],
-    csv_col_dtypes=["int32", "int32"],
-)
-hollywood.metadata["is_directed"] = False
-europe_osm = Dataset(
-    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/undirected/europe_osm.csv",
-    csv_col_names=["src", "dst"],
-    csv_col_dtypes=["int32", "int32"],
-)
-europe_osm.metadata["is_directed"] = False
-cit_patents = Dataset(
-    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/directed/cit-Patents.csv",
-    csv_col_names=["src", "dst"],
-    csv_col_dtypes=["int32", "int32"],
-)
-cit_patents.metadata["is_directed"] = True
-soc_livejournal = Dataset(
-    csv_file=RAPIDS_DATASET_ROOT_DIR_PATH / "csv/directed/soc-LiveJournal1.csv",
-    csv_col_names=["src", "dst"],
-    csv_col_dtypes=["int32", "int32"],
-)
-soc_livejournal.metadata["is_directed"] = True
 
 # Assume all "file_data" (.csv file on disk) datasets are too small to be useful for MG.
 undirected_datasets = [

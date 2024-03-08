@@ -1,9 +1,13 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
-source rapids-env-update
+rapids-configure-conda-channels
+
+source rapids-configure-sccache
+
+source rapids-date-string
 
 export CMAKE_GENERATOR=Ninja
 
@@ -84,5 +88,10 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --channel pytorch-nightly \
     conda/recipes/cugraph-dgl
 fi
+
+rapids-conda-retry mambabuild \
+  --no-test \
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+  conda/recipes/cugraph-equivariant
 
 rapids-upload-conda-to-s3 python

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -151,9 +151,25 @@ class BulkSampleLoader:
                 self.__input_files = iter(input_files)
             return
 
-        input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
-            (feature_store, graph_store), input_nodes
+        # To accommodate DLFW/PyG 2.5
+        get_input_nodes = torch_geometric.loader.utils.get_input_nodes
+        get_input_nodes_kwargs = {}
+        if "input_id" in get_input_nodes.__annotations__:
+            get_input_nodes_kwargs["input_id"] = None
+        input_node_info = get_input_nodes(
+            (feature_store, graph_store), input_nodes, **get_input_nodes_kwargs
         )
+
+        # PyG 2.4
+        if len(input_node_info) == 2:
+            input_type, input_nodes = input_node_info
+        # PyG 2.5
+        elif len(input_node_info) == 3:
+            input_type, input_nodes, input_id = input_node_info
+        # Invalid
+        else:
+            raise ValueError("Invalid output from get_input_nodes")
+
         if input_type is not None:
             input_nodes = graph_store._get_sample_from_vertex_groups(
                 {input_type: input_nodes}
@@ -439,7 +455,12 @@ class BulkSampleLoader:
         start_time_feature = perf_counter()
         # Create a PyG HeteroData object, loading the required features
         if self.__coo:
-            out = torch_geometric.loader.utils.filter_custom_store(
+            pyg_filter_fn = (
+                torch_geometric.loader.utils.filter_custom_hetero_store
+                if hasattr(torch_geometric.loader.utils, "filter_custom_hetero_store")
+                else torch_geometric.loader.utils.filter_custom_store
+            )
+            out = pyg_filter_fn(
                 self.__feature_store,
                 self.__graph_store,
                 sampler_output.node,

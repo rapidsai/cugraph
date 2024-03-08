@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,9 @@ __all__ = ["hits"]
             "The edge attribute to use as the edge weight."
         ),
         **_dtype_param,
-    }
+    },
+    version_added="23.12",
+    _plc="hits",
 )
 def hits(
     G,
