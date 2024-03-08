@@ -159,6 +159,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     wait(cudf_result)
 
+    # FIXME: results returned from dask calls are randomly ordered
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
