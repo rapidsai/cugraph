@@ -6,10 +6,10 @@ docker build -f cugraph_ucx.dockerfile . -t cugraph_ucx
 docker run --privileged -it --gpus=all --net=host cugraph_ucx /bin/bash
 
 #### Client Bandwidth Test
-python3 test_client_bandwidth.py 
+python3 test_client_bandwidth.py
 
 ```bash
-(base) root@exp02:/home# python3 test_client_bandwidth.py 
+(base) root@exp02:/home# python3 test_client_bandwidth.py
 2022-12-19 13:31:30,867 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
 2022-12-19 13:31:30,867 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
 2022-12-19 13:31:30,891 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
@@ -30,8 +30,8 @@ Bandwidth = 5.2037 gb/s
 #### Sampling Test
 python3 test_cugraph_sampling.py
 ```bash
-test_client_bandwidth.py  test_cugraph_sampling.py  
-(base) root@exp02:/home# python3 test_cugraph_sampling.py 
+test_client_bandwidth.py  test_cugraph_sampling.py
+(base) root@exp02:/home# python3 test_cugraph_sampling.py
 [1671456769.722931] [exp02:93   :0]          parser.c:1989 UCX  WARN  unused environment variable: UCX_MEMTYPE_CACHE (maybe: UCX_MEMTYPE_CACHE?)
 [1671456769.722931] [exp02:93   :0]          parser.c:1989 UCX  WARN  (set UCX_WARN_UNUSED_ENV_VARS=n to suppress this warning)
 2022-12-19 13:32:56,228 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
