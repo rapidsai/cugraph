@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/path_retrieval.hpp>
 
 #include <raft/core/handle.hpp>
 
-#include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/path_retrieval.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sequence.h>
 #include <thrust/sort.h>

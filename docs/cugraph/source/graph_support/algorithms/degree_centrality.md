@@ -11,7 +11,7 @@ Degree centrality of a vertex 𝑣 is the sum of the edges incident on that node
 * When you need a really quick identifcation of important nodes on very simply structured data.
 * In cases like collaboration networks where all links have equal importance.
 * In many biologic and transportation networks, shear number of connections is important to itentify critical nodes whether they be proteins or airports.
-* In huge graphs, Degree centrality is a the quickest 
+* In huge graphs, Degree centrality is a the quickest
 
 ## When not to use Degree Centrality
 * When weights, edge direction or edge types matter

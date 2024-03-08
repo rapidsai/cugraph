@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/vertex_frontier.cuh>
-#include <structure/detail/structure_utils.cuh>
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/vertex_frontier.cuh"
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -28,10 +28,10 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
-
-#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -42,7 +42,7 @@ struct return_edges_with_properties_e_op {
                                       vertex_t dst,
                                       thrust::nullopt_t,
                                       thrust::nullopt_t,
-                                      EdgeProperties edge_properties)
+                                      EdgeProperties edge_properties) const
   {
     static_assert(std::is_same_v<key_t, vertex_t> ||
                   std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);

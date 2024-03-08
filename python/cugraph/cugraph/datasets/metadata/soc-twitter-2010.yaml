@@ -3,8 +3,8 @@ file_type: .csv
 description: A network of follower relationships from a snapshot of Twitter in 2010, where an edge from i to j indicates that j is a follower of i.
 author: H. Kwak, C. Lee, H. Park, S. Moon
 refs:
-  J. Yang, J. Leskovec. Temporal Variation in Online Media. ACM Intl.        
-  Conf. on Web Search and Data Mining (WSDM '11), 2011. 
+  J. Yang, J. Leskovec. Temporal Variation in Online Media. ACM Intl.
+  Conf. on Web Search and Data Mining (WSDM '11), 2011.
 delim: " "
 header: None
 col_names:

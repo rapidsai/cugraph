@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/test_utilities.hpp>
+#include "c_api/mg_test_utils.h"
 
-#include <c_api/c_test_utils.h>
-#include <c_api/mg_test_utils.h>
-#include <c_api/resource_handle.hpp>
-#include <c_api/array.hpp>
+#include "c_api/array.hpp"
+#include "c_api/c_test_utils.h"
+#include "c_api/resource_handle.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/test_utilities.hpp"
 
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -354,8 +354,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_edges, edge_tid, &idx, ret_error);
+  ret_code = cugraph_type_erased_device_array_create(handle, num_edges, edge_tid, &idx, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "idx create failed.");
 
   src_view = cugraph_type_erased_device_array_view(src);
@@ -423,16 +422,16 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
   data_type_id_t type_tid   = INT32;
   data_type_id_t weight_tid = FLOAT32;
 
-  cugraph_type_erased_device_array_t* src = NULL;
-  cugraph_type_erased_device_array_t* dst = NULL;
-  cugraph_type_erased_device_array_t* idx = NULL;
-  cugraph_type_erased_device_array_t* type = NULL;
-  cugraph_type_erased_device_array_t* wgt = NULL;
-  cugraph_type_erased_device_array_view_t* src_view = NULL;
-  cugraph_type_erased_device_array_view_t* dst_view = NULL;
-  cugraph_type_erased_device_array_view_t* idx_view = NULL;
+  cugraph_type_erased_device_array_t* src            = NULL;
+  cugraph_type_erased_device_array_t* dst            = NULL;
+  cugraph_type_erased_device_array_t* idx            = NULL;
+  cugraph_type_erased_device_array_t* type           = NULL;
+  cugraph_type_erased_device_array_t* wgt            = NULL;
+  cugraph_type_erased_device_array_view_t* src_view  = NULL;
+  cugraph_type_erased_device_array_view_t* dst_view  = NULL;
+  cugraph_type_erased_device_array_view_t* idx_view  = NULL;
   cugraph_type_erased_device_array_view_t* type_view = NULL;
-  cugraph_type_erased_device_array_view_t* wgt_view = NULL;
+  cugraph_type_erased_device_array_view_t* wgt_view  = NULL;
 
   int rank = 0;
 
@@ -450,8 +449,8 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
     cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
-  src_view  = cugraph_type_erased_device_array_view(src);
-  dst_view  = cugraph_type_erased_device_array_view(dst);
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, src_view, (byte_t*)h_src, ret_error);
@@ -466,7 +465,7 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
       cugraph_type_erased_device_array_create(handle, num_edges, index_tid, &idx, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "index create failed.");
 
-    idx_view  = cugraph_type_erased_device_array_view(idx);
+    idx_view = cugraph_type_erased_device_array_view(idx);
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
       handle, idx_view, (byte_t*)h_idx, ret_error);
@@ -490,7 +489,7 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
       cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
-    wgt_view  = cugraph_type_erased_device_array_view(wgt);
+    wgt_view = cugraph_type_erased_device_array_view(wgt);
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
       handle, wgt_view, (byte_t*)h_wgt, ret_error);
@@ -663,9 +662,9 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   return test_ret_value;
 }
 
-extern "C" size_t cugraph_test_device_gatherv_size(const cugraph_resource_handle_t* handle,
-                                                   const cugraph_type_erased_device_array_view_t *array) {
-
+extern "C" size_t cugraph_test_device_gatherv_size(
+  const cugraph_resource_handle_t* handle, const cugraph_type_erased_device_array_view_t* array)
+{
   auto internal_array =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(array);
 
@@ -686,9 +685,8 @@ extern "C" size_t cugraph_test_device_gatherv_size(const cugraph_resource_handle
   return (comm.get_rank() == 0) ? ret_value : 0;
 }
 
-extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* handle,
-                                             size_t value) {
-
+extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* handle, size_t value)
+{
   auto raft_handle =
     reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_;
   auto& comm = raft_handle->get_comms();
@@ -705,40 +703,55 @@ extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* ha
 }
 
 extern "C" int cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                              void *input,
+                                              void* input,
                                               size_t input_size,
                                               cugraph_data_type_id_t input_type,
-                                              void *output) {
-
+                                              void* output)
+{
   auto raft_handle =
     reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_;
   auto& comm = raft_handle->get_comms();
 
   switch (input_type) {
     case cugraph_data_type_id_t::INT32: {
-      auto tmp = cugraph::test::to_device(*raft_handle, raft::host_span<int32_t const>{reinterpret_cast<int32_t const*>(input), input_size});
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int32_t const>{reinterpret_cast<int32_t const*>(input), input_size});
       tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
-      raft::update_host(reinterpret_cast<int32_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+      raft::update_host(
+        reinterpret_cast<int32_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::INT64: {
-      auto tmp = cugraph::test::to_device(*raft_handle, raft::host_span<int64_t const>{reinterpret_cast<int64_t const*>(input), input_size});
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int64_t const>{reinterpret_cast<int64_t const*>(input), input_size});
       tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
-      raft::update_host(reinterpret_cast<int64_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+      raft::update_host(
+        reinterpret_cast<int64_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::FLOAT32: {
-      auto tmp = cugraph::test::to_device(*raft_handle, raft::host_span<float const>{reinterpret_cast<float const*>(input), input_size});
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<float const>{reinterpret_cast<float const*>(input), input_size});
       tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
-      raft::update_host(reinterpret_cast<float *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+      raft::update_host(
+        reinterpret_cast<float*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::FLOAT64: {
-      auto tmp = cugraph::test::to_device(*raft_handle, raft::host_span<double const>{reinterpret_cast<double const*>(input), input_size});
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<double const>{reinterpret_cast<double const*>(input), input_size});
       tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
-      raft::update_host(reinterpret_cast<double *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+      raft::update_host(
+        reinterpret_cast<double*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::SIZE_T: {
-      auto tmp = cugraph::test::to_device(*raft_handle, raft::host_span<size_t const>{reinterpret_cast<size_t const*>(input), input_size});
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<size_t const>{reinterpret_cast<size_t const*>(input), input_size});
       tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
-      raft::update_host(reinterpret_cast<size_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+      raft::update_host(
+        reinterpret_cast<size_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     default: {
       return CUGRAPH_UNKNOWN_ERROR;
@@ -748,10 +761,11 @@ extern "C" int cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* h
   return CUGRAPH_SUCCESS;
 }
 
-extern "C" int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                                const cugraph_type_erased_device_array_view_t *input,
-                                                void *output) {
-
+extern "C" int cugraph_test_device_gatherv_fill(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* input,
+  void* output)
+{
   auto internal_array =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(input);
   auto raft_handle =
@@ -761,28 +775,43 @@ extern "C" int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t*
   switch (internal_array->type_) {
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::device_gatherv(
-        *raft_handle, raft::device_span<int32_t const>{internal_array->as_type<int32_t const>(), internal_array->size_});
-      raft::update_host(reinterpret_cast<int32_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+        *raft_handle,
+        raft::device_span<int32_t const>{internal_array->as_type<int32_t const>(),
+                                         internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int32_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::INT64: {
       auto tmp = cugraph::test::device_gatherv(
-        *raft_handle, raft::device_span<int64_t const>{internal_array->as_type<int64_t const>(), internal_array->size_});
-      raft::update_host(reinterpret_cast<int64_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+        *raft_handle,
+        raft::device_span<int64_t const>{internal_array->as_type<int64_t const>(),
+                                         internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int64_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::FLOAT32: {
       auto tmp = cugraph::test::device_gatherv(
-        *raft_handle, raft::device_span<float const>{internal_array->as_type<float const>(), internal_array->size_});
-      raft::update_host(reinterpret_cast<float*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+        *raft_handle,
+        raft::device_span<float const>{internal_array->as_type<float const>(),
+                                       internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<float*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::FLOAT64: {
       auto tmp = cugraph::test::device_gatherv(
-        *raft_handle, raft::device_span<double const>{internal_array->as_type<double const>(), internal_array->size_});
-      raft::update_host(reinterpret_cast<double*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+        *raft_handle,
+        raft::device_span<double const>{internal_array->as_type<double const>(),
+                                        internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<double*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     case cugraph_data_type_id_t::SIZE_T: {
       auto tmp = cugraph::test::device_gatherv(
-        *raft_handle, raft::device_span<size_t const>{internal_array->as_type<size_t const>(), internal_array->size_});
-      raft::update_host(reinterpret_cast<size_t *>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+        *raft_handle,
+        raft::device_span<size_t const>{internal_array->as_type<size_t const>(),
+                                        internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<size_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
     } break;
     default: {
       return CUGRAPH_UNKNOWN_ERROR;
@@ -791,4 +820,3 @@ extern "C" int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t*
 
   return CUGRAPH_SUCCESS;
 }
-

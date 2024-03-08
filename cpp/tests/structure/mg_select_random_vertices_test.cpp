@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
+
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <random>
-
-#include <gtest/gtest.h>
 
 struct SelectRandomVertices_Usecase {
   size_t select_count{std::numeric_limits<size_t>::max()};

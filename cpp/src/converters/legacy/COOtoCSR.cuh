@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,14 @@
 
 #pragma once
 
-#include <algorithm>
+#include <cugraph/legacy/functions.hpp>
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+
+#include <rmm/exec_policy.hpp>
+
+#include <cub/device/device_radix_sort.cuh>
+#include <cub/device/device_run_length_encode.cuh>
 #include <thrust/device_ptr.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -35,15 +42,7 @@
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 
-#include <cugraph/utilities/error.hpp>
-#include <rmm/exec_policy.hpp>
-
-#include <cub/device/device_radix_sort.cuh>
-#include <cub/device/device_run_length_encode.cuh>
-
-#include <cugraph/legacy/functions.hpp>
-
-#include <cugraph/legacy/graph.hpp>
+#include <algorithm>
 
 namespace cugraph {
 namespace detail {

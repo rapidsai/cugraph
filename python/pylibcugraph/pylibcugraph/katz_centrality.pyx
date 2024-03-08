@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -95,7 +95,7 @@ def katz_centrality(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
-    
+
     Returns
     -------
 
@@ -112,9 +112,9 @@ def katz_centrality(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_betas_ptr 
+    cdef uintptr_t cai_betas_ptr
     cdef cugraph_type_erased_device_array_view_t* betas_ptr
-    
+
     if betas is not None:
         cai_betas_ptr = betas.__cuda_array_interface__["data"][0]
         betas_ptr = \
@@ -143,7 +143,7 @@ def katz_centrality(ResourceHandle resource_handle,
         cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_centrality_result_get_values(result_ptr)
-    
+
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 

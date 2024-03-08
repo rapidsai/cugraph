@@ -54,14 +54,46 @@ Running the example in these notebooks requires:
 
 * The latest version of RAPIDS with cuGraph.
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
-  
+
 * cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
 * Python 3.8+
 * A system with an NVIDIA GPU:  Pascal architecture or better
 * CUDA 11.4+
 * NVIDIA driver 450.51+
 
+### QuickStart
 
+The easiest way to run the notebooks is to get the latest [rapidsai/notebooks](https://hub.docker.com/r/rapidsai/notebooks) docker image with matching cuda version and run a container based on the image.
+
+For example, get the latest (as of writing the document) nightly image (`a` after the version number indicates that an image is nightly) with cuda 12.0 using
+```sh
+docker pull rapidsai/notebooks:24.04a-cuda12.0-py3.9
+```
+
+And, then run a container based on the image using
+
+```sh
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:24.04a-cuda12.0-py3.9
+```
+You are all set. Run and edit cugraph notebooks from a browser at url
+http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks
+
+
+If you want to run the container in a remote machine which has access to GPUs, you can use `ssh` tunneling to run/edit the notebooks locally as explained above.
+
+Login to your remote machine with ssh tunneling/port forwarding
+
+```
+ssh -L  127.0.0.1:8888:127.0.0.1:8888 [USER_NAME@][REMOTE_HOST_NAME or REMOTE_HOST_IP]
+```
+and then run the container in your remote machine.
+
+```sh
+docker pull rapidsai/notebooks:24.04a-cuda12.0-py3.9
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:24.04a-cuda12.0-py3.9
+```
+
+You can run and edit cugraph notebooks at url http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks as if they are running locally.
 
 ## Additional Notebooks
 
@@ -92,7 +124,7 @@ Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0 
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
 
@@ -101,4 +133,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 
 ![RAPIDS](img/rapids_logo.png)
-

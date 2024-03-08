@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <community/louvain_impl.cuh>
+#include "community/louvain_impl.cuh"
 
 namespace cugraph {
 
