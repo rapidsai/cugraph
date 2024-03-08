@@ -16,21 +16,21 @@ Required:
         the samples will be written to a new folder in /home/samples that
         contains information about the sampling run as well as the time
         of the run.
-    
+
     --dataset_root
         The folder where datasets are stored.  Uses the format described
         in the input format section.
-    
+
     --datasets
         Comma-separated list of datasets; can specify ogb or rmat (i.e. ogb_papers100M[2],rmat_22_16).
         For ogb datasets, can provide replication factor using brackets.
         Will attempt to read from dataset_root/<datset_name>.
-    
+
 Optional:
     --fanouts
         Comma-separated list of fanout values (i.e. [10, 25]).
         The default fanout is [10, 25].
-    
+
     --batch_sizes
         Comma-separated list of batch sizes (i.e. 500, 1000).
         Defaults to "512,1024"
@@ -39,7 +39,7 @@ Optional:
         Comma-separated list of seeds per call.  Controls the number of input seed vertices processed
         in a single sampling call.
         Defaults to 524288
-    
+
     --reverse_edges
         Whether to reverse the edges of the input edgelist. Should be set to False for PyG and True for DGL.
         Defaults to False (PyG).
@@ -52,8 +52,8 @@ Optional:
     --random_seed
         Seed for random number generation.
         Defaults to '62'
-    
-    
+
+
 ### Input Format
 The script expects its input data in the following format:
 ```

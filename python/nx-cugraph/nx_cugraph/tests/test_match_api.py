@@ -44,11 +44,6 @@ def test_match_signature_and_names():
         else:
             orig_func = dispatchable_func.orig_func
 
-        if nxver.major == 3 and nxver.minor <= 2 and name == "louvain_communities":
-            # The signature of louvain_communities changed in NetworkX 3.3, and
-            # we updated to match, so we skip this check in older versions.
-            continue
-
         # Matching signatures?
         orig_sig = inspect.signature(orig_func)
         func_sig = inspect.signature(func)

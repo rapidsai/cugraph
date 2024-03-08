@@ -79,7 +79,7 @@ handleTimeout 630 python ${MG_UTILS_DIR}/wait_for_workers.py \
 
 DASK_STARTUP_ERRORCODE=$LAST_EXITCODE
 
-echo $SLURM_NODEID 
+echo $SLURM_NODEID
 if [[ $SLURM_NODEID == 0 ]]; then
     echo "Launching Python Script"
     python ${SCRIPTS_DIR}/cugraph_bulk_sampling.py \
