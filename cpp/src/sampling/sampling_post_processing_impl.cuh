@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,19 @@
 
 #pragma once
 
-#include <prims/kv_store.cuh>
+#include "prims/kv_store.cuh"
 
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -39,8 +42,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-
-#include <cuda/functional>
 
 #include <optional>
 
@@ -285,12 +286,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
 
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-      auto [h_label_offsets, h_edge_offsets] =
-        detail::compute_offset_aligned_edge_chunks(handle,
-                                                   (*label_offsets).data(),
-                                                   num_labels,
-                                                   vertices.size(),
-                                                   approx_edges_to_sort_per_iteration);
+      auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
+        handle, *label_offsets, vertices.size(), approx_edges_to_sort_per_iteration);
       auto num_chunks = h_label_offsets.size() - 1;
 
       for (size_t i = 0; i < num_chunks; ++i) {
@@ -740,10 +737,10 @@ renumber_sampled_edgelist(
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
       (1 << 20) /* tuning parameter */;  // for segmented sort
 
-    auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+    auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
       handle,
-      (*renumber_map_label_offsets).data(),
-      static_cast<size_t>((*renumber_map_label_offsets).size() - 1),
+      raft::device_span<size_t const>{(*renumber_map_label_offsets).data(),
+                                      (*renumber_map_label_offsets).size()},
       renumber_map.size(),
       approx_edges_to_sort_per_iteration);
     auto num_chunks = h_label_offsets.size() - 1;
@@ -909,11 +906,10 @@ sort_sampled_edge_tuples(
       (1 << 20) /* tuning parameter */;  // for sorts in chunks
 
     std::tie(h_label_offsets, h_edge_offsets) =
-      detail::compute_offset_aligned_edge_chunks(handle,
-                                                 std::get<0>(*edgelist_label_offsets).data(),
-                                                 std::get<1>(*edgelist_label_offsets),
-                                                 edgelist_majors.size(),
-                                                 approx_edges_to_sort_per_iteration);
+      detail::compute_offset_aligned_element_chunks(handle,
+                                                    std::get<0>(*edgelist_label_offsets),
+                                                    edgelist_majors.size(),
+                                                    approx_edges_to_sort_per_iteration);
   } else {
     h_label_offsets = {0, 1};
     h_edge_offsets  = {0, edgelist_majors.size()};

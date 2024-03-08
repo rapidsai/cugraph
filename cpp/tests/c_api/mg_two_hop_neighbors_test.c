@@ -76,8 +76,8 @@ int generic_two_hop_nbr_test(const cugraph_resource_handle_t* resource_handle,
   ret_code = cugraph_two_hop_neighbors(
     resource_handle, graph, start_vertices_view, FALSE, &result, &ret_error);
 
-  cugraph_type_erased_device_array_view_t* v1;
-  cugraph_type_erased_device_array_view_t* v2;
+  cugraph_type_erased_device_array_view_t const* v1;
+  cugraph_type_erased_device_array_view_t const* v2;
 
   v1 = cugraph_vertex_pairs_get_first(result);
   v2 = cugraph_vertex_pairs_get_second(result);

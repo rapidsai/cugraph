@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -33,14 +33,13 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <gtest/gtest.h>
+#include <thrust/count.h>
+#include <thrust/unique.h>
 
+#include <gtest/gtest.h>
 #include <nccl.h>
 
 #include <vector>
-
-#include <thrust/count.h>
-#include <thrust/unique.h>
 
 struct Multithreaded_Usecase {
   bool test_weighted{false};

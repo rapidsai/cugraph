@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include <utilities/test_utilities.hpp>
-
-#include <detail/graph_partition_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "utilities/test_utilities.hpp"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>

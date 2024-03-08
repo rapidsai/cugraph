@@ -21,6 +21,7 @@
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/core/device_span.hpp>
+
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>

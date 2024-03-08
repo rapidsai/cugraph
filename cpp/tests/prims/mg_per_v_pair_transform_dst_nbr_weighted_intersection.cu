@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
+#include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
-
-#include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_edge_property_device_view.cuh>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -39,12 +37,12 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
-#include <utilities/thrust_wrapper.hpp>
 
 #include <gtest/gtest.h>
 

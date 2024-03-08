@@ -1,13 +1,13 @@
 # cuGraph – Python
 
 
-cuGraph is a Python package that encapsulate and hides the complexity of the lower layer C/CUDA code.  Additionally, the software is focused on providing an easy and familiar API 
+cuGraph is a Python package that encapsulate and hides the complexity of the lower layer C/CUDA code.  Additionally, the software is focused on providing an easy and familiar API
 
 
 
 ## cuGraph Notice
 
-Vertex IDs are expected to be contiguous integers starting from 0.  If your data doesn't match that restriction, we have a solution.  cuGraph provides the renumber function, which is by default automatically called when data is added to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to either 32- or 64-bit contiguous integers starting from 0. 
+Vertex IDs are expected to be contiguous integers starting from 0.  If your data doesn't match that restriction, we have a solution.  cuGraph provides the renumber function, which is by default automatically called when data is added to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to either 32- or 64-bit contiguous integers starting from 0.
 
 Additionally, when using the auto-renumbering feature, vertices are automatically un-renumbered in results.
 

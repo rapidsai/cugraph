@@ -2,7 +2,7 @@
 
 ## Description
 
-[RAPIDS](https://rapids.ai) cugraph_dgl provides a duck-typed version of the [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph) class, which uses cugraph for storing graph structure and node/edge feature data.  Using cugraph as the backend allows DGL users to access a collection of GPU accelerated algorithms for graph analytics, such as centrality computation and community detection. 
+[RAPIDS](https://rapids.ai) cugraph_dgl provides a duck-typed version of the [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph) class, which uses cugraph for storing graph structure and node/edge feature data.  Using cugraph as the backend allows DGL users to access a collection of GPU accelerated algorithms for graph analytics, such as centrality computation and community detection.
 
 ## Conda
 
@@ -22,7 +22,7 @@ mamba env create -n cugraph_dgl_dev --file conda/cugraph_dgl_dev_11.6.yml
 
 ### Install  in editable mode
 ```
-pip install -e . 
+pip install -e .
 ```
 
 ### Run tests
@@ -43,12 +43,12 @@ sampler = dgl.dataloading.NeighborSampler(
 
 train_dataloader = dgl.dataloading.DataLoader(
 cugraph_g,
-train_idx, 
-sampler, 
-device=device, 
+train_idx,
+sampler,
+device=device,
 batch_size=1024,
 shuffle=True,
-drop_last=False, 
+drop_last=False,
 num_workers=0)
 ```
 

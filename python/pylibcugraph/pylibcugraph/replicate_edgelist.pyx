@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,13 +62,13 @@ def replicate_edgelist(ResourceHandle resource_handle,
         resource_handle : ResourceHandle
             Handle to the underlying device resources needed for referencing data
             and running algorithms.
-        
+
         src_array : device array type, optional
             Device array containing the vertex identifiers of the source of each
             directed edge. The order of the array corresponds to the ordering of the
             dst_array, where the ith item in src_array and the ith item in dst_array
             define the ith edge of the graph.
-        
+
         dst_array : device array type, optional
             Device array containing the vertex identifiers of the destination of
             each directed edge. The order of the array corresponds to the ordering
@@ -80,13 +80,13 @@ def replicate_edgelist(ResourceHandle resource_handle,
             order of the array corresponds to the ordering of the src_array and
             dst_array arrays, where the ith item in weight_array is the weight value
             of the ith edge of the graph.
-        
+
         edge_id_array : device array type, optional
             Device array containing the edge id values of each directed edge. The
             order of the array corresponds to the ordering of the src_array and
             dst_array arrays, where the ith item in edge_id_array is the id value
             of the ith edge of the graph.
-        
+
         edge_type_id_array : device array type, optional
             Device array containing the edge type id values of each directed edge. The
             order of the array corresponds to the ordering of the src_array and
@@ -112,17 +112,17 @@ def replicate_edgelist(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(src_array)
-        
+
     cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(dst_array)
 
-    
+
     cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(weight_array)
 
     cdef cugraph_type_erased_device_array_view_t* edge_ids_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array)
-    
+
     cdef cugraph_type_erased_device_array_view_t* edge_type_ids_view_ptr = \
         create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_id_array)
 
@@ -172,11 +172,11 @@ def replicate_edgelist(ResourceHandle resource_handle,
     if weight_array is not None:
         cupy_edge_weights = copy_to_cupy_array(
             c_resource_handle_ptr, edge_weights_ptr)
-    
+
     if edge_id_array is not None:
         cupy_edge_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_ids_ptr)
-    
+
     if edge_type_id_array is not None:
         cupy_edge_type_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_type_ids_ptr)

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -90,7 +90,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
     >>> weights = cupy.asarray(
     ...     [0.1, 0.1, 2.1, 2.1, 1.1, 1.1, 7.2, 7.2, 2.1, 2.1,
     ...     1.1, 1.1, 7.2, 7.2, 3.2, 3.2, 6.1, 6.1]
-    ...     ,dtype=numpy.float32)   
+    ...     ,dtype=numpy.float32)
     >>> k = 2
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
@@ -141,7 +141,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
     # for perfomance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
-    
+
     cupy_destinations = copy_to_cupy_array(
         c_resource_handle_ptr, destinations_ptr)
 
@@ -150,7 +150,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
             c_resource_handle_ptr, edge_weights_ptr)
     else:
         cupy_edge_weights = None
-    
+
     # FIXME: Should we keep the offsets array or just drop it from the final
     # solution?
     cupy_subgraph_offsets = copy_to_cupy_array(
