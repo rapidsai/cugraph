@@ -415,7 +415,7 @@ int test_all_pairs_jaccard()
   vertex_t h_second[] = {1, 2, 3, 4, 0, 2, 3, 5, 0, 1, 3, 4, 5, 0, 1, 2, 4, 0, 2, 3, 1, 2};
   weight_t h_result[] = {0.2,0.25,0.666667,0.333333,0.2,0.4,0.166667,0.5,0.25,0.4,0.2,0.25,0.25,0.666667,0.166667,0.2,0.666667,0.333333,0.25,0.666667,0.5,0.25};
 
-  return generic_all_pairs_similarity_test(h_src, 
+  return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
                                            h_wgt,
                                            h_first,
@@ -593,7 +593,7 @@ int test_all_pairs_jaccard_topk()
   vertex_t h_second[] = {3, 5, 0, 4, 3, 1};
   weight_t h_result[] = {0.666667, 0.5, 0.666667, 0.666667, 0.666667, 0.5};
 
-  return generic_all_pairs_similarity_test(h_src, 
+  return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
                                            h_wgt,
                                            h_first,

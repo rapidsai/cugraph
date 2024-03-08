@@ -18,7 +18,7 @@ partition data into these GPU devices.
 The partition method guarantees that each GPU can access one continuous part of the entire memory.
 Here "can access" means can directly access from CUDA kernels, but the memory doesn't have to be physically on that GPU.
 For example,it can be on host memory or other GPU's device memory that can be access using P2P.
-In that case the stored data has its own granularity that shouldn't be split. Data granularity can be specified while 
+In that case the stored data has its own granularity that shouldn't be split. Data granularity can be specified while
 creating WholeMemory. Then each data granularity can be considered as a block of data.
 
 The follow figure shows the layout of 15 data block over 4 GPUs.

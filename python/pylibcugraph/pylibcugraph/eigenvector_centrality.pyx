@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -127,7 +127,7 @@ def eigenvector_centrality(ResourceHandle resource_handle,
         cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_centrality_result_get_values(result_ptr)
-    
+
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 

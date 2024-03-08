@@ -32,4 +32,3 @@ Pagerank (MG)
    :toctree: ../api/cugraph/
 
    cugraph.dask.link_analysis.pagerank.pagerank
-

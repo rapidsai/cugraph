@@ -48,17 +48,17 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_triangle_count_result_get_vertices(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_triangle_count_result_get_counts(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef void \
         cugraph_triangle_count_result_free(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_triangle_count(
             const cugraph_resource_handle_t* handle,
@@ -83,7 +83,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_hierarchical_clustering_result_get_clusters(
             cugraph_hierarchical_clustering_result_t* result
         )
-    
+
     cdef double cugraph_hierarchical_clustering_result_get_modularity(
         cugraph_hierarchical_clustering_result_t* result
         )
@@ -104,7 +104,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # extract_ego
     cdef cugraph_error_code_t \
         cugraph_extract_ego(
@@ -116,7 +116,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # leiden
     ctypedef struct cugraph_hierarchical_clustering_result_t:
         pass
@@ -130,7 +130,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_hierarchical_clustering_result_get_clusters(
             cugraph_hierarchical_clustering_result_t* result
         )
-    
+
     cdef double cugraph_hierarchical_clustering_result_get_modularity(
         cugraph_hierarchical_clustering_result_t* result
         )
@@ -180,12 +180,12 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # Clustering
     ctypedef struct cugraph_clustering_result_t:
         pass
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_clustering_result_get_vertices(
             cugraph_clustering_result_t* result
@@ -195,7 +195,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_clustering_result_get_clusters(
             cugraph_clustering_result_t* result
         )
-    
+
     cdef void \
         cugraph_clustering_result_free(
             cugraph_clustering_result_t* result
@@ -216,7 +216,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_clustering_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # Spectral modularity maximization
     cdef cugraph_error_code_t \
         cugraph_spectral_modularity_maximization(
@@ -232,7 +232,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_clustering_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # Analyze clustering modularity
     cdef cugraph_error_code_t \
         cugraph_analyze_clustering_modularity(
@@ -244,7 +244,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             double* score,
             cugraph_error_t** error
         )
-    
+
     # Analyze clustering edge cut
     cdef cugraph_error_code_t \
         cugraph_analyze_clustering_edge_cut(
@@ -256,7 +256,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             double* score,
             cugraph_error_t** error
         )
-    
+
     # Analyze clustering ratio cut
     cdef cugraph_error_code_t \
         cugraph_analyze_clustering_ratio_cut(
