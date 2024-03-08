@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -76,12 +76,12 @@ def select_random_vertices(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     random_state : int , optional
         Random state to use when generating samples. Optional argument,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
-    
+
     num_vertices : size_t , optional
         Number of vertices to sample. Optional argument, defaults to the
         total number of vertices.
@@ -116,7 +116,7 @@ def select_random_vertices(ResourceHandle resource_handle,
         vertices_view_ptr = \
             cugraph_type_erased_device_array_view(
                 vertices_ptr)
-    
-    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_view_ptr)    
+
+    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_view_ptr)
 
     return cupy_vertices

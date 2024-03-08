@@ -187,7 +187,7 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
     size_t vertex_count = local_num_vertices / num_local_arrays;
     size_t vertex_start = i * vertex_count;
     vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
-    
+
     ret_code =
       cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");
@@ -375,7 +375,7 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
     size_t vertex_count = (local_num_vertices + num_local_arrays - 1) / num_local_arrays;
     size_t vertex_start = i * vertex_count;
     vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
-    
+
     ret_code =
       cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");

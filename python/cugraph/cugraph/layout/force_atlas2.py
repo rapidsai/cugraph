@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 from cugraph.layout import force_atlas2_wrapper
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+import cudf
 
 
 def force_atlas2(
@@ -55,8 +56,8 @@ def force_atlas2(
         Above 1000 iterations is discouraged.
 
     pos_list: cudf.DataFrame, optional (default=None)
-        Data frame with initial vertex positions containing two columns:
-        'x' and 'y' positions.
+        Data frame with initial vertex positions containing three columns:
+        'vertex', 'x' and 'y' positions.
 
     outbound_attraction_distribution: bool, optional (default=True)
         Distributes attraction along outbound edges.
@@ -131,6 +132,10 @@ def force_atlas2(
     input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
     if pos_list is not None:
+        if not isinstance(pos_list, cudf.DataFrame):
+            raise TypeError("pos_list should be a cudf.DataFrame")
+        if set(pos_list.columns) != set(["x", "y", "vertex"]):
+            raise ValueError("pos_list has wrong column names")
         if input_graph.renumbered is True:
             if input_graph.vertex_column_size() > 1:
                 cols = pos_list.columns[:-2].to_list()
