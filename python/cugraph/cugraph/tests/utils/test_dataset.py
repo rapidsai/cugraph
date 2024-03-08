@@ -171,14 +171,14 @@ def test_reader(dataset):
     E = dataset.get_edgelist(download=True)
 
     assert E is not None
-    assert isinstance(E, cudf.core.dataframe.DataFrame)
+    assert isinstance(E, cudf.DataFrame)
     dataset.unload()
 
     # using pandas
     E_pd = dataset.get_edgelist(download=True, reader="pandas")
 
     assert E_pd is not None
-    assert isinstance(E_pd, pandas.core.frame.DataFrame)
+    assert isinstance(E_pd, pandas.DataFrame)
     dataset.unload()
 
     with pytest.raises(ValueError):
