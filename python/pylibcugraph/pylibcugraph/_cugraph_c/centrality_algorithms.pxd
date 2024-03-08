@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -212,7 +212,7 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # edge betweenness centrality
 
@@ -223,7 +223,7 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_edge_centrality_result_get_src_vertices(
             cugraph_edge_centrality_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_edge_centrality_result_get_dst_vertices(
             cugraph_edge_centrality_result_t* result
@@ -233,17 +233,17 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_edge_centrality_result_get_edge_ids(
             cugraph_edge_centrality_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_edge_centrality_result_get_values(
             cugraph_edge_centrality_result_t* result
         )
-    
+
     cdef void \
         cugraph_edge_centrality_result_free(
             cugraph_edge_centrality_result_t* result
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_edge_betweenness_centrality(
             const cugraph_resource_handle_t* handle,

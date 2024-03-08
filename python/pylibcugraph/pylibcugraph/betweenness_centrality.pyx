@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -93,7 +93,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
         Using None defaults to a hash of process id, time, and hostname
         If k is either None or list or cudf objects: random_state parameter is
         ignored.
-    
+
     normalized : bool_t
         Normalization will ensure that values are in [0, 1].
 
@@ -102,7 +102,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
-    
+
     Returns
     -------
 
@@ -113,7 +113,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     if isinstance(k, int):
         # randomly select vertices
-        
+
         #'select_random_vertices' internally creates a
         # 'pylibcugraph.random.CuGraphRandomState'
         vertex_list = select_random_vertices(
@@ -150,7 +150,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
         cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_centrality_result_get_values(result_ptr)
-    
+
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 
