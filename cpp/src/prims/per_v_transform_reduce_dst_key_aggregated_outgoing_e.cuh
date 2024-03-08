@@ -287,7 +287,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     std::conditional_t<!std::is_same_v<edge_value_t, thrust::nullopt_t>, edge_value_t, void>;
 
   static_assert(
-    std::is_arithmetic_v<edge_value_t>,
+    std::is_same_v<edge_value_t, thrust::nullopt_t> || std::is_arithmetic_v<edge_value_t>,
     "Currently only scalar values are supported, should be extended to support thrust::tuple of "
     "arithmetic types and void (for dummy property values) to be consistent with other "
     "primitives.");  // this will also require a custom edge value aggregation op.
@@ -307,7 +307,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
@@ -574,13 +575,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                  tmp_key_aggregated_edge_values) +
                                  reduced_size)));
         } else {
-          reduced_size +=
-            thrust::distance(output_key_first + reduced_size,
-                             thrust::get<0>(thrust::unique(
-                               handle.get_thrust_policy(),
-                               input_key_first,
-                               input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
-                               output_key_first + reduced_size)));
+          reduced_size += thrust::distance(
+            output_key_first + reduced_size,
+            thrust::copy_if(
+              handle.get_thrust_policy(),
+              input_key_first,
+              input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+              thrust::make_counting_iterator(size_t{0}),
+              output_key_first + reduced_size,
+              cugraph::detail::is_first_in_run_t<decltype(input_key_first)>{input_key_first}));
         }
       }
       tmp_majors.resize(reduced_size, handle.get_stream());
