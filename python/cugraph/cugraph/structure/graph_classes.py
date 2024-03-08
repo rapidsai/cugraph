@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -426,7 +426,7 @@ class Graph:
         ...                        edge_attr='2', renumber=False)
 
         """
-        if not isinstance(pdf, pd.core.frame.DataFrame):
+        if not isinstance(pdf, pd.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
@@ -450,7 +450,7 @@ class Graph:
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
         """
-        if not isinstance(pdf, pd.core.frame.DataFrame):
+        if not isinstance(pdf, pd.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
         np_array = pdf.to_numpy()

@@ -229,7 +229,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     for (size_t i = 1 ; i < sz ; ++i) {
       tmp_result_offsets[i-1] = tmp_result_offsets[i] - tmp_result_offsets[i-1];
     }
-    
+
     cugraph_test_host_gatherv_fill(handle, tmp_result_offsets, sz-1, SIZE_T, h_result_offsets + 1);
 
     h_result_offsets[0] = 0;
@@ -255,7 +255,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
       M_w[h_src[i]][h_dst[i]] = h_wgt[i];
     else
       M_w[h_src[i]][h_dst[i]] = 1.0;
- 
+
     if (h_edge_ids != NULL) M_edge_id[h_src[i]][h_dst[i]]   = h_edge_ids[i];
     if (h_edge_types != NULL) M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
   }
@@ -900,7 +900,7 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
   TEST_ASSERT(test_ret_value,
               result_offsets_size == expected_size[rank],
               "incorrect number of results");
-              
+
 
   cugraph_sample_result_free(result);
 #endif

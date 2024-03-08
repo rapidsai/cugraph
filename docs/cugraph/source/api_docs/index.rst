@@ -35,5 +35,3 @@ Additional Graph Packages API Documentation
     :caption: Additional Graph Packages API Documentation
 
     service/index.rst
-
-
