@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -90,7 +90,7 @@ def create_sampling_result(ResourceHandle resource_handle,
         device_sources.__cuda_array_interface__["data"][0]
     cdef uintptr_t cai_dsts_ptr = \
         device_destinations.__cuda_array_interface__["data"][0]
-    
+
     cdef uintptr_t cai_weights_ptr
     if device_weights is not None:
         cai_weights_ptr = device_weights.__cuda_array_interface__['data'][0]
@@ -127,7 +127,7 @@ def create_sampling_result(ResourceHandle resource_handle,
                 len(device_weights),
                 get_c_type_from_numpy_type(device_weights.dtype)
             )
-        )   
+        )
     cdef cugraph_type_erased_device_array_view_t* c_edge_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
         c_edge_id_ptr = (
@@ -136,7 +136,7 @@ def create_sampling_result(ResourceHandle resource_handle,
                 len(device_edge_id),
                 get_c_type_from_numpy_type(device_edge_id.dtype)
             )
-        )   
+        )
     cdef cugraph_type_erased_device_array_view_t* c_edge_type_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
         c_edge_type_ptr = (
@@ -145,7 +145,7 @@ def create_sampling_result(ResourceHandle resource_handle,
                 len(device_edge_type),
                 get_c_type_from_numpy_type(device_edge_type.dtype)
             )
-        )   
+        )
 
     cdef cugraph_type_erased_device_array_view_t* c_hop_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
@@ -155,7 +155,7 @@ def create_sampling_result(ResourceHandle resource_handle,
                 len(device_hop),
                 get_c_type_from_numpy_type(device_hop.dtype)
             )
-        )   
+        )
 
     cdef cugraph_type_erased_device_array_view_t* c_label_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
@@ -165,7 +165,7 @@ def create_sampling_result(ResourceHandle resource_handle,
                 len(device_batch_label),
                 get_c_type_from_numpy_type(device_batch_label.dtype)
             )
-        )   
+        )
 
 
     error_code = cugraph_test_uniform_neighborhood_sample_result_create(

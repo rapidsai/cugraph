@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -51,7 +51,7 @@ cdef extern from "cugraph_c/graph.h":
              bool_t check,
              cugraph_graph_t** graph,
              cugraph_error_t** error)
-    
+
     # Supports isolated vertices
     cdef cugraph_error_code_t \
          cugraph_graph_create_sg(
@@ -76,7 +76,7 @@ cdef extern from "cugraph_c/graph.h":
         cugraph_sg_graph_free(
             cugraph_graph_t* graph
         )
-    
+
     # FIXME: Might want to delete 'cugraph_sg_graph_free' and replace
     # 'cugraph_mg_graph_free' by 'cugraph_graph_free'
     cdef void \
@@ -105,7 +105,7 @@ cdef extern from "cugraph_c/graph.h":
         cugraph_mg_graph_free(
             cugraph_graph_t* graph
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_sg_graph_create_from_csr(
             const cugraph_resource_handle_t* handle,
@@ -121,7 +121,7 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t** graph,
             cugraph_error_t** error
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_graph_create_sg_from_csr(
             const cugraph_resource_handle_t* handle,
@@ -137,12 +137,12 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t** graph,
             cugraph_error_t** error
         )
-    
+
     cdef void \
         cugraph_sg_graph_free(
             cugraph_graph_t* graph
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_mg_graph_create(
             const cugraph_resource_handle_t* handle,
@@ -158,7 +158,7 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t** graph,
             cugraph_error_t** error
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_graph_create_mg(
             const cugraph_resource_handle_t* handle,
@@ -176,7 +176,7 @@ cdef extern from "cugraph_c/graph.h":
             bool_t do_expensive_check,
             cugraph_graph_t** graph,
             cugraph_error_t** error)
-    
+
     cdef void \
         cugraph_mg_graph_free(
             cugraph_graph_t* graph

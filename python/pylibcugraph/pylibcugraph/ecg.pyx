@@ -73,7 +73,7 @@ def ecg(ResourceHandle resource_handle,
 
     graph : SGGraph
         The input graph.
-    
+
     min_weight : double, optional (default=0.5)
         The minimum value to assign as an edgeweight in the ECG algorithm.
         It should be a value in the range [0,1] usually left as the default
@@ -83,7 +83,7 @@ def ecg(ResourceHandle resource_handle,
         The number of graph permutations to use for the ensemble.
         The default value is 16, larger values may produce higher quality
         partitions for some graphs.
-    
+
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.

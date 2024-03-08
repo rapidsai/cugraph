@@ -11,4 +11,3 @@ RAPIDS WholeGraph has following package:
 
    basics/index
    installation/index
-

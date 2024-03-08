@@ -1,6 +1,6 @@
 # Jaccard Similarity
 
-The Jaccard similarity between two sets is defined as the ratio of the volume of their intersection divided by the volume of their union. 
+The Jaccard similarity between two sets is defined as the ratio of the volume of their intersection divided by the volume of their union.
 
 The Jaccard Similarity can then be defined as
 
