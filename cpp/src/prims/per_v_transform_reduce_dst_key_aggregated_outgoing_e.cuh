@@ -458,27 +458,30 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       size_t reduced_size{0};
       for (size_t j = 0; j < num_chunks; ++j) {
         if (edge_partition_e_mask) {
-          auto unmasked_range_first = *(edge_partition.offsets() + h_vertex_offsets[j]);
-          auto unmasked_range_last  = *(edge_partition.offsets() + h_vertex_offsets[j + 1]);
+          std::array<edge_t, 2> unmasked_ranges{};
+          raft::update_host(unmasked_ranges.data(),
+                            edge_partition.offsets() + h_vertex_offsets[j],
+                            2,
+                            handle.get_stream());
           if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
             detail::copy_if_mask_set(
               handle,
               thrust::make_zip_iterator(minor_key_first,
                                         edge_partition_e_value_input.value_first()) +
-                unmasked_range_first,
+                unmasked_ranges[0],
               thrust::make_zip_iterator(minor_key_first,
                                         edge_partition_e_value_input.value_first()) +
-                unmasked_range_last,
-              (*edge_partition_e_mask).value_first() + unmasked_range_first,
+                unmasked_ranges[1],
+              (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
               thrust::make_zip_iterator(tmp_minor_keys.begin(),
                                         detail::get_optional_dataframe_buffer_begin<edge_value_t>(
                                           tmp_key_aggregated_edge_values)) +
                 h_edge_offsets[j]);
           } else {
             detail::copy_if_mask_set(handle,
-                                     minor_key_first + unmasked_range_first,
-                                     minor_key_first + unmasked_range_last,
-                                     (*edge_partition_e_mask).value_first() + unmasked_range_first,
+                                     minor_key_first + unmasked_ranges[0],
+                                     minor_key_first + unmasked_ranges[1],
+                                     (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
                                      tmp_minor_keys.begin() + h_edge_offsets[j]);
           }
         } else {
