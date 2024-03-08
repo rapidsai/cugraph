@@ -110,7 +110,7 @@ rmm::device_uvector<vertex_t> coloring(
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
-          return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
+          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
         },
         edge_masks_odd.mutable_view());
 
@@ -126,7 +126,7 @@ rmm::device_uvector<vertex_t> coloring(
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
-          return !((is_src_in_mis == 1) || (is_dst_in_mis == 1));
+          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
         },
         edge_masks_even.mutable_view());
 
