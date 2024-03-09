@@ -178,7 +178,7 @@ refine_clustering(
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+    cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       comm_size, major_comm_size, minor_comm_size};
 
     vertex_louvain_cluster_weights =
@@ -460,7 +460,7 @@ refine_clustering(
         major_comm_size,
         minor_comm_size};
 
-      // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      // cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       //   comm_size, major_comm_size, minor_comm_size};
 
       louvain_of_leiden_keys_used_in_edge_reduction =
@@ -850,7 +850,7 @@ refine_clustering(
       major_comm_size,
       minor_comm_size};
 
-    // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+    // cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
     //   comm_size, major_comm_size, minor_comm_size};
 
     lovain_of_leiden_cluster_keys =

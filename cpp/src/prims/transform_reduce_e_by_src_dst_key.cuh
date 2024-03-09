@@ -21,6 +21,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -564,7 +565,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
           tmp_keys.end(),
           get_dataframe_buffer_begin(tmp_value_buffer),
           [key_func =
-             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+             cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
             return key_func(val);
           },

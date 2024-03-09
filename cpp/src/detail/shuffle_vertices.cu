@@ -16,6 +16,7 @@
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <thrust/tuple.h>
@@ -73,11 +74,10 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partit
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_size = minor_comm.get_size();
 
-  return shuffle_vertices_by_gpu_id_impl(
-    handle,
-    std::move(vertices),
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-      comm_size, major_comm_size, minor_comm_size});
+  return shuffle_vertices_by_gpu_id_impl(handle,
+                                         std::move(vertices),
+                                         cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                           comm_size, major_comm_size, minor_comm_size});
 }
 
 template <typename vertex_t, typename value_t>
@@ -97,7 +97,7 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
     handle,
     std::move(vertices),
     std::move(values),
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+    cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size});
 }
 

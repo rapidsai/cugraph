@@ -17,6 +17,7 @@
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/functional>
@@ -50,7 +51,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
       d_vertices.begin(),
       d_vertices.end(),
       d_values.begin(),
-      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
         comm_size, major_comm_size, minor_comm_size},
       handle.get_stream());
   }

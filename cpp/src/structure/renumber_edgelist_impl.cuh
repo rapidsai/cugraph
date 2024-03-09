@@ -20,6 +20,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -78,7 +79,7 @@ template <typename vertex_t>
 struct find_unused_id_t {
   raft::device_span<vertex_t const> sorted_local_vertices{};
   size_t num_workers{};
-  compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_op{};
+  cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_op{};
   int comm_rank{};
   vertex_t invalid_id{};
 
@@ -199,7 +200,7 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   auto num_workers =
     std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * size_t{1024},
              sorted_local_vertices.size() + size_t{1});
-  auto gpu_id_op = compute_gpu_id_from_ext_vertex_t<vertex_t>{int{1}, int{1}, int{1}};
+  auto gpu_id_op = cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{int{1}, int{1}, int{1}};
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -207,8 +208,8 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
-    gpu_id_op =
-      compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size, major_comm_size, minor_comm_size};
+    gpu_id_op                  = cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size};
   }
   auto unused_id = thrust::transform_reduce(
     handle.get_thrust_policy(),
@@ -665,7 +666,7 @@ void expensive_check_edgelist(
            minor_comm_rank,
            i,
            gpu_id_key_func =
-             detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+             cugraph::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
                comm_size, major_comm_size, minor_comm_size},
            local_edge_partition_id_key_func =
              detail::compute_local_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
@@ -708,7 +709,7 @@ void expensive_check_edgelist(
                          (*sorted_local_vertices).end(),
                          [comm_rank,
                           key_func =
-                            detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                            cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                               comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
                            return key_func(val) != comm_rank;
                          }) == 0,

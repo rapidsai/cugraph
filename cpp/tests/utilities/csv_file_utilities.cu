@@ -18,6 +18,7 @@
 #include "utilities/test_utilities.hpp"
 
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -219,7 +220,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+    auto edge_key_func = cugraph::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {

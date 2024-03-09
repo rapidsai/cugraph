@@ -22,6 +22,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.hpp>
@@ -148,7 +149,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                          (*vertices).end(),
                          [comm_rank,
                           key_func =
-                            detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                            cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                               comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
                            return key_func(val) != comm_rank;
                          }) == 0,
@@ -163,7 +164,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                        edge_first + edgelist_majors.size(),
                        [comm_rank,
                         gpu_id_key_func =
-                          detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+                          cugraph::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
                             comm_size, major_comm_size, minor_comm_size}] __device__(auto e) {
                          return (gpu_id_key_func(e) != comm_rank);
                        }) == 0,
