@@ -2,7 +2,7 @@
 NetworkX Compatibility and Transition
 **************************************
 
-*Note: this is a work in progress and will be updatred and changed as we better flesh out 
+*Note: this is a work in progress and will be updatred and changed as we better flesh out
 compatibility issues*
 
 One of the goals of RAPIDS cuGraph is to mimic the NetworkX API to simplify
@@ -13,7 +13,7 @@ and then the construction of a graph object; that is all before the execution
 of a graph algorithm.  RAPIDS and cuGraph allow a portion or the complete
 analytic workflow to be accelerated.  To achieve the maximum amount of
 acceleration, we encourage fully replacing existing code with cuGraph.
-But sometimes it is easier to replace just a portion. 
+But sometimes it is easier to replace just a portion.
 
 Last Update
 ###########
@@ -23,7 +23,7 @@ Release:		0.16
 
 Information on `NetworkX <https://networkx.github.io/documentation/stable/index.html>`_
 
-This transition guide in an expansion of the Medium Blog on `NetworkX Compatibility 
+This transition guide in an expansion of the Medium Blog on `NetworkX Compatibility
 <https://medium.com/rapids-ai/rapids-cugraph-networkx-compatibility-d119e417557c>`_
 
 
@@ -33,7 +33,7 @@ Easy Path – Use NetworkX Graph Objects, Accelerated Algorithms
 Rather than updating all of your existing code, simply update the calls to
 graph algorithms by replacing the module name.  This allows all the complicated
 ETL code to be unchanged while still seeing significate performance
-improvements.  
+improvements.
 
 In the following example, the cuGraph module is being imported as “cnx”.
 While module can be assigned any name can be used, we picked cnx to reduce
@@ -44,10 +44,10 @@ changes.
   :width: 600
 
 It is that easy.  All algorithms in cuGraph support a NetworkX graph object as
-input and match the NetworkX API list of arguments.  
+input and match the NetworkX API list of arguments.
 
 Currently, cuGraph accepts both NetworkX Graph and DiGraph objects. We will be
-adding support for Bipartite graph and Multigraph over the next few releases.  
+adding support for Bipartite graph and Multigraph over the next few releases.
 
 |
 
@@ -58,7 +58,7 @@ Differences in Algorithms
 Since cuGraph currently does not support attribute rich graphs, those
 algorithms that return simple scores (centrality, clustering, etc.) best match
 the NetworkX process.  Algorithms that return a subgraph will do so without
-any additional attributes on the nodes or edges. 
+any additional attributes on the nodes or edges.
 
 Algorithms that exactly match
 *****************************
@@ -142,8 +142,8 @@ Algorithms where the results are different
 ******************************************
 
 
-For example, the NetworkX traversal algorithms typically return a generator 
-rather than a dictionary.   
+For example, the NetworkX traversal algorithms typically return a generator
+rather than a dictionary.
 
 
 +----------------------------+-------------------------------------------------+
@@ -154,7 +154,7 @@ rather than a dictionary.
 |                            | (on roadmap to update)                          |
 +----------------------------+-------------------------------------------------+
 | Jaccard coefficient        | Currently we only do a 1-hop computation rather |
-|                            | than an all-pairs.  Fix is on roadmap           | 
+|                            | than an all-pairs.  Fix is on roadmap           |
 +----------------------------+-------------------------------------------------+
 | Breadth First Search (BFS) | Returns a Pandas DataFrame with:                |
 |                            | [vertex][distance][predecessor]                 |
@@ -185,14 +185,13 @@ code for building a NetworkX Graph::
         )
 
 
-The code block is perfectly fine for NetworkX. However, the process of iterating over the dataframe and adding one node at a time is problematic for GPUs and something that we try and avoid.  cuGraph stores data in columns (i.e. arrays).  Resizing an array requires allocating a new array one element larger, copying the data, and adding the new value.  That is not very efficient.  
+The code block is perfectly fine for NetworkX. However, the process of iterating over the dataframe and adding one node at a time is problematic for GPUs and something that we try and avoid.  cuGraph stores data in columns (i.e. arrays).  Resizing an array requires allocating a new array one element larger, copying the data, and adding the new value.  That is not very efficient.
 
-If your code follows the above model of inserting one element at a time, the we suggest either rewriting that code or using it as is within NetworkX and just accelerating the algorithms with cuGraph.  
+If your code follows the above model of inserting one element at a time, the we suggest either rewriting that code or using it as is within NetworkX and just accelerating the algorithms with cuGraph.
 
 Now, if your code bulk loads the data from Pandas, then RAPIDS can accelerate that process by orders of magnitude.
 
 .. image:: ../images/Nx_Cg_2.png
   :width: 600
 
-The above cuGraph code will create cuGraph.Graph object and not a NetworkX.Graph object. 
-
+The above cuGraph code will create cuGraph.Graph object and not a NetworkX.Graph object.

@@ -55,7 +55,7 @@ RUN gpuci_mamba_retry install -y -c pytorch -c rapidsai-nightly -c rapidsai -c c
     tqdm
 
 
-# Build ucx from source with IB support 
+# Build ucx from source with IB support
 # on 1.14.x
 RUN conda remove --force -y ucx ucx-proc
 

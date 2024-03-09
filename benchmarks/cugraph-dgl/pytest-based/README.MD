@@ -1,10 +1,10 @@
-## Run Benchmarks 
+## Run Benchmarks
 
-#### SG 
+#### SG
 ```
 pytest bench_cugraph_dgl_uniform_neighbor_sample.py -k "SG and fanout_10_25 and rmat_24_4" --benchmark-save='1_rmat_24_4.json'
 ```
-#### MG 
+#### MG
 
 ```
 DASK_NUM_WORKERS=2 pytest bench_cugraph_dgl_uniform_neighbor_sample.py -k "MG and fanout_10_25 and rmat_24_16" --benchmark-save='2_rmat_24_8.json'

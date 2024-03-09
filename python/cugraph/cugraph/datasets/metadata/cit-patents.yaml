@@ -3,7 +3,7 @@ file_type: .csv
 description: A citation graph that includes all citations made by patents granted between 1975 and 1999, totaling 16,522,438 citations.
 author: NBER
 refs:
-  J. Leskovec, J. Kleinberg and C. Faloutsos. Graphs over Time Densification Laws, Shrinking Diameters and Possible Explanations. 
+  J. Leskovec, J. Kleinberg and C. Faloutsos. Graphs over Time Densification Laws, Shrinking Diameters and Possible Explanations.
   ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2005.
 delim: " "
 header: None
