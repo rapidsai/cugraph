@@ -461,8 +461,13 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           std::array<edge_t, 2> unmasked_ranges{};
           raft::update_host(unmasked_ranges.data(),
                             edge_partition.offsets() + h_vertex_offsets[j],
-                            2,
+                            1,
                             handle.get_stream());
+          raft::update_host(unmasked_ranges.data() + 1,
+                            edge_partition.offsets() + h_vertex_offsets[j + 1],
+                            1,
+                            handle.get_stream());
+          handle.sync_stream();
           if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
             detail::copy_if_mask_set(
               handle,
@@ -882,6 +887,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size()));
         tmp_majors.resize(num_uniques, handle.get_stream());
         tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     key_pair_first,
+                     key_pair_first + num_uniques,
+                     thrust::make_zip_iterator(tmp_majors.begin(), tmp_minor_keys.begin()));
       }
     }
 
