@@ -54,11 +54,9 @@ from pylibcugraph.utils cimport (
 )
 
 
-#in degrees
-#out degrees
-#degrees [both]
 def in_degrees(ResourceHandle resource_handle,
                _GPUGraph graph,
+               source_vertices,
                bool_t do_expensive_check):
     """
     Compute the in degrees for the nodes of the graph.
@@ -71,6 +69,9 @@ def in_degrees(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
+
+    source_vertices : cupy array
+        The nodes for which we will compute degrees.
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
@@ -94,7 +95,7 @@ def in_degrees(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, in_degrees) = pylibcugraph.in_degrees(
-                                   resource_handle, G, False)
+                                   resource_handle, G, None, False)
 
     """
 
@@ -129,6 +130,7 @@ def in_degrees(ResourceHandle resource_handle,
 
 def out_degrees(ResourceHandle resource_handle,
                 _GPUGraph graph,
+                source_vertices,
                 bool_t do_expensive_check):
     """
     Compute the out degrees for the nodes of the graph.
@@ -141,6 +143,9 @@ def out_degrees(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
+
+    source_vertices : cupy array
+        The nodes for which we will compute degrees.
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
@@ -164,7 +169,7 @@ def out_degrees(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, out_degrees) = pylibcugraph.out_degrees(
-                                    resource_handle, G, False)
+                                    resource_handle, G, None, False)
 
     """
 
@@ -200,6 +205,7 @@ def out_degrees(ResourceHandle resource_handle,
 
 def degrees(ResourceHandle resource_handle,
             _GPUGraph graph,
+            source_vertices,
             bool_t do_expensive_check):
     """
     Compute the degrees for the nodes of the graph.
@@ -212,6 +218,9 @@ def degrees(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
+
+    source_vertices : cupy array
+        The nodes for which we will compute degrees.
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
@@ -236,7 +245,7 @@ def degrees(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, in_degrees, out_degrees) = pylibcugraph.degrees(
-                                                resource_handle, G, False)
+                                                resource_handle, G, None, False)
 
     """
 

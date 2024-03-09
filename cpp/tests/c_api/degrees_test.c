@@ -33,6 +33,10 @@ int generic_degrees_test(vertex_t* h_src,
                          weight_t* h_wgt,
                          size_t num_vertices,
                          size_t num_edges,
+                         vertex_t* h_vertices,
+                         size_t num_vertices_to_compute,
+                         bool_t in_degrees,
+                         bool_t out_degrees,
                          bool_t store_transposed,
                          bool_t is_symmetric,
                          edge_t *h_in_degrees,
@@ -56,10 +60,48 @@ int generic_degrees_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_degrees(
-    handle, graph, FALSE, &result, &ret_error);
-  TEST_ASSERT(
-    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_extract_induced_subgraph failed.");
+  if (h_vertices == NULL) {
+    if (in_degrees && out_degrees) {
+      ret_code = cugraph_degrees(
+        handle, graph, NULL, FALSE, &result, &ret_error);
+    } else if (in_degrees) {
+      ret_code = cugraph_in_degrees(
+        handle, graph, NULL, FALSE, &result, &ret_error);
+    } else {
+      ret_code = cugraph_out_degrees(
+        handle, graph, NULL, FALSE, &result, &ret_error);
+    }
+
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_extract_degrees failed.");
+  } else {
+    cugraph_type_erased_device_array_t* vertices           = NULL;
+    cugraph_type_erased_device_array_view_t* vertices_view = NULL;
+
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_vertices_to_compute, INT32, &vertices, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "seeds create failed.");
+
+    vertices_view = cugraph_type_erased_device_array_view(vertices);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, vertices_view, (byte_t*)h_vertices, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+    if (in_degrees && out_degrees) {
+      ret_code = cugraph_degrees(
+        handle, graph, vertices_view, FALSE, &result, &ret_error);
+    } else if (in_degrees) {
+      ret_code = cugraph_in_degrees(
+        handle, graph, vertices_view, FALSE, &result, &ret_error);
+    } else {
+      ret_code = cugraph_out_degrees(
+        handle, graph, vertices_view, FALSE, &result, &ret_error);
+    }
+
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_extract_degrees failed.");
+  }
 
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* result_in_degrees;
@@ -79,19 +121,32 @@ int generic_degrees_test(vertex_t* h_src,
     handle, (byte_t*)h_result_vertices, result_vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_in_degrees, result_in_degrees, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+  if (result_in_degrees != NULL) {
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      handle, (byte_t*)h_result_in_degrees, result_in_degrees, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+  }
 
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_out_degrees, result_out_degrees, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+  if (result_out_degrees != NULL) {
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      handle, (byte_t*)h_result_out_degrees, result_out_degrees, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+  }
 
-  TEST_ASSERT(test_ret_value, num_result_vertices == num_vertices, "results not the same size");
+  if (h_vertices != NULL) {
+    TEST_ASSERT(test_ret_value, num_result_vertices == num_vertices_to_compute, "results not the same size");
+  } else {
+    TEST_ASSERT(test_ret_value, num_result_vertices == num_vertices, "results not the same size");
+  }
 
   for (size_t i = 0; (i < num_result_vertices) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value, h_result_in_degrees[i] == h_in_degrees[h_result_vertices[i]], "in degree did not match");
-    TEST_ASSERT(test_ret_value, h_result_out_degrees[i] == h_out_degrees[h_result_vertices[i]], "out degree did not match");
+    if (h_in_degrees != NULL) {
+      TEST_ASSERT(test_ret_value, h_result_in_degrees[i] == h_in_degrees[h_result_vertices[i]], "in degree did not match");
+    }
+
+    if (h_out_degrees != NULL) {
+      TEST_ASSERT(test_ret_value, h_result_out_degrees[i] == h_out_degrees[h_result_vertices[i]], "out degree did not match");
+    }
   }
 
   cugraph_degrees_result_free(result);
@@ -117,6 +172,10 @@ int test_degrees()
                               h_wgt,
                               num_vertices,
                               num_edges,
+                              NULL,
+                              0,
+                              TRUE,
+                              TRUE,
                               FALSE,
                               FALSE,
                               h_in_degrees,
@@ -140,9 +199,174 @@ int test_degrees_symmetric()
                               h_wgt,
                               num_vertices,
                               num_edges,
+                              NULL,
+                              0,
+                              TRUE,
+                              TRUE,
                               FALSE,
                               TRUE,
                               h_in_degrees,
+                              h_out_degrees);
+}
+
+int test_in_degrees()
+{
+  size_t num_edges         = 8;
+  size_t num_vertices      = 6;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_in_degrees[]  = {1, 2, 0, 2, 1, 2};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              NULL,
+                              0,
+                              TRUE,
+                              FALSE,
+                              FALSE,
+                              TRUE,
+                              h_in_degrees,
+                              NULL);
+}
+
+int test_out_degrees()
+{
+  size_t num_edges         = 8;
+  size_t num_vertices      = 6;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_out_degrees[] = {1, 2, 3, 1, 1, 0};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              NULL,
+                              0,
+                              FALSE,
+                              TRUE,
+                              FALSE,
+                              TRUE,
+                              NULL,
+                              h_out_degrees);
+}
+
+int test_degrees_subset()
+{
+  size_t num_edges               = 8;
+  size_t num_vertices            = 6;
+  size_t num_vertices_to_compute = 3;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_vertices[]    = {2, 3, 5};
+  vertex_t h_in_degrees[]  = {-1, -1, 0, 2, -1, 2};
+  vertex_t h_out_degrees[] = {-1, -1, 3, 1, -1, 0};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              h_vertices,
+                              num_vertices_to_compute,
+                              TRUE,
+                              TRUE,
+                              FALSE,
+                              FALSE,
+                              h_in_degrees,
+                              h_out_degrees);
+}
+
+int test_degrees_symmetric_subset()
+{
+  size_t num_edges         = 16;
+  size_t num_vertices      = 6;
+  size_t num_vertices_to_compute = 3;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
+                              0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_vertices[]    = {2, 3, 5};
+  vertex_t h_in_degrees[]  = {-1, -1, 3, 3, -1, 2};
+  vertex_t h_out_degrees[] = {-1, -1, 3, 3, -1, 2};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              h_vertices,
+                              num_vertices_to_compute,
+                              TRUE,
+                              TRUE,
+                              FALSE,
+                              TRUE,
+                              h_in_degrees,
+                              h_out_degrees);
+}
+
+int test_in_degrees_subset()
+{
+  size_t num_edges         = 8;
+  size_t num_vertices      = 6;
+  size_t num_vertices_to_compute = 3;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_vertices[]    = {2, 3, 5};
+  vertex_t h_in_degrees[]  = {-1, -1, 0, 2, -1, 2};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              h_vertices,
+                              num_vertices_to_compute,
+                              TRUE,
+                              FALSE,
+                              FALSE,
+                              TRUE,
+                              h_in_degrees,
+                              NULL);
+}
+
+int test_out_degrees_subset()
+{
+  size_t num_edges         = 8;
+  size_t num_vertices      = 6;
+  size_t num_vertices_to_compute = 3;
+
+  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_vertices[]    = {2, 3, 5};
+  vertex_t h_out_degrees[] = {-1, -1, 3, 1, -1, 0};
+
+  return generic_degrees_test(h_src,
+                              h_dst,
+                              h_wgt,
+                              num_vertices,
+                              num_edges,
+                              h_vertices,
+                              num_vertices_to_compute,
+                              FALSE,
+                              TRUE,
+                              FALSE,
+                              TRUE,
+                              NULL,
                               h_out_degrees);
 }
 
@@ -153,5 +377,11 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_degrees);
   result |= RUN_TEST(test_degrees_symmetric);
+  result |= RUN_TEST(test_in_degrees);
+  result |= RUN_TEST(test_out_degrees);
+  result |= RUN_TEST(test_degrees_subset);
+  result |= RUN_TEST(test_degrees_symmetric_subset);
+  result |= RUN_TEST(test_in_degrees_subset);
+  result |= RUN_TEST(test_out_degrees_subset);
   return result;
 }

@@ -192,6 +192,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_in_degrees(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* source_vertices,
             bool_t do_expensive_check,
             cugraph_degrees_result_t** result,
             cugraph_error_t** error
@@ -201,6 +202,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_out_degrees(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* source_vertices,
             bool_t do_expensive_check,
             cugraph_degrees_result_t** result,
             cugraph_error_t** error
@@ -210,6 +212,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_degrees(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* source_vertices,
             bool_t do_expensive_check,
             cugraph_degrees_result_t** result,
             cugraph_error_t** error

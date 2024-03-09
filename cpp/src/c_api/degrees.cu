@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
+#include "c_api/abstract_functor.hpp"
+#include "c_api/degrees_result.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
+
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
 
-#include <c_api/abstract_functor.hpp>
-#include <c_api/degrees_result.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
+#include <thrust/gather.h>
 
 #include <optional>
 
@@ -92,14 +96,21 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
 
       rmm::device_uvector<vertex_t> vertex_ids(0, handle_.get_stream());
 
-      if (source_vertices) {
+      if (source_vertices_) {
         // FIXME: Would be more efficient if graph_view.compute_*_degrees could take a vertex
         //  subset
-        vertex_ids.resize(source_vertices_->size, handle_.get_stream());
-        raft::copy(
-          vertex_ids.data(), source_vertices_->data(), vertex_ids.size(), handle_.get_stream());
+        vertex_ids.resize(source_vertices_->size_, handle_.get_stream());
+        raft::copy(vertex_ids.data(),
+                   source_vertices_->as_type<vertex_t>(),
+                   vertex_ids.size(),
+                   handle_.get_stream());
 
-        cugraph::renumber_ext_vertices_local<vertex_t, multi_gpu>(
+        if constexpr (multi_gpu) {
+          vertex_ids = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+            handle_, std::move(vertex_ids));
+        }
+
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           vertex_ids.data(),
           vertex_ids.size(),
@@ -108,8 +119,8 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        auto vertex_partition =
-          vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
+        auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu>(
+          graph_view.local_vertex_partition_view());
 
         auto vertices_iter = thrust::make_transform_iterator(
           vertex_ids.begin(),
@@ -118,33 +129,42 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
           }));
 
         if (in_degrees && out_degrees) {
-          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle.get_stream());
-          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle.get_stream());
+          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle_.get_stream());
+          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle_.get_stream());
           thrust::gather(
-            rmm::exec_policy(stream),
-            vertex_iter,
-            vertex_iter + vertex_ids.size(),
+            handle_.get_thrust_policy(),
+            vertices_iter,
+            vertices_iter + vertex_ids.size(),
             thrust::make_zip_iterator(in_degrees->begin(), out_degrees->begin()),
             thrust::make_zip_iterator(tmp_in_degrees.begin(), tmp_out_degrees.begin()));
           in_degrees  = std::move(tmp_in_degrees);
           out_degrees = std::move(tmp_out_degrees);
         } else if (in_degrees) {
-          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle.get_stream());
-          thrust::gather(rmm::exec_policy(stream),
-                         vertex_iter,
-                         vertex_iter + vertex_ids.size(),
+          rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle_.get_stream());
+          thrust::gather(handle_.get_thrust_policy(),
+                         vertices_iter,
+                         vertices_iter + vertex_ids.size(),
                          in_degrees->begin(),
                          tmp_in_degrees.begin());
           in_degrees = std::move(tmp_in_degrees);
         } else {
-          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle.get_stream());
-          thrust::gather(rmm::exec_policy(stream),
-                         vertex_iter,
-                         vertex_iter + vertex_ids.size(),
+          rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle_.get_stream());
+          thrust::gather(handle_.get_thrust_policy(),
+                         vertices_iter,
+                         vertices_iter + vertex_ids.size(),
                          out_degrees->begin(),
                          tmp_out_degrees.begin());
           out_degrees = std::move(tmp_out_degrees);
         }
+
+        cugraph::unrenumber_local_int_vertices<vertex_t>(
+          handle_,
+          vertex_ids.data(),
+          vertex_ids.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
       } else {
         vertex_ids.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
