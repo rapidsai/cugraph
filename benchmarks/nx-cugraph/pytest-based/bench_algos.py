@@ -246,18 +246,17 @@ def build_personalization_dict(pagerank_dict):
     """
     Returns a dictionary that can be used as the personalization value for a
     call to nx.pagerank(). The pagerank_dict passed in is used as the initial
-    source of values for each node, and this function simply swaps these
-    pagerank values between two subsets of the nodes in order to provide values
-    different than the current pagerank values.
+    source of values for each node, and this function simply treats the list of
+    dict values as two halves (halves A and B) and swaps them so (most if not
+    all) nodes/keys are assigned a different value from the dictionary.
     """
     num_half = len(pagerank_dict) // 2
     A_half_items = list(pagerank_dict.items())[:num_half]
     B_half_items = list(pagerank_dict.items())[num_half:]
 
     # Support an odd number of items by initializing with B_half_items, which
-    # will always be one bigger if the number of items is odd. Then, iterate
-    # over the items of each half list and swap.  This will leave the one
-    # remainder (in the case of an odd number) unchanged.
+    # will always be one bigger if the number of items is odd. This will leave
+    # the one remainder (in the case of an odd number) unchanged.
     pers_dict = dict(B_half_items)
     pers_dict.update({A_half_items[i][0]: B_half_items[i][1] for i in range(num_half)})
     pers_dict.update({B_half_items[i][0]: A_half_items[i][1] for i in range(num_half)})
