@@ -57,6 +57,7 @@ set(cython_sources
     utils.pyx
     weakly_connected_components.pyx
     replicate_edgelist.pyx
+    degrees.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

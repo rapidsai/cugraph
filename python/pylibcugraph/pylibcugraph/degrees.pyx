@@ -33,12 +33,15 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.centrality_algorithms cimport (
-    cugraph_centrality_result_t,
-    cugraph_eigenvector_centrality,
-    cugraph_centrality_result_get_vertices,
-    cugraph_centrality_result_get_values,
-    cugraph_centrality_result_free,
+from pylibcugraph._cugraph_c.graph_functions cimport (
+    cugraph_degrees_result_t,
+    cugraph_degrees,
+    cugraph_in_degrees,
+    cugraph_out_degrees,
+    cugraph_degrees_result_get_vertices,
+    cugraph_degrees_result_get_in_degrees,
+    cugraph_degrees_result_get_out_degrees,
+    cugraph_degrees_result_free,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -51,6 +54,7 @@ from pylibcugraph.utils cimport (
     copy_to_cupy_array,
     assert_CAI_type,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -107,8 +111,16 @@ def in_degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    assert_CAI_type(source_vertices, "source_vertices", True)
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        source_vertices_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                source_vertices)
+
     error_code = cugraph_in_degrees(c_resource_handle_ptr,
                                     c_graph_ptr,
+                                    source_vertices_ptr,
                                     do_expensive_check,
                                     &result_ptr,
                                     &error_ptr)
@@ -181,8 +193,16 @@ def out_degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    assert_CAI_type(source_vertices, "source_vertices", True)
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        source_vertices_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                source_vertices)
+
     error_code = cugraph_out_degrees(c_resource_handle_ptr,
                                      c_graph_ptr,
+                                     source_vertices_ptr,
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)
@@ -257,8 +277,16 @@ def degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    assert_CAI_type(source_vertices, "source_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        source_vertices_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                source_vertices)
+
     error_code = cugraph_degrees(c_resource_handle_ptr,
                                  c_graph_ptr,
+                                 source_vertices_ptr,
                                  do_expensive_check,
                                  &result_ptr,
                                  &error_ptr)
