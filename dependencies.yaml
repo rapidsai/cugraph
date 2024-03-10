@@ -3,7 +3,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["11.8", "12.0"]
+      cuda: ["11.8", "12.2"]
       arch: [x86_64]
     includes:
       - checks
@@ -320,6 +320,10 @@ dependencies:
               cuda: "12.0"
             packages:
               - cuda-version=12.0
+          - matrix:
+              cuda: "12.2"
+            packages:
+              - cuda-version=12.2
   cuda:
     specific:
       - output_types: [conda]
@@ -415,8 +419,12 @@ dependencies:
             packages:
               - python=3.10
           - matrix:
+              py: "3.11"
             packages:
-              - python>=3.9,<3.11
+              - python=3.11
+          - matrix:
+            packages:
+              - python>=3.9,<3.12
   python_build_wheel:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -441,7 +449,7 @@ dependencies:
           - &dask rapids-dask-dependency==24.4.*
           - &dask_cuda dask-cuda==24.4.*
           - &numba numba>=0.57
-          - &numpy numpy>=1.21
+          - &numpy numpy>=1.23
           - &ucx_py ucx-py==0.37.*
       - output_types: conda
         packages:

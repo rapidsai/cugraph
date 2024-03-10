@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <prims/kv_store.cuh>
-#include <utilities/collect_comm.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/kv_store.cuh"
+#include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
@@ -34,6 +34,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -354,13 +355,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-      auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+      auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
         handle,
-        edge_partition.offsets(),
-        edge_partition.dcs_nzd_vertices()
-          ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
-              *(edge_partition.dcs_nzd_vertex_count())
-          : edge_partition.major_range_size(),
+        raft::device_span<edge_t const>{
+          edge_partition.offsets(),
+          1 + static_cast<size_t>(
+                edge_partition.dcs_nzd_vertices()
+                  ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
+                      *(edge_partition.dcs_nzd_vertex_count())
+                  : edge_partition.major_range_size())},
         edge_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;

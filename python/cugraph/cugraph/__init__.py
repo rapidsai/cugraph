@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -80,9 +80,6 @@ from cugraph.link_prediction import (
     overlap_coefficient,
     sorensen,
     sorensen_coefficient,
-    jaccard_w,
-    overlap_w,
-    sorensen_w,
 )
 
 from cugraph.traversal import (
@@ -99,9 +96,6 @@ from cugraph.traversal import (
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
 from cugraph.utilities import utils
-
-from cugraph.experimental import strong_connected_component
-from cugraph.experimental import find_bicliques
 
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2

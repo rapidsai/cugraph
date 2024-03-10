@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,8 +53,8 @@ int generic_ecg_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_ecg(p_handle, p_graph, minimum_weight, ensemble_size, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_legacy_ecg(
+    p_handle, p_graph, minimum_weight, ensemble_size, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_ecg failed.");
@@ -63,8 +63,8 @@ int generic_ecg_test(vertex_t* h_src,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* clusters;
 
-    vertices          = cugraph_hierarchical_clustering_result_get_vertices(p_result);
-    clusters          = cugraph_hierarchical_clustering_result_get_clusters(p_result);
+    vertices = cugraph_hierarchical_clustering_result_get_vertices(p_result);
+    clusters = cugraph_hierarchical_clustering_result_get_clusters(p_result);
 
     vertex_t h_vertices[num_vertices];
     edge_t h_clusters[num_vertices];
@@ -103,18 +103,11 @@ int test_ecg()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[]          = {0, 1, 0, 1, 1, 1};
+  vertex_t h_result[] = {0, 1, 0, 1, 1, 1};
 
   // Louvain wants store_transposed = FALSE
-  return generic_ecg_test(h_src,
-                          h_dst,
-                          h_wgt,
-                          h_result,
-                          num_vertices,
-                          num_edges,
-                          min_weight,
-                          ensemble_size,
-                          FALSE);
+  return generic_ecg_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, min_weight, ensemble_size, FALSE);
 }
 
 /******************************************************************************/

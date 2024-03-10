@@ -4,7 +4,7 @@ The goal of cugraph_service is to wrap a cuGraph cluster and provide a Graph-as-
 
 Goals
 * Separate large graph management and analytic code from application code
-  * The application, like GNN code, should be isolated from the details of cuGraph graph management, dedicated multi-node/multi-GPU setup, feature storage and retrieval, etc. 
+  * The application, like GNN code, should be isolated from the details of cuGraph graph management, dedicated multi-node/multi-GPU setup, feature storage and retrieval, etc.
   * Scaling from single GPU (SG), to multi-GPU (MG), to multi-node/multi-GPU (MNMG) should not require changes to the graph integration code
 
 * Support multiple concurrent clients/processes/threads sharing one or more graphs
@@ -20,7 +20,7 @@ Goals
 
 # Picture
 
-One option on a single DGX 
+One option on a single DGX
 <img src="../img/gaas_img_1.png" alt="graph_service_cluster" width="800">
 
 

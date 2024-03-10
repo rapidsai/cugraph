@@ -3,7 +3,7 @@ file_type: .csv
 description:  A graph of the LiveJournal social network.
 author: L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan
 refs:
-  L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in        
+  L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in
   Large Social Networks Membership, Growth, and Evolution. KDD, 2006.
 delim: " "
 header: None

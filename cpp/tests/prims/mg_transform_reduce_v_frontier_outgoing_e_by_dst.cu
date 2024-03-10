@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/vertex_frontier.cuh"
 #include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/test_utilities.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -34,14 +32,13 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <sstream>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -53,9 +50,12 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuco/hash_functions.cuh>
+
 #include <gtest/gtest.h>
 
 #include <random>
+#include <sstream>
 
 template <typename key_t, typename vertex_t, typename property_t, typename payload_t>
 struct e_op_t {
@@ -88,6 +88,7 @@ struct e_op_t {
 };
 
 struct Prims_Usecase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -151,6 +152,13 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG transform reduce
 
@@ -533,7 +541,7 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGTransformReduceVFrontierOutgoingEByDst_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -541,7 +549,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                         ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
+                                                              Prims_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -553,7 +562,7 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

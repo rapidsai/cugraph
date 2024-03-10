@@ -34,10 +34,9 @@ def scatter_reduce(
     size = list(src.size())
 
     if dim_size is not None:
-        assert dim_size >= int(index.max()) + 1
         size[dim] = dim_size
     else:
-        size[dim] = int(index.max()) + 1
+        size[dim] = 0 if index.numel() == 0 else int(index.max()) + 1
 
     out = torch.zeros(size, dtype=src.dtype, device=src.device)
     return out.scatter_reduce_(dim, index, src, reduce, include_self=False)

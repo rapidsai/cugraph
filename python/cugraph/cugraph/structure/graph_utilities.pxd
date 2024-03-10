@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,4 +29,3 @@ from pylibraft.common.handle cimport handle_t
 cdef extern from "<utility>" namespace "std" nogil:
     cdef device_buffer move(device_buffer)
     cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
-

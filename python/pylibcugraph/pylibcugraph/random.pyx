@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -72,12 +72,12 @@ cdef class CuGraphRandomState:
 
         cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
             resource_handle.c_resource_handle_ptr
-        
+
         cdef cugraph_rng_state_t* new_rng_state_ptr
 
         if seed is None:
             seed = generate_default_seed()
-        
+
         # reinterpret as unsigned
         seed &= (2**64 - 1)
 
@@ -85,12 +85,12 @@ cdef class CuGraphRandomState:
             c_resource_handle_ptr,
             <size_t>seed,
             &new_rng_state_ptr,
-            &error_ptr    
+            &error_ptr
         )
         assert_success(error_code, error_ptr, "cugraph_rng_state_create")
-    
+
         self.rng_state_ptr = new_rng_state_ptr
-    
+
     def __dealloc__(self):
         """
         Destroys this CuGraphRandomState instance.  Properly calls

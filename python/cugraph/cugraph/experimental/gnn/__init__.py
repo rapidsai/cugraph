@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,10 @@
 # limitations under the License.
 
 from cugraph.gnn.data_loading import BulkSampler
-from cugraph.utilities.api_tools import promoted_experimental_warning_wrapper
+from pylibcugraph.utilities.api_tools import promoted_experimental_warning_wrapper
 
-BulkSampler = promoted_experimental_warning_wrapper(BulkSampler)
+# Passing in the namespace name of this module to the *_wrapper functions
+# allows them to bypass the expensive inspect.stack() lookup.
+_ns_name = __name__
+
+BulkSampler = promoted_experimental_warning_wrapper(BulkSampler, _ns_name)

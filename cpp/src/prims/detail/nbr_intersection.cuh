@@ -15,9 +15,10 @@
  */
 #pragma once
 
-#include <prims/detail/optional_dataframe_buffer.hpp>
-#include <prims/kv_store.cuh>
-#include <utilities/error_check_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/detail/optional_dataframe_buffer.hpp"
+#include "prims/kv_store.cuh"
+#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -31,6 +32,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -213,8 +215,7 @@ struct update_rx_major_local_nbrs_t {
         auto mask_first = (*edge_partition_e_mask).value_first();
         if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
           auto input_first =
-            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first()) +
-            edge_offset;
+            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first());
           copy_if_mask_set(input_first,
                            mask_first,
                            thrust::make_zip_iterator(local_nbrs_for_rx_majors.begin(),
