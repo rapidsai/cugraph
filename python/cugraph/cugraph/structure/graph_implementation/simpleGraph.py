@@ -857,17 +857,16 @@ class simpleGraphImpl:
                 raise ValueError("Graph is Empty")
         return self.properties.edge_count
 
-
     def degrees_function(self, vertex_subset=None, degree_type="in_degree"):
         """
         Compute vertex in-degree, out-degree, degree and degrees.
-        
+
         1) Vertex in-degree is the number of edges pointing into the vertex.
         2) Vertex out-degree is the number of edges pointing out from the vertex.
         3) Vertex degree, is the total number of edges incident to a vertex
             (both in and out edges)
         4) Vertex degrees computes vertex in-degree and out-degree.
-        
+
         By default, this method computes vertex in-degree, out-degree, degree
         and degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
@@ -878,7 +877,7 @@ class simpleGraphImpl:
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
-        
+
         degree_type : str (default='in_degree')
 
         Returns
@@ -902,11 +901,13 @@ class simpleGraphImpl:
             if not isinstance(vertex_subset, cudf.Series):
                 vertex_subset = cudf.Series(vertex_subset)
                 if self.properties.renumbered is True:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
                     vertex_subset_type = self.edgelist.edgelist_df["src"].dtype
                 else:
                     vertex_subset_type = self.input_df.dtypes[0]
-                
+
                 vertex_subset = vertex_subset.astype(vertex_subset_type)
 
         do_expensive_check = False
@@ -929,7 +930,7 @@ class simpleGraphImpl:
                 do_expensive_check=do_expensive_check,
             )
             df["degree"] = out_degrees
-        elif degree_type in  ["degree", "degrees"]:
+        elif degree_type in ["degree", "degrees"]:
             vertex, in_degrees, out_degrees = pylibcugraph_degrees(
                 resource_handle=ResourceHandle(),
                 graph=self._plc_graph,
@@ -943,17 +944,16 @@ class simpleGraphImpl:
             else:
                 df["degree"] = in_degrees + out_degrees
         else:
-            raise ValueError("Incorrect degree type passed: degree type are ",
-                                 "'in_degree', 'out_degree', 'degree' and 'degrees'")
-
-        
+            raise ValueError(
+                "Incorrect degree type passed: degree type are ",
+                "'in_degree', 'out_degree', 'degree' and 'degrees'",
+            )
 
         df["vertex"] = vertex
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
-
 
     def in_degree(self, vertex_subset=None):
         """
@@ -994,8 +994,6 @@ class simpleGraphImpl:
 
         """
         return self.degrees_function(vertex_subset, "in_degree")
-
-        
 
     def out_degree(self, vertex_subset=None):
         """

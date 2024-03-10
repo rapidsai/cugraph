@@ -18,7 +18,6 @@ import pytest
 import cudf
 import dask_cudf
 import cugraph
-from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 from cudf.testing import assert_series_equal
 

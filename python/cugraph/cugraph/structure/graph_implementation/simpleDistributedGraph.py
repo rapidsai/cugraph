@@ -33,8 +33,6 @@ from pylibcugraph import (
     out_degrees as pylibcugraph_out_degrees,
 )
 
-from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
@@ -542,13 +540,13 @@ class simpleDistributedGraphImpl:
     def degrees_function(self, vertex_subset=None, degree_type="in_degree"):
         """
         Compute vertex in-degree, out-degree, degree and degrees.
-        
+
         1) Vertex in-degree is the number of edges pointing into the vertex.
         2) Vertex out-degree is the number of edges pointing out from the vertex.
         3) Vertex degree, is the total number of edges incident to a vertex
             (both in and out edges)
         4) Vertex degrees computes vertex in-degree and out-degree.
-        
+
         By default, this method computes vertex in-degree, out-degree, degree
         and degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
@@ -559,7 +557,7 @@ class simpleDistributedGraphImpl:
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
-        
+
         degree_type : str (default='in_degree')
 
         Returns
@@ -581,8 +579,7 @@ class simpleDistributedGraphImpl:
         """
         _client = default_client()
 
-        def _call_plc_degrees_function(
-                sID, mg_graph_x, source_vertices, degree_type):
+        def _call_plc_degrees_function(sID, mg_graph_x, source_vertices, degree_type):
 
             if degree_type == "in_degree":
                 results = pylibcugraph_in_degrees(
@@ -598,7 +595,7 @@ class simpleDistributedGraphImpl:
                     source_vertices=source_vertices,
                     do_expensive_check=False,
                 )
-            elif degree_type in  ["degree", "degrees"]:
+            elif degree_type in ["degree", "degrees"]:
                 results = pylibcugraph_degrees(
                     resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                     graph=mg_graph_x,
@@ -606,9 +603,11 @@ class simpleDistributedGraphImpl:
                     do_expensive_check=False,
                 )
             else:
-                raise ValueError("Incorrect degree type passed: degree type are ",
-                                 "'in_degree', 'out_degree', 'degree' and 'degrees'")
-            
+                raise ValueError(
+                    "Incorrect degree type passed: degree type are ",
+                    "'in_degree', 'out_degree', 'degree' and 'degrees'",
+                )
+
             return results
 
         if isinstance(vertex_subset, int):
@@ -660,8 +659,10 @@ class simpleDistributedGraphImpl:
 
         cudf_result = [
             _client.submit(
-                convert_to_cudf, cp_arrays, degree_type,
-                workers=_client.who_has(cp_arrays)[cp_arrays.key]
+                convert_to_cudf,
+                cp_arrays,
+                degree_type,
+                workers=_client.who_has(cp_arrays)[cp_arrays.key],
             )
             for cp_arrays in cupy_result
         ]
