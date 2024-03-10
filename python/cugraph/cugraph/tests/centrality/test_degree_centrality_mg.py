@@ -41,7 +41,6 @@ DATA_PATH = [
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("data_file", DATA_PATH)
 def test_dask_mg_degree(dask_client, directed, data_file):
