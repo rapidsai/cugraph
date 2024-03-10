@@ -29,7 +29,7 @@ from pylibcugraph import (
     select_random_vertices as pylibcugraph_select_random_vertices,
     degrees as pylibcugraph_degrees,
     in_degrees as pylibcugraph_in_degrees,
-    out_degrees as pylibcugraph_out_degrees
+    out_degrees as pylibcugraph_out_degrees,
 )
 
 from pylibcugraph import (
@@ -904,9 +904,11 @@ class simpleGraphImpl:
                 if self.properties.renumbered is True:
                     vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
                     vertex_subset_type = self.edgelist.edgelist_df["src"].dtype
-                    vertex_subset = vertex_subset.astype(vertex_subset_type)
+                else:
+                    vertex_subset_type = self.input_df.dtypes[0]
+                
+                vertex_subset = vertex_subset.astype(vertex_subset_type)
 
-        
         do_expensive_check = False
         df = cudf.DataFrame()
         vertex = None
@@ -919,7 +921,7 @@ class simpleGraphImpl:
                 do_expensive_check=do_expensive_check,
             )
             df["degree"] = in_degrees
-        if degree_type == "out_degree":
+        elif degree_type == "out_degree":
             vertex, out_degrees = pylibcugraph_out_degrees(
                 resource_handle=ResourceHandle(),
                 graph=self._plc_graph,
@@ -927,7 +929,7 @@ class simpleGraphImpl:
                 do_expensive_check=do_expensive_check,
             )
             df["degree"] = out_degrees
-        if degree_type in  ["degree", "degrees"]:
+        elif degree_type in  ["degree", "degrees"]:
             vertex, in_degrees, out_degrees = pylibcugraph_degrees(
                 resource_handle=ResourceHandle(),
                 graph=self._plc_graph,
@@ -940,7 +942,12 @@ class simpleGraphImpl:
 
             else:
                 df["degree"] = in_degrees + out_degrees
+        else:
+            raise ValueError("Incorrect degree type passed: degree type are ",
+                                 "'in_degree', 'out_degree', 'degree' and 'degrees'")
+
         
+
         df["vertex"] = vertex
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")
