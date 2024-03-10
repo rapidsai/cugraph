@@ -20,7 +20,6 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -68,7 +67,7 @@ void relabel(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto key_func = cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+    auto key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size};
 
     // find unique old labels (to be relabeled)

@@ -21,7 +21,6 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -406,7 +405,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       collect_values_for_unique_keys(handle,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
-                                     cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                                        comm_size, major_comm_size, minor_comm_size});
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(

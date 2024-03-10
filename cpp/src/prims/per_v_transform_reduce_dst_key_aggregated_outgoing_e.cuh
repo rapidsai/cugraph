@@ -23,7 +23,6 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -206,7 +205,7 @@ struct reduce_with_init_t {
  * destinations assigned to this process in multi-GPU). Use  cugraph::edge_dst_property_t::view().
  * Use update_edge_dst_property to fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU, `cugraph::compute_gpu_id_from_ext_vertex_t` is
+ * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
  * used to map keys to processes). (Key, value) pairs may be provided by
  * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
@@ -731,7 +730,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         collect_values_for_unique_keys(handle,
                                        kv_store_view,
                                        std::move(unique_minor_keys),
-                                       cugraph::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                       cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                                          comm_size, major_comm_size, minor_comm_size});
 
       if constexpr (KVStoreViewType::binary_search) {

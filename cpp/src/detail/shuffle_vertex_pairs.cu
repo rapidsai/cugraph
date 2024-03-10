@@ -17,7 +17,6 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/graph_partition_utils.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -309,7 +308,7 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
     std::move(weights),
     std::move(edge_ids),
     std::move(edge_types),
-    cugraph::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+    cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size});
 }
 
