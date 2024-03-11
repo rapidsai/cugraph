@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -27,10 +22,15 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
+#include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithm>
 #include <iterator>
@@ -117,5 +117,5 @@ INSTANTIATE_TEST_SUITE_P(file_test,
                            ::testing::Values(cugraph::test::File_Usecase(
                              "/home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx"))));
 
-///home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx
+/// home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx
 CUGRAPH_TEST_PROGRAM_MAIN()
