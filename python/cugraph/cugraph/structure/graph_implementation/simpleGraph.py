@@ -949,9 +949,9 @@ class simpleGraphImpl:
         else:
             raise ValueError(
                 "Incorrect degree type passed, valid values are ",
-                f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'",
+                "'in_degree', 'out_degree', 'degree' and 'degrees' ",
+                f"got '{degree_type}'",
             )
-
         df["vertex"] = vertex
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")

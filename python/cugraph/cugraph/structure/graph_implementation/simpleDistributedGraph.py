@@ -611,7 +611,8 @@ class simpleDistributedGraphImpl:
             else:
                 raise ValueError(
                     "Incorrect degree type passed, valid values are ",
-                    f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'",
+                    "'in_degree', 'out_degree', 'degree' and 'degrees' ",
+                    f"got '{degree_type}'",
                 )
 
             return results
