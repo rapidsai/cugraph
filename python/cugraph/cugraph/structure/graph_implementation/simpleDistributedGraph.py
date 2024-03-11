@@ -548,7 +548,7 @@ class simpleDistributedGraphImpl:
         4) Vertex degrees computes vertex in-degree and out-degree.
 
         By default, this method computes vertex in-degree, out-degree, degree
-        and degrees for the entire set of vertices. If vertex_subset is provided,
+        or degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
 
@@ -604,9 +604,9 @@ class simpleDistributedGraphImpl:
                 )
             else:
                 raise ValueError(
-                    "Incorrect degree type passed: degree type are ",
-                    "'in_degree', 'out_degree', 'degree' and 'degrees'",
-                )
+                "Incorrect degree type passed, valid values are ",
+                f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'"
+            )
 
             return results
 
