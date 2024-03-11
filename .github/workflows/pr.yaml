@@ -15,6 +15,7 @@ jobs:
       - checks
       - conda-cpp-build
       - conda-cpp-tests
+      - conda-cpp-checks
       - conda-notebook-tests
       - conda-python-build
       - conda-python-tests
@@ -52,6 +53,14 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.04
     with:
       build_type: pull-request
+  conda-cpp-checks:
+    needs: conda-cpp-build
+    secrets: inherit
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-24.04
+    with:
+      build_type: pull-request
+      enable_check_symbols: true
+      symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit

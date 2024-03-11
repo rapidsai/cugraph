@@ -51,7 +51,7 @@ template <bool check_edge_mask,
           typename EdgePartitionEdgeMaskWrapper,
           typename EdgePartitionEdgeValueOutputWrapper,
           typename EdgeOp>
-__global__ void transform_e_packed_bool(
+__global__ static void transform_e_packed_bool(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,

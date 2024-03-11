@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,6 +63,10 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
+            # Remove current batches to free up memory
+            # before loading new batches
+            if hasattr(self, "_current_batches"):
+                del self._current_batches
             if self.sparse_format == "csc":
                 df = _load_sampled_file(dataset_obj=self, fn=fn, skip_rename=True)
                 self._current_batches = (
