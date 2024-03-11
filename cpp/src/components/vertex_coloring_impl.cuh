@@ -29,13 +29,11 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> coloring(
+rmm::device_uvector<vertex_t> vertex_coloring(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  auto const comm_rank = handle.get_comms().get_rank();
-  auto const comm_size = handle.get_comms().get_size();
 
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
   graph_view_t current_graph_view(graph_view);
@@ -142,12 +140,12 @@ rmm::device_uvector<vertex_t> coloring(
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> coloring(
+rmm::device_uvector<vertex_t> vertex_coloring(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  return detail::coloring(handle, graph_view, rng_state);
+  return detail::vertex_coloring(handle, graph_view, rng_state);
 }
 
 }  // namespace cugraph

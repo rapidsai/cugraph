@@ -297,8 +297,8 @@ set(CUGRAPH_SOURCES
     src/components/weakly_connected_components_mg.cu
     src/components/mis_sg.cu
     src/components/mis_mg.cu
-    src/components/coloring_sg.cu
-    src/components/coloring_mg.cu
+    src/components/vertex_coloring_sg.cu
+    src/components/vertex_coloring_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu

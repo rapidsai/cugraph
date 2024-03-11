@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 #include "coloring_impl.cuh"
+
 namespace cugraph {
 
-template rmm::device_uvector<int32_t> coloring(
+template rmm::device_uvector<int32_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int32_t> coloring(
+template rmm::device_uvector<int32_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int64_t> coloring(
+template rmm::device_uvector<int64_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
 }  // namespace cugraph
