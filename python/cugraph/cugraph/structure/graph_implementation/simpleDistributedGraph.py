@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import gc
-from typing import Union
+from typing import Union, Iterable
 import warnings
 
 import cudf
@@ -537,7 +537,11 @@ class simpleDistributedGraphImpl:
                 raise RuntimeError("Graph is Empty")
         return self.properties.edge_count
 
-    def degrees_function(self, vertex_subset=None, degree_type="in_degree"):
+    def degrees_function(
+        self,
+        vertex_subset: Union[cudf.Series, dask_cudf.Series, Iterable] = None,
+        degree_type: str = "in_degree",
+    ) -> dask_cudf.DataFrame:
         """
         Compute vertex in-degree, out-degree, degree and degrees.
 
@@ -554,7 +558,7 @@ class simpleDistributedGraphImpl:
 
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf.Series or dask_cudf.Series, iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
 
@@ -579,7 +583,9 @@ class simpleDistributedGraphImpl:
         """
         _client = default_client()
 
-        def _call_plc_degrees_function(sID, mg_graph_x, source_vertices, degree_type):
+        def _call_plc_degrees_function(
+            sID: bytes, mg_graph_x, source_vertices: cudf.Series, degree_type: str
+        ) -> cp.array:
 
             if degree_type == "in_degree":
                 results = pylibcugraph_in_degrees(
@@ -604,9 +610,9 @@ class simpleDistributedGraphImpl:
                 )
             else:
                 raise ValueError(
-                "Incorrect degree type passed, valid values are ",
-                f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'"
-            )
+                    "Incorrect degree type passed, valid values are ",
+                    f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'",
+                )
 
             return results
 
@@ -624,7 +630,6 @@ class simpleDistributedGraphImpl:
                 vertex_subset_type = self.input_df.dtypes.iloc[0]
 
             vertex_subset = vertex_subset.astype(vertex_subset_type)
-            
 
         cupy_result = [
             _client.submit(
@@ -641,7 +646,7 @@ class simpleDistributedGraphImpl:
 
         wait(cupy_result)
 
-        def convert_to_cudf(cp_arrays, degree_type):
+        def convert_to_cudf(cp_arrays: cp.ndarray, degree_type: bool) -> cudf.DataFrame:
             """
             Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
             """
@@ -680,7 +685,9 @@ class simpleDistributedGraphImpl:
 
         return ddf
 
-    def in_degree(self, vertex_subset=None):
+    def in_degree(
+        self, vertex_subset: Union[cudf.Series, dask_cudf.Series, Iterable] = None
+    ) -> dask_cudf.DataFrame:
         """
         Compute vertex in-degree. Vertex in-degree is the number of edges
         pointing into the vertex. By default, this method computes vertex
@@ -718,7 +725,9 @@ class simpleDistributedGraphImpl:
         """
         return self.degrees_function(vertex_subset, "in_degree")
 
-    def out_degree(self, vertex_subset=None):
+    def out_degree(
+        self, vertex_subset: Union[cudf.Series, dask_cudf.Series, Iterable] = None
+    ) -> dask_cudf.DataFrame:
         """
         Compute vertex out-degree. Vertex out-degree is the number of edges
         pointing out from the vertex. By default, this method computes vertex
@@ -756,7 +765,9 @@ class simpleDistributedGraphImpl:
         """
         return self.degrees_function(vertex_subset, "out_degree")
 
-    def degree(self, vertex_subset=None):
+    def degree(
+        self, vertex_subset: Union[cudf.Series, dask_cudf.Series, Iterable] = None
+    ) -> dask_cudf.DataFrame:
         """
         Compute vertex degree, which is the total number of edges incident
         to a vertex (both in and out edges). By default, this method computes
@@ -796,7 +807,9 @@ class simpleDistributedGraphImpl:
         return self.degrees_function(vertex_subset, "degree")
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
-    def degrees(self, vertex_subset=None):
+    def degrees(
+        self, vertex_subset: Union[cudf.Series, dask_cudf.Series, Iterable] = None
+    ) -> dask_cudf.DataFrame:
         """
         Compute vertex in-degree and out-degree. By default, this method
         computes vertex degrees for the entire set of vertices. If

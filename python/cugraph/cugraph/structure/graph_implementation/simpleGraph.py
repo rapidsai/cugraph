@@ -23,7 +23,7 @@ import pandas as pd
 import numpy as np
 import warnings
 from cugraph.dask.structure import replication
-from typing import Union, Dict
+from typing import Union, Dict, Iterable
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
@@ -857,7 +857,11 @@ class simpleGraphImpl:
                 raise ValueError("Graph is Empty")
         return self.properties.edge_count
 
-    def degrees_function(self, vertex_subset=None, degree_type="in_degree"):
+    def degrees_function(
+        self,
+        vertex_subset: Union[cudf.Series, Iterable] = None,
+        degree_type: str = "in_degree",
+    ) -> cudf.DataFrame:
         """
         Compute vertex in-degree, out-degree, degree and degrees.
 
@@ -946,7 +950,7 @@ class simpleGraphImpl:
         else:
             raise ValueError(
                 "Incorrect degree type passed, valid values are ",
-                f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'"
+                f"'in_degree', 'out_degree', 'degree' and 'degrees', got '{degree_type}'",
             )
 
         df["vertex"] = vertex
@@ -955,7 +959,9 @@ class simpleGraphImpl:
 
         return df
 
-    def in_degree(self, vertex_subset=None):
+    def in_degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex in-degree. Vertex in-degree is the number of edges
         pointing into the vertex. By default, this method computes vertex
@@ -995,7 +1001,9 @@ class simpleGraphImpl:
         """
         return self.degrees_function(vertex_subset, "in_degree")
 
-    def out_degree(self, vertex_subset=None):
+    def out_degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex out-degree. Vertex out-degree is the number of edges
         pointing out from the vertex. By default, this method computes vertex
@@ -1035,7 +1043,9 @@ class simpleGraphImpl:
         """
         return self.degrees_function(vertex_subset, "out_degree")
 
-    def degree(self, vertex_subset=None):
+    def degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex degree, which is the total number of edges incident
         to a vertex (both in and out edges). By default, this method computes
@@ -1077,7 +1087,9 @@ class simpleGraphImpl:
         return self.degrees_function(vertex_subset, "degree")
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
-    def degrees(self, vertex_subset=None):
+    def degrees(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex in-degree and out-degree. By default, this method
         computes vertex degrees for the entire set of vertices. If
@@ -1118,36 +1130,6 @@ class simpleGraphImpl:
 
         """
         return self.degrees_function(vertex_subset, "degrees")
-
-    def _degree(self, vertex_subset, direction=Direction.ALL):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, direction)
-        df = cudf.DataFrame()
-        df["vertex"] = vertex_col
-        df["degree"] = degree_col
-
-        if self.properties.renumbered:
-            # Get the internal vertex IDs
-            nodes = self.renumber_map.df_internal_to_external["id"]
-        else:
-            nodes = self.nodes()
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        df = df[df["vertex"].isin(nodes.to_cupy())]
-
-        if vertex_subset is not None:
-            if not isinstance(vertex_subset, cudf.Series):
-                vertex_subset = cudf.Series(vertex_subset)
-                if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(
-                        vertex_subset
-                    )
-                vertex_subset = vertex_subset.to_cupy()
-            df = df[df["vertex"].isin(vertex_subset)]
-
-        if self.properties.renumbered:
-            df = self.renumber_map.unrenumber(df, "vertex")
-
-        return df
 
     def _make_plc_graph(
         self,
