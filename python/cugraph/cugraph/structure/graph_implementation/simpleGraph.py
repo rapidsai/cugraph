@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
