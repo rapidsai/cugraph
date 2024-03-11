@@ -33,7 +33,12 @@ import os
 import time
 
 
-def pyg_num_workers(world_size):
+def pyg_num_workers(world_size: int) -> int:
+    """
+    Calculates the number of workers for the
+    loader in PyG by calling sched_getaffinity.
+    """
+
     num_workers = None
     if hasattr(os, "sched_getaffinity"):
         try:
@@ -45,14 +50,80 @@ def pyg_num_workers(world_size):
     return int(num_workers)
 
 
+def calc_accuracy(
+    loader: NeighborLoader,
+    max_num_batches: int,
+    model: torch.nn.Module,
+    num_classes: int,
+) -> float:
+    """
+    Evaluates the accuracy of a model given a loader over evaluation samples.
+
+    Parameters
+    ----------
+    loader: NeighborLoader
+        The loader over evaluation samples.
+    model: torch.nn.Module
+        The model being evaluated.
+    num_classes: int
+        The number of output classes of the model.
+
+    Returns
+    -------
+    The calculated accuracy as a fraction.
+    """
+
+    from torchmetrics import Accuracy
+
+    acc = Accuracy(task="multiclass", num_classes=num_classes).cuda()
+
+    acc_sum = 0.0
+    num_batches = 0
+    with torch.no_grad():
+        for i, batch in enumerate(loader):
+            num_sampled_nodes = sum(
+                [torch.as_tensor(n) for n in batch.num_sampled_nodes_dict.values()]
+            )
+            num_sampled_edges = sum(
+                [torch.as_tensor(e) for e in batch.num_sampled_edges_dict.values()]
+            )
+            batch_size = num_sampled_nodes[0]
+
+            batch = batch.to_homogeneous().cuda()
+
+            batch.y = batch.y.to(torch.long).reshape((batch.y.shape[0],))
+
+            out = model(
+                batch.x,
+                batch.edge_index,
+                num_sampled_nodes,
+                num_sampled_edges,
+            )
+            acc_sum += acc(out[:batch_size].softmax(dim=-1), batch.y[:batch_size])
+            num_batches += 1
+
+            if max_num_batches is not None and i >= max_num_batches:
+                break
+
+    acc_sum = torch.tensor(float(acc_sum), dtype=torch.float32, device="cuda")
+    td.all_reduce(acc_sum, op=td.ReduceOp.SUM)
+    nb = torch.tensor(float(num_batches), dtype=torch.float32, device=acc_sum.device)
+    td.all_reduce(nb, op=td.ReduceOp.SUM)
+
+    return acc_sum / nb
+
+
 class PyGTrainer(Trainer):
+    """
+    Trainer implementation for node classification in PyG.
+    """
+
     def train(self):
         import logging
 
         logger = logging.getLogger("PyGTrainer")
         logger.info("Entered train loop")
 
-        total_loss = 0.0
         num_batches = 0
 
         time_forward = 0.0
@@ -62,19 +133,32 @@ class PyGTrainer(Trainer):
         start_time = time.perf_counter()
         end_time_backward = start_time
 
+        num_layers = len(self.model.module.convs)
+
         for epoch in range(self.num_epochs):
             with td.algorithms.join.Join(
-                [self.model], divide_by_initial_world_size=False
+                [self.model, self.optimizer], divide_by_initial_world_size=False
             ):
                 self.model.train()
-                for iter_i, data in enumerate(
-                    self.get_loader(epoch=epoch, stage="train")
-                ):
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="train")
+
+                max_num_batches = torch.tensor([max_num_batches], device="cuda")
+                torch.distributed.all_reduce(
+                    max_num_batches, op=torch.distributed.ReduceOp.MIN
+                )
+                max_num_batches = int(max_num_batches[0])
+
+                for iter_i, data in enumerate(loader):
                     loader_time_iter = time.perf_counter() - end_time_backward
                     time_loader += loader_time_iter
 
                     time_feature_transfer_start = time.perf_counter()
 
+                    if len(data.edge_index_dict[("paper", "cites", "paper")][0]) < 3:
+                        logger.error(f"Invalid edge index in iteration {iter_i}")
+                        data = old_data
+
+                    old_data = data
                     num_sampled_nodes = sum(
                         [
                             torch.as_tensor(n)
@@ -89,7 +173,6 @@ class PyGTrainer(Trainer):
                     )
 
                     # FIXME find a way to get around this and not have to call extend_tensor
-                    num_layers = len(self.model.module.convs)
                     num_sampled_nodes = extend_tensor(num_sampled_nodes, num_layers + 1)
                     num_sampled_edges = extend_tensor(num_sampled_edges, num_layers)
 
@@ -118,7 +201,12 @@ class PyGTrainer(Trainer):
                         )
                         logger.info(f"total time: {total_time_iter}")
 
+                        # from pynvml.smi import nvidia_smi
+                        # mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
+                        # logger.info(f"rank {self.rank} memory: {mem_info}")
+
                     y_true = data.y
+                    y_true = y_true.reshape((y_true.shape[0],))
                     x = data.x.to(torch.float32)
 
                     start_time_forward = time.perf_counter()
@@ -160,101 +248,48 @@ class PyGTrainer(Trainer):
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
-                    total_loss += loss.item()
                     end_time_backward = time.perf_counter()
                     time_backward += end_time_backward - start_time_backward
 
+                    if max_num_batches is not None and iter_i >= max_num_batches:
+                        break
+
             end_time = time.perf_counter()
 
-            # test
-            from torchmetrics import Accuracy
-
-            acc = Accuracy(
-                task="multiclass", num_classes=self.dataset.num_labels
-            ).cuda()
-
+            """
+            logger.info("Entering test stage...")
             with td.algorithms.join.Join(
                 [self.model], divide_by_initial_world_size=False
             ):
                 self.model.eval()
-                if self.rank == 0:
-                    acc_sum = 0.0
-                    with torch.no_grad():
-                        for i, batch in enumerate(
-                            self.get_loader(epoch=epoch, stage="test")
-                        ):
-                            num_sampled_nodes = sum(
-                                [
-                                    torch.as_tensor(n)
-                                    for n in batch.num_sampled_nodes_dict.values()
-                                ]
-                            )
-                            num_sampled_edges = sum(
-                                [
-                                    torch.as_tensor(e)
-                                    for e in batch.num_sampled_edges_dict.values()
-                                ]
-                            )
-                            batch_size = num_sampled_nodes[0]
+                loader, max_num_batches = self.get_loader(epoch=epoch, stage="test")
+                num_classes = self.dataset.num_labels
 
-                            batch = batch.to_homogeneous().cuda()
-
-                            batch.y = batch.y.to(torch.long)
-                            out = self.model.module(
-                                batch.x,
-                                batch.edge_index,
-                                num_sampled_nodes,
-                                num_sampled_edges,
-                            )
-                            acc_sum += acc(
-                                out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-                            )
-                    print(
-                        f"Accuracy: {acc_sum/(i) * 100.0:.4f}%",
-                    )
-
-            td.barrier()
-
-        with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
-            self.model.eval()
-            if self.rank == 0:
-                acc_sum = 0.0
-                with torch.no_grad():
-                    for i, batch in enumerate(
-                        self.get_loader(epoch=epoch, stage="val")
-                    ):
-                        num_sampled_nodes = sum(
-                            [
-                                torch.as_tensor(n)
-                                for n in batch.num_sampled_nodes_dict.values()
-                            ]
-                        )
-                        num_sampled_edges = sum(
-                            [
-                                torch.as_tensor(e)
-                                for e in batch.num_sampled_edges_dict.values()
-                            ]
-                        )
-                        batch_size = num_sampled_nodes[0]
-
-                        batch = batch.to_homogeneous().cuda()
-
-                        batch.y = batch.y.to(torch.long)
-                        out = self.model.module(
-                            batch.x,
-                            batch.edge_index,
-                            num_sampled_nodes,
-                            num_sampled_edges,
-                        )
-                        acc_sum += acc(
-                            out[:batch_size].softmax(dim=-1), batch.y[:batch_size]
-                        )
-                print(
-                    f"Validation Accuracy: {acc_sum/(i) * 100.0:.4f}%",
+                acc = calc_accuracy(
+                    loader, max_num_batches, self.model.module, num_classes
                 )
 
+            if self.rank == 0:
+                print(
+                    f"Accuracy: {acc * 100.0:.4f}%",
+                )
+            """
+
+        """
+        logger.info("Entering validation stage")
+        with td.algorithms.join.Join([self.model], divide_by_initial_world_size=False):
+            self.model.eval()
+            loader, max_num_batches = self.get_loader(epoch=epoch, stage="val")
+            num_classes = self.dataset.num_labels
+            acc = calc_accuracy(loader, max_num_batches, self.model.module, num_classes)
+
+        if self.rank == 0:
+            print(
+                f"Validation Accuracy: {acc * 100.0:.4f}%",
+            )
+        """
+
         stats = {
-            "Accuracy": float(acc_sum / (i) * 100.0) if self.rank == 0 else 0.0,
             "# Batches": num_batches,
             "Loader Time": time_loader,
             "Feature Transfer Time": time_feature_transfer,
@@ -265,6 +300,12 @@ class PyGTrainer(Trainer):
 
 
 class PyGNativeTrainer(PyGTrainer):
+    """
+    Trainer implementation for native PyG
+    training using HeteroData as the graph and feature
+    store and NeighborLoader as the loader.
+    """
+
     def __init__(
         self,
         dataset,
@@ -403,7 +444,7 @@ class PyGNativeTrainer(PyGTrainer):
         )
 
         logger.info("done creating loader")
-        return loader
+        return loader, None
 
     def get_model(self, name="GraphSAGE"):
         if name != "GraphSAGE":

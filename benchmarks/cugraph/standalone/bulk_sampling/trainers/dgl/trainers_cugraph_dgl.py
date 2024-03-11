@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,28 +10,77 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import time
+import re
 
-from .trainers_pyg import PyGTrainer
-from models.pyg import CuGraphSAGE
+from .trainers_dgl import DGLTrainer
+from models.dgl import GraphSAGE
 from datasets import Dataset
 
 import torch
 import numpy as np
+import warnings
 
 from torch.nn.parallel import DistributedDataParallel as ddp
-from torch.distributed.optim import ZeroRedundancyOptimizer
-
+from cugraph_dgl.dataloading import HomogenousBulkSamplerDataset
 from cugraph.gnn import FeatureStore
-from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.loader import BulkSampleLoader
 
-import os
-import re
+from typing import List
 
 
-class PyGCuGraphTrainer(PyGTrainer):
+def get_dataloader(
+    input_file_paths: List[str],
+    total_num_nodes: int,
+    sparse_format: str,
+    return_type: str,
+) -> torch.utils.data.DataLoader:
     """
-    Trainer implementation for cuGraph-PyG that supports
+    Returns a dataloader that reads bulk samples from the given input paths.
+
+    Parameters
+    ----------
+    input_file_paths: List[str]
+        List of input parquet files containing samples.
+    total_num_nodes: int
+        Total number of nodes in the graph.
+    sparse_format: str
+        The sparse format to read (i.e. coo)
+    return_type: str
+        The type of object to be returned by the dataloader (i.e. dgl.Block)
+
+    Returns
+    -------
+    torch.utils.data.DataLoader
+    """
+
+    print("Creating dataloader", flush=True)
+    st = time.time()
+    if len(input_file_paths) > 0:
+        dataset = HomogenousBulkSamplerDataset(
+            total_num_nodes,
+            edge_dir="in",
+            sparse_format=sparse_format,
+            return_type=return_type,
+        )
+        dataset.set_input_files(input_file_paths=input_file_paths)
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            collate_fn=lambda x: x,
+            shuffle=False,
+            num_workers=0,
+            batch_size=None,
+        )
+        et = time.time()
+        print(f"Time to create dataloader = {et - st:.2f} seconds", flush=True)
+        return dataloader
+    else:
+        return []
+
+
+class DGLCuGraphTrainer(DGLTrainer):
+    """
+    Trainer implementation for cuGraph-DGL that supports
     WholeGraph as a feature store.
     """
 
@@ -71,13 +120,8 @@ class PyGCuGraphTrainer(PyGTrainer):
             The feature store backend to be used by the cuGraph Feature Store.
             Defaults to "torch".  Options are "torch" and "wholegraph"
         kwargs
-            Keyword arguments to pass to the loader.
+            Keyword arguments to pass to the loader
         """
-
-        import logging
-
-        logger = logging.getLogger("PyGCuGraphTrainer")
-        logger.info("creating trainer")
         self.__data = None
         self.__device = device
         self.__rank = rank
@@ -88,9 +132,8 @@ class PyGCuGraphTrainer(PyGTrainer):
         self.__sample_dir = sample_dir
         self.__loader_kwargs = kwargs
         self.__model = self.get_model(model)
-        self.__backend = backend
         self.__optimizer = None
-        logger.info("created trainer")
+        self.__backend = backend
 
     @property
     def rank(self):
@@ -107,11 +150,8 @@ class PyGCuGraphTrainer(PyGTrainer):
     @property
     def optimizer(self):
         if self.__optimizer is None:
-            self.__optimizer = ZeroRedundancyOptimizer(
-                self.model.parameters(),
-                lr=0.01,
-                weight_decay=0.0005,
-                optimizer_class=torch.optim.Adam,
+            self.__optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=0.01, weight_decay=0.0005
             )
         return self.__optimizer
 
@@ -119,44 +159,37 @@ class PyGCuGraphTrainer(PyGTrainer):
     def num_epochs(self) -> int:
         return self.__num_epochs
 
-    def get_loader(self, epoch: int = 0, stage="train"):
-        import logging
-
-        logger = logging.getLogger("PyGCuGraphTrainer")
-
-        logger.info(f"getting loader for epoch {epoch}, {stage} stage")
-
+    def get_loader(self, epoch: int = 0, stage="train") -> int:
         # TODO support online sampling
         if stage == "train":
             path = os.path.join(self.__sample_dir, f"epoch={epoch}", stage, "samples")
         elif stage in ["test", "val"]:
             path = os.path.join(self.__sample_dir, stage, "samples")
         else:
-            raise ValueError(f"invalid stage {stage}")
+            raise ValueError(f"Invalid stage {stage}")
 
-        input_files, num_batches = self.get_input_files(path, epoch=epoch, stage=stage)
-        loader = BulkSampleLoader(
-            self.data,
-            self.data,
-            None,  # FIXME get input nodes properly
-            directory=path,
-            input_files=input_files,
-            **self.__loader_kwargs,
+        input_file_paths, num_batches = self.get_input_files(
+            path, epoch=epoch, stage=stage
         )
 
-        logger.info(f"got loader successfully on rank {self.rank}")
-        return loader, num_batches
+        dataloader = get_dataloader(
+            input_file_paths=input_file_paths.tolist(),
+            total_num_nodes=None,
+            sparse_format="csc",
+            return_type="cugraph_dgl.nn.SparseGraph",
+        )
+        return dataloader, num_batches
 
     @property
     def data(self):
         import logging
 
-        logger = logging.getLogger("PyGCuGraphTrainer")
+        logger = logging.getLogger("DGLCuGraphTrainer")
         logger.info("getting data")
 
         if self.__data is None:
+            logger.info("using wholegraph backend")
             if self.__backend == "wholegraph":
-                logger.info("using wholegraph backend")
                 fs = FeatureStore(
                     backend="wholegraph",
                     wg_type="chunked",
@@ -181,7 +214,6 @@ class PyGCuGraphTrainer(PyGTrainer):
 
             for node_type, y in self.__dataset.y_dict.items():
                 logger.debug(f"getting y for {node_type}")
-
                 if self.__backend == "wholegraph":
                     logger.info("using wholegraph backend")
                     fs.add_data(y, node_type, "y")
@@ -214,85 +246,64 @@ class PyGCuGraphTrainer(PyGTrainer):
                 fs.add_data(val, node_type, "val")
             """
 
-            # TODO support online sampling if the edge index is provided
-            num_edges_dict = self.__dataset.edge_index_dict
-            if not isinstance(list(num_edges_dict.values())[0], int):
-                num_edges_dict = {k: len(v) for k, v in num_edges_dict}
+            # # TODO support online sampling if the edge index is provided
+            # num_edges_dict = self.__dataset.edge_index_dict
+            # if not isinstance(list(num_edges_dict.values())[0], int):
+            #     num_edges_dict = {k: len(v) for k, v in num_edges_dict}
 
             if self.__backend == "wholegraph":
                 wm_comm.barrier()
 
-            self.__data = CuGraphStore(
-                fs,
-                num_edges_dict,
-                num_nodes_dict,
-            )
-
-        logger.info(f"got data successfully on rank {self.rank}")
-
+            self.__data = fs
         return self.__data
 
     def get_model(self, name="GraphSAGE"):
-        import logging
-
-        logger = logging.getLogger("PyGCuGraphTrainer")
-
-        logger.info("Creating model...")
-
         if name != "GraphSAGE":
             raise ValueError("only GraphSAGE is currently supported")
 
-        logger.info("getting input features...")
         num_input_features = self.__dataset.num_input_features
-
-        logger.info("getting output features...")
         num_output_features = self.__dataset.num_labels
-
-        logger.info("getting num neighbors...")
         num_layers = len(self.__loader_kwargs["num_neighbors"])
 
-        logger.info("Got input features, output features, num neighbors")
-
         with torch.cuda.device(self.__device):
-            logger.info("Constructing CuGraphSAGE model...")
             model = (
-                CuGraphSAGE(
+                GraphSAGE(
                     in_channels=num_input_features,
                     hidden_channels=64,
                     out_channels=num_output_features,
                     num_layers=num_layers,
+                    model_backend="cugraph_dgl",
                 )
                 .to(torch.float32)
                 .to(self.__device)
             )
-
-            logger.info("Parallelizing model with ddp...")
-            model = ddp(model, device_ids=[self.__device])
-
-        logger.info("done creating model")
+            # TODO: Fix for distributed models
+            if torch.distributed.is_initialized():
+                model = ddp(model, device_ids=[self.__device])
+            else:
+                warnings.warn("Distributed training is not available")
+            print("done creating model")
 
         return model
 
     def get_input_files(self, path, epoch=0, stage="train"):
-        file_list = np.array(os.listdir(path))
+        file_list = np.array([f.path for f in os.scandir(path)])
         file_list.sort()
-
         np.random.seed(epoch)
         np.random.shuffle(file_list)
 
         splits = np.array_split(file_list, self.__gpus_per_node)
 
-        import logging
-
-        logger = logging.getLogger("PyGCuGraphTrainer")
-
-        split = splits[self.__device]
-        logger.info(f"rank {self.__rank} input files: {str(split)}")
-
         ex = re.compile(r"batch=([0-9]+)\-([0-9]+).parquet")
         num_batches = min(
             [
-                sum([int(ex.match(fname)[2]) - int(ex.match(fname)[1]) for fname in s])
+                sum(
+                    [
+                        int(ex.match(fname.split("/")[-1])[2])
+                        - int(ex.match(fname.split("/")[-1])[1])
+                        for fname in s
+                    ]
+                )
                 for s in splits
             ]
         )
@@ -301,4 +312,4 @@ class PyGCuGraphTrainer(PyGTrainer):
                 f"Too few batches for training with world size {self.__world_size}"
             )
 
-        return split, num_batches
+        return splits[self.__device], num_batches
