@@ -519,4 +519,69 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::vector<int64_t> const& vertex_partition_range_lasts);
 
 }  // namespace detail
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<vertex_t>&& edge_srcs,
+                       rmm::device_uvector<vertex_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<weight_t>>&& edge_weights)
+{
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+
+  auto const minor_comm_size = minor_comm.get_size();
+
+  std::tie(edge_srcs, edge_dsts, edge_weights, std::ignore, std::ignore) =
+    cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+      vertex_t,
+      vertex_t,
+      weight_t,
+      int32_t>(handle,
+               std::move(edge_srcs),
+               std::move(edge_dsts),
+               std::move(edge_weights),
+               std::nullopt,
+               std::nullopt);
+
+  return std::make_tuple(std::move(edge_srcs), std::move(edge_dsts), std::move(edge_weights));
+}
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<int32_t>&& edge_srcs,
+                       rmm::device_uvector<int32_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<float>>&& edge_wgts);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<int32_t>&& edge_srcs,
+                       rmm::device_uvector<int32_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<double>>&& edge_wgts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<int64_t>&& edge_srcs,
+                       rmm::device_uvector<int64_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<float>>&& edge_wgts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<int64_t>&& edge_srcs,
+                       rmm::device_uvector<int64_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<double>>&& edge_wgts);
+
 }  // namespace cugraph
