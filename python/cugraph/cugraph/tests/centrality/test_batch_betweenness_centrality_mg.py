@@ -24,35 +24,30 @@ from test_betweenness_centrality import (
     compare_scores,
 )
 
+DIRECTED_GRAPH_OPTIONS = [False, True]
+WEIGHTED_GRAPH_OPTIONS = [False, True]
+ENDPOINTS_OPTIONS = [False, True]
+NORMALIZED_OPTIONS = [False, True]
+DEFAULT_EPSILON = 0.0001
+SUBSET_SIZE_OPTIONS = [4, None]
+SUBSET_SEED_OPTIONS = [42]
+
 
 # =============================================================================
 # Parameters
 # =============================================================================
-
-
 DATASETS = [karate]
-DEFAULT_EPSILON = 0.0001
-IS_DIRECTED = [False, True]
-ENDPOINTS = [False, True]
-IS_NORMALIZED = [False, True]
-RESULT_DTYPES = [np.float64]
-SUBSET_SIZES = [4, None]
-SUBSET_SEEDS = [42]
-IS_WEIGHTED = [False, True]
+# FIXME: The "preset_gpu_count" from 21.08 and below are currently not
+# supported and have been removed
+
+RESULT_DTYPE_OPTIONS = [np.float64]
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
-
-
 def setup_function():
     gc.collect()
-
-
-# =============================================================================
-# Tests
-# =============================================================================
 
 
 @pytest.mark.mg
@@ -60,13 +55,13 @@ def setup_function():
 @pytest.mark.parametrize(
     "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
 )
-@pytest.mark.parametrize("directed", IS_DIRECTED)
-@pytest.mark.parametrize("subset_size", SUBSET_SIZES)
-@pytest.mark.parametrize("normalized", IS_NORMALIZED)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("endpoints", ENDPOINTS)
-@pytest.mark.parametrize("subset_seed", SUBSET_SEEDS)
-@pytest.mark.parametrize("result_dtype", RESULT_DTYPES)
+@pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
+@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 def test_mg_betweenness_centrality(
     graph_file,
     directed,
