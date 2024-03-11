@@ -117,6 +117,8 @@ _info = {
         "reciprocity",
         "reverse",
         "sedgewick_maze_graph",
+        "shortest_path",
+        "shortest_path_length",
         "single_source_bellman_ford",
         "single_source_bellman_ford_path",
         "single_source_bellman_ford_path_length",
@@ -163,6 +165,8 @@ _info = {
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
+        "shortest_path": "Negative weights are not yet supported, and method is ununsed.",
+        "shortest_path_length": "Negative weights are not yet supported, and method is ununsed.",
         "single_source_bellman_ford": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "single_source_bellman_ford_path": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "single_source_bellman_ford_path_length": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
@@ -198,6 +202,12 @@ _info = {
             "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         "pagerank": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "shortest_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "shortest_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "single_source_bellman_ford": {

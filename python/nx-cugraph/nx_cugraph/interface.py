@@ -67,6 +67,7 @@ class BackendInterface:
         no_multigraph = "multigraphs not currently supported"
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
+        sssp_path_different = "sssp may choose a different valid path"
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -77,6 +78,19 @@ class BackendInterface:
             #     "test_strongly_connected.py:"
             #     "TestStronglyConnected.test_condensation_mapping_and_members"
             # ): "Strongly connected groups in different iteration order",
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_unweighted_diamond"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_weighted_diamond"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_petersen_graph"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis."
+                "test_gh6787_and_edge_attribute_names"
+            ): sssp_path_different,
         }
 
         from packaging.version import parse
@@ -265,23 +279,7 @@ class BackendInterface:
                     )
 
         too_slow = "Too slow to run"
-        negative_cycle = "negative cycles are not yet handled"
         skip = {
-            key(
-                "test_weighted.py:TestBellmanFordAndGoldbergRadzik.test_negative_cycle"
-            ): negative_cycle,
-            key(
-                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
-                "test_negative_weight_bf_path"
-            ): negative_cycle,
-            #            key(
-            #                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
-            #                "test_negative_cycle_consistency"
-            #            ): negative_cycle,
-            #            key(
-            #                "test_weighted.py:TestBellmanFordAndGoldbergRadzik."
-            #                "test_zero_cycle"
-            #            ): negative_cycle,
             key("test_tree_isomorphism.py:test_positive"): too_slow,
             key("test_tree_isomorphism.py:test_negative"): too_slow,
             # These repeatedly call `bfs_layers`, which converts the graph every call

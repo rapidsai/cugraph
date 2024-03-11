@@ -54,7 +54,11 @@ def bellman_ford_path(G, source, target, weight="weight", *, dtype=None):
 
 @bellman_ford_path._can_run
 def _(G, source, target, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -67,7 +71,11 @@ def bellman_ford_path_length(G, source, target, weight="weight", *, dtype=None):
 
 @bellman_ford_path_length._can_run
 def _(G, source, target, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -80,7 +88,11 @@ def single_source_bellman_ford_path(G, source, weight="weight", *, dtype=None):
 
 @single_source_bellman_ford_path._can_run
 def _(G, source, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -93,7 +105,11 @@ def single_source_bellman_ford_path_length(G, source, weight="weight", *, dtype=
 
 @single_source_bellman_ford_path_length._can_run
 def _(G, source, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -106,7 +122,11 @@ def single_source_bellman_ford(G, source, target=None, weight="weight", *, dtype
 
 @single_source_bellman_ford._can_run
 def _(G, source, target=None, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -121,7 +141,11 @@ def all_pairs_bellman_ford_path_length(G, weight="weight", *, dtype=None):
 
 @all_pairs_bellman_ford_path_length._can_run
 def _(G, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
@@ -136,10 +160,14 @@ def all_pairs_bellman_ford_path(G, weight="weight", *, dtype=None):
 
 @all_pairs_bellman_ford_path._can_run
 def _(G, weight="weight", *, dtype=None):
-    return not callable(weight) and not nx.is_negatively_weighted(G, weight=weight)
+    return (
+        weight is None
+        or not callable(weight)
+        and not nx.is_negatively_weighted(G, weight=weight)
+    )
 
 
-def _sssp(G, source, weight, target=None, *, return_type, dtype):
+def _sssp(G, source, weight, target=None, *, return_type, dtype, reverse_path=False):
     """SSSP for weighted shortest paths.
 
     Parameters
@@ -194,6 +222,7 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype):
             return_type=return_type,
             target=target,
             scale=edge_val,
+            reverse_path=reverse_path,
         )
 
     src_index = source if G.key_to_id is None else G.key_to_id[source]
@@ -226,8 +255,11 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype):
                 cur = d[cur]
                 paths.append(cur)
             if (id_to_key := G.id_to_key) is not None:
-                paths = [id_to_key[cur] for cur in reversed(paths)]
-            else:
+                if reverse_path:
+                    paths = [id_to_key[cur] for cur in paths]
+                else:
+                    paths = [id_to_key[cur] for cur in reversed(paths)]
+            elif not reverse_path:
                 paths.reverse()
         else:
             groups = _groupby(predecessors[mask], node_ids)
@@ -239,8 +271,12 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype):
                 pred = preds.pop()
                 pred_path = paths[pred]
                 nodes = G._nodearray_to_list(groups[pred])
-                for node in nodes:
-                    paths[node] = [*pred_path, node]
+                if reverse_path:
+                    for node in nodes:
+                        paths[node] = [node, *pred_path]
+                else:
+                    for node in nodes:
+                        paths[node] = [*pred_path, node]
                 preds.extend(nodes & groups.keys())
     if return_type == "path":
         return paths
