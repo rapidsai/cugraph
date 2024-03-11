@@ -48,23 +48,26 @@ Example
     )
     input_data.to_csv(input_data_path, index=False)
 
-    # helper function to set the reader chunk size to automatically get one partition per GPU  
+    # helper function to set the reader chunk size to automatically get one partition per GPU
     chunksize = dask_cugraph.get_chunksize(input_data_path)
 
     # multi-GPU CSV reader
     e_list = dask_cudf.read_csv(
-        input_data_path, 
+        input_data_path,
         chunksize=chunksize,
         names=['src', 'dst'],
         dtype=['int32', 'int32'],
     )
 
     # create graph from input data
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(e_list, source='src', destination='dst')
 
     # run PageRank
     pr_df = dask_cugraph.pagerank(G, tol=1e-4)
+
+    # need to call compute to generate results
+    pr_df.compute()
 
     # cluster clean up
     Comms.destroy()

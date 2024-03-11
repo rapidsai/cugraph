@@ -178,6 +178,41 @@ double cugraph_hierarchical_clustering_result_get_modularity(
 void cugraph_hierarchical_clustering_result_free(cugraph_hierarchical_clustering_result_t* result);
 
 /**
+ * @brief     Compute ECG clustering
+ *
+ * @param [in]  handle        Handle for accessing resources
+ * @param [in/out] rng_state  State of the random number generator, updated with each call
+ * @param [in]  graph         Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                            needs to be transposed
+ * @param [in]  min_weight    Minimum edge weight in final graph
+ * @param [in]  ensemble_size The number of Louvain iterations to run
+ * @param [in]  max_level     Maximum level in hierarchy for final Louvain
+ * @param [in]  threshold     Threshold parameter, defines convergence at each level of hierarchy
+ *                            for final Louvain
+ * @param [in]  resolution    Resolution parameter (gamma) in modularity formula.
+ *                            This changes the size of the communities.  Higher resolutions
+ *                            lead to more smaller communities, lower resolutions lead to
+ *                            fewer larger communities.
+ * @param [in]  do_expensive_check
+ *                            A flag to run expensive checks for input arguments (if set to true)
+ * @param [out] result        Output from the Louvain call
+ * @param [out] error         Pointer to an error object storing details of any error.  Will
+ *                            be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
+                                 cugraph_rng_state_t* rng_state,
+                                 cugraph_graph_t* graph,
+                                 double min_weight,
+                                 size_t ensemble_size,
+                                 size_t max_level,
+                                 double threshold,
+                                 double resolution,
+                                 bool_t do_expensive_check,
+                                 cugraph_hierarchical_clustering_result_t** result,
+                                 cugraph_error_t** error);
+
+/**
  * @brief     Compute ECG clustering of the given graph
  *
  * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
@@ -200,13 +235,13 @@ void cugraph_hierarchical_clustering_result_free(cugraph_hierarchical_clustering
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
-                                 cugraph_graph_t* graph,
-                                 double min_weight,
-                                 size_t ensemble_size,
-                                 bool_t do_expensive_check,
-                                 cugraph_hierarchical_clustering_result_t** result,
-                                 cugraph_error_t** error);
+cugraph_error_code_t cugraph_legacy_ecg(const cugraph_resource_handle_t* handle,
+                                        cugraph_graph_t* graph,
+                                        double min_weight,
+                                        size_t ensemble_size,
+                                        bool_t do_expensive_check,
+                                        cugraph_hierarchical_clustering_result_t** result,
+                                        cugraph_error_t** error);
 
 /**
  * @brief   Extract ego graphs

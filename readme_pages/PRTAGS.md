@@ -1,5 +1,5 @@
 # Pull Request Tags
-If you look at the list of current [Pull Request](https://github.com/rapidsai/cugraph/pulls) you will notice a set of bracketed tags in the subject line. Those tags help developers focus attention and know what is being asked.  
+If you look at the list of current [Pull Request](https://github.com/rapidsai/cugraph/pulls) you will notice a set of bracketed tags in the subject line. Those tags help developers focus attention and know what is being asked.
 
 PR = Pull Request
 

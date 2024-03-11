@@ -5,7 +5,7 @@ All prerequisite for building docs are in the cugraph development conda environm
 
 ## Steps to follow:
 
-In order to build the docs, we need the conda dev environment from cugraph and we need to build cugraph from source.  
+In order to build the docs, we need the conda dev environment from cugraph and we need to build cugraph from source.
 
 1. Create a conda env and build cugraph from source. The dependencies to build rapids from source are installed in that conda environment, and then rapids is built and installed into the same environment.
 

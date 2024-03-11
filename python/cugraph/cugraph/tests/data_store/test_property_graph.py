@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1424,6 +1424,10 @@ def test_extract_subgraph_graph_without_vert_props(as_pg_first):
         actual_edgelist = G.edgelist.edgelist_df
 
     assert G.is_directed()
+    expected_edgelist = expected_edgelist.sort_values(
+        by=["src", "dst"], ignore_index=True
+    )
+    actual_edgelist = actual_edgelist.sort_values(by=["src", "dst"], ignore_index=True)
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 

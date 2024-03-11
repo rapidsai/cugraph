@@ -59,15 +59,15 @@ class WeakCCState {
 };
 
 template <typename vertex_t, typename edge_t, int TPB_X = 32>
-__global__ void weak_cc_label_device(vertex_t* labels,
-                                     edge_t const* offsets,
-                                     vertex_t const* indices,
-                                     edge_t nnz,
-                                     bool* fa,
-                                     bool* xa,
-                                     bool* m,
-                                     vertex_t startVertexId,
-                                     vertex_t batchSize)
+__global__ static void weak_cc_label_device(vertex_t* labels,
+                                            edge_t const* offsets,
+                                            vertex_t const* indices,
+                                            edge_t nnz,
+                                            bool* fa,
+                                            bool* xa,
+                                            bool* m,
+                                            vertex_t startVertexId,
+                                            vertex_t batchSize)
 {
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
   if (tid < batchSize) {
@@ -118,11 +118,11 @@ __global__ void weak_cc_label_device(vertex_t* labels,
 }
 
 template <typename vertex_t, int TPB_X = 32, typename Lambda>
-__global__ void weak_cc_init_label_kernel(vertex_t* labels,
-                                          vertex_t startVertexId,
-                                          vertex_t batchSize,
-                                          vertex_t MAX_LABEL,
-                                          Lambda filter_op)
+__global__ static void weak_cc_init_label_kernel(vertex_t* labels,
+                                                 vertex_t startVertexId,
+                                                 vertex_t batchSize,
+                                                 vertex_t MAX_LABEL,
+                                                 Lambda filter_op)
 {
   /** F1 and F2 in the paper correspond to fa and xa */
   /** Cd in paper corresponds to db_cluster */
@@ -134,7 +134,7 @@ __global__ void weak_cc_init_label_kernel(vertex_t* labels,
 }
 
 template <typename vertex_t, int TPB_X = 32>
-__global__ void weak_cc_init_all_kernel(
+__global__ static void weak_cc_init_all_kernel(
   vertex_t* labels, bool* fa, bool* xa, vertex_t N, vertex_t MAX_LABEL)
 {
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;

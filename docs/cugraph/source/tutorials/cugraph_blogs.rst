@@ -3,7 +3,7 @@ cuGraph Blogs and Presentations
 ************************************************
 
 The RAPIDS team blogs at https://medium.com/rapids-ai, and many of
-these blog posts provide deeper dives into features from cuGraph. 
+these blog posts provide deeper dives into features from cuGraph.
 Here, we've selected just a few that are of particular interest to cuGraph users:
 
 
