@@ -43,8 +43,9 @@ def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool = False) -> Non
 
     rmm.reinitialize(
         devices=[rank],
-        pool_allocator=True,
-        initial_pool_size=pool_size,
+        pool_allocator=False,
+        # pool_allocator=True,
+        # initial_pool_size=pool_size,
     )
 
     if use_rmm_torch_allocator:
@@ -119,8 +120,15 @@ def parse_args():
     parser.add_argument(
         "--framework",
         type=str,
-        help="The framework to test (PyG, cuGraphPyG)",
+        help="The framework to test (PyG, cugraph_pyg, cugraph_dgl_csr)",
         required=True,
+    )
+
+    parser.add_argument(
+        "--use_wholegraph",
+        action="store_true",
+        help="Whether to use WholeGraph feature storage",
+        required=False,
     )
 
     parser.add_argument(
@@ -162,6 +170,13 @@ def parse_args():
         required=False,
     )
 
+    parser.add_argument(
+        "--skip_download",
+        action="store_true",
+        help="Whether to skip downloading",
+        required=False,
+    )
+
     return parser.parse_args()
 
 
@@ -186,21 +201,43 @@ def main(args):
 
     world_size = int(os.environ["SLURM_JOB_NUM_NODES"]) * args.gpus_per_node
 
+    if args.use_wholegraph:
+        # TODO support WG without cuGraph
+        if args.framework.lower() not in ["cugraph_pyg", "cugraph_dgl_csr"]:
+            raise ValueError("WG feature store only supported with cuGraph backends")
+        from pylibwholegraph.torch.initialize import (
+            get_global_communicator,
+            get_local_node_communicator,
+            init,
+        )
+
+        logger.info("initializing WG comms...")
+        init(global_rank, world_size, local_rank, args.gpus_per_node)
+        wm_comm = get_global_communicator()
+        get_local_node_communicator()
+
+        wm_comm = wm_comm.wmb_comm
+        logger.info(f"rank {global_rank} successfully initialized WG comms")
+        wm_comm.barrier()
+
     dataset = OGBNPapers100MDataset(
         replication_factor=args.replication_factor,
         dataset_dir=args.dataset_dir,
         train_split=args.train_split,
         val_split=args.val_split,
-        load_edge_index=(args.framework == "PyG"),
+        load_edge_index=(args.framework.lower() == "pyg"),
+        backend="wholegraph" if args.use_wholegraph else "torch",
     )
 
-    if global_rank == 0:
+    # Note: this does not generate WG files
+    if global_rank == 0 and not args.skip_download:
         dataset.download()
+
     dist.barrier()
 
     fanout = [int(f) for f in args.fanout.split("_")]
 
-    if args.framework == "PyG":
+    if args.framework.lower() == "pyg":
         from trainers.pyg import PyGNativeTrainer
 
         trainer = PyGNativeTrainer(
@@ -215,7 +252,7 @@ def main(args):
             num_neighbors=fanout,
             batch_size=args.batch_size,
         )
-    elif args.framework == "cuGraphPyG":
+    elif args.framework.lower() == "cugraph_pyg":
         sample_dir = os.path.join(
             args.sample_dir,
             f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
@@ -229,11 +266,35 @@ def main(args):
             device=local_rank,
             rank=global_rank,
             world_size=world_size,
+            gpus_per_node=args.gpus_per_node,
             num_epochs=args.num_epochs,
             shuffle=True,
             replace=False,
             num_neighbors=fanout,
             batch_size=args.batch_size,
+            backend="wholegraph" if args.use_wholegraph else "torch",
+        )
+    elif args.framework.lower() == "cugraph_dgl_csr":
+        sample_dir = os.path.join(
+            args.sample_dir,
+            f"ogbn_papers100M[{args.replication_factor}]_b{args.batch_size}_f{fanout}",
+        )
+        from trainers.dgl import DGLCuGraphTrainer
+
+        trainer = DGLCuGraphTrainer(
+            model=args.model,
+            dataset=dataset,
+            sample_dir=sample_dir,
+            device=local_rank,
+            rank=global_rank,
+            world_size=world_size,
+            gpus_per_node=args.gpus_per_node,
+            num_epochs=args.num_epochs,
+            shuffle=True,
+            replace=False,
+            num_neighbors=[int(f) for f in args.fanout.split("_")],
+            batch_size=args.batch_size,
+            backend="wholegraph" if args.use_wholegraph else "torch",
         )
     else:
         raise ValueError("unsupported framework")
