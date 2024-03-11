@@ -241,7 +241,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
 int32_t constexpr count_edge_partition_multi_edges_block_size = 1024;
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void for_all_major_for_all_nbr_mid_degree(
+__global__ static void for_all_major_for_all_nbr_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,
@@ -275,7 +275,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void for_all_major_for_all_nbr_high_degree(
+__global__ static void for_all_major_for_all_nbr_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,

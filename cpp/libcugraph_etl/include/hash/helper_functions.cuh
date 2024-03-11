@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2017-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ __forceinline__ __device__ void store_pair_vectorized(pair_type* __restrict__ co
 }
 
 template <typename value_type, typename size_type, typename key_type, typename elem_type>
-__global__ void init_hashtbl(value_type* __restrict__ const hashtbl_values,
+__global__ static void init_hashtbl(value_type* __restrict__ const hashtbl_values,
                              const size_type n,
                              const key_type key_val,
                              const elem_type elem_val)
