@@ -12,8 +12,8 @@ Latest Update
 Last Update:	March 7th, 2024
 Release:		24.04
 
-**CuGraph is now a registered backend for networkX. This is described in the following blog: 
-`Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics 
+**CuGraph is now a registered backend for networkX. This is described in the following blog:
+`Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics
 <https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for-high-performance-graph-analytics/>`_
 
 
