@@ -904,9 +904,9 @@ class simpleGraphImpl:
                     vertex_subset = self.renumber_map.to_internal_vertex_id(
                         vertex_subset
                     )
-                    vertex_subset_type = self.edgelist.edgelist_df["src"].dtype
+                    vertex_subset_type = self.edgelist.edgelist_df.dtypes.iloc[0]
                 else:
-                    vertex_subset_type = self.input_df.dtypes[0]
+                    vertex_subset_type = self.input_df.dtypes.iloc[0]
 
                 vertex_subset = vertex_subset.astype(vertex_subset_type)
 
