@@ -25,7 +25,6 @@
 #include <hash/helper_functions.cuh>
 #include <hash/managed.cuh>
 
-#include <cudf/detail/nvtx/ranges.hpp>
 #include <cudf/detail/utilities/device_atomics.cuh>
 #include <cudf/hashing/detail/default_hash.cuh>
 #include <cudf/hashing/detail/hash_functions.cuh>
@@ -171,7 +170,6 @@ class concurrent_unordered_map {
                      const Equality& equal            = key_equal(),
                      const allocator_type& allocator  = allocator_type())
   {
-    CUDF_FUNC_RANGE();
     using Self = concurrent_unordered_map<Key, Element, Hasher, Equality, Allocator>;
 
     // Note: need `(*p).destroy` instead of `p->destroy` here
