@@ -28,7 +28,7 @@ Each chart has three measurements.
 
 
 The following algorithms are supported and automatically dispatched to nx-cuGraph for acceleration.
- 
+
 #### Algorithms
 ```
 bipartite
@@ -165,6 +165,3 @@ convert_matrix
  ├─ from_pandas_edgelist
  └─ from_scipy_sparse_array
 ```
-
-
-

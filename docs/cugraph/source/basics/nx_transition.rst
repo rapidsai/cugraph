@@ -1,5 +1,5 @@
 **************************************
-NetworkX by calling cuGraph Algorithms 
+NetworkX by calling cuGraph Algorithms
 **************************************
 
 
@@ -24,7 +24,7 @@ Rather than updating all of your existing code, simply update the calls to
 graph algorithms by replacing the module name.  This allows all the complicated
 ETL code to be unchanged while still seeing significate performance
 improvements. Again this will be deprecated since networkX dispatching to nx_cugraph
-has many advantages. 
+has many advantages.
 
 improvements.
 
@@ -155,8 +155,8 @@ Graph Building
 ##############
 
 The biggest difference between NetworkX and cuGraph is with how Graph objects
-are built.  NetworkX, for the most part, stores graph data in a dictionary.
-That structure allows easy insertion of new records.    Consider the following
+are built. NetworkX, for the most part, stores graph data in a dictionary.
+That structure allows easy insertion of new records. Consider the following
 code for building a NetworkX Graph::
 
     # Read the node data
