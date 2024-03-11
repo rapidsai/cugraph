@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +29,12 @@ template void offsets_to_indices<int32_t, int32_t>(int32_t const*, int32_t, int3
 template void offsets_to_indices<int64_t, int32_t>(int64_t const*, int32_t, int32_t*);
 template void offsets_to_indices<int64_t, int64_t>(int64_t const*, int64_t, int64_t*);
 
-template __global__ void offsets_to_indices_kernel<int32_t, int32_t>(int32_t const*,
-                                                                     int32_t,
-                                                                     int32_t*);
-template __global__ void offsets_to_indices_kernel<int64_t, int32_t>(int64_t const*,
-                                                                     int32_t,
-                                                                     int32_t*);
-template __global__ void offsets_to_indices_kernel<int64_t, int64_t>(int64_t const*,
-                                                                     int64_t,
-                                                                     int64_t*);
+template __global__ __attribute__((visibility("hidden"))) void
+offsets_to_indices_kernel<int32_t, int32_t>(int32_t const*, int32_t, int32_t*);
+template __global__ __attribute__((visibility("hidden"))) void
+offsets_to_indices_kernel<int64_t, int32_t>(int64_t const*, int32_t, int32_t*);
+template __global__ __attribute__((visibility("hidden"))) void
+offsets_to_indices_kernel<int64_t, int64_t>(int64_t const*, int64_t, int64_t*);
 
 }  // namespace detail
 }  // namespace cugraph
