@@ -1054,7 +1054,7 @@ remove_multi_edges(raft::handle_t const& handle,
 
 /**
  * @brief Shuffle external vertex ids to the proper GPU.
- * *
+ *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1068,9 +1068,10 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
 
 /**
  * @brief Shuffle external vertex ids and values to the proper GPU.
- * *
- * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_t     Type of values. Needs to an integral or floating point type.
+ *
+ * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t    Type of values. currently supported types are int32_t,
+ * int64_t, size_t, float and double.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1086,7 +1087,7 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
 
 /**
  * @brief Shuffle external edges to the proper GPU.
- * *
+ *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
