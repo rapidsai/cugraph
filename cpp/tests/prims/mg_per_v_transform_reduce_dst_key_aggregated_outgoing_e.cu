@@ -487,6 +487,8 @@ using Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_File =
 using Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat =
   Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE<cugraph::test::Rmat_Usecase>;
 
+// FIXME: this tests do not build as cugrpah::kv_store_t has a build error when use_binary_search =
+// false and value_t is thrust::tuple, this will be fixed in a separate PR
 #if 0
 TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
