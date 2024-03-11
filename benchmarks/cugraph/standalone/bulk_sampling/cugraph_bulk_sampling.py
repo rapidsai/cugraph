@@ -190,6 +190,10 @@ def sample_graph(
     val_perc=0.5,
     sampling_kwargs={},
 ):
+    logger = logging.getLogger("__main__")
+    logger.info("Starting sampling phase...")
+
+    logger.info("Calculating random splits...")
     cupy.random.seed(seed)
     train_df, test_df = label_df.random_split(
         [train_perc, 1 - train_perc], random_state=seed, shuffle=True
@@ -197,24 +201,35 @@ def sample_graph(
     val_df, test_df = label_df.random_split(
         [val_perc, 1 - val_perc], random_state=seed, shuffle=True
     )
+    logger.info("Calculated random splits")
 
     total_time = 0.0
     for epoch in range(num_epochs):
-        steps = [("train", train_df), ("test", test_df)]
+        steps = [("train", train_df)]
         if epoch == num_epochs - 1:
             steps.append(("val", val_df))
+            steps.append(("test", test_df))
 
         for step, batch_df in steps:
-            batch_df = batch_df.sample(frac=1.0, random_state=seed)
+            logger.info("Shuffling batch dataframe...")
+            batch_df = batch_df.sample(frac=1.0, random_state=seed).persist()
+            logger.info("Shuffled and persisted batch dataframe...")
 
-            if step == "val":
-                output_sample_path = os.path.join(output_path, "val", "samples")
-            else:
+            if step == "train":
                 output_sample_path = os.path.join(
                     output_path, f"epoch={epoch}", f"{step}", "samples"
                 )
-            os.makedirs(output_sample_path)
+            else:
+                output_sample_path = os.path.join(output_path, step, "samples")
 
+            client = default_client()
+
+            def func():
+                os.makedirs(output_sample_path, exist_ok=True)
+
+            client.run(func)
+
+            logger.info("Creating bulk sampler...")
             sampler = BulkSampler(
                 batch_size=batch_size,
                 output_path=output_sample_path,
@@ -227,6 +242,7 @@ def sample_graph(
                 log_level=logging.INFO,
                 **sampling_kwargs,
             )
+            logger.info("Bulk sampler created and ready for input")
 
             n_workers = len(default_client().scheduler_info()["workers"])
 
@@ -244,13 +260,13 @@ def sample_graph(
             # should always persist the batch dataframe or performance may be suboptimal
             batch_df = batch_df.persist()
 
-            print("created batches")
+            logger.info("created and persisted batches")
 
             start_time = perf_counter()
             sampler.add_batches(batch_df, start_col_name="node", batch_col_name="batch")
             sampler.flush()
             end_time = perf_counter()
-            print("flushed all batches")
+            logger.info("flushed all batches")
             total_time += end_time - start_time
 
     return total_time
@@ -356,23 +372,29 @@ def load_disk_dataset(
     path = Path(dataset_dir) / dataset
     parquet_path = path / "parquet"
 
+    logger = logging.getLogger("__main__")
+
+    logger.info("getting n workers...")
     n_workers = get_n_workers()
+    logger.info(f"there are {n_workers} workers")
 
     with open(os.path.join(path, "meta.json")) as meta_file:
         meta = json.load(meta_file)
 
+    logger.info("assigning offsets...")
     node_offsets, node_offsets_replicated, total_num_nodes = assign_offsets_pyg(
         meta["num_nodes"], replication_factor=replication_factor
     )
+    logger.info("offsets assigned")
 
     edge_index_dict = {}
     for edge_type in meta["num_edges"].keys():
-        print(f"Loading edge index for edge type {edge_type}")
+        logger.info(f"Loading edge index for edge type {edge_type}")
 
         can_edge_type = tuple(edge_type.split("__"))
         edge_index_dict[can_edge_type] = dask_cudf.read_parquet(
             Path(parquet_path) / edge_type / "edge_index.parquet"
-        ).repartition(n_workers * 2)
+        ).repartition(npartitions=n_workers * 2)
 
         edge_index_dict[can_edge_type]["src"] += node_offsets_replicated[
             can_edge_type[0]
@@ -384,6 +406,7 @@ def load_disk_dataset(
         edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
 
         if replication_factor > 1:
+            logger.info("processing replications")
             edge_index_dict[can_edge_type] = edge_index_dict[
                 can_edge_type
             ].map_partitions(
@@ -400,6 +423,7 @@ def load_disk_dataset(
                     }
                 ),
             )
+            logger.info("replications processed")
 
         gc.collect()
 
@@ -407,48 +431,63 @@ def load_disk_dataset(
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(
                 columns={"src": "dst", "dst": "src"}
             )
+        logger.info("edge index loaded")
 
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
     edge_count = 0
-    for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
-        if add_edge_types:
-            edge_index_dict[can_edge_type]["etp"] = cupy.int32(num_edge_type)
-        edge_offsets[can_edge_type] = edge_count
-        edge_count += len(edge_index_dict[can_edge_type])
+    # for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
+    #    if add_edge_types:
+    #        edge_index_dict[can_edge_type]["etp"] = cupy.int32(num_edge_type)
+    #    edge_offsets[can_edge_type] = edge_count
+    #    edge_count += len(edge_index_dict[can_edge_type])
 
-    all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
+    if len(edge_index_dict) != 1:
+        raise ValueError("should only be 1 edge index")
+
+    logger.info("setting edge type")
+
+    all_edges_df = list(edge_index_dict.values())[0]
+    if add_edge_types:
+        all_edges_df["etp"] = cupy.int32(0)
+
+    # all_edges_df = dask_cudf.concat(list(edge_index_dict.values()))
 
     del edge_index_dict
     gc.collect()
 
     node_labels = {}
     for node_type, offset in node_offsets_replicated.items():
-        print(f"Loading node labels for node type {node_type} (offset={offset})")
+        logger.info(f"Loading node labels for node type {node_type} (offset={offset})")
         node_label_path = os.path.join(
             os.path.join(parquet_path, node_type), "node_label.parquet"
         )
         if os.path.exists(node_label_path):
             node_labels[node_type] = (
                 dask_cudf.read_parquet(node_label_path)
-                .repartition(n_workers)
+                .repartition(npartitions=n_workers)
                 .drop("label", axis=1)
                 .persist()
             )
+            logger.info(f"Loaded and persisted initial labels")
             node_labels[node_type]["node"] += offset
             node_labels[node_type] = node_labels[node_type].persist()
+            logger.info(f"Set and persisted node offsets")
 
             if replication_factor > 1:
+                logger.info(f"Replicating labels...")
                 node_labels[node_type] = node_labels[node_type].map_partitions(
                     _replicate_df,
                     replication_factor,
                     {"node": meta["num_nodes"][node_type]},
                     meta=cudf.DataFrame({"node": cudf.Series(dtype="int64")}),
                 )
+                logger.info(f"Replicated labels (will likely evaluate later)")
 
             gc.collect()
 
     node_labels_df = dask_cudf.concat(list(node_labels.values())).reset_index(drop=True)
+    logger.info("Dataset successfully loaded")
 
     del node_labels
     gc.collect()
@@ -459,6 +498,7 @@ def load_disk_dataset(
         node_offsets_replicated,
         edge_offsets,
         total_num_nodes,
+        sum(meta["num_edges"].values()) * replication_factor,
     )
 
 
@@ -540,6 +580,7 @@ def benchmark_cugraph_bulk_sampling(
             node_offsets,
             edge_offsets,
             total_num_nodes,
+            num_input_edges,
         ) = load_disk_dataset(
             dataset,
             dataset_dir=dataset_dir,
@@ -548,7 +589,6 @@ def benchmark_cugraph_bulk_sampling(
             add_edge_types=add_edge_types,
         )
 
-    num_input_edges = len(dask_edgelist_df)
     logger.info(f"Number of input edges = {num_input_edges:,}")
 
     G = construct_graph(dask_edgelist_df)
@@ -562,7 +602,13 @@ def benchmark_cugraph_bulk_sampling(
         output_path,
         f"{dataset}[{replication_factor}]_b{batch_size}_f{fanout}",
     )
-    os.makedirs(output_subdir)
+
+    client = default_client()
+
+    def func():
+        os.makedirs(output_subdir, exist_ok=True)
+
+    client.run(func)
 
     if sampling_target_framework == "cugraph_dgl_csr":
         sampling_kwargs = {
@@ -574,8 +620,8 @@ def benchmark_cugraph_bulk_sampling(
             "use_legacy_names": False,
             "include_hop_column": False,
         }
-    else:
-        # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.02)
+    elif sampling_target_framework == "cugraph_pyg":
+        # FIXME: Update these arguments when CSC mode is fixed in cuGraph-PyG (release 24.04)
         sampling_kwargs = {
             "deduplicate_sources": True,
             "prior_sources_behavior": "exclude",
@@ -585,8 +631,10 @@ def benchmark_cugraph_bulk_sampling(
             "use_legacy_names": False,
             "include_hop_column": True,
         }
+    else:
+        raise ValueError("Only cugraph_dgl_csr or cugraph_pyg are valid frameworks")
 
-    batches_per_partition = 600_000 // batch_size
+    batches_per_partition = 256
     execution_time, allocation_counts = sample_graph(
         G=G,
         label_df=dask_label_df,
@@ -761,9 +809,9 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
 
     args = get_args()
-    if args.sampling_target_framework not in ["cugraph_dgl_csr", None]:
+    if args.sampling_target_framework not in ["cugraph_dgl_csr", "cugraph_pyg"]:
         raise ValueError(
-            "sampling_target_framework must be one of cugraph_dgl_csr or None",
+            "sampling_target_framework must be one of cugraph_dgl_csr or cugraph_pyg",
             "Other frameworks are not supported at this time.",
         )
 
@@ -775,12 +823,30 @@ if __name__ == "__main__":
     seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(",")]
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(",")]
 
-    logger.info("starting dask client")
-    client, cluster = start_dask_client()
+    import time
+
+    time_dask_start = time.localtime()
+
+    logger.info(f"{time.asctime(time_dask_start)}: starting dask client")
+    from dask_cuda.initialize import initialize
+    from dask.distributed import Client
+    from cugraph.dask.comms import comms as Comms
+    import os, time
+
+    client = Client(scheduler_file=os.environ["SCHEDULER_FILE"], timeout=360)
+    time.sleep(30)
+    cluster = Comms.initialize(p2p=True)
+    # client, cluster = start_dask_client()
+    time_dask_end = time.localtime()
+    logger.info(f"{time.asctime(time_dask_end)}: dask client started")
+
+    logger.info("enabling spilling")
     enable_spilling()
-    stats_ls = []
     client.run(enable_spilling)
-    logger.info("dask client started")
+    logger.info("enabled spilling")
+
+    stats_ls = []
+
     for dataset in datasets:
         m = re.match(r"(\w+)\[([0-9]+)\]", dataset)
         if m:

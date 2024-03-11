@@ -328,7 +328,7 @@ struct return_value_compute_offset_t {
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void compute_valid_local_nbr_inclusive_sums_mid_local_degree(
+__global__ static void compute_valid_local_nbr_inclusive_sums_mid_local_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool> edge_partition_e_mask,
   raft::device_span<vertex_t const> edge_partition_frontier_majors,
@@ -382,7 +382,7 @@ __global__ void compute_valid_local_nbr_inclusive_sums_mid_local_degree(
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void compute_valid_local_nbr_inclusive_sums_high_local_degree(
+__global__ static void compute_valid_local_nbr_inclusive_sums_high_local_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool> edge_partition_e_mask,
   raft::device_span<vertex_t const> edge_partition_frontier_majors,

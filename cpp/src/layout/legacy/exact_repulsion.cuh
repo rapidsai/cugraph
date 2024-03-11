@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-__global__ void repulsion_kernel(const float* restrict x_pos,
-                                 const float* restrict y_pos,
-                                 float* restrict repel_x,
-                                 float* restrict repel_y,
-                                 const int* restrict mass,
-                                 const float scaling_ratio,
-                                 const vertex_t n)
+__global__ static void repulsion_kernel(const float* restrict x_pos,
+                                        const float* restrict y_pos,
+                                        float* restrict repel_x,
+                                        float* restrict repel_y,
+                                        const int* restrict mass,
+                                        const float scaling_ratio,
+                                        const vertex_t n)
 {
   int j = (blockIdx.x * blockDim.x) + threadIdx.x;  // for every item in row
   int i = (blockIdx.y * blockDim.y) + threadIdx.y;  // for every row
