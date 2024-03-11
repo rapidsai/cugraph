@@ -16,16 +16,6 @@
 
 #include "property_generator.cuh"
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -40,12 +30,21 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
+#include <prims/transform_e.cuh>
+#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+#include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
+#include <utilities/mg_utilities.hpp>
+#include <utilities/test_graphs.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <random>
 

@@ -18,7 +18,6 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "property_generator.cuh"
 #include "result_compare.cuh"
-
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
