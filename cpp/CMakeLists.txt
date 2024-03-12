@@ -186,9 +186,9 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/detail/shuffle_vertices.cu
+    src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
-    src/detail/shuffle_vertex_pairs.cu
+    src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
