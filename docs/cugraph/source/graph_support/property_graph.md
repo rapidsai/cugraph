@@ -21,7 +21,7 @@ import cugraph
 from cugraph.experimental import PropertyGraph
 
 # Import a built-in dataset
-from cugraph.experimental.datasets import karate
+from cugraph.datasets import karate
 
 # Read edgelist data into a DataFrame, load into PropertyGraph as edge data.
 # Create a graph using the imported Dataset object
