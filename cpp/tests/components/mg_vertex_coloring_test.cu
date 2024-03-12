@@ -177,7 +177,8 @@ class Tests_MGGraphColoring
         },
         vertex_t{0});
 
-        ASSERT_TRUE(nr_conflicts == edge_t{0}) << "adjacent vertices can't have same color." << std::endl;
+      ASSERT_TRUE(nr_conflicts == edge_t{0})
+        << "adjacent vertices can't have same color." << std::endl;
 
       {
         thrust::for_each(

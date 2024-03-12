@@ -34,7 +34,6 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
   graph_view_t current_graph_view(graph_view);
 
