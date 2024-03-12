@@ -831,11 +831,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
           num_triangles[i] = num_triangles[i] - intersection_offsets[i + 1] - intersection_offsets[i];
         });
 
-      size_t accumulate_pair_size = intersection_indices.size();
-
       // FIXME: Find a way to not have to maintain a dataframe_buffer
       auto vertex_pair_buffer_p_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(accumulate_pair_size,
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
                                                                      handle.get_stream());
 
       thrust::tabulate(
@@ -852,7 +850,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       
 
       auto vertex_pair_buffer_q_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(accumulate_pair_size,
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
                                                                      handle.get_stream());
 
       thrust::tabulate(
@@ -875,11 +873,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                           transposed_edge_first + edgelist_srcs.size(),
                           num_triangles.begin() + num_valid_edges);
 
-
-      auto num_edge_exists = accumulate_pair_size;
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<edge_t>(0),
-                       thrust::make_counting_iterator<edge_t>(num_edge_exists),
+                       thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
                        unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
                          edge_t{num_valid_edges},
                          raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
@@ -890,7 +886,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<edge_t>(0),
-                       thrust::make_counting_iterator<edge_t>(num_edge_exists),
+                       thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
                        unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
                          edge_t{num_valid_edges},
                          raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
