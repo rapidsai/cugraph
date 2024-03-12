@@ -270,7 +270,7 @@ __device__ __inline__ int32_t validate_ht_col_insert(volatile int32_t* ptr_col)
   return col;
 }
 
-__global__ void concat_and_create_histogram(int8_t* col_1,
+__global__ static void concat_and_create_histogram(int8_t* col_1,
                                             int32_t* offset_1,
                                             int8_t* col_2,
                                             int32_t* offset_2,
@@ -349,7 +349,7 @@ __global__ void concat_and_create_histogram(int8_t* col_1,
   }
 }
 
-__global__ void concat_and_create_histogram_2(int8_t* col_1,
+__global__ static void concat_and_create_histogram_2(int8_t* col_1,
                                               int32_t* offset_1,
                                               int8_t* col_2,
                                               int32_t* offset_2,
@@ -452,7 +452,7 @@ __global__ void concat_and_create_histogram_2(int8_t* col_1,
 }
 
 template <typename T>
-__global__ void set_src_vertex_idx(int8_t* col_1,
+__global__ static void set_src_vertex_idx(int8_t* col_1,
                                    int32_t* offset_1,
                                    int8_t* col_2,
                                    int32_t* offset_2,
@@ -509,7 +509,7 @@ __global__ void set_src_vertex_idx(int8_t* col_1,
 }
 
 template <typename T>
-__global__ void set_dst_vertex_idx(int8_t* col_1,
+__global__ static void set_dst_vertex_idx(int8_t* col_1,
                                    int32_t* offset_1,
                                    int8_t* col_2,
                                    int32_t* offset_2,
@@ -585,7 +585,7 @@ __global__ void set_dst_vertex_idx(int8_t* col_1,
   }
 }
 
-__global__ void create_mapping_histogram(uint32_t* hash_value,
+__global__ static void create_mapping_histogram(uint32_t* hash_value,
                                          str_hash_value* payload,
                                          cudf_map_type hash_map,
                                          accum_type count)
@@ -595,7 +595,7 @@ __global__ void create_mapping_histogram(uint32_t* hash_value,
   if (idx < count) { auto it = hash_map.insert(thrust::make_pair(hash_value[idx], payload[idx])); }
 }
 
-__global__ void assign_histogram_idx(cudf_map_type cuda_map_obj,
+__global__ static void assign_histogram_idx(cudf_map_type cuda_map_obj,
                                      size_t slot_count,
                                      str_hash_value* key,
                                      uint32_t* value,
@@ -621,7 +621,7 @@ __global__ void assign_histogram_idx(cudf_map_type cuda_map_obj,
   }
 }
 
-__global__ void set_vertex_indices(str_hash_value* ht_value_payload, accum_type count)
+__global__ static void set_vertex_indices(str_hash_value* ht_value_payload, accum_type count)
 {
   accum_type tid = threadIdx.x + blockIdx.x * blockDim.x;
   // change count_ to renumber_idx
@@ -630,7 +630,7 @@ __global__ void set_vertex_indices(str_hash_value* ht_value_payload, accum_type 
   }
 }
 
-__global__ void set_output_col_offsets(str_hash_value* row_col_pair,
+__global__ static void set_output_col_offsets(str_hash_value* row_col_pair,
                                        int32_t* out_col1_offset,
                                        int32_t* out_col2_offset,
                                        int dst_pair_match,
@@ -653,7 +653,7 @@ __global__ void set_output_col_offsets(str_hash_value* row_col_pair,
   }
 }
 
-__global__ void offset_buffer_size_comp(int32_t* out_col1_length,
+__global__ static void offset_buffer_size_comp(int32_t* out_col1_length,
                                         int32_t* out_col2_length,
                                         int32_t* out_col1_offsets,
                                         int32_t* out_col2_offsets,
@@ -673,7 +673,7 @@ __global__ void offset_buffer_size_comp(int32_t* out_col1_length,
   }
 }
 
-__global__ void select_unrenumber_string(str_hash_value* idx_to_col_row,
+__global__ static void select_unrenumber_string(str_hash_value* idx_to_col_row,
                                          int32_t total_elements,
                                          int8_t* src_col1,
                                          int8_t* src_col2,
