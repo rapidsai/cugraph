@@ -98,7 +98,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionEdgeMaskWrapper,
           typename EdgeOp,
           typename ValueIterator>
-__global__ void transform_reduce_by_src_dst_key_hypersparse(
+__global__ static void transform_reduce_by_src_dst_key_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -184,7 +184,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionEdgeMaskWrapper,
           typename EdgeOp,
           typename ValueIterator>
-__global__ void transform_reduce_by_src_dst_key_low_degree(
+__global__ static void transform_reduce_by_src_dst_key_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -268,7 +268,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionEdgeMaskWrapper,
           typename EdgeOp,
           typename ValueIterator>
-__global__ void transform_reduce_by_src_dst_key_mid_degree(
+__global__ static void transform_reduce_by_src_dst_key_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -365,7 +365,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionEdgeMaskWrapper,
           typename EdgeOp,
           typename ValueIterator>
-__global__ void transform_reduce_by_src_dst_key_high_degree(
+__global__ static void transform_reduce_by_src_dst_key_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
