@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1083,13 +1083,12 @@ class CuGraphStore:
 
         idx = attr.index
         if idx is not None:
-            if feature_backend == "torch":
+            if feature_backend in ["torch", "wholegraph"]:
                 if not isinstance(idx, torch.Tensor):
                     raise TypeError(
                         f"Type {type(idx)} invalid"
                         f" for feature store backend {feature_backend}"
                     )
-                idx = idx.cpu()
             elif feature_backend == "numpy":
                 # allow feature indexing through cupy arrays
                 if isinstance(idx, cupy.ndarray):
@@ -1243,6 +1242,78 @@ class CuGraphStore:
                         attr.dtype = n.dtype
 
         return attr
+
+    def filter(
+        self,
+        format: str,
+        node_dict: Dict[str, torch.Tensor],
+        row_dict: Dict[str, torch.Tensor],
+        col_dict: Dict[str, torch.Tensor],
+        edge_dict: Dict[str, Tuple[torch.Tensor]],
+    ) -> torch_geometric.data.HeteroData:
+        """
+        Parameters
+        ----------
+        format: str
+            COO or CSC
+        node_dict: Dict[str, torch.Tensor]
+            IDs of nodes in original store being outputted
+        row_dict: Dict[str, torch.Tensor]
+            Renumbered output edge index row
+        col_dict: Dict[str, torch.Tensor]
+            Renumbered output edge index column
+        edge_dict: Dict[str, Tuple[torch.Tensor]]
+            Currently unused original edge mapping
+        """
+        data = torch_geometric.data.HeteroData()
+
+        # TODO use torch_geometric.EdgeIndex in release 24.04 (Issue #4051)
+        for attr in self.get_all_edge_attrs():
+            key = attr.edge_type
+            if key in row_dict and key in col_dict:
+                if format == "CSC":
+                    data.put_edge_index(
+                        (row_dict[key], col_dict[key]),
+                        edge_type=key,
+                        layout="csc",
+                        is_sorted=True,
+                    )
+                else:
+                    data[key].edge_index = torch.stack(
+                        [
+                            row_dict[key],
+                            col_dict[key],
+                        ],
+                        dim=0,
+                    )
+
+        required_attrs = []
+        # To prevent copying multiple times, we use a cache;
+        # the original node_dict serves as the gpu cache if needed
+        node_dict_cpu = {}
+        for attr in self.get_all_tensor_attrs():
+            if attr.group_name in node_dict:
+                device = self.__features.get_storage(attr.group_name, attr.attr_name)
+                attr.index = node_dict[attr.group_name]
+                if not isinstance(attr.index, torch.Tensor):
+                    raise ValueError("Node index must be a tensor!")
+                if attr.index.is_cuda and device == "cpu":
+                    if attr.group_name not in node_dict_cpu:
+                        node_dict_cpu[attr.group_name] = attr.index.cpu()
+                    attr.index = node_dict_cpu[attr.group_name]
+                elif attr.index.is_cpu and device == "cuda":
+                    node_dict_cpu[attr.group_name] = attr.index
+                    node_dict[attr.group_name] = attr.index.cuda()
+                    attr.index = node_dict[attr.group_name]
+
+                required_attrs.append(attr)
+                data[attr.group_name].num_nodes = attr.index.size(0)
+
+        tensors = self.multi_get_tensor(required_attrs)
+        for i, attr in enumerate(required_attrs):
+            data[attr.group_name][attr.attr_name] = tensors[i]
+
+        return data
 
     def __len__(self):
         return len(self.get_all_tensor_attrs())
