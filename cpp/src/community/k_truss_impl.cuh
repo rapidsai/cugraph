@@ -696,6 +696,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
     auto transposed_edge_triangle_count_pair_first =
       thrust::make_zip_iterator(transposed_edge_first, num_triangles.begin());
+    
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                          transposed_edge_first,
+                          transposed_edge_first + edgelist_srcs.size(),
+                          num_triangles.begin());
 
     // Note: ensure 'edges_with_triangles' and 'cur_graph_view' have the same transpose flag
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
@@ -768,11 +773,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
       edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
       num_triangles.resize(num_edges_with_triangles, handle.get_stream());
-
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          transposed_edge_first,
-                          transposed_edge_first + edgelist_srcs.size(),
-                          num_triangles.begin());
 
       // 'invalid_transposed_edge_triangle_count_first' marks the beginning of the edges to be
       // removed 'invalid_transposed_edge_triangle_count_first' + edgelist_srcs.size() marks the end
