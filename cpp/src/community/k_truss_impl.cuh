@@ -822,20 +822,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       rmm::device_uvector<edge_t> num_triangles_invalid(num_invalid_edges, handle.get_stream());
 
       // Update the number of triangles of each (p, q) edges by looking at their intersection
-      // size
-      thrust::adjacent_difference(handle.get_thrust_policy(),
-                                  intersection_offsets.begin() + 1,
-                                  intersection_offsets.end(),
-                                  num_triangles_invalid.begin());
-
-      auto pair_first = thrust::make_zip_iterator(num_triangles.begin() + num_valid_edges, num_triangles_invalid.begin());
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator<edge_t>(0),
-          thrust::make_counting_iterator<edge_t>(num_invalid_edges),
-          [num_triangles = raft::device_span<edge_t>(num_triangles.data() + num_valid_edges, num_invalid_edges), intersection_offsets = raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size())]__device__(auto i) {
-            num_triangles[i] = num_triangles[i] - intersection_offsets[i + 1] - intersection_offsets[i];
-          });
+      // size.
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator<edge_t>(0),
+        thrust::make_counting_iterator<edge_t>(num_invalid_edges),
+        [num_triangles = raft::device_span<edge_t>(num_triangles.data() + num_valid_edges, num_invalid_edges), intersection_offsets = raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size())]__device__(auto i) {
+          num_triangles[i] = num_triangles[i] - intersection_offsets[i + 1] - intersection_offsets[i];
+        });
 
       size_t accumulate_pair_size = intersection_indices.size();
 
