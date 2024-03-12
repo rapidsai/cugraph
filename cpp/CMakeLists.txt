@@ -199,8 +199,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/refine_mg.cu
     src/community/detail/mis_sg.cu
     src/community/detail/mis_mg.cu
+    src/community/edge_triangle_count_sg.cu
     src/detail/utility_wrappers.cu
-    src/structure/edge_triangle_count_sg.cu
     src/structure/graph_view_mg.cu
     src/structure/remove_self_loops.cu
     src/structure/remove_multi_edges.cu

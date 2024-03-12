@@ -166,8 +166,8 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
   return dist;
 }
 
-template <typename vertex_t, typename edge_t, bool multi_gpu, bool is_edge_q_r>
-void find_unroll_p_r_and_q_r_edges(
+template <typename vertex_t, typename edge_t, bool multi_gpu, bool is_q_r_edge>
+void find_unroll_p_r_or_q_r_edges(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, false>& graph_view,
   edge_t num_invalid_edges,
@@ -200,7 +200,7 @@ void find_unroll_p_r_and_q_r_edges(
       prefix_sum_invalid.back_element(handle.get_stream()),
     handle.get_stream());
 
-  const bool const_is_edge_q_r = is_edge_q_r;
+  const bool const_is_q_r_edge = is_q_r_edge;
   thrust::for_each(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator<edge_t>(0),
@@ -215,7 +215,7 @@ void find_unroll_p_r_and_q_r_edges(
      prefix_sum_invalid      = prefix_sum_invalid.data(),
      potential_closing_edges = get_dataframe_buffer_begin(potential_closing_edges),
      incoming_edges_to_r     = get_dataframe_buffer_begin(incoming_edges_to_r),
-     const_is_edge_q_r] __device__(auto idx) {
+     const_is_q_r_edge] __device__(auto idx) {
       auto src                 = invalid_first_src[idx];
       auto dst                 = invalid_first_dst[idx];
       auto dst_array_end_valid = dst_array_begin_valid + num_valid_edges;
@@ -252,7 +252,7 @@ void find_unroll_p_r_and_q_r_edges(
         // FIXME remove prefix_sum_valid[idx] as it is substracted
         incoming_edges_to_r + prefix_sum_invalid[idx] + prefix_sum_valid[idx + 1]);
 
-      if constexpr (const_is_edge_q_r) {
+      if constexpr (const_is_q_r_edge) {
         auto potential_closing_edges_first_valid = thrust::make_zip_iterator(
           src_array_begin_valid + idx_lower_valid, thrust::make_constant_iterator(src));
         thrust::copy(
@@ -328,7 +328,7 @@ void find_unroll_p_r_and_q_r_edges(
       raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
 
   // Extra check for 'incoming_edges_to_r'
-  if constexpr (!is_edge_q_r) {
+  if constexpr (!is_q_r_edge) {
     // Exchange the arguments (incoming_edges_to_r, num_edges_not_overcomp) order
     // To also check if the 'incoming_edges_to_r' belong the the invalid_edgelist
     num_edges_not_overcomp =
@@ -344,7 +344,7 @@ void find_unroll_p_r_and_q_r_edges(
   }
 
   // FIXME: Combine both 'thrust::for_each'
-  if constexpr (is_edge_q_r) {
+  if constexpr (is_q_r_edge) {
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_edges),
@@ -898,7 +898,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       // case 2: unroll (q, r)
       // For each (q, r) edges to unroll, find the incoming edges to 'r' let's say from 'p' and
       // create the pair (p, q)
-      cugraph::find_unroll_p_r_and_q_r_edges<vertex_t, edge_t, false, true>(
+      cugraph::find_unroll_p_r_or_q_r_edges<vertex_t, edge_t, false, true>(
         handle,
         cur_graph_view,
         num_invalid_edges,
@@ -908,7 +908,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()));
 
       // case 3: unroll (p, r)
-      cugraph::find_unroll_p_r_and_q_r_edges<vertex_t, edge_t, false, false>(
+      cugraph::find_unroll_p_r_or_q_r_edges<vertex_t, edge_t, false, false>(
         handle,
         cur_graph_view,
         num_invalid_edges,
@@ -919,7 +919,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       cur_graph_view.clear_edge_mask();
       edges_with_no_triangle.clear();
-      edge_mask.clear(handle);  // masking not working in a loop.
+      edge_mask.clear(handle);
     }
 
     printf("\n*********final results*********\n");
