@@ -44,7 +44,7 @@ namespace detail {
 int32_t constexpr decompress_edge_partition_block_size = 1024;
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void decompress_to_edgelist_mid_degree(
+__global__ static void decompress_to_edgelist_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,
@@ -74,7 +74,7 @@ __global__ void decompress_to_edgelist_mid_degree(
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void decompress_to_edgelist_high_degree(
+__global__ static void decompress_to_edgelist_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,

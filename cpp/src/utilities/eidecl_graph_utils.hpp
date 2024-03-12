@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,9 +29,12 @@ extern template void offsets_to_indices<int, int>(int const*, int, int*);
 extern template void offsets_to_indices<long, int>(long const*, int, int*);
 extern template void offsets_to_indices<long, long>(long const*, long, long*);
 
-extern template __global__ void offsets_to_indices_kernel<int, int>(int const*, int, int*);
-extern template __global__ void offsets_to_indices_kernel<long, int>(long const*, int, int*);
-extern template __global__ void offsets_to_indices_kernel<long, long>(long const*, long, long*);
+extern template __attribute__((visibility("hidden"))) __global__ void
+offsets_to_indices_kernel<int, int>(int const*, int, int*);
+extern template __attribute__((visibility("hidden"))) __global__ void
+offsets_to_indices_kernel<long, int>(long const*, int, int*);
+extern template __attribute__((visibility("hidden"))) __global__ void
+offsets_to_indices_kernel<long, long>(long const*, long, long*);
 
 }  // namespace detail
 }  // namespace cugraph

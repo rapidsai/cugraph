@@ -21,6 +21,10 @@ FANOUT=$2
 REPLICATION_FACTOR=$3
 SCRIPTS_DIR=$4
 NUM_EPOCHS=$5
+SAMPLING_FRAMEWORK=$6
+N_NODES=$7
+HEAD_NODE_IP=$8
+JOB_ID=$9
 
 SAMPLES_DIR=/samples
 DATASET_DIR=/datasets
@@ -29,12 +33,19 @@ LOGS_DIR=/logs
 MG_UTILS_DIR=${SCRIPTS_DIR}/mg_utils
 SCHEDULER_FILE=${MG_UTILS_DIR}/dask_scheduler.json
 
-export WORKER_RMM_POOL_SIZE=28G
-export UCX_MAX_RNDV_RAILS=1
+echo $SAMPLES_DIR
+ls $SAMPLES_DIR
+
+export WORKER_RMM_POOL_SIZE=75G
+#export UCX_MAX_RNDV_RAILS=1
 export RAPIDS_NO_INITIALIZE=1
 export CUDF_SPILL=1
-export LIBCUDF_CUFILE_POLICY="OFF"
+export LIBCUDF_CUFILE_POLICY="KVIKIO"
+export KVIKIO_NTHREADS=64
 export GPUS_PER_NODE=8
+#export NCCL_CUMEM_ENABLE=0
+#export NCCL_DEBUG="TRACE"
+export NCCL_DEBUG_FILE=/logs/nccl_debug.%h.%p
 
 export SCHEDULER_FILE=$SCHEDULER_FILE
 export LOGS_DIR=$LOGS_DIR
@@ -59,8 +70,9 @@ else
 fi
 
 echo "properly waiting for workers to connect"
-NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
-handleTimeout 120 python ${MG_UTILS_DIR}/wait_for_workers.py \
+export NUM_GPUS=$(python -c "import os; print(int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['GPUS_PER_NODE']))")
+SEEDS_PER_CALL=$(python -c "import os; print(int(os.environ['NUM_GPUS'])*65536)")
+handleTimeout 630 python ${MG_UTILS_DIR}/wait_for_workers.py \
                     --num-expected-workers ${NUM_GPUS} \
                     --scheduler-file-path ${SCHEDULER_FILE}
 
@@ -76,14 +88,15 @@ if [[ $SLURM_NODEID == 0 ]]; then
         --datasets "ogbn_papers100M["$REPLICATION_FACTOR"]" \
         --fanouts $FANOUT \
         --batch_sizes $BATCH_SIZE \
-        --seeds_per_call_opts "524288" \
+        --seeds_per_call_opts $SEEDS_PER_CALL \
         --num_epochs $NUM_EPOCHS \
-        --random_seed 42
+        --random_seed 42 \
+        --sampling_target_framework $SAMPLING_FRAMEWORK
 
-    echo "DONE" > ${SAMPLES_DIR}/status.txt
+    echo "DONE" > ${LOGS_DIR}/status.txt
 fi
 
-while [ ! -f "${SAMPLES_DIR}"/status.txt ]
+while [ ! -f "${LOGS_DIR}"/status.txt ]
 do
     sleep 1
 done
@@ -106,6 +119,25 @@ if [[ ${#python_processes[@]} -gt 1 || $dask_processes ]]; then
 fi
 sleep 2
 
+torchrun \
+    --nnodes $N_NODES \
+    --nproc-per-node $GPUS_PER_NODE \
+    --rdzv-id $JOB_ID \
+    --rdzv-backend c10d \
+    --rdzv-endpoint $HEAD_NODE_IP:29500 \
+    /scripts/bench_cugraph_training.py \
+        --output_file "/logs/output.txt" \
+        --framework $SAMPLING_FRAMEWORK \
+        --dataset_dir "/datasets" \
+        --sample_dir "/samples" \
+        --batch_size $BATCH_SIZE \
+        --fanout $FANOUT \
+        --replication_factor $REPLICATION_FACTOR \
+        --num_epochs $NUM_EPOCHS \
+        --use_wholegraph \
+        --skip_download
+
+
 if [[ $SLURM_NODEID == 0 ]]; then
-    rm ${SAMPLES_DIR}/status.txt
+    rm ${LOGS_DIR}/status.txt
 fi
