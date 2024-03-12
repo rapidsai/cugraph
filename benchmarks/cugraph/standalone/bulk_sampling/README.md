@@ -152,7 +152,7 @@ Next are standard GNN training arguments such as `FANOUT`, `BATCH_SIZE`, etc.  Y
 the number of training epochs here.  These are followed by the `REPLICATION_FACTOR` argument, which
 can be used to create replications of the dataset for scale testing purposes.
 
-The final two arguments are `FRAMEWORK` which can be either "cuGraphPyG" or "PyG", and `GPUS_PER_NODE`
+The final two arguments are `FRAMEWORK` which can be "cugraph_dgl_csr", "cugraph_pyg" or "pyg", and `GPUS_PER_NODE`
 which must be set to the correct value, even if this is provided by a SLURM argument.  If `GPUS_PER_NODE`
 is not set to the correct number of GPUs, the script will hang indefinitely until it times out.  Mismatched
 GPUs per node is currently unsupported by this script but should be possible in practice.

@@ -215,7 +215,7 @@ template <int32_t max_num_partitions,
           typename key_t,
           typename PartitionOp,
           typename KeyOp>
-__global__ void multi_partition_copy(
+__global__ static void multi_partition_copy(
   InputIterator input_first,
   InputIterator input_last,
   raft::device_span<key_t*> output_buffer_ptrs,

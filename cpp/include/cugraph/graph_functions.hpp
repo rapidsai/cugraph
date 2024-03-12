@@ -1052,4 +1052,67 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                    bool keep_min_value_edge = false);
 
+/**
+ * @brief Shuffle external vertex ids to the proper GPU.
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices  List of vertex ids
+ * @return Vector of vertex ids mapped to this GPU.
+ */
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& handle,
+                                                        rmm::device_uvector<vertex_t>&& vertices);
+
+/**
+ * @brief Shuffle external vertex ids and values to the proper GPU.
+ *
+ * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t    Type of values. currently supported types are int32_t,
+ * int64_t, size_t, float and double.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices  List of vertex ids
+ * @param values List of values
+ * @return Tuple of vectors storing vertex ids and values mapped to this GPU.
+ */
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
+                                    rmm::device_uvector<vertex_t>&& vertices,
+                                    rmm::device_uvector<value_t>&& values);
+
+/**
+ * @brief Shuffle external edges to the proper GPU.
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t    Type of edge weight. Currently float and double are supported.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edge_srcs  List of source vertex ids
+ * @param edge_dsts  List of destination vertex ids
+ * @param edge_weights  Optional list of edge weights
+ * @param edge_ids  Optional list of edge ids
+ * @param edge_types Optional list of edge types
+ * @return Tuple of vectors storing edge sources, destinations, optional weights,
+ *          optional edge ids, optional edge types mapped to this GPU.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>>
+shuffle_external_edges(raft::handle_t const& handle,
+                       rmm::device_uvector<vertex_t>&& edge_srcs,
+                       rmm::device_uvector<vertex_t>&& edge_dsts,
+                       std::optional<rmm::device_uvector<weight_t>>&& edge_weights,
+                       std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+                       std::optional<rmm::device_uvector<edge_type_t>>&& edge_types);
+
 }  // namespace cugraph
