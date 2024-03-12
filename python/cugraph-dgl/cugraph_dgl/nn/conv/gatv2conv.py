@@ -150,6 +150,8 @@ class GATv2Conv(BaseConv):
         nfeat: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
         efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
+        deterministic_dgrad: bool = False,
+        deterministic_wgrad: bool = False,
     ) -> torch.Tensor:
         r"""Forward computation.
 
@@ -166,6 +168,12 @@ class GATv2Conv(BaseConv):
             from a neighbor sampler, the value should be set to the corresponding
             :attr:`fanout`. This option is used to invoke the MFG-variant of
             cugraph-ops kernel.
+        deterministic_dgrad : bool, default=False
+            Optional flag indicating whether the feature gradients
+            are computed deterministically using a dedicated workspace buffer.
+        deterministic_wgrad: bool, default=False
+            Optional flag indicating whether the weight gradients
+            are computed deterministically using a dedicated workspace buffer.
 
         Returns
         -------
@@ -196,6 +204,8 @@ class GATv2Conv(BaseConv):
         _graph = self.get_cugraph_ops_CSC(
             g, is_bipartite=graph_bipartite, max_in_degree=max_in_degree
         )
+        if deterministic_dgrad:
+            _graph.add_reverse_graph()
 
         if nfeat_bipartite:
             nfeat = (self.feat_drop(nfeat[0]), self.feat_drop(nfeat[1]))
@@ -228,6 +238,8 @@ class GATv2Conv(BaseConv):
             negative_slope=self.negative_slope,
             concat_heads=self.concat,
             edge_feat=efeat,
+            deterministic_dgrad=deterministic_dgrad,
+            deterministic_wgrad=deterministic_wgrad,
         )[: g.num_dst_nodes()]
 
         if self.concat:

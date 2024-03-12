@@ -46,16 +46,20 @@ repos:
           )
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
-  - repo: local
-    hooks:
-      - id: copyright-check
-        name: copyright-check
-        entry: python ./ci/checks/copyright.py --git-modified-only --update-current-year
-        language: python
-        pass_filenames: false
-        additional_dependencies: [gitpython]
   - repo: https://github.com/rapidsai/dependency-file-generator
     rev: v1.8.0
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]
+  - repo: https://github.com/rapidsai/pre-commit-hooks
+    rev: v0.0.1
+    hooks:
+      - id: verify-copyright
+        files: |
+          (?x)
+              [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
+              CMakeLists[.]txt$|
+              CMakeLists_standalone[.]txt$|
+              [.]flake8[.]cython$|
+              meta[.]yaml$|
+              setup[.]cfg$
