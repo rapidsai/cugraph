@@ -87,16 +87,15 @@ rmm::device_uvector<vertex_t> prefix_sum_valid_and_invalid_edges(
   // partition.
   raft::handle_t const& handle,
   edge_t num_edges,
-  edge_t num_invalid_edges,
-  vertex_t* invalid_dst,
+  raft::device_span<vertex_t const> invalid_dst,
   raft::device_span<vertex_t> edgelist_dsts)
 {
-  rmm::device_uvector<vertex_t> prefix_sum(num_invalid_edges + 1, handle.get_stream());
+  rmm::device_uvector<vertex_t> prefix_sum(invalid_dst.size() + 1, handle.get_stream());
 
   thrust::tabulate(
     handle.get_thrust_policy(),
     prefix_sum.begin(),
-    prefix_sum.begin() + num_invalid_edges,
+    prefix_sum.begin() + invalid_dst.size(),
     [num_edges, invalid_dst, edgelist_dsts = edgelist_dsts.begin()] __device__(auto idx) {
       auto itr_lower_valid = thrust::lower_bound(
         thrust::seq, edgelist_dsts, edgelist_dsts + num_edges, invalid_dst[idx]);
@@ -179,15 +178,13 @@ void find_unroll_p_r_or_q_r_edges(
   auto prefix_sum_valid = prefix_sum_valid_and_invalid_edges(
     handle,
     edge_t{num_valid_edges},
-    edge_t{num_invalid_edges},  // num_edges == num_invalid_edges
-    edgelist_dsts.begin() + num_valid_edges,
+    raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges),
     raft::device_span<vertex_t>(edgelist_dsts.data(), num_valid_edges));
 
   auto prefix_sum_invalid = prefix_sum_valid_and_invalid_edges(
     handle,
     edge_t{num_invalid_edges},
-    edge_t{num_invalid_edges},
-    edgelist_dsts.begin() + num_valid_edges,
+    raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges),
     raft::device_span<vertex_t>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
 
   auto potential_closing_edges = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
@@ -543,7 +540,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
   }
 
   // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core
-  /*
+
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
@@ -601,11 +598,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
     }
     renumber_map = std::move(tmp_renumber_map);
   }
-  */
 
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
-
-
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
