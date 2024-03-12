@@ -19,8 +19,6 @@ from pathlib import Path
 import urllib.request
 from warnings import warn
 
-from nx_cugraph.scripts.print_tree import create_tree, tree_lines
-
 _objs_file_url = "https://networkx.org/documentation/stable/objects.inv"
 
 # See: https://sphobjinv.readthedocs.io/en/stable/syntax.html
@@ -78,6 +76,8 @@ MANUAL_OBJECT_URLS = {
 
 def main(readme_file, objects_filename):
     """``readme_file`` must be readable and writable, so use mode ``"a+"``"""
+    from nx_cugraph.scripts.print_tree import create_tree, tree_lines
+
     # Use the `objects.inv` file to determine URLs. For details about this file, see:
     # https://sphobjinv.readthedocs.io/en/stable/syntax.html
     # We might be better off using a library like that, but roll our own for now.
@@ -208,6 +208,20 @@ def find_or_download_objs_file(objs_file_dir):
 
 
 if __name__ == "__main__":
+    # This script imports a nx_cugraph script module, which imports nx_cugraph
+    # runtime dependencies. The script module does not need the runtime deps,
+    # so stub them out to avoid installing them.
+    class Stub:
+        def __getattr__(self, *args, **kwargs):
+            return Stub()
+
+        def __call__(self, *args, **kwargs):
+            return Stub()
+    import sys
+    sys.modules["cupy"] = Stub()
+    sys.modules["numpy"] = Stub()
+    sys.modules["pylibcugraph"] = Stub()
+
     parser = argparse.ArgumentParser(
         "Update README.md to show NetworkX functions implemented by nx-cugraph"
     )
@@ -225,4 +239,4 @@ if __name__ == "__main__":
         objects_filename = find_or_download_objs_file(readme_path.parent)
 
     with readme_path.open("a+") as readme_file:
-        main(readme_filename, objects_filename)
+        main(readme_file, objects_filename)
