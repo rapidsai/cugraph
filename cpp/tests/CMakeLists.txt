@@ -372,6 +372,14 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
+###############################################################################################
+# - MIS tests ------------------------------------------------------------------------------
+ConfigureTest(MIS_TEST components/mis_test.cu)
+
+###############################################################################################
+# - VERTEX COLORING tests -------------------------------------------------------------------
+ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
+
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
@@ -536,10 +544,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
-    # - MG MIS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
-
-    ###############################################################################################
     # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
     ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
 
@@ -551,6 +555,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST components/mg_mis_test.cu)
+
+    ###############################################################################################
+    # - MG VERTEX COLORING tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_VERTEX_COLORING_TEST components/mg_vertex_coloring_test.cu)
 
     ###############################################################################################
     # - MG Core Number tests ----------------------------------------------------------------------
