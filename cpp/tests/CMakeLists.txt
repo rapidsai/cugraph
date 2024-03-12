@@ -374,11 +374,11 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 
 ###############################################################################################
 # - MIS tests ------------------------------------------------------------------------------
-ConfigureTestMG(MIS_TEST components/mis_test.cu)
+ConfigureTest(MIS_TEST components/mis_test.cu)
 
 ###############################################################################################
 # - VERTEX COLORING tests -------------------------------------------------------------------
-ConfigureTestMG(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
+ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
