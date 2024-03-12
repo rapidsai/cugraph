@@ -411,6 +411,10 @@ def filter_cugraph_store_csc(
     col_dict: Dict[str, torch.Tensor],
     edge_dict: Dict[str, Tuple[torch.Tensor]],
 ) -> torch_geometric.data.HeteroData:
+    """
+    Deprecated
+    """
+
     data = torch_geometric.data.HeteroData()
 
     for attr in graph_store.get_all_edge_attrs():

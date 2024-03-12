@@ -46,6 +46,7 @@ the docs and links
    :caption: Contents:
 
    basics/index
+   nx_cugraph/index
    installation/index
    tutorials/index
    graph_support/index
