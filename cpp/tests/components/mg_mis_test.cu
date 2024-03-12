@@ -245,18 +245,20 @@ TEST_P(Tests_MGMaximalIndependentSet_Rmat, CheckInt64Int64FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
+bool constexpr check_correctness = false;
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGMaximalIndependentSet_File,
-  ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{false},
-                                       MaximalIndependentSet_Usecase{false}),
+  ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{check_correctness},
+                                       MaximalIndependentSet_Usecase{check_correctness}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGMaximalIndependentSet_Rmat,
-                         ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{false}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              3, 4, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGMaximalIndependentSet_Rmat,
+  ::testing::Combine(
+    ::testing::Values(MaximalIndependentSet_Usecase{check_correctness}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(3, 4, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -266,7 +268,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGMaximalIndependentSet_Rmat,
   ::testing::Combine(
-    ::testing::Values(MaximalIndependentSet_Usecase{false}, MaximalIndependentSet_Usecase{false}),
+    ::testing::Values(MaximalIndependentSet_Usecase{check_correctness},
+                      MaximalIndependentSet_Usecase{check_correctness}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

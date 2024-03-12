@@ -186,9 +186,9 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/detail/shuffle_vertices.cu
+    src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
-    src/detail/shuffle_vertex_pairs.cu
+    src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
@@ -197,8 +197,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_sg.cu
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
-    src/community/detail/mis_sg.cu
-    src/community/detail/mis_mg.cu
+    src/community/detail/maximal_independent_moves_sg.cu
+    src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/structure/remove_self_loops.cu
@@ -295,6 +295,10 @@ set(CUGRAPH_SOURCES
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
+    src/components/mis_sg.cu
+    src/components/mis_mg.cu
+    src/components/vertex_coloring_sg.cu
+    src/components/vertex_coloring_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
