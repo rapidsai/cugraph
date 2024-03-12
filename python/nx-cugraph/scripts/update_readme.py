@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +12,10 @@
 # limitations under the License.
 import argparse
 import re
+import urllib.request
 import zlib
 from collections import namedtuple
 from pathlib import Path
-import urllib.request
 from warnings import warn
 
 _objs_file_url = "https://networkx.org/documentation/stable/objects.inv"
@@ -201,9 +200,11 @@ def find_or_download_objs_file(objs_file_dir):
     objs_file_path = objs_file_dir / "objects.inv"
     if not objs_file_path.exists():
         request = urllib.request.Request(_objs_file_url)
-        with urllib.request.urlopen(request) as response:
-            with open(objs_file_path, "wb") as out:
-                out.write(response.read())
+        with (
+            urllib.request.urlopen(request) as response,
+            Path(objs_file_path).open("wb") as out,
+        ):
+            out.write(response.read())
     return objs_file_path
 
 
@@ -217,7 +218,9 @@ if __name__ == "__main__":
 
         def __call__(self, *args, **kwargs):
             return Stub()
+
     import sys
+
     sys.modules["cupy"] = Stub()
     sys.modules["numpy"] = Stub()
     sys.modules["pylibcugraph"] = Stub()
@@ -227,8 +230,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("readme_filename", help="Path to the README.md file")
     parser.add_argument(
-        "networkx_objects", nargs="?", default=None,
-        help="Path to the objects.inv file from networkx docs. Optional."
+        "networkx_objects",
+        nargs="?",
+        default=None,
+        help="Optional path to the objects.inv file from the NetworkX docs. Default is "
+        "the objects.inv file in the directory containing the specified README.md. If "
+        "an objects.inv file does not exist in that location, one will be downloaded "
+        "and saved to that location.",
     )
     args = parser.parse_args()
 
