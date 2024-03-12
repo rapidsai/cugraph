@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "coloring_impl.cuh"
+#include "vertex_coloring_impl.cuh"
+
 namespace cugraph {
 
 template rmm::device_uvector<int32_t> vertex_coloring(

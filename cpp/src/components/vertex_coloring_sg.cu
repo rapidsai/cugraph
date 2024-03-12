@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "coloring_impl.cuh"
+#include "vertex_coloring_impl.cuh"
 
 namespace cugraph {
 

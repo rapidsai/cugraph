@@ -63,9 +63,6 @@ class Tests_MGGraphColoring
   {
     auto [coloring_usecase, input_usecase] = param;
 
-    auto const comm_rank = handle_->get_comms().get_rank();
-    auto const comm_size = handle_->get_comms().get_size();
-
     HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
@@ -93,7 +90,7 @@ class Tests_MGGraphColoring
 
     raft::random::RngState rng_state(multi_gpu ? handle_->get_comms().get_rank() : 0);
     auto d_colors =
-      cugraph::coloring<vertex_t, edge_t, multi_gpu>(*handle_, mg_graph_view, rng_state);
+      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(*handle_, mg_graph_view, rng_state);
 
     // Test Graph Coloring
 
@@ -160,7 +157,7 @@ class Tests_MGGraphColoring
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      weight_t nr_conflicts = cugraph::transform_reduce_e(
+      size_t nr_conflicts = cugraph::transform_reduce_e(
         *handle_,
         mg_graph_view,
         multi_gpu ? src_color_cache.view()
@@ -180,6 +177,8 @@ class Tests_MGGraphColoring
         },
         vertex_t{0});
 
+        ASSERT_TRUE(nr_conflicts == edge_t{0}) << "adjacent vertices can't have same color." << std::endl;
+
       {
         thrust::for_each(
           thrust::host,
@@ -187,7 +186,7 @@ class Tests_MGGraphColoring
             h_colors.begin(), h_vertices_in_this_proces.begin(), h_color_conflicts.begin())),
           thrust::make_zip_iterator(thrust::make_tuple(
             h_colors.end(), h_vertices_in_this_proces.end(), h_color_conflicts.end())),
-          [comm_rank](auto color_vetex_and_conflict_flag) {
+          [](auto color_vetex_and_conflict_flag) {
             auto color         = thrust::get<0>(color_vetex_and_conflict_flag);
             auto v             = thrust::get<1>(color_vetex_and_conflict_flag);
             auto conflict_flag = thrust::get<2>(color_vetex_and_conflict_flag);
