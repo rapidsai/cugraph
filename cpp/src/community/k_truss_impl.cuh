@@ -781,7 +781,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       auto invalid_transposed_edge_triangle_count_first =
         thrust::stable_partition(handle.get_thrust_policy(),
                                  transposed_edge_triangle_count_pair_first,
-                                 transposed_edge_triangle_count_pair_first + num_triangles.size(),
+                                 transposed_edge_triangle_count_pair_first + edgelist_srcs.size(),
                                  [k] __device__(auto e) {
                                    auto num_triangles = thrust::get<1>(e);
                                    return num_triangles >= k - 2;
@@ -795,7 +795,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
 
       auto num_valid_edges = edgelist_srcs.size() - num_invalid_edges;
 
-      // case 3. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
+      // case 1. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
       // FIXME: check if 'invalid_transposed_edge_triangle_count_first' is necessery as I operate on
       // 'vertex_pair_buffer' which contains the ordering with the number of triangles.
       // FIXME: debug this stage. There are edges that have been removed that are still found in nbr
@@ -905,7 +905,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                          transposed_edge_first + num_valid_edges,
                          transposed_edge_first + edgelist_srcs.size()});
       
-      // case 1: unroll (q, r)
+      // case 2: unroll (q, r)
       // For each (q, r) edges to unroll, find the incoming edges to 'r' let's say from 'p' and
       // create the pair (p, q)
       cugraph::find_unroll_p_r_and_q_r_edges<vertex_t, edge_t, false, true>(
@@ -917,7 +917,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
         raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()),
         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()));
 
-      // case 2: unroll (p, r)
+      // case 3: unroll (p, r)
       cugraph::find_unroll_p_r_and_q_r_edges<vertex_t, edge_t, false, false>(
         handle,
         cur_graph_view,
