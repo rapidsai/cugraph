@@ -163,6 +163,7 @@ def test_node2vec(graph_file, directed, compress, start_vertices_type):
     )
     num_verts = G.number_of_vertices()
     k = random.randint(6, 12)
+    # FIXME: Random sample can make it hard to debug
     start_vertices = cudf.Series(
         random.sample(range(num_verts), k), dtype=start_vertices_type
     )
