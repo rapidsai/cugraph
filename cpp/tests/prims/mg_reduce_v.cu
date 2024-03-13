@@ -17,6 +17,7 @@
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_v.cuh"
 #include "property_generator.cuh"
+#include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
@@ -48,50 +49,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename T>
-struct result_compare {
-  static constexpr double threshold_ratio{1e-2};
-  constexpr auto operator()(const T& t1, const T& t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      bool passed = (t1 == t2)  // when t1 == t2 == 0
-                    ||
-                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
-      return passed;
-    }
-    return t1 == t2;
-  }
-};
-
-template <typename... Args>
-struct result_compare<thrust::tuple<Args...>> {
-  static constexpr double threshold_ratio{1e-3};
-
-  using Type = thrust::tuple<Args...>;
-  constexpr auto operator()(const Type& t1, const Type& t2)
-  {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
-  }
-
- private:
-  template <typename T>
-  constexpr bool equal(T t1, T t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      bool passed = (t1 == t2)  // when t1 == t2 == 0
-                    ||
-                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
-      return passed;
-    }
-    return t1 == t2;
-  }
-  template <typename T, std::size_t... I>
-  constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
-  {
-    return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
-  }
-};
 
 struct Prims_Usecase {
   bool check_correctness{true};
@@ -249,7 +206,7 @@ class Tests_MGReduceV
               break;
             default: FAIL() << "should not be reached.";
           }
-          result_compare<result_t> compare{};
+          cugraph::test::scalar_result_compare compare{};
           ASSERT_TRUE(compare(expected_result, results[reduction_type]));
         }
       }
