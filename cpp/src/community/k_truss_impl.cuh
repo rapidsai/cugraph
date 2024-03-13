@@ -47,6 +47,14 @@
 
 namespace cugraph {
 
+//FIXME
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<edge_t> edge_triangle_count(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t> edgelist_srcs,
+  raft::device_span<vertex_t> edgelist_dsts);
+
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   edge_t num_valid_edges{};
@@ -316,9 +324,6 @@ void find_unroll_p_r_or_q_r_edges(
   resize_dataframe_buffer(potential_closing_edges, num_edge_exists, handle.get_stream());
   resize_dataframe_buffer(incoming_edges_to_r, num_edge_exists, handle.get_stream());
 
-
-
-
   edge_t num_edges_not_overcomp =
     remove_overcompensating_edges<vertex_t, edge_t, decltype(potential_closing_edges)>(
       handle,
@@ -519,6 +524,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                             edge_src_dummy_property_t{}.view(),
                                             edge_dst_dummy_property_t{}.view(),
                                             edge_dummy_property_t{}.view(),
+                                            //*edge_weight_view,
                                             exclude_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
@@ -528,6 +534,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                                                                        weight_t,
                                                                                        int32_t>(
           handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
+          //std::move(std::make_optional(wgts))
     }
 
     std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
@@ -546,7 +553,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
   }
 
   // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core
-  /*
+
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
@@ -604,7 +611,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
     }
     renumber_map = std::move(tmp_renumber_map);
   }
-  */
 
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
@@ -862,6 +868,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                    auto num_triangles = thrust::get<1>(e);
                                    return num_triangles > 0;
                                  });
+      
+
   
       num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(transposed_edge_triangle_count_pair_first, edges_with_triangle_last));
@@ -875,7 +883,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                                              edgelist_dsts.begin() + num_edges_with_triangles),
                    thrust::make_zip_iterator(edgelist_srcs.end(), edgelist_dsts.end()));
       
-
       cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_with_no_triangle(handle);
       edges_with_no_triangle.insert(edgelist_srcs.begin() + num_edges_with_triangles,
                                     edgelist_srcs.end(),
@@ -902,14 +909,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       num_triangles.resize(num_edges_with_triangles, handle.get_stream());
       
     }
-
-    printf("\n*********final results*********\n");
-    // raft::print_device_vector("srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-    // raft::print_device_vector("dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-    // raft::print_device_vector("n_tr", num_triangles.data(), num_triangles.size(), std::cout);
-    printf("\nthe number of edges = %d\n", edgelist_srcs.size());
     
-    return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts)); // FIXME: return weights as well
+    return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
   }
 }
 }  // namespace cugraph
