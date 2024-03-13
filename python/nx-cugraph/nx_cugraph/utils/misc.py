@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,9 @@ import cupy as cp
 import numpy as np
 
 if TYPE_CHECKING:
-    from ..typing import Dtype
+    import nx_cugraph as nxcg
+
+    from ..typing import Dtype, EdgeKey
 
 try:
     from itertools import pairwise  # Python >=3.10
@@ -190,10 +192,14 @@ def _get_int_dtype(
         raise ValueError("Value is too large to store as integer: {val}") from exc
 
 
-def _get_float_dtype(dtype: Dtype):
+def _get_float_dtype(
+    dtype: Dtype, *, graph: nxcg.Graph | None = None, weight: EdgeKey | None = None
+):
     """Promote dtype to float32 or float64 as appropriate."""
     if dtype is None:
-        return np.dtype(np.float32)
+        if graph is None or weight not in graph.edge_values:
+            return np.dtype(np.float32)
+        dtype = graph.edge_values[weight].dtype
     rv = np.promote_types(dtype, np.float32)
     if np.float32 != rv != np.float64:
         raise TypeError(

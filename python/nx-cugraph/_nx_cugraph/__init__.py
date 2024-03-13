@@ -33,15 +33,22 @@ _info = {
     # "description": "TODO",
     "functions": {
         # BEGIN: functions
+        "all_pairs_bellman_ford_path",
+        "all_pairs_bellman_ford_path_length",
+        "all_pairs_shortest_path",
+        "all_pairs_shortest_path_length",
         "ancestors",
         "average_clustering",
         "barbell_graph",
+        "bellman_ford_path",
+        "bellman_ford_path_length",
         "betweenness_centrality",
         "bfs_edges",
         "bfs_layers",
         "bfs_predecessors",
         "bfs_successors",
         "bfs_tree",
+        "bidirectional_shortest_path",
         "bull_graph",
         "caveman_graph",
         "chvatal_graph",
@@ -70,6 +77,7 @@ _info = {
         "from_scipy_sparse_array",
         "frucht_graph",
         "generic_bfs_edges",
+        "has_path",
         "heawood_graph",
         "hits",
         "house_graph",
@@ -77,7 +85,6 @@ _info = {
         "icosahedral_graph",
         "in_degree_centrality",
         "is_arborescence",
-        "is_bipartite",
         "is_branching",
         "is_connected",
         "is_forest",
@@ -110,7 +117,14 @@ _info = {
         "reciprocity",
         "reverse",
         "sedgewick_maze_graph",
+        "shortest_path",
+        "shortest_path_length",
+        "single_source_bellman_ford",
+        "single_source_bellman_ford_path",
+        "single_source_bellman_ford_path_length",
+        "single_source_shortest_path",
         "single_source_shortest_path_length",
+        "single_target_shortest_path",
         "single_target_shortest_path_length",
         "star_graph",
         "tadpole_graph",
@@ -128,7 +142,11 @@ _info = {
     },
     "additional_docs": {
         # BEGIN: additional_docs
+        "all_pairs_bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "all_pairs_bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "average_clustering": "Directed graphs and `weight` parameter are not yet supported.",
+        "bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
         "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
@@ -147,11 +165,28 @@ _info = {
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
+        "shortest_path": "Negative weights are not yet supported, and method is ununsed.",
+        "shortest_path_length": "Negative weights are not yet supported, and method is ununsed.",
+        "single_source_bellman_ford": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "single_source_bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "single_source_bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "transitivity": "Directed graphs are not yet supported.",
         # END: additional_docs
     },
     "additional_parameters": {
         # BEGIN: additional_parameters
+        "all_pairs_bellman_ford_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "all_pairs_bellman_ford_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "bellman_ford_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "bellman_ford_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         "eigenvector_centrality": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
@@ -167,6 +202,21 @@ _info = {
             "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         "pagerank": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "shortest_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "shortest_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_bellman_ford": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_bellman_ford_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_bellman_ford_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         # END: additional_parameters
