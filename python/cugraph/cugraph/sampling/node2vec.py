@@ -24,11 +24,11 @@ import cudf
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph, start_vertices):
-    vertex_dtype = input_graph.edgelist.edgelist_df.iloc[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     if isinstance(start_vertices, cudf.Series):
         start_vertices_dtype = start_vertices.dtype
     else:
-        start_vertices_dtype = start_vertices.iloc[0]
+        start_vertices_dtype = start_vertices.dtypes.iloc[0]
 
     if start_vertices_dtype != vertex_dtype:
         warning_msg = (
