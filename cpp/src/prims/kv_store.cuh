@@ -102,9 +102,8 @@ struct kv_cuco_insert_and_increment_t {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
-      auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-      using ref_type = typename cuco_map_type::ref_type<cuco::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+      auto idx = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+      cuda::atomic_ref<typename RefType::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
       return idx;
@@ -131,9 +130,8 @@ struct kv_cuco_insert_if_and_increment_t {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
-      auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-      using ref_type = typename cuco_map_type::ref_type<cuco::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+      auto idx = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+      cuda::atomic_ref<typename RefType::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
       return idx;
@@ -145,12 +143,13 @@ struct kv_cuco_insert_if_and_increment_t {
 
 template <typename RefType, typename key_t, typename value_t>
 struct kv_cuco_insert_and_assign_t {
+  RefType device_ref{};
+
   __device__ void operator()(thrust::tuple<key_t, value_t> pair)
   {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (!inserted) {
-      using ref_type = typename cuco_map_type::ref_type<cuco::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+      cuda::atomic_ref<typename RefType::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
       ref.store(thrust::get<1>(pair), cuda::std::memory_order_relaxed);
     }

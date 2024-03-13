@@ -81,7 +81,7 @@ auto get_optional_dataframe_buffer_end(
 }
 
 template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
-void const* get_optional_dataframe_buffer_cbegin(std::byte& optional_dataframe_buffer)
+void const* get_optional_dataframe_buffer_cbegin(std::byte const& optional_dataframe_buffer)
 {
   return static_cast<void*>(nullptr);
 }
