@@ -37,7 +37,7 @@ __all__ = [
 
 def _add_doc(func):
     func.__doc__ = (
-        "Negative cycles are not yet supported! ``NotImplementedError`` will be raised "
+        "Negative cycles are not yet supported. ``NotImplementedError`` will be raised "
         "if there are negative edge weights. We plan to support negative edge weights "
         "soon. Also, callable ``weight`` argument is not supported."
     )

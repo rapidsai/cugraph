@@ -142,11 +142,11 @@ _info = {
     },
     "additional_docs": {
         # BEGIN: additional_docs
-        "all_pairs_bellman_ford_path": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
-        "all_pairs_bellman_ford_path_length": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "all_pairs_bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "all_pairs_bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "average_clustering": "Directed graphs and `weight` parameter are not yet supported.",
-        "bellman_ford_path": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
-        "bellman_ford_path_length": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
         "bfs_edges": "`sort_neighbors` parameter is not yet supported.",
         "bfs_predecessors": "`sort_neighbors` parameter is not yet supported.",
@@ -167,9 +167,9 @@ _info = {
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
         "shortest_path": "Negative weights are not yet supported, and method is ununsed.",
         "shortest_path_length": "Negative weights are not yet supported, and method is ununsed.",
-        "single_source_bellman_ford": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
-        "single_source_bellman_ford_path": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
-        "single_source_bellman_ford_path_length": "Negative cycles are not yet supported! ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "single_source_bellman_ford": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "single_source_bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
+        "single_source_bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "transitivity": "Directed graphs are not yet supported.",
         # END: additional_docs
     },
