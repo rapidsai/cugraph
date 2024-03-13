@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -123,7 +123,7 @@ def random_walks(
         start_vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
     else:
         # FIXME: Get the 'src' column names instead and retrieve the type
-        start_vertices_type = input_graph.input_df.dtypes[0]
+        start_vertices_type = input_graph.input_df.dtypes.iloc[0]
     start_vertices = dask_cudf.from_cudf(
         start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
     )

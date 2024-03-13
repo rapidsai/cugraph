@@ -42,7 +42,7 @@ def ensure_valid_dtype(input_graph, start_list):
     if isinstance(start_list, cudf.Series):
         start_list_dtypes = start_list.dtype
     else:
-        start_list_dtypes = start_list.dtypes[0]
+        start_list_dtypes = start_list.dtypes.iloc[0]
 
     if start_list_dtypes != vertex_dtype:
         warning_msg = (

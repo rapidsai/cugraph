@@ -103,7 +103,7 @@ def input_expected_output(input_combo):
         if not directed:
             # Edge ids not supported for undirected graph
             return
-        dtype = df.dtypes[0]
+        dtype = df.dtypes.iloc[0]
         edge_id = "edge_id"
         df["edge_id"] = df.index
         df = df.astype(dtype)

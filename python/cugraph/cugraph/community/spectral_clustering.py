@@ -284,7 +284,7 @@ def analyzeClustering_modularity(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+    if clustering.dtypes.iloc[0] != np.int32 or clustering.dtypes.iloc[1] != np.int32:
         raise ValueError(
             "'analyzeClustering_modularity' requires both the clustering 'vertex' "
             "and 'cluster' to be of type 'int32'"
