@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,11 +16,10 @@ import gc
 import pytest
 
 import cudf
-import dask_cudf
 import cugraph
 import cugraph.dask as dcg
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing.utils import DATASETS
+from cugraph.datasets import karate_disjoint, dolphins, netscience
 
 
 # =============================================================================
@@ -32,28 +31,33 @@ def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+
+DATASETS = [karate_disjoint, dolphins, netscience]
 IS_DIRECTED = [True, False]
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-@pytest.mark.parametrize("input_data_path", DATASETS)
-def test_dask_mg_eigenvector_centrality(dask_client, directed, input_data_path):
-    input_data_path = input_data_path.as_posix()
+def test_dask_mg_eigenvector_centrality(dask_client, dataset, directed):
+    input_data_path = dataset.get_path()
     print(f"dataset={input_data_path}")
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
+    ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
     mg_res = dcg.eigenvector_centrality(dg, tol=1e-6)
     mg_res = mg_res.compute()
+
     import networkx as nx
     from cugraph.testing import utils
 
@@ -84,20 +88,15 @@ def test_dask_mg_eigenvector_centrality(dask_client, directed, input_data_path):
             err = err + 1
     assert err == 0
 
+    # Clean-up stored dataset edge-lists
+    dataset.unload()
+
 
 @pytest.mark.mg
 def test_dask_mg_eigenvector_centrality_transposed_false(dask_client):
-    input_data_path = DATASETS[0]
+    dataset = DATASETS[0]
 
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
+    ddf = dataset.get_dask_edgelist()
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
@@ -110,3 +109,6 @@ def test_dask_mg_eigenvector_centrality_transposed_false(dask_client):
 
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.eigenvector_centrality(dg)
+
+    # Clean-up stored dataset edge-lists
+    dataset.unload()

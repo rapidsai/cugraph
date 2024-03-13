@@ -57,9 +57,7 @@ def setup_function():
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
-)
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZES)
 @pytest.mark.parametrize("normalized", IS_NORMALIZED)
@@ -68,7 +66,7 @@ def setup_function():
 @pytest.mark.parametrize("subset_seed", SUBSET_SEEDS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPES)
 def test_mg_betweenness_centrality(
-    graph_file,
+    dataset,
     directed,
     subset_size,
     normalized,
@@ -79,7 +77,7 @@ def test_mg_betweenness_centrality(
     dask_client,
 ):
     sorted_df = calc_betweenness_centrality(
-        graph_file,
+        dataset,
         directed=directed,
         normalized=normalized,
         k=subset_size,
@@ -95,3 +93,6 @@ def test_mg_betweenness_centrality(
         second_key="ref_bc",
         epsilon=DEFAULT_EPSILON,
     )
+
+    # Clean-up stored dataset edge-lists
+    dataset.unload()
