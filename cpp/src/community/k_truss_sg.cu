@@ -30,15 +30,9 @@ template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> 
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> k_truss(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  int32_t k,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> k_truss(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  int64_t k,
-  bool do_expensive_check);
+raft::handle_t const& handle,
+graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+int64_t k,
+bool do_expensive_check);
 
 }  // namespace cugraph
