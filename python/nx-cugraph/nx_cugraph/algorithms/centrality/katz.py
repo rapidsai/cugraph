@@ -49,15 +49,10 @@ def katz_centrality(
         # Redundant with the `_can_run` check below when being dispatched by NetworkX,
         # but we raise here in case this funcion is called directly.
         raise NotImplementedError("normalized=False is not supported.")
-    G = _to_graph(G, weight, np.float32)
+    G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
-    if dtype is not None:
-        dtype = _get_float_dtype(dtype)
-    elif weight in G.edge_values:
-        dtype = _get_float_dtype(G.edge_values[weight].dtype)
-    else:
-        dtype = np.float32
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     if nstart is not None:
         # Check if given nstart is valid even though we don't use it
         nstart = G._dict_to_nodearray(nstart, 0, dtype)
