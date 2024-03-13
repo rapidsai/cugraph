@@ -93,7 +93,11 @@ class Tests_Similarity
     rmm::device_uvector<vertex_t> d_v2(0, handle.get_stream());
 
     {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view, edge_weight_view);
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       size_t max_vertices = std::min(static_cast<size_t>(graph_view.number_of_vertices()),
                                      similarity_usecase.max_seeds);
@@ -173,7 +177,11 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.check_correctness) {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view, edge_weight_view);
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       size_t check_size = std::min(d_v1.size(), similarity_usecase.max_vertex_pairs_to_check);
 

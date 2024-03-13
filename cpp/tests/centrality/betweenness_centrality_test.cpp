@@ -116,8 +116,11 @@ class Tests_BetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-      auto [h_offsets, h_indices, h_wgt] =
-        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
       auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
       auto h_reference_centralities =

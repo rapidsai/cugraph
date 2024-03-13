@@ -499,7 +499,8 @@ std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vect
 graph_to_host_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map);
 
 // If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
@@ -513,7 +514,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 graph_to_device_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map);
 
 // If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
@@ -525,7 +527,8 @@ std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector
 graph_to_host_csr(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map);
 
 // Only the rank 0 GPU holds the valid data
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
@@ -538,7 +541,7 @@ mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> number_map,
+  std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool renumber);
 
 // Only the rank 0 GPU holds the valid data
