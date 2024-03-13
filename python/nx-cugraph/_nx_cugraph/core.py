@@ -49,7 +49,7 @@ def dq_repr(s):
     """Return repr(s) quoted with the double quote preference used by black."""
     rs = repr(s)
     if rs.startswith("'") and '"' not in rs:
-        rs = rs.strip("'").replace('"', '\\"')
+        rs = rs.strip("'")
         return f'"{rs}"'
     return rs
 
