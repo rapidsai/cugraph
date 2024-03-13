@@ -449,7 +449,7 @@ dependencies:
           - &dask rapids-dask-dependency==24.4.*
           - &dask_cuda dask-cuda==24.4.*
           - &numba numba>=0.57
-          - &numpy numpy>=1.23
+          - &numpy numpy>=1.23,<2.0a0
           - &ucx_py ucx-py==0.37.*
       - output_types: conda
         packages:
