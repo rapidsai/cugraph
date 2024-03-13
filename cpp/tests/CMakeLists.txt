@@ -372,6 +372,14 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
+###############################################################################################
+# - MIS tests ------------------------------------------------------------------------------
+ConfigureTest(MIS_TEST components/mis_test.cu)
+
+###############################################################################################
+# - VERTEX COLORING tests -------------------------------------------------------------------
+ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
+
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
@@ -536,10 +544,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
-    # - MG MIS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
-
-    ###############################################################################################
     # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
     ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
 
@@ -551,6 +555,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST components/mg_mis_test.cu)
+
+    ###############################################################################################
+    # - MG VERTEX COLORING tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_VERTEX_COLORING_TEST components/mg_vertex_coloring_test.cu)
 
     ###############################################################################################
     # - MG Core Number tests ----------------------------------------------------------------------
@@ -684,6 +696,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c)
     ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
     ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c)
+    ConfigureCTestMG(MG_CAPI_DEGREES c_api/mg_degrees_test.c)
     ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 
@@ -752,6 +765,7 @@ ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
+ConfigureCTest(CAPI_DEGREES c_api/degrees_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
 ConfigureCTest(CAPI_LEGACY_K_TRUSS_TEST c_api/legacy_k_truss_test.c)

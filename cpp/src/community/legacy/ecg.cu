@@ -52,7 +52,7 @@ binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexT
 // FIXME: This shouldn't need to be a custom kernel, this
 //        seems like it should just be a thrust::transform
 template <typename IdxT, typename ValT>
-__global__ void match_check_kernel(
+__global__ static void match_check_kernel(
   IdxT size, IdxT num_verts, IdxT* offsets, IdxT* indices, IdxT* parts, ValT* weights)
 {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;

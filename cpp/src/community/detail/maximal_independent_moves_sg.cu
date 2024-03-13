@@ -13,22 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "mis_impl.cuh"
+#include "maximal_independent_moves.cuh"
 
 namespace cugraph {
-template rmm::device_uvector<int32_t> maximal_independent_set(
+namespace detail {
+
+template rmm::device_uvector<int32_t> maximal_independent_moves(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, true> const& decision_graph_view,
+  graph_view_t<int32_t, int32_t, false, false> const& decision_graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int32_t> maximal_independent_set(
+template rmm::device_uvector<int32_t> maximal_independent_moves(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& decision_graph_view,
+  graph_view_t<int32_t, int64_t, false, false> const& decision_graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int64_t> maximal_independent_set(
+template rmm::device_uvector<int64_t> maximal_independent_moves(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& decision_graph_view,
+  graph_view_t<int64_t, int64_t, false, false> const& decision_graph_view,
   raft::random::RngState& rng_state);
 
+}  // namespace detail
 }  // namespace cugraph

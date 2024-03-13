@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <cugraph/edge_property.hpp>
-#include <cugraph/graph_view.hpp>
-
-#include <raft/core/handle.hpp>
-#include <raft/random/rng_state.hpp>
-
-#include <rmm/device_uvector.hpp>
-
+#include "mis_impl.cuh"
 namespace cugraph {
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> maximal_independent_set(
+
+template rmm::device_uvector<int32_t> maximal_independent_set(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   raft::random::RngState& rng_state);
+
+template rmm::device_uvector<int32_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  raft::random::RngState& rng_state);
+
+template rmm::device_uvector<int64_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  raft::random::RngState& rng_state);
+
 }  // namespace cugraph
