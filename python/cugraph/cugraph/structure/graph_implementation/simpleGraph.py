@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
@@ -23,10 +22,13 @@ import pandas as pd
 import numpy as np
 import warnings
 from cugraph.dask.structure import replication
-from typing import Union, Dict
+from typing import Union, Dict, Iterable
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
+    degrees as pylibcugraph_degrees,
+    in_degrees as pylibcugraph_in_degrees,
+    out_degrees as pylibcugraph_out_degrees,
 )
 
 from pylibcugraph import (
@@ -854,7 +856,111 @@ class simpleGraphImpl:
                 raise ValueError("Graph is Empty")
         return self.properties.edge_count
 
-    def in_degree(self, vertex_subset=None):
+    def degrees_function(
+        self,
+        vertex_subset: Union[cudf.Series, Iterable] = None,
+        degree_type: str = "in_degree",
+    ) -> cudf.DataFrame:
+        """
+        Compute vertex in-degree, out-degree, degree and degrees.
+
+        1) Vertex in-degree is the number of edges pointing into the vertex.
+        2) Vertex out-degree is the number of edges pointing out from the vertex.
+        3) Vertex degree, is the total number of edges incident to a vertex
+            (both in and out edges)
+        4) Vertex degrees computes vertex in-degree and out-degree.
+
+        By default, this method computes vertex in-degree, out-degree, degree
+        or degrees for the entire set of vertices. If vertex_subset is provided,
+        this method optionally filters out all but those listed in
+        vertex_subset.
+
+        Parameters
+        ----------
+        vertex_subset : cudf.Series or iterable container, optional
+            A container of vertices for displaying corresponding in-degree.
+            If not set, degrees are computed for the entire set of vertices.
+
+        degree_type : str (default='in_degree')
+
+        Returns
+        -------
+        df : cudf.DataFrame
+            GPU DataFrame of size N (the default) or the size of the given
+            vertices (vertex_subset) containing the in_degree, out_degrees,
+            degree or degrees. The ordering is relative to the adjacency list,
+            or that given by the specified vertex_subset.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> df = G.degrees_function([0,9,12], "in_degree")
+
+        """
+        if vertex_subset is not None:
+            if not isinstance(vertex_subset, cudf.Series):
+                vertex_subset = cudf.Series(vertex_subset)
+                if self.properties.renumbered is True:
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
+                    vertex_subset_type = self.edgelist.edgelist_df.dtypes.iloc[0]
+                else:
+                    vertex_subset_type = self.input_df.dtypes.iloc[0]
+
+                vertex_subset = vertex_subset.astype(vertex_subset_type)
+
+        do_expensive_check = False
+        df = cudf.DataFrame()
+        vertex = None
+
+        if degree_type == "in_degree":
+            vertex, in_degrees = pylibcugraph_in_degrees(
+                resource_handle=ResourceHandle(),
+                graph=self._plc_graph,
+                source_vertices=vertex_subset,
+                do_expensive_check=do_expensive_check,
+            )
+            df["degree"] = in_degrees
+        elif degree_type == "out_degree":
+            vertex, out_degrees = pylibcugraph_out_degrees(
+                resource_handle=ResourceHandle(),
+                graph=self._plc_graph,
+                source_vertices=vertex_subset,
+                do_expensive_check=do_expensive_check,
+            )
+            df["degree"] = out_degrees
+        elif degree_type in ["degree", "degrees"]:
+            vertex, in_degrees, out_degrees = pylibcugraph_degrees(
+                resource_handle=ResourceHandle(),
+                graph=self._plc_graph,
+                source_vertices=vertex_subset,
+                do_expensive_check=do_expensive_check,
+            )
+            if degree_type == "degrees":
+                df["in_degree"] = in_degrees
+                df["out_degree"] = out_degrees
+
+            else:
+                df["degree"] = in_degrees + out_degrees
+        else:
+            raise ValueError(
+                "Incorrect degree type passed, valid values are ",
+                "'in_degree', 'out_degree', 'degree' and 'degrees' ",
+                f"got '{degree_type}'",
+            )
+        df["vertex"] = vertex
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
+
+        return df
+
+    def in_degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex in-degree. Vertex in-degree is the number of edges
         pointing into the vertex. By default, this method computes vertex
@@ -892,11 +998,11 @@ class simpleGraphImpl:
         >>> df = G.in_degree([0,9,12])
 
         """
-        in_degree = self._degree(vertex_subset, direction=Direction.IN)
+        return self.degrees_function(vertex_subset, "in_degree")
 
-        return in_degree
-
-    def out_degree(self, vertex_subset=None):
+    def out_degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex out-degree. Vertex out-degree is the number of edges
         pointing out from the vertex. By default, this method computes vertex
@@ -934,10 +1040,11 @@ class simpleGraphImpl:
         >>> df = G.out_degree([0,9,12])
 
         """
-        out_degree = self._degree(vertex_subset, direction=Direction.OUT)
-        return out_degree
+        return self.degrees_function(vertex_subset, "out_degree")
 
-    def degree(self, vertex_subset=None):
+    def degree(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex degree, which is the total number of edges incident
         to a vertex (both in and out edges). By default, this method computes
@@ -976,10 +1083,12 @@ class simpleGraphImpl:
         >>> subset_df = G.degree([0,9,12])
 
         """
-        return self._degree(vertex_subset)
+        return self.degrees_function(vertex_subset, "degree")
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
-    def degrees(self, vertex_subset=None):
+    def degrees(
+        self, vertex_subset: Union[cudf.Series, Iterable] = None
+    ) -> cudf.DataFrame:
         """
         Compute vertex in-degree and out-degree. By default, this method
         computes vertex degrees for the entire set of vertices. If
@@ -1019,70 +1128,7 @@ class simpleGraphImpl:
         >>> df = G.degrees([0,9,12])
 
         """
-        (
-            vertex_col,
-            in_degree_col,
-            out_degree_col,
-        ) = graph_primtypes_wrapper._degrees(self)
-
-        df = cudf.DataFrame()
-        df["vertex"] = vertex_col
-        df["in_degree"] = in_degree_col
-        df["out_degree"] = out_degree_col
-
-        if self.properties.renumbered:
-            # Get the internal vertex IDs
-            nodes = self.renumber_map.df_internal_to_external["id"]
-        else:
-            nodes = self.nodes()
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        df = df[df["vertex"].isin(nodes.to_cupy())]
-
-        if vertex_subset is not None:
-            if not isinstance(vertex_subset, cudf.Series):
-                vertex_subset = cudf.Series(vertex_subset)
-                if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(
-                        vertex_subset
-                    )
-                vertex_subset = vertex_subset.to_cupy()
-            df = df[df["vertex"].isin(vertex_subset)]
-
-        if self.properties.renumbered:
-            df = self.renumber_map.unrenumber(df, "vertex")
-
-        return df
-
-    def _degree(self, vertex_subset, direction=Direction.ALL):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, direction)
-        df = cudf.DataFrame()
-        df["vertex"] = vertex_col
-        df["degree"] = degree_col
-
-        if self.properties.renumbered:
-            # Get the internal vertex IDs
-            nodes = self.renumber_map.df_internal_to_external["id"]
-        else:
-            nodes = self.nodes()
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        df = df[df["vertex"].isin(nodes.to_cupy())]
-
-        if vertex_subset is not None:
-            if not isinstance(vertex_subset, cudf.Series):
-                vertex_subset = cudf.Series(vertex_subset)
-                if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(
-                        vertex_subset
-                    )
-                vertex_subset = vertex_subset.to_cupy()
-            df = df[df["vertex"].isin(vertex_subset)]
-
-        if self.properties.renumbered:
-            df = self.renumber_map.unrenumber(df, "vertex")
-
-        return df
+        return self.degrees_function(vertex_subset, "degrees")
 
     def _make_plc_graph(
         self,

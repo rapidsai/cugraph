@@ -16,11 +16,12 @@
  */
 #pragma once
 
-#include "community/mis.hpp"
+#include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -60,35 +61,45 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
   auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
 
-  // Compute out-degree
   auto out_degrees = graph_view.compute_out_degrees(handle);
+  auto in_degrees  = graph_view.compute_in_degrees(handle);
 
-  // Vertices with non-zero out-degree are possible candidates for MIS.
+  // Vertices with degree zero are always part of MIS
   remaining_vertices.resize(
     thrust::distance(remaining_vertices.begin(),
                      thrust::copy_if(handle.get_thrust_policy(),
                                      vertex_begin,
                                      vertex_end,
-                                     out_degrees.begin(),
+                                     thrust::make_zip_iterator(
+                                       thrust::make_tuple(out_degrees.begin(), in_degrees.begin())),
                                      remaining_vertices.begin(),
-                                     [] __device__(auto deg) { return deg > 0; })),
+                                     [] __device__(auto out_deg_and_in_deg) {
+                                       return !((thrust::get<0>(out_deg_and_in_deg) == 0) &&
+                                                (thrust::get<1>(out_deg_and_in_deg) == 0));
+                                     })),
     handle.get_stream());
 
   // Set ID of each vertex as its rank
   rmm::device_uvector<vertex_t> ranks(local_vtx_partitoin_size, handle.get_stream());
   thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
 
-  // Set ranks of zero out-degree vetices to std::numeric_limits<vertex_t>::lowest()
-  thrust::transform_if(handle.get_thrust_policy(),
-                       out_degrees.begin(),
-                       out_degrees.end(),
-                       ranks.begin(),
-                       cuda::proclaim_return_type<vertex_t>(
-                         [] __device__(auto) { return std::numeric_limits<vertex_t>::lowest(); }),
-                       [] __device__(auto deg) { return deg == 0; });
+  // Set ranks of zero degree vetices to std::numeric_limits<vertex_t>::max()
+  thrust::transform_if(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(thrust::make_tuple(out_degrees.begin(), in_degrees.begin())),
+    thrust::make_zip_iterator(thrust::make_tuple(out_degrees.end(), in_degrees.end())),
+    ranks.begin(),
+    cuda::proclaim_return_type<vertex_t>(
+      [] __device__(auto) { return std::numeric_limits<vertex_t>::max(); }),
+    [] __device__(auto in_out_degree) {
+      return (thrust::get<0>(in_out_degree) == 0) && (thrust::get<1>(in_out_degree) == 0);
+    });
 
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
+
+  in_degrees.resize(0, handle.get_stream());
+  in_degrees.shrink_to_fit(handle.get_stream());
 
   size_t loop_counter = 0;
   while (true) {
