@@ -16,8 +16,8 @@
 #pragma once
 
 #include "common_methods.hpp"
-#include "community/mis.hpp"
 #include "detail/graph_partition_utils.cuh"
+#include "maximal_independent_moves.hpp"
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
@@ -660,8 +660,8 @@ refine_clustering(
     // Determine a set of moves using MIS of the decision_graph
     //
 
-    auto vertices_in_mis =
-      maximal_independent_set<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
+    auto vertices_in_mis = maximal_independent_moves<vertex_t, edge_t, multi_gpu>(
+      handle, decision_graph_view, rng_state);
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),
