@@ -95,6 +95,8 @@ from pylibcugraph.overlap_coefficients import overlap_coefficients
 
 from pylibcugraph.sorensen_coefficients import sorensen_coefficients
 
+from pylibcugraph.degrees import in_degrees, out_degrees, degrees
+
 
 from pylibcugraph import exceptions
 
