@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,22 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "mis_impl.cuh"
+#include "vertex_coloring_impl.cuh"
 
 namespace cugraph {
-template rmm::device_uvector<int32_t> maximal_independent_set(
+
+template rmm::device_uvector<int32_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, false> const& decision_graph_view,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int32_t> maximal_independent_set(
+template rmm::device_uvector<int32_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& decision_graph_view,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
-template rmm::device_uvector<int64_t> maximal_independent_set(
+template rmm::device_uvector<int64_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& decision_graph_view,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   raft::random::RngState& rng_state);
 
 }  // namespace cugraph
