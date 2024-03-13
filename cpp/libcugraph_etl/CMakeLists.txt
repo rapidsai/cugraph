@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
-include(../../fetch_rapids.cmake)
+include(../../rapids_config.cmake)
 
 include(rapids-cmake)
 include(rapids-cpm)
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH_ETL)
 
-project(CUGRAPH_ETL VERSION 24.04.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH_ETL VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
