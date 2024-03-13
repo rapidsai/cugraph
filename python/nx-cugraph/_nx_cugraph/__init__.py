@@ -261,6 +261,22 @@ def get_info():
 if __name__ == "__main__":
     from pathlib import Path
 
+    # This script imports nx_cugraph modules, which imports nx_cugraph runtime
+    # dependencies. The modules do not need the runtime deps, so stub them out
+    # to avoid installing them.
+    class Stub:
+        def __getattr__(self, *args, **kwargs):
+            return Stub()
+
+        def __call__(self, *args, **kwargs):
+            return Stub()
+
+    import sys
+
+    sys.modules["cupy"] = Stub()
+    sys.modules["numpy"] = Stub()
+    sys.modules["pylibcugraph"] = Stub()
+
     from _nx_cugraph.core import main
 
     filepath = Path(__file__)

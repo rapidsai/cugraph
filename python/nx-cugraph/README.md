@@ -7,11 +7,10 @@ to run supported algorithms with GPU acceleration.
 ## System Requirements
 
 nx-cugraph requires the following:
-
- * NVIDIA GPU, Pascal architecture or later
+ * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
  * CUDA 11.2, 11.4, 11.5, 11.8, or 12.0
- * Python versions 3.9, 3.10, or 3.11
- * NetworkX >= version 3.2
+ * Python version 3.9, 3.10, or 3.11
+ * NetworkX >= version 3.0 (version 3.2 or higher recommended)
 
 More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req).
 
@@ -20,16 +19,25 @@ More details about system requirements can be found in the [RAPIDS System Requir
 nx-cugraph can be installed using either conda or pip.
 
 ### conda
+#### latest nightly version
 ```
 conda install -c rapidsai-nightly -c conda-forge -c nvidia nx-cugraph
 ```
+#### latest stable version
+```
+conda install -c rapidsai -c conda-forge -c nvidia nx-cugraph
+```
 ### pip
+#### latest nightly version
+```
+python -m pip install nx-cugraph-cu11 --extra-index-url https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+```
+#### latest stable version
 ```
 python -m pip install nx-cugraph-cu11 --extra-index-url https://pypi.nvidia.com
 ```
 Notes:
-
- * Nightly wheel builds will not be available until the 23.12 release, therefore the index URL for the stable release version is being used in the pip install command above.
+ * The pip example above installs for CUDA 11. To install for CUDA 12, replace `-cu11` with `-cu12`
  * Additional information relevant to installing any RAPIDS package can be found [here](https://rapids.ai/#quick-start).
 
 ## Enabling nx-cugraph
