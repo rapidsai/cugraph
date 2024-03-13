@@ -19,6 +19,6 @@ import importlib.resources
 # to update version info (including commit hashes) without modifying
 # source files.
 __version__ = (
-    importlib.resources.files("nx_cugraph").joinpath("VERSION").read_text().strip()
+    importlib.resources.files("_nx_cugraph").joinpath("VERSION").read_text().strip()
 )
 __git_commit__ = ""
