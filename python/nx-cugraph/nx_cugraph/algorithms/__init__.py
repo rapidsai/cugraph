@@ -22,7 +22,7 @@ from . import (
     traversal,
     tree,
 )
-from .bipartite import complete_bipartite_graph, is_bipartite
+from .bipartite import complete_bipartite_graph
 from .centrality import *
 from .cluster import *
 from .components import *

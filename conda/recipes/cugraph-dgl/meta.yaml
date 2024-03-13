@@ -25,7 +25,7 @@ requirements:
     - cugraph ={{ version }}
     - dgl >=1.1.0.cu*
     - numba >=0.57
-    - numpy >=1.23
+    - numpy >=1.23,<2.0a0
     - pylibcugraphops ={{ minor_version }}
     - python
     - pytorch
