@@ -2040,24 +2040,6 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
-/**
- * @brief Count the number of triangles for each edge.
- * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param edgelist_srcs  List of source vertex ids
- * @param edgelist_dsts  List of destination vertex ids
- * @return triangle count of the edge list
- */
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<edge_t> edge_triangle_count(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> edgelist_srcs,
-  raft::device_span<vertex_t> edgelist_dsts);
-
 /*
  * @brief Compute K-Truss.
  *
