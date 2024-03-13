@@ -50,12 +50,11 @@ IS_DIRECTED = [True, False]
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_mg_katz_centrality(dask_client, dataset, directed):
-
     input_data_path = dataset.get_path()
     print(f"dataset={input_data_path}")
 
+    dataset.unload()
     ddf = dataset.get_dask_edgelist()
-
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
 
@@ -105,8 +104,8 @@ def test_dask_mg_katz_centrality(dask_client, dataset, directed):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_mg_katz_centrality_nstart(dask_client, dataset, directed):
+    dataset.unload()
     ddf = dataset.get_dask_edgelist()
-
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
 
@@ -144,8 +143,8 @@ def test_dask_mg_katz_centrality_nstart(dask_client, dataset, directed):
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", DATASETS)
 def test_dask_mg_katz_centrality_transposed_false(dask_client, dataset):
+    dataset.unload()
     ddf = dataset.get_dask_edgelist()
-
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
