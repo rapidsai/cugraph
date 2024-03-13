@@ -89,21 +89,9 @@ struct kv_binary_search_contains_op_t {
   }
 };
 
-template <typename KeyIterator>
+template <typename RefType, typename KeyIterator>
 struct kv_cuco_insert_and_increment_t {
-  using key_type = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using cuco_map_type =
-    cuco::static_map<key_type,
-                     size_t,
-                     cuco::extent<std::size_t>,
-                     cuda::thread_scope_device,
-                     thrust::equal_to<key_type>,
-                     cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
-                     cuco_storage_type>;
-
-  typename cuco_map_type::ref_type<cuco::insert_and_find_tag> device_ref{};
+  RefType device_ref{};
   KeyIterator key_first{};
   size_t* counter{nullptr};
   size_t invalid_idx{};
@@ -126,21 +114,9 @@ struct kv_cuco_insert_and_increment_t {
   }
 };
 
-template <typename KeyIterator, typename StencilIterator, typename PredOp>
+template <typename RefType, typename KeyIterator, typename StencilIterator, typename PredOp>
 struct kv_cuco_insert_if_and_increment_t {
-  using key_type = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using cuco_map_type =
-    cuco::static_map<key_type,
-                     size_t,
-                     cuco::extent<std::size_t>,
-                     cuda::thread_scope_device,
-                     thrust::equal_to<key_type>,
-                     cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
-                     cuco_storage_type>;
-
-  typename cuco_map_type::ref_type<cuco::insert_and_find_tag> device_ref{};
+  RefType device_ref{};
   KeyIterator key_first{};
   StencilIterator stencil_first{};
   PredOp pred_op{};
@@ -167,21 +143,8 @@ struct kv_cuco_insert_if_and_increment_t {
   }
 };
 
-template <typename key_t, typename value_t>
+template <typename RefType, typename key_t, typename value_t>
 struct kv_cuco_insert_and_assign_t {
-  using cuco_map_type =
-    cuco::static_map<key_t,
-                     std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
-                     cuco::extent<std::size_t>,
-                     cuda::thread_scope_device,
-                     thrust::equal_to<key_t>,
-                     cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
-                     cuco_storage_type>;
-
-  typename cuco_map_type::ref_type<cuco::insert_and_find_tag> device_ref{};
-
   __device__ void operator()(thrust::tuple<key_t, value_t> pair)
   {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
@@ -620,7 +583,7 @@ class kv_cuco_store_t {
         rmm::exec_policy(stream),
         store_value_offsets.begin(),
         store_value_offsets.end(),
-        kv_cuco_insert_and_increment_t<KeyIterator>{
+        kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
       size_ += counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
@@ -661,16 +624,19 @@ class kv_cuco_store_t {
       rmm::device_scalar<size_t> counter(old_store_value_size, stream);
       auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
       rmm::device_uvector<size_t> store_value_offsets(num_keys, stream);
-      thrust::tabulate(rmm::exec_policy(stream),
-                       store_value_offsets.begin(),
-                       store_value_offsets.end(),
-                       kv_cuco_insert_if_and_increment_t<KeyIterator, StencilIterator, PredOp>{
-                         mutable_device_ref,
-                         key_first,
-                         stencil_first,
-                         pred_op,
-                         counter.data(),
-                         std::numeric_limits<size_t>::max()});
+      thrust::tabulate(
+        rmm::exec_policy(stream),
+        store_value_offsets.begin(),
+        store_value_offsets.end(),
+        kv_cuco_insert_if_and_increment_t<decltype(mutable_device_ref),
+                                          KeyIterator,
+                                          StencilIterator,
+                                          PredOp>{mutable_device_ref,
+                                                  key_first,
+                                                  stencil_first,
+                                                  pred_op,
+                                                  counter.data(),
+                                                  std::numeric_limits<size_t>::max()});
       size_ += counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
@@ -701,10 +667,12 @@ class kv_cuco_store_t {
       // FIXME: a temporary solution till insert_and_assign is added to
       // cuco::static_map
       auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
-      thrust::for_each(rmm::exec_policy(stream),
-                       pair_first,
-                       pair_first + num_keys,
-                       detail::kv_cuco_insert_and_assign_t<key_t, value_t>{mutable_device_ref});
+      thrust::for_each(
+        rmm::exec_policy(stream),
+        pair_first,
+        pair_first + num_keys,
+        detail::kv_cuco_insert_and_assign_t<decltype(mutable_device_ref), key_t, value_t>{
+          mutable_device_ref});
       // FIXME: this is an upper bound of size_, as some inserts may fail due to existing keys
       size_ += num_keys;
     } else {
@@ -719,7 +687,7 @@ class kv_cuco_store_t {
         rmm::exec_policy(stream),
         store_value_offsets.begin(),
         store_value_offsets.end(),
-        kv_cuco_insert_and_increment_t<KeyIterator>{
+        kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
       size_ += counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
