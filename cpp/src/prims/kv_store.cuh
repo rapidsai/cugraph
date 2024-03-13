@@ -576,7 +576,6 @@ class kv_cuco_store_t {
       // complication.
       rmm::device_scalar<size_t> counter(old_store_value_size, stream);
       auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
-      static_assert(!std::is_const_v<decltype(mutable_device_ref)>);
       rmm::device_uvector<size_t> store_value_offsets(num_keys, stream);
       thrust::tabulate(
         rmm::exec_policy(stream),
