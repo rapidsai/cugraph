@@ -17,6 +17,8 @@
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
+#include <type_traits>
+
 namespace cugraph {
 
 namespace detail {
@@ -58,10 +60,70 @@ void* get_optional_dataframe_buffer_begin(std::byte& optional_dataframe_buffer)
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 auto get_optional_dataframe_buffer_begin(
-  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
-    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer)
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>&
+    optional_dataframe_buffer)
 {
   return get_dataframe_buffer_begin(optional_dataframe_buffer);
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
+void* get_optional_dataframe_buffer_end(std::byte& optional_dataframe_buffer)
+{
+  return static_cast<void*>(nullptr);
+}
+
+template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
+auto get_optional_dataframe_buffer_end(
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>&
+    optional_dataframe_buffer)
+{
+  return get_dataframe_buffer_end(optional_dataframe_buffer);
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
+void const* get_optional_dataframe_buffer_cbegin(std::byte& optional_dataframe_buffer)
+{
+  return static_cast<void*>(nullptr);
+}
+
+template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
+auto get_optional_dataframe_buffer_cbegin(
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> const&
+    optional_dataframe_buffer)
+{
+  return get_dataframe_buffer_cbegin(optional_dataframe_buffer);
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
+void const* get_optional_dataframe_buffer_cend(std::byte const& optional_dataframe_buffer)
+{
+  return static_cast<void*>(nullptr);
+}
+
+template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
+auto get_optional_dataframe_buffer_cend(
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> const&
+    optional_dataframe_buffer)
+{
+  return get_dataframe_buffer_cend(optional_dataframe_buffer);
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
+void reserve_optional_dataframe_buffer(std::byte& optional_dataframe_buffer,
+                                       size_t new_buffer_capacity,
+                                       rmm::cuda_stream_view stream_view)
+{
+  return;
+}
+
+template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
+void reserve_optional_dataframe_buffer(
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>&
+    optional_dataframe_buffer,
+  size_t new_buffer_capacity,
+  rmm::cuda_stream_view stream_view)
+{
+  return reserve_dataframe_buffer(optional_dataframe_buffer, new_buffer_capacity, stream_view);
 }
 
 template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
@@ -74,8 +136,8 @@ void resize_optional_dataframe_buffer(std::byte& optional_dataframe_buffer,
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 void resize_optional_dataframe_buffer(
-  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
-    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>&
+    optional_dataframe_buffer,
   size_t new_buffer_size,
   rmm::cuda_stream_view stream_view)
 {
@@ -91,11 +153,25 @@ void shrink_to_fit_optional_dataframe_buffer(std::byte& optional_dataframe_buffe
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 void shrink_to_fit_optional_dataframe_buffer(
-  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
-    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>&
+    optional_dataframe_buffer,
   rmm::cuda_stream_view stream_view)
 {
   return shrink_to_fit_dataframe_buffer(optional_dataframe_buffer, stream_view);
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, void>>* = nullptr>
+size_t size_optional_dataframe_buffer(std::byte const& optional_dataframe_buffer)
+{
+  return size_t{0};
+}
+
+template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
+size_t size_optional_dataframe_buffer(
+  std::decay_t<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> const&
+    optional_dataframe_buffer)
+{
+  return size_dataframe_buffer(optional_dataframe_buffer);
 }
 
 }  // namespace detail
