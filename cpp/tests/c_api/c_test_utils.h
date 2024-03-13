@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,6 +100,8 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
                          bool_t is_multigraph,
                          cugraph_graph_t** graph,
                          cugraph_error_t** ret_error);
+
+size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* handle, size_t value);
 
 #ifdef __cplusplus
 }

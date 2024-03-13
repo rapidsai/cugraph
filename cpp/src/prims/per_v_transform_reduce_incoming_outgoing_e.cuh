@@ -149,7 +149,7 @@ template <bool update_major,
           typename EdgeOp,
           typename ReduceOp,
           typename T>
-__global__ void per_v_transform_reduce_e_hypersparse(
+__global__ static void per_v_transform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -251,7 +251,7 @@ template <bool update_major,
           typename EdgeOp,
           typename ReduceOp,
           typename T>
-__global__ void per_v_transform_reduce_e_low_degree(
+__global__ static void per_v_transform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -350,7 +350,7 @@ template <bool update_major,
           typename EdgeOp,
           typename ReduceOp,
           typename T>
-__global__ void per_v_transform_reduce_e_mid_degree(
+__global__ static void per_v_transform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -466,7 +466,7 @@ template <bool update_major,
           typename EdgeOp,
           typename ReduceOp,
           typename T>
-__global__ void per_v_transform_reduce_e_high_degree(
+__global__ static void per_v_transform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,

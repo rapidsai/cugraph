@@ -29,13 +29,13 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename weight_t>
-__global__ void get_traversed_cost_kernel(vertex_t const* vertices,
-                                          vertex_t const* preds,
-                                          vertex_t const* vtx_map,
-                                          weight_t const* info_weights,
-                                          weight_t* out,
-                                          vertex_t stop_vertex,
-                                          vertex_t num_vertices)
+__global__ static void get_traversed_cost_kernel(vertex_t const* vertices,
+                                                 vertex_t const* preds,
+                                                 vertex_t const* vtx_map,
+                                                 weight_t const* info_weights,
+                                                 weight_t* out,
+                                                 vertex_t stop_vertex,
+                                                 vertex_t num_vertices)
 {
   for (vertex_t i = threadIdx.x + blockIdx.x * blockDim.x; i < num_vertices;
        i += gridDim.x * blockDim.x) {

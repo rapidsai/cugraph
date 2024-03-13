@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -168,19 +168,54 @@ class FeatureStore:
             feat, wgth.WholeMemoryEmbedding
         ):
             indices_tensor = (
-                indices
+                indices.cuda()
                 if isinstance(indices, torch.Tensor)
                 else torch.as_tensor(indices, device="cuda")
             )
             return feat.gather(indices_tensor)
-        else:
-            return feat[indices]
+        elif not isinstance(torch, MissingModule) and isinstance(feat, torch.Tensor):
+            if indices is not None:
+                if not isinstance(indices, torch.Tensor):
+                    indices = torch.as_tensor(indices)
+
+                if feat.is_cpu and indices.is_cuda:
+                    # TODO maybe add a warning here
+                    indices = indices.cpu()
+        return feat[indices]
 
     def get_feature_list(self) -> list[str]:
         return {feat_name: feats.keys() for feat_name, feats in self.fd.items()}
 
+    def get_storage(self, type_name: str, feat_name: str) -> str:
+        """
+        Returns where the data is stored (cuda, cpu).
+        Note: will return "cuda" for data managed by CUDA, even if
+        it is in host memory.
+
+        Parameters
+        ----------
+        type_name : str
+            The node-type/edge-type to store data
+        feat_name:
+            The feature name to retrieve data for
+
+        Returns
+        -------
+        "cuda" for data managed by CUDA, otherwise "CPU".
+        """
+        feat = self.fd[feat_name][type_name]
+        if not isinstance(wgth, MissingModule) and isinstance(
+            feat, wgth.WholeMemoryEmbedding
+        ):
+            return "cuda"
+        elif isinstance(feat, torch.Tensor):
+            return "cpu" if feat.is_cpu else "cuda"
+        else:
+            return "cpu"
+
     @staticmethod
     def _cast_feat_obj_to_backend(feat_obj, backend: str, **kwargs):
+        # TODO (Issue #4078) support casting WG tensors to numpy and torch
         if backend == "numpy":
             if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
                 return _cast_to_numpy_ar(feat_obj.values, **kwargs)
@@ -192,6 +227,8 @@ class FeatureStore:
             else:
                 return _cast_to_torch_tensor(feat_obj, **kwargs)
         elif backend == "wholegraph":
+            if isinstance(feat_obj, wgth.WholeMemoryEmbedding):
+                return feat_obj
             return _get_wg_embedding(feat_obj, **kwargs)
 
 

@@ -10,22 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import cupy as cp
-
-from nx_cugraph.algorithms.cluster import _triangles
-from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import networkx_algorithm
-
-__all__ = [
-    "is_bipartite",
-]
 
 
-@networkx_algorithm(version_added="24.02", _plc="triangle_count")
-def is_bipartite(G):
-    G = _to_graph(G)
-    # Counting triangles may not be the fastest way to do this, but it is simple.
-    node_ids, triangles, is_single_node = _triangles(
-        G, None, symmetrize="union" if G.is_directed() else None
-    )
-    return int(cp.count_nonzero(triangles)) == 0
+from .trainers_dgl import DGLTrainer
+from .trainers_cugraph_dgl import DGLCuGraphTrainer
