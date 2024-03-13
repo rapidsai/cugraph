@@ -39,7 +39,9 @@ rapids-mamba-retry install \
 rapids-logger "Install cugraph-dgl"
 rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 
-export RAPIDS_VERSION_NUMBER="24.04"
+export RAPIDS_VERSION="$(rapids-version)"
+export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+export RAPIDS_VERSION_NUMBER="$RAPIDS_VERSION_MAJOR_MINOR"
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
 for PROJECT in libcugraphops libwholegraph; do
