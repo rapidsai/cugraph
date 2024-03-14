@@ -469,7 +469,7 @@ struct extract_low_to_high_degree_edges_t {
 };
 
 template <typename vertex_t, typename edge_t, bool generate_p_r>
-struct generate_p_r_q_r {
+struct generate_p_r_and_q_r_from_p_q {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t const> invalid_srcs{};
@@ -769,7 +769,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
         get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
-        generate_p_r_q_r<vertex_t, edge_t, true>{
+        generate_p_r_and_q_r_from_p_q<vertex_t, edge_t, true>{
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
@@ -784,7 +784,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
         get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_q),
-        generate_p_r_q_r<vertex_t, edge_t, false>{
+        generate_p_r_and_q_r_from_p_q<vertex_t, edge_t, false>{
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
