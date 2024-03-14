@@ -30,13 +30,10 @@ include(../../../cmake/thirdparty/get_nccl.cmake)
 add_executable(graph_operations graph_operations.cu)
 
 target_include_directories(graph_operations
-  PUBLIC
-    "../../../../thirdparty/mmio"
-    "../../../tests"
-    "../../../include"
+  PRIVATE
     "../../../src"
 )
 
 set_target_properties(graph_operations PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(graph_operations PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
+target_link_libraries(graph_operations PRIVATE cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 target_compile_features(graph_operations PRIVATE cxx_std_17)
