@@ -17,26 +17,15 @@
 cmake_minimum_required(VERSION 3.23.1)
 
 project(
-  sg_examples
+  mg_graph_algorithms
   VERSION 0.0.1
   LANGUAGES CXX CUDA
 )
 
 include(../../fetch_dependencies.cmake)
 
-add_library(csvfileutil STATIC ../../../tests/utilities/csv_file_utilities.cu)
-target_include_directories(csvfileutil
-PUBLIC
-"../../../../thirdparty/mmio"
-"../../../tests"
-PRIVATE
-"../../../include"
-"../../../src"
-)
-set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(csvfileutil PUBLIC cugraph::cugraph)
-
 # Configure your project here
 add_executable(sg_graph_algorithms sg_graph_algorithms.cpp)
-target_link_libraries(sg_graph_algorithms PRIVATE csvfileutil)
+set_target_properties(sg_graph_algorithms PROPERTIES CUDA_ARCHITECTURES "native")
+target_link_libraries(sg_graph_algorithms PUBLIC cugraph::cugraph)
 target_compile_features(sg_graph_algorithms PRIVATE cxx_std_17)

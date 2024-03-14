@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.23.1)
 
 project(
-  mg_examples
+  mg_graph_algorithms
   VERSION 0.0.1
   LANGUAGES CXX CUDA
 )
@@ -27,19 +27,8 @@ include(../../fetch_dependencies.cmake)
 find_package(MPI REQUIRED COMPONENTS CXX)
 include(../../../cmake/thirdparty/get_nccl.cmake)
 
-add_library(csvfileutil STATIC ../../../tests/utilities/csv_file_utilities.cu)
-target_include_directories(csvfileutil
-  PUBLIC
-    "../../../../thirdparty/mmio"
-    "../../../tests"
-  PRIVATE
-    "../../../include"
-    "../../../src"
-)
-set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
-
 # Configure your project here
 add_executable(mg_graph_algorithms mg_graph_algorithms.cpp)
-target_link_libraries(mg_graph_algorithms PRIVATE csvfileutil)
+set_target_properties(mg_graph_algorithms PROPERTIES CUDA_ARCHITECTURES "native")
+target_link_libraries(mg_graph_algorithms PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 target_compile_features(mg_graph_algorithms PRIVATE cxx_std_17)
