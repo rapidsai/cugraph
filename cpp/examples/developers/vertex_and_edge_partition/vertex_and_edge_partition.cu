@@ -191,13 +191,12 @@ void look_into_vertex_and_edge_partitions(
   //
 
   // Number of vertices mapped to this process, ie the size of
-  // the vertex partition assigned to this process
+  // the vertex partition assigned to this process. We are using
+  // one-process-per-GPU model
   vertex_t size_of_the_vertex_partition_assigned_to_this_process =
     graph_view.local_vertex_partition_range_size();
 
-  // NOTE: The `renumber_map` contains the vertices assigned to this process.
-
-  //
+  // The `renumber_map` contains the vertices assigned to this process.
   // Print verties mapped to this process
   //
 
