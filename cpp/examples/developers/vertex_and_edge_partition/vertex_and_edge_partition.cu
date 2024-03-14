@@ -201,13 +201,11 @@ void look_into_vertex_and_edge_partitions(
   //
 
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  size_t max_nr_of_elements_to_print = 10;
+
   if (renumber_map) {
     auto vertex_partition_title = std::string("vertices@rank_").append(std::to_string(comm_rank));
-    raft::print_device_vector(vertex_partition_title.c_str(),
-                              (*renumber_map).data(),
-                              std::min<size_t>((*renumber_map).size(), max_nr_of_elements_to_print),
-                              std::cout);
+    raft::print_device_vector(
+      vertex_partition_title.c_str(), (*renumber_map).data(), (*renumber_map).size(), std::cout);
   }
 
   std::vector<vertex_t> h_vertices_in_this_proces((*renumber_map).size());
@@ -392,10 +390,7 @@ void look_into_vertex_and_edge_partitions(
                              .append("_")
                              .append(std::to_string(ep_idx));
       raft::print_device_vector(
-        weights_title.c_str(),
-        value_firsts[ep_idx],
-        std::min<size_t>(number_of_edges_in_edge_partition, max_nr_of_elements_to_print),
-        std::cout);
+        weights_title.c_str(), value_firsts[ep_idx], number_of_edges_in_edge_partition, std::cout);
     }
   }
 }
