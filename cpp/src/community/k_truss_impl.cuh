@@ -47,7 +47,7 @@
 
 namespace cugraph {
 
-//FIXME
+//FIXME : This will be deleted once edge_triangle_count becomes public
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<edge_t> edge_triangle_count(
   raft::handle_t const& handle,
@@ -691,10 +691,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
       raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
 
-    // FIXME 'edge_triangle_count' sorts the edges by 'src' but 'k-truss' needs
-    // the edges to be sorted with 'dst' as key so we need to sort the edges
-    // again. Should 'edge_triangle_count' be implemented edges sorted by 'dst'
-    // instead to avoid resorting?
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
     
@@ -709,7 +705,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
                           transposed_edge_first + edgelist_srcs.size(),
                           num_triangles.begin());
 
-    // Note: ensure 'edges_with_triangles' and 'cur_graph_view' have the same transpose flag
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
     cur_graph_view.attach_edge_mask(edge_mask.view());
