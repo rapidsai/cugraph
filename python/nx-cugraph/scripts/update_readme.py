@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +12,13 @@
 # limitations under the License.
 import argparse
 import re
+import urllib.request
 import zlib
 from collections import namedtuple
 from pathlib import Path
 from warnings import warn
 
-from nx_cugraph.scripts.print_tree import create_tree, tree_lines
+_objs_file_url = "https://networkx.org/documentation/stable/objects.inv"
 
 # See: https://sphobjinv.readthedocs.io/en/stable/syntax.html
 DocObject = namedtuple(
@@ -75,6 +75,8 @@ MANUAL_OBJECT_URLS = {
 
 def main(readme_file, objects_filename):
     """``readme_file`` must be readable and writable, so use mode ``"a+"``"""
+    from nx_cugraph.scripts.print_tree import create_tree, tree_lines
+
     # Use the `objects.inv` file to determine URLs. For details about this file, see:
     # https://sphobjinv.readthedocs.io/en/stable/syntax.html
     # We might be better off using a library like that, but roll our own for now.
@@ -190,14 +192,59 @@ def main(readme_file, objects_filename):
     return text
 
 
+def find_or_download_objs_file(objs_file_dir):
+    """
+    Returns the path to <objs_file_dir>/objects.inv, downloading it from
+    _objs_file_url if it does not already exist.
+    """
+    objs_file_path = objs_file_dir / "objects.inv"
+    if not objs_file_path.exists():
+        request = urllib.request.Request(_objs_file_url)
+        with (
+            urllib.request.urlopen(request) as response,
+            Path(objs_file_path).open("wb") as out,
+        ):
+            out.write(response.read())
+    return objs_file_path
+
+
 if __name__ == "__main__":
+    # This script imports a nx_cugraph script module, which imports nx_cugraph
+    # runtime dependencies. The script module does not need the runtime deps,
+    # so stub them out to avoid installing them.
+    class Stub:
+        def __getattr__(self, *args, **kwargs):
+            return Stub()
+
+        def __call__(self, *args, **kwargs):
+            return Stub()
+
+    import sys
+
+    sys.modules["cupy"] = Stub()
+    sys.modules["numpy"] = Stub()
+    sys.modules["pylibcugraph"] = Stub()
+
     parser = argparse.ArgumentParser(
         "Update README.md to show NetworkX functions implemented by nx-cugraph"
     )
     parser.add_argument("readme_filename", help="Path to the README.md file")
     parser.add_argument(
-        "networkx_objects", help="Path to the objects.inv file from networkx docs"
+        "networkx_objects",
+        nargs="?",
+        default=None,
+        help="Optional path to the objects.inv file from the NetworkX docs. Default is "
+        "the objects.inv file in the directory containing the specified README.md. If "
+        "an objects.inv file does not exist in that location, one will be downloaded "
+        "and saved to that location.",
     )
     args = parser.parse_args()
-    with Path(args.readme_filename).open("a+") as readme_file:
-        main(readme_file, args.networkx_objects)
+
+    readme_filename = args.readme_filename
+    readme_path = Path(readme_filename)
+    objects_filename = args.networkx_objects
+    if objects_filename is None:
+        objects_filename = find_or_download_objs_file(readme_path.parent)
+
+    with readme_path.open("a+") as readme_file:
+        main(readme_file, objects_filename)
