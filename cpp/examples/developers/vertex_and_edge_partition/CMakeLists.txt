@@ -29,5 +29,5 @@ include(../../../cmake/thirdparty/get_nccl.cmake)
 
 add_executable(vertex_and_edge_partition vertex_and_edge_partition.cu)
 set_target_properties(vertex_and_edge_partition PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(vertex_and_edge_partition PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
+target_link_libraries(vertex_and_edge_partition PRIVATE cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 target_compile_features(vertex_and_edge_partition PRIVATE cxx_std_17)

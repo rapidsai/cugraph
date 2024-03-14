@@ -26,5 +26,5 @@ include(../../fetch_dependencies.cmake)
 
 add_executable(sg_graph_algorithms sg_graph_algorithms.cpp)
 set_target_properties(sg_graph_algorithms PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(sg_graph_algorithms PUBLIC cugraph::cugraph)
+target_link_libraries(sg_graph_algorithms PRIVATE cugraph::cugraph)
 target_compile_features(sg_graph_algorithms PRIVATE cxx_std_17)
