@@ -64,7 +64,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle()
 }
 
 /**
- * @brief Create a graph from edge sources, destinitions, and optional weights
+ * @brief Create a graph from edge sources, destination, and optional weights.
  */
 template <typename vertex_t,
           typename edge_t,
@@ -92,7 +92,9 @@ create_graph(raft::handle_t const& handle,
   auto const comm_size = handle.get_comms().get_size();
 
   //
-  // Assign part of the edge list to each GPU
+  // Assign part of the edge list to each GPU. If there are N edges and P GPUs, each GPU except the
+  // one with rank P-1 reads N/P edges and the GPU with rank P -1 reads (N/P + N%P) edges into GPU
+  // memory.
   //
 
   auto start = comm_rank * (num_edges / comm_size);
@@ -115,7 +117,9 @@ create_graph(raft::handle_t const& handle,
   }
 
   //
-  // Shuffle edges to proper GPU
+  // In cugraph, each vertex and edge is assigned to a specific GPU using hash functions. Before
+  // creating a graph from edges, we need to ensure that all edges are already assigned to the
+  // proper GPU.
   //
 
   if (multi_gpu) {
@@ -250,7 +254,7 @@ int main(int argc, char** argv)
   std::unique_ptr<raft::handle_t> handle = initialize_mg_handle();
 
   //
-  // Create graph from edge source, destinition and weight list
+  // Create graph from edge source, destination and weight list
   //
 
   using vertex_t    = int32_t;

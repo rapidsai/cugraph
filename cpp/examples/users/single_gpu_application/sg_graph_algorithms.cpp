@@ -36,7 +36,7 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle()
 }
 
 /**
- * @brief Create a graph from edge sources, destinitions, and optional weights
+ * @brief Create a graph from edge sources, destinations, and optional weights
  */
 template <typename vertex_t,
           typename edge_t,
@@ -192,7 +192,7 @@ int main(int argc, char** argv)
   std::unique_ptr<raft::handle_t> handle = initialize_sg_handle();
 
   //
-  // Create graph from edge source, destinition and weight list
+  // Create graph from edge source, destination and weight list
   //
 
   using vertex_t    = int32_t;
