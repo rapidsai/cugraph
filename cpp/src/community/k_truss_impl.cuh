@@ -710,7 +710,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
     cur_graph_view.attach_edge_mask(edge_mask.view());
 
     edge_t num_invalid_edges{0};
-    size_t num_edges_with_triangles{0};
     while (true) {
       // 'invalid_transposed_edge_triangle_count_first' marks the beginning of the edges to be
       // removed 'invalid_transposed_edge_triangle_count_first' + edgelist_srcs.size() marks the end
@@ -733,10 +732,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       auto num_valid_edges = edgelist_srcs.size() - num_invalid_edges;
 
       // case 1. For the (p, q), find intersection 'r' to create (p, r, -1) and (q, r, -1)
-      // FIXME: check if 'invalid_transposed_edge_triangle_count_first' is necessery as I operate on
-      // 'vertex_pair_buffer' which contains the ordering with the number of triangles.
-      // FIXME: debug this stage. There are edges that have been removed that are still found in nbr
-      // intersection
 
       // nbr_intersection requires the edges to be sort by 'src'
       // sort the invalid edges by src for nbr intersection
@@ -749,13 +744,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
         handle,
         cur_graph_view,
         cugraph::edge_dummy_property_t{}.view(),
-        thrust::make_zip_iterator(edgelist_srcs.begin() + num_valid_edges,
-                                  edgelist_dsts.begin() + num_valid_edges),
-        thrust::make_zip_iterator(edgelist_srcs.end(), edgelist_dsts.end()),
+        edge_first + num_valid_edges,
+        edge_first + edgelist_srcs.size(),
         std::array<bool, 2>{true, true},
         do_expensive_check);
-
-      rmm::device_uvector<edge_t> num_triangles_invalid(num_invalid_edges, handle.get_stream());
 
       // Update the number of triangles of each (p, q) edges by looking at their intersection
       // size.
@@ -767,11 +759,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
     
           num_triangles[i] -= intersection_offsets[i + 1] - intersection_offsets[i];
         });
-
-      auto pair_ = thrust::make_tuple(6, 1);
-      auto itr_ = thrust::find(edge_first + num_valid_edges, edge_first + edgelist_srcs.size(), pair_);
-      
-      auto dist_ = thrust::distance(edge_first + num_valid_edges, itr_);
 
       // FIXME: Find a way to not have to maintain a dataframe_buffer
       auto vertex_pair_buffer_p_r_edge_p_q =
@@ -866,7 +853,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss
       
 
   
-      num_edges_with_triangles = static_cast<size_t>(
+      size_t num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(transposed_edge_triangle_count_pair_first, edges_with_triangle_last));
 
       //cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
