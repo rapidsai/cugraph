@@ -98,8 +98,8 @@ create_graph(raft::handle_t const& handle,
   auto start = comm_rank * (num_edges / comm_size);
   auto end   = (comm_rank + 1) * (num_edges / comm_size);
   if (comm_rank == comm_size - 1) { end = num_edges; }
-
   auto work_size = end - start;
+
   rmm::device_uvector<vertex_t> d_edge_srcs(work_size, handle.get_stream());
   rmm::device_uvector<vertex_t> d_edge_dsts(work_size, handle.get_stream());
 
