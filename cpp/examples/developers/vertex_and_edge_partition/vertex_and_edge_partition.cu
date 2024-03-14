@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-#include "../tests/utilities/base_fixture.hpp"
-#include "../tests/utilities/test_utilities.hpp"
-
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -42,33 +41,13 @@ void initialize_mpi_and_set_device(int argc, char** argv)
   RAFT_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
 }
 
-std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocation_mode = "cuda")
+std::unique_ptr<raft::handle_t> initialize_mg_handle()
 {
   int comm_rank{};
   RAFT_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
 
-  std::set<std::string> possible_allocation_modes = {"cuda", "pool", "binning", "managed"};
-
-  if (possible_allocation_modes.find(allocation_mode) == possible_allocation_modes.end()) {
-    if (comm_rank == 0) {
-      std::cout << "'" << allocation_mode
-                << "' is not a valid allocation mode. It must be one of the followings -"
-                << std::endl;
-      std::for_each(possible_allocation_modes.cbegin(),
-                    possible_allocation_modes.cend(),
-                    [](std::string mode) { std::cout << mode << std::endl; });
-    }
-    RAFT_MPI_TRY(MPI_Finalize());
-
-    exit(0);
-  }
-
-  if (comm_rank == 0) {
-    std::cout << "Using '" << allocation_mode
-              << "' allocation mode to create device memory resources." << std::endl;
-  }
   std::shared_ptr<rmm::mr::device_memory_resource> resource =
-    cugraph::test::create_memory_resource(allocation_mode);
+    std::make_shared<rmm::mr::cuda_memory_resource>();
   rmm::mr::set_current_device_resource(resource.get());
 
   std::unique_ptr<raft::handle_t> handle =
@@ -89,36 +68,120 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(std::string const& allocati
 }
 
 /**
- * @brief This function reads graph from an input csv file and
- * display vertex and edge partitions.
+ * @brief Create a graph from edge sources, destinitions, and optional weights
  */
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
-                                          std::string const& csv_graph_file_path,
-                                          bool weighted = false)
+
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<cugraph::edge_property_t<
+             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+             weight_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+create_graph(raft::handle_t const& handle,
+             std::vector<vertex_t>&& edge_srcs,
+             std::vector<vertex_t>&& edge_dsts,
+             std::optional<std::vector<weight_t>>&& edge_wgts,
+             bool renumber,
+             bool is_symmetric)
+{
+  size_t num_edges = edge_srcs.size();
+  assert(edge_dsts.size() == num_edges);
+  if (edge_wgts.has_value()) { assert((*edge_wgts).size() == num_edges); }
+
+  auto const comm_rank = handle.get_comms().get_rank();
+  auto const comm_size = handle.get_comms().get_size();
+
+  //
+  // Assign part of the edge list to each GPU
+  //
+
+  auto start = comm_rank * (num_edges / comm_size);
+  auto end   = (comm_rank + 1) * (num_edges / comm_size);
+  if (comm_rank == comm_size - 1) { end = num_edges; }
+
+  auto work_size = end - start;
+  rmm::device_uvector<vertex_t> d_edge_srcs(work_size, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edge_dsts(work_size, handle.get_stream());
+
+  auto d_edge_wgts = edge_wgts.has_value() ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                               work_size, handle.get_stream())
+                                           : std::nullopt;
+
+  raft::update_device(d_edge_srcs.data(), edge_srcs.data() + start, work_size, handle.get_stream());
+  raft::update_device(d_edge_dsts.data(), edge_dsts.data() + start, work_size, handle.get_stream());
+  if (d_edge_wgts.has_value()) {
+    raft::update_device(
+      (*d_edge_wgts).data(), (*edge_wgts).data() + start, work_size, handle.get_stream());
+  }
+
+  //
+  // Shuffle edges to proper GPU
+  //
+
+  if (multi_gpu) {
+    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore) =
+      cugraph::shuffle_external_edges<vertex_t, vertex_t, weight_t, int32_t>(handle,
+                                                                             std::move(d_edge_srcs),
+                                                                             std::move(d_edge_dsts),
+                                                                             std::move(d_edge_wgts),
+                                                                             std::nullopt,
+                                                                             std::nullopt);
+  }
+
+  //
+  // Create graph
+  //
+
+  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+
+  std::optional<cugraph::edge_property_t<decltype(graph.view()), weight_t>> edge_weights{
+    std::nullopt};
+
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+
+  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_t,
+                                        int32_t,
+                                        store_transposed,
+                                        multi_gpu>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_edge_srcs),
+                                                   std::move(d_edge_dsts),
+                                                   std::move(d_edge_wgts),
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   cugraph::graph_properties_t{is_symmetric, false},
+                                                   renumber,
+                                                   true);
+
+  auto graph_view       = graph.view();
+  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
+  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
+}
+
+/**
+ * @brief This function prints vertex and edge partitions.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+void look_into_vertex_and_edge_partitions(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<rmm::device_uvector<vertex_t>>&& renumber_map)
 {
   auto const comm_rank = handle.get_comms().get_rank();
-
-  std::cout << "Rank_" << comm_rank << ", reading graph from " << csv_graph_file_path << std::endl;
-
-  bool renumber = true;  // must be true for multi-gpu
-
-  // Read a graph (along with edge properties e.g. edge weights, if provided) from
-  // the input csv file
-  auto [graph, edge_weights, renumber_map] =
-    cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, csv_graph_file_path, weighted, renumber);
-
-  // Meta of the non-owning view of the graph object store vertex/edge partitioning map
-  auto graph_view = graph.view();
-
-  // Non-owning of the edge edge_weights object
-  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
   // Total number of vertices
   vertex_t global_number_of_vertices = graph_view.number_of_vertices();
@@ -340,24 +403,38 @@ void look_into_vertex_and_edge_partitions(raft::handle_t const& handle,
 
 int main(int argc, char** argv)
 {
-  if (argc < 2) {
-    std::cout << "Usage: ./sg_examples path_to_your_csv_graph_file [memory allocation mode]"
-              << std::endl;
-    exit(0);
-  }
-
-  std::string const& csv_graph_file_path = argv[1];
-  std::string const& allocation_mode     = argc < 3 ? "cuda" : argv[2];
-
   initialize_mpi_and_set_device(argc, argv);
-  std::unique_ptr<raft::handle_t> handle = initialize_mg_handle(allocation_mode);
+  std::unique_ptr<raft::handle_t> handle = initialize_mg_handle();
 
-  using vertex_t                  = int32_t;
-  using edge_t                    = int32_t;
-  using weight_t                  = float;
+  using vertex_t    = int32_t;
+  using edge_t      = int32_t;
+  using weight_t    = float;
+  bool is_symmetric = true;
+
+  std::vector<vertex_t> edge_srcs = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<vertex_t> edge_dsts = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<weight_t> edge_wgts = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
   constexpr bool multi_gpu        = true;
   constexpr bool store_transposed = false;
+  bool renumber                   = true;  // must be true for multi-GPU applications
+
+  auto [graph, edge_weights, renumber_map] =
+    create_graph<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      *handle,
+      std::move(edge_srcs),
+      std::move(edge_dsts),
+      std::move(std::make_optional(edge_wgts)),
+      renumber,
+      is_symmetric);
+
+  // Non-owning view of the graph object
+  auto graph_view = graph.view();
+
+  // Non-owning of the edge edge_weights object
+  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
   look_into_vertex_and_edge_partitions<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    *handle, csv_graph_file_path, false);
+    *handle, graph_view, edge_weight_view, std::move(renumber_map));
 }

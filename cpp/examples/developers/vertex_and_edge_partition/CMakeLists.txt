@@ -27,19 +27,7 @@ include(../../fetch_dependencies.cmake)
 find_package(MPI REQUIRED COMPONENTS CXX)
 include(../../../cmake/thirdparty/get_nccl.cmake)
 
-add_library(csvfileutil STATIC ../../../tests/utilities/csv_file_utilities.cu)
-target_include_directories(csvfileutil
-  PUBLIC
-    "../../../../thirdparty/mmio"
-    "../../../tests"
-    "../../../include"
-    "../../../src"
-)
-set_target_properties(csvfileutil PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(csvfileutil PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
-
-# Configure your project here
 add_executable(vertex_and_edge_partition vertex_and_edge_partition.cu)
 set_target_properties(vertex_and_edge_partition PROPERTIES CUDA_ARCHITECTURES "native")
-target_link_libraries(vertex_and_edge_partition PRIVATE csvfileutil)
+target_link_libraries(vertex_and_edge_partition PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)
 target_compile_features(vertex_and_edge_partition PRIVATE cxx_std_17)

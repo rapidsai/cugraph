@@ -27,7 +27,6 @@ include(../../fetch_dependencies.cmake)
 find_package(MPI REQUIRED COMPONENTS CXX)
 include(../../../cmake/thirdparty/get_nccl.cmake)
 
-# Configure your project here
 add_executable(mg_graph_algorithms mg_graph_algorithms.cpp)
 set_target_properties(mg_graph_algorithms PROPERTIES CUDA_ARCHITECTURES "native")
 target_link_libraries(mg_graph_algorithms PUBLIC cugraph::cugraph NCCL::NCCL MPI::MPI_CXX)

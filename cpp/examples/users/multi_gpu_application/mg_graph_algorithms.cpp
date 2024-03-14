@@ -281,7 +281,6 @@ int main(int argc, char** argv)
   // Non-owning of the edge edge_weights object
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-
   //
   // Run example graph algorithms
   //
