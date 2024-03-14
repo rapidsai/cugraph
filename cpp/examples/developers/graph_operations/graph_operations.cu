@@ -322,7 +322,7 @@ int main(int argc, char** argv)
   // Non-owning view of the graph object
   auto graph_view = graph.view();
 
-  // Non-owning of the edge edge_weights object
+  // Non-owning of the edge_weights object
   auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
   perform_example_graph_operations<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
