@@ -29,5 +29,5 @@ CPMFindPackage(
     cpp
 )
 
-include(../../../../fetch_rapids.cmake)
+include(../../../../rapids_config.cmake)
 include(rapids-find)
