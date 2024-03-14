@@ -2,7 +2,7 @@
 
 # Copyright (c) 2024, NVIDIA CORPORATION.
 
-# script for building libcugraph examples 
+# script for building libcugraph examples
 
 # Parallelism control
 PARALLEL_LEVEL=${PARALLEL_LEVEL:-8}
