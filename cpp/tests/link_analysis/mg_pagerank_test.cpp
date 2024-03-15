@@ -114,6 +114,8 @@ class Tests_MGPageRank
                                            result_t{0.0},
                                            result_t{1.0},
                                            rng_state);
+
+      handle_->sync_stream();  // before rng_state goes out-of-scope
     }
 
     // 3. run MG PageRank

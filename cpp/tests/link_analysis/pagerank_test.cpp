@@ -202,6 +202,8 @@ class Tests_PageRank
                                            result_t{0.0},
                                            result_t{1.0},
                                            rng_state);
+
+      handle.sync_stream();  // before rng_state goes out-of-scope
     }
 
     result_t constexpr alpha{0.85};

@@ -17,7 +17,6 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -188,13 +187,22 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     rmm::device_uvector<weight_t> d_authorities(graph_view.local_vertex_partition_range_size(),
                                                 handle.get_stream());
 
-    std::vector<weight_t> initial_random_hubs =
-      (hits_usecase.check_initial_input) ? cugraph::test::random_vector<weight_t>(d_hubs.size())
-                                         : std::vector<weight_t>(0);
-
+    std::optional<rmm::device_uvector<weight_t>> d_initial_random_hubs{std::nullopt};
     if (hits_usecase.check_initial_input) {
-      raft::update_device(
-        d_hubs.data(), initial_random_hubs.data(), initial_random_hubs.size(), handle.get_stream());
+      raft::random::RngState rng_state(0);
+      d_initial_random_hubs = rmm::device_uvector<weight_t>(d_hubs.size(), handle.get_stream());
+      cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                           (*d_initial_random_hubs).data(),
+                                           (*d_initial_random_hubs).size(),
+                                           weight_t{0.0},
+                                           weight_t{1.0},
+                                           rng_state);
+      raft::copy(d_hubs.data(),
+                 (*d_initial_random_hubs).data(),
+                 (*d_initial_random_hubs).size(),
+                 handle.get_stream());
+
+      handle.sync_stream();  // before rng_state goes out-of-scope
     }
 
     if (cugraph::test::g_perf) {
@@ -228,14 +236,15 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
-      auto reference_result = hits_reference<weight_t>(
+      auto h_initial_random_hubs = cugraph::test::to_host(handle, *d_initial_random_hubs);
+      auto reference_result      = hits_reference<weight_t>(
         offsets.data(),
         indices.data(),
         unrenumbered_graph_view.number_of_vertices(),
         unrenumbered_graph_view.compute_number_of_edges(handle),
         maximum_iterations,
-        (hits_usecase.check_initial_input) ? std::make_optional(initial_random_hubs.data())
-                                           : std::nullopt,
+        (hits_usecase.check_initial_input) ? std::make_optional(h_initial_random_hubs.data())
+                                                : std::nullopt,
         true,
         epsilon);
 
