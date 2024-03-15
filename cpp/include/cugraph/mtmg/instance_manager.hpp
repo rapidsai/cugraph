@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,21 @@ class instance_manager_t {
     int gpu_id    = local_id % raft_handle_.size();
     int thread_id = local_id / raft_handle_.size();
 
+    return handle_t(*raft_handle_[gpu_id], thread_id, device_ids_[gpu_id]);
+  }
+
+  /**
+   * @brief Get handle for particular GPU
+   *
+   * Return a handle for a particular GPU.  In a context-free environment
+   * this lets the caller reconstitute the handle for the right host thread.
+   * It does assume that the caller will not allow multiple threads to
+   * concurrently use a gpu_id/thread_id pair.
+   *
+   * @return a handle for this thread.
+   */
+  handle_t get_handle(int gpu_id, int thread_id = 0)
+  {
     return handle_t(*raft_handle_[gpu_id], thread_id, device_ids_[gpu_id]);
   }
 

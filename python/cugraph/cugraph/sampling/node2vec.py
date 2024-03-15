@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,8 +16,30 @@ from pylibcugraph import (
     node2vec as pylibcugraph_node2vec,
 )
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+import warnings
 
 import cudf
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, start_vertices):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
+    if isinstance(start_vertices, cudf.Series):
+        start_vertices_dtype = start_vertices.dtype
+    else:
+        start_vertices_dtype = start_vertices.dtypes.iloc[0]
+
+    if start_vertices_dtype != vertex_dtype:
+        warning_msg = (
+            "Node2vec requires 'start_vertices' to match the graph's "
+            f"'vertex' type. input graph's vertex type is: {vertex_dtype} and got "
+            f"'start_vertices' of type: {start_vertices_dtype}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        start_vertices = start_vertices.astype(vertex_dtype)
+
+    return start_vertices
 
 
 def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0):
@@ -119,6 +141,8 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
             )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
+
+    start_vertices = ensure_valid_dtype(G, start_vertices)
 
     vertex_set, edge_set, sizes = pylibcugraph_node2vec(
         resource_handle=ResourceHandle(),
