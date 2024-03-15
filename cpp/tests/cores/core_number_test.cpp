@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -246,8 +247,8 @@ class Tests_CoreNumber
 
     std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
     if (core_number_usecase.edge_masking) {
-      CUGRAPH_FAIL("unimplemented.");
-      // edge_mask = cugraph::test::generate<vertex_t, bool>::edge_property(handle, graph_view, 2);
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
