@@ -123,13 +123,10 @@ rmm::device_uvector<vertex_t> prefix_sum_valid_and_invalid_edges(
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 edge_t remove_overcompensating_edges(raft::handle_t const& handle,
-                                     edge_t num_valid_edges,
-                                     edge_t num_invalid_edges,
-                                     edge_t dataframe_buffer_size,
                                      EdgeIterator&& potential_closing_or_incoming_edges,
                                      EdgeIterator&& incoming_or_potential_closing_edges,
-                                     raft::device_span<vertex_t const> edgelist_srcs,
-                                     raft::device_span<vertex_t const> edgelist_dsts)
+                                     raft::device_span<vertex_t const> invalid_edgelist_srcs,
+                                     raft::device_span<vertex_t const> invalid_edgelist_dsts)
 {
   // To avoid over-compensating, check whether the 'potential_closing_edges'
   // are within the invalid edges. If yes, the was already unrolled
@@ -138,14 +135,13 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
     thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_or_incoming_edges),
                               get_dataframe_buffer_begin(incoming_or_potential_closing_edges)),
     thrust::make_zip_iterator(
-      get_dataframe_buffer_begin(potential_closing_or_incoming_edges) + dataframe_buffer_size,
-      get_dataframe_buffer_begin(incoming_or_potential_closing_edges) + dataframe_buffer_size),
-    [num_invalid_edges,
-     num_valid_edges,
-     invalid_first = thrust::make_zip_iterator(edgelist_dsts.begin() + num_valid_edges,
-                                               edgelist_srcs.begin() + num_valid_edges),
+      get_dataframe_buffer_begin(potential_closing_or_incoming_edges) + size_dataframe_buffer(potential_closing_or_incoming_edges),
+      get_dataframe_buffer_begin(incoming_or_potential_closing_edges) + size_dataframe_buffer(incoming_or_potential_closing_edges)),
+    [num_invalid_edges = invalid_edgelist_dsts.size(),
+     invalid_first = thrust::make_zip_iterator(invalid_edgelist_dsts.begin(),
+                                               invalid_edgelist_srcs.begin()),
      invalid_last =
-       thrust::make_zip_iterator(edgelist_dsts.end(), edgelist_srcs.end())] __device__(auto e) {
+       thrust::make_zip_iterator(invalid_edgelist_dsts.end(), invalid_edgelist_srcs.end())] __device__(auto e) {
       auto potential_edge = thrust::get<0>(e);
       auto transposed_potential_or_incoming_edge =
         thrust::make_tuple(thrust::get<1>(potential_edge), thrust::get<0>(potential_edge));
@@ -153,13 +149,8 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
         thrust::seq,
         invalid_first,
         invalid_last,
-        transposed_potential_or_incoming_edge);  // very important when using lower or upperbound on
-                                                 // edges that do not exist. Always make sure to
-                                                 // compare with the queried edges
-      assert(*itr == transposed_potential_or_incoming_edge);
-      auto dist = thrust::distance(invalid_first, itr);
-      if (*itr != transposed_potential_or_incoming_edge) { return false; }
-      return dist < num_invalid_edges;
+        transposed_potential_or_incoming_edge); 
+      return (itr != invalid_last && *itr == transposed_potential_or_incoming_edge);
     });
 
   auto dist = thrust::distance(
@@ -212,35 +203,35 @@ void unroll_p_r_or_q_r_edges(
     thrust::make_counting_iterator<edge_t>(num_invalid_edges),
     [num_valid_edges,
      num_invalid_edges,
-     invalid_first_dst       = edgelist_dsts.begin() + num_valid_edges,
-     invalid_first_src       = edgelist_srcs.begin() + num_valid_edges,
-     src_array_begin_valid   = edgelist_srcs.begin(),
-     dst_array_begin_valid   = edgelist_dsts.begin(),
+     invalid_dst_first       = edgelist_dsts.begin() + num_valid_edges,
+     invalid_src_first       = edgelist_srcs.begin() + num_valid_edges,
+     valid_src_first   = edgelist_srcs.begin(),
+     valid_dst_first         = edgelist_dsts.begin(),
      prefix_sum_valid        = prefix_sum_valid.data(),
      prefix_sum_invalid      = prefix_sum_invalid.data(),
      potential_closing_edges = get_dataframe_buffer_begin(potential_closing_edges),
      incoming_edges_to_r     = get_dataframe_buffer_begin(incoming_edges_to_r)
      ] __device__(auto idx) {
-      auto src                 = invalid_first_src[idx];
-      auto dst                 = invalid_first_dst[idx];
-      auto dst_array_end_valid = dst_array_begin_valid + num_valid_edges;
+      auto src                 = invalid_src_first[idx];
+      auto dst                 = invalid_dst_first[idx];
+      auto dst_array_end_valid = valid_dst_first + num_valid_edges;
 
       auto itr_lower_valid =
-        thrust::lower_bound(thrust::seq, dst_array_begin_valid, dst_array_end_valid, dst);
+        thrust::lower_bound(thrust::seq, valid_dst_first, dst_array_end_valid, dst);
       auto idx_lower_valid = thrust::distance(
-        dst_array_begin_valid,
+        valid_dst_first,
         itr_lower_valid);  // Need a binary search to find the begining of the range
 
-      auto invalid_end_dst = invalid_first_dst + num_invalid_edges;
+      auto invalid_end_dst = invalid_dst_first + num_invalid_edges;
 
       auto itr_lower_invalid =
-        thrust::lower_bound(thrust::seq, invalid_first_dst, invalid_end_dst, dst);
+        thrust::lower_bound(thrust::seq, invalid_dst_first, invalid_end_dst, dst);
       auto idx_lower_invalid = thrust::distance(
-        invalid_first_dst,
+        invalid_dst_first,
         itr_lower_invalid);  // Need a binary search to find the begining of the range
 
       auto incoming_edges_to_r_first_valid = thrust::make_zip_iterator(
-        src_array_begin_valid + idx_lower_valid, thrust::make_constant_iterator(dst));
+        valid_src_first + idx_lower_valid, thrust::make_constant_iterator(dst));
       thrust::copy(
         thrust::seq,
         incoming_edges_to_r_first_valid,
@@ -248,17 +239,17 @@ void unroll_p_r_or_q_r_edges(
         incoming_edges_to_r + prefix_sum_valid[idx] + prefix_sum_invalid[idx]);
 
       auto incoming_edges_to_r_first_invalid = thrust::make_zip_iterator(
-        invalid_first_src + idx_lower_invalid, thrust::make_constant_iterator(dst));
+        invalid_src_first + idx_lower_invalid, thrust::make_constant_iterator(dst));
       thrust::copy(
         thrust::seq,
         incoming_edges_to_r_first_invalid,
         incoming_edges_to_r_first_invalid + (prefix_sum_invalid[idx + 1] - prefix_sum_invalid[idx]),
-        // FIXME remove prefix_sum_valid[idx] as it is substracted
+
         incoming_edges_to_r + prefix_sum_invalid[idx] + prefix_sum_valid[idx + 1]);
 
       if constexpr (is_q_r_edge) {
         auto potential_closing_edges_first_valid = thrust::make_zip_iterator(
-          src_array_begin_valid + idx_lower_valid, thrust::make_constant_iterator(src));
+          valid_src_first + idx_lower_valid, thrust::make_constant_iterator(src));
         thrust::copy(
           thrust::seq,
           potential_closing_edges_first_valid,
@@ -266,7 +257,7 @@ void unroll_p_r_or_q_r_edges(
           potential_closing_edges + prefix_sum_valid[idx] + prefix_sum_invalid[idx]);
 
         auto potential_closing_edges_first_invalid = thrust::make_zip_iterator(
-          invalid_first_src + idx_lower_invalid, thrust::make_constant_iterator(src));
+          invalid_src_first + idx_lower_invalid, thrust::make_constant_iterator(src));
         thrust::copy(thrust::seq,
                      potential_closing_edges_first_invalid,
                      potential_closing_edges_first_invalid +
@@ -275,7 +266,7 @@ void unroll_p_r_or_q_r_edges(
 
       } else {
         auto potential_closing_edges_first_valid = thrust::make_zip_iterator(
-          thrust::make_constant_iterator(src), src_array_begin_valid + idx_lower_valid);
+          thrust::make_constant_iterator(src), valid_src_first + idx_lower_valid);
         thrust::copy(
           thrust::seq,
           potential_closing_edges_first_valid,
@@ -283,7 +274,7 @@ void unroll_p_r_or_q_r_edges(
           potential_closing_edges + prefix_sum_valid[idx] + prefix_sum_invalid[idx]);
 
         auto potential_closing_edges_first_invalid = thrust::make_zip_iterator(
-          thrust::make_constant_iterator(src), invalid_first_src + idx_lower_invalid);
+          thrust::make_constant_iterator(src), invalid_src_first + idx_lower_invalid);
         thrust::copy(
           thrust::seq,
           potential_closing_edges_first_invalid,
@@ -323,13 +314,10 @@ void unroll_p_r_or_q_r_edges(
   edge_t num_edges_not_overcomp =
     remove_overcompensating_edges<vertex_t, edge_t, decltype(potential_closing_edges)>(
       handle,
-      edge_t{num_valid_edges},
-      edge_t{num_invalid_edges},
-      edge_t{num_edge_exists},
       std::move(potential_closing_edges),
       std::move(incoming_edges_to_r),
-      raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-      raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
+      raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
 
   // Extra check for 'incoming_edges_to_r'
   if constexpr (!is_q_r_edge) {
@@ -338,13 +326,10 @@ void unroll_p_r_or_q_r_edges(
     num_edges_not_overcomp =
       remove_overcompensating_edges<vertex_t, edge_t, decltype(potential_closing_edges)>(
         handle,
-        edge_t{num_valid_edges},
-        edge_t{num_invalid_edges},
-        edge_t{num_edges_not_overcomp},
         std::move(incoming_edges_to_r),
         std::move(potential_closing_edges),
-        raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-        raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+        raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
+        raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
   }
 
   // FIXME: Combine both 'thrust::for_each'
