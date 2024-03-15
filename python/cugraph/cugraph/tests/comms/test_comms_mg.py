@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,9 @@ import gc
 import pytest
 import cugraph.dask as dcg
 
-import cudf
-import dask_cudf
 import cugraph
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.datasets import karate, dolphins
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -30,12 +29,37 @@ def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+
+DATASETS = [karate, dolphins]
 IS_DIRECTED = [True, False]
 
 
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def get_pagerank_result(dataset, is_mg):
+    """Return the cugraph.pagerank result for an MG or SG graph"""
+    dataset.unload()
+
+    if is_mg:
+        dg = dataset.get_dask_graph(store_transposed=True)
+        return dcg.pagerank(dg).compute()
+    else:
+        g = dataset.get_graph(store_transposed=True)
+        return cugraph.pagerank(g)
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_mg_pagerank(dask_client, directed):
@@ -43,62 +67,17 @@ def test_dask_mg_pagerank(dask_client, directed):
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
 
-    input_data_path1 = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    input_data_path1 = karate.get_path()
     print(f"dataset1={input_data_path1}")
-    chunksize1 = dcg.get_chunksize(input_data_path1)
+    result_pr1 = get_pagerank_result(karate, is_mg=True)
 
-    input_data_path2 = (RAPIDS_DATASET_ROOT_DIR_PATH / "dolphins.csv").as_posix()
+    input_data_path2 = dolphins.get_path()
     print(f"dataset2={input_data_path2}")
-    chunksize2 = dcg.get_chunksize(input_data_path2)
-
-    ddf1 = dask_cudf.read_csv(
-        input_data_path1,
-        chunksize=chunksize1,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg1 = cugraph.Graph(directed=directed)
-    dg1.from_dask_cudf_edgelist(ddf1, "src", "dst")
-
-    result_pr1 = dcg.pagerank(dg1).compute()
-
-    ddf2 = dask_cudf.read_csv(
-        input_data_path2,
-        chunksize=chunksize2,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg2 = cugraph.Graph(directed=directed)
-    dg2.from_dask_cudf_edgelist(ddf2, "src", "dst")
-
-    result_pr2 = dcg.pagerank(dg2).compute()
+    result_pr2 = get_pagerank_result(dolphins, is_mg=True)
 
     # Calculate single GPU pagerank for verification of results
-    df1 = cudf.read_csv(
-        input_data_path1,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g1 = cugraph.Graph(directed=directed)
-    g1.from_cudf_edgelist(df1, "src", "dst")
-    expected_pr1 = cugraph.pagerank(g1)
-
-    df2 = cudf.read_csv(
-        input_data_path2,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g2 = cugraph.Graph(directed=directed)
-    g2.from_cudf_edgelist(df2, "src", "dst")
-    expected_pr2 = cugraph.pagerank(g2)
+    expected_pr1 = get_pagerank_result(karate, is_mg=False)
+    expected_pr2 = get_pagerank_result(dolphins, is_mg=False)
 
     # Compare and verify pagerank results
 
@@ -134,3 +113,7 @@ def test_dask_mg_pagerank(dask_client, directed):
             err2 = err2 + 1
     print("Mismatches in ", input_data_path2, ": ", err2)
     assert err1 == err2 == 0
+
+    # Clean-up stored dataset edge-lists
+    karate.unload()
+    dolphins.unload()
