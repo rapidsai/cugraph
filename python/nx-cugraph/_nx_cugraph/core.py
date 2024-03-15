@@ -45,18 +45,27 @@ def update_text(text, lines_to_add, target, indent=" " * 8):
     return f"{text[:start]}{begin}{to_add}\n{indent}{text[stop:]}"
 
 
+def dq_repr(s):
+    """Return repr(s) quoted with the double quote preference used by black."""
+    rs = repr(s)
+    if rs.startswith("'") and '"' not in rs:
+        rs = rs.strip("'")
+        return f'"{rs}"'
+    return rs
+
+
 def dict_to_lines(d, *, indent=""):
     for key in sorted(d):
         val = d[key]
         if "\n" not in val:
-            yield f"{indent}{key!r}: {val!r},"
+            yield f"{indent}{dq_repr(key)}: {dq_repr(val)},"
         else:
-            yield f"{indent}{key!r}: ("
+            yield f"{indent}{dq_repr(key)}: ("
             *lines, last_line = val.split("\n")
             for line in lines:
                 line += "\n"
-                yield f"    {indent}{line!r}"
-            yield f"    {indent}{last_line!r}"
+                yield f"    {indent}{dq_repr(line)}"
+            yield f"    {indent}{dq_repr(last_line)}"
             yield f"{indent}),"
 
 
@@ -83,7 +92,7 @@ def main(filepath):
     to_add = []
     for name in sorted(additional_parameters):
         params = additional_parameters[name]
-        to_add.append(f"{name!r}: {{")
+        to_add.append(f"{dq_repr(name)}: {{")
         to_add.extend(dict_to_lines(params, indent=" " * 4))
         to_add.append("},")
     text = update_text(text, to_add, "additional_parameters")

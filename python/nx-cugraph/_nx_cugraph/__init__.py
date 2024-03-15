@@ -23,12 +23,18 @@ or
 $ python _nx_cugraph/__init__.py
 """
 
+from packaging.version import Version
+
+from _nx_cugraph._version import __version__
+
+_nx_cugraph_version = Version(__version__)
+
 # Entries between BEGIN and END are automatically generated
 _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": "https://github.com/rapidsai/cugraph/tree/branch-24.04/python/nx-cugraph",
+    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_nx_cugraph_version.major:02}.{_nx_cugraph_version.minor:02}/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -252,11 +258,24 @@ def get_info():
     return d
 
 
-# FIXME: can this use the standard VERSION file and update mechanism?
-__version__ = "24.04.00"
-
 if __name__ == "__main__":
     from pathlib import Path
+
+    # This script imports nx_cugraph modules, which imports nx_cugraph runtime
+    # dependencies. The modules do not need the runtime deps, so stub them out
+    # to avoid installing them.
+    class Stub:
+        def __getattr__(self, *args, **kwargs):
+            return Stub()
+
+        def __call__(self, *args, **kwargs):
+            return Stub()
+
+    import sys
+
+    sys.modules["cupy"] = Stub()
+    sys.modules["numpy"] = Stub()
+    sys.modules["pylibcugraph"] = Stub()
 
     from _nx_cugraph.core import main
 
