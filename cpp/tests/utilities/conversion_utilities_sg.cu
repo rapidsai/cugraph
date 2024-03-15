@@ -13,7 +13,7 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include "utilities/test_utilities_impl.cuh"
+#include "utilities/conversion_utilities_impl.cuh"
 
 namespace cugraph {
 namespace test {

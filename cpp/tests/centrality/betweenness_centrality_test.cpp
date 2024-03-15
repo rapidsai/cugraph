@@ -16,8 +16,8 @@
 #include "betweenness_centrality_reference.hpp"
 #include "betweenness_centrality_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>

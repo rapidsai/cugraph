@@ -14,8 +14,17 @@
  * limitations under the License.
  */
 
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e_by_src_dst_key.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 #include "property_generator.cuh"
 #include "result_compare.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -42,15 +51,6 @@
 #include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
 
 #include <random>
 

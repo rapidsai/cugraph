@@ -15,11 +15,12 @@
  */
 
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -243,6 +244,13 @@ class Tests_CoreNumber
     }
     auto graph_view = graph.view();
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (core_number_usecase.edge_masking) {
+      CUGRAPH_FAIL("unimplemented.");
+      // edge_mask = cugraph::test::generate<vertex_t, bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     ASSERT_TRUE(core_number_usecase.k_first <= core_number_usecase.k_last)
       << "Invalid pair of (k_first, k_last).";
 
@@ -272,7 +280,13 @@ class Tests_CoreNumber
       std::vector<vertex_t> h_indices{};
       std::tie(h_offsets, h_indices, std::ignore) =
         cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
-          handle, graph_view, std::nullopt, std::nullopt);
+          handle,
+          graph_view,
+          std::nullopt,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
                                                             h_indices.data(),

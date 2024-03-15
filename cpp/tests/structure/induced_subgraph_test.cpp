@@ -15,6 +15,7 @@
  */
 #include "structure/induced_subgraph_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/graph.hpp>

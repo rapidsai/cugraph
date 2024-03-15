@@ -15,9 +15,9 @@
  */
 #include "link_prediction/similarity_compare.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>

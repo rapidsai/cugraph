@@ -15,21 +15,29 @@
  */
 #pragma once
 
-#include <algorithm>
-#include <random>
-#include <vector>
+#include <string>
 
 namespace cugraph {
 namespace test {
 
-template <typename T, typename L>
-std::vector<T> random_vector(L size, unsigned seed = 0)
+std::string getFileName(const std::string& s);
+
+// Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
+// allow for a build to override the default. This is useful for
+// having different builds for specific default dataset locations.
+#ifndef RAPIDS_DATASET_ROOT_DIR
+#define RAPIDS_DATASET_ROOT_DIR "/datasets"
+#endif
+
+static const std::string& get_rapids_dataset_root_dir()
 {
-  std::default_random_engine gen(seed);
-  std::uniform_real_distribution<T> dist(0.0, 1.0);
-  std::vector<T> v(size);
-  std::generate(v.begin(), v.end(), [&] { return dist(gen); });
-  return v;
+  static std::string rdrd("");
+  // Env var always overrides the value of RAPIDS_DATASET_ROOT_DIR
+  if (rdrd == "") {
+    const char* envVar = std::getenv("RAPIDS_DATASET_ROOT_DIR");
+    rdrd               = (envVar != NULL) ? envVar : RAPIDS_DATASET_ROOT_DIR;
+  }
+  return rdrd;
 }
 
 }  // namespace test

@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
+#include "prims/transform_e.cuh"
+#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 #include "property_generator.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
@@ -37,14 +45,6 @@
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
 
 #include <random>
 

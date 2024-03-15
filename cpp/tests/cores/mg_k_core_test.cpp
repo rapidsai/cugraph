@@ -16,6 +16,7 @@
 
 #include "k_core_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
 #include "utilities/test_graphs.hpp"

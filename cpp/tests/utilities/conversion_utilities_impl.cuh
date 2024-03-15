@@ -16,8 +16,8 @@
 #pragma once
 
 #include "structure/detail/structure_utils.cuh"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>

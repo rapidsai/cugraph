@@ -15,7 +15,7 @@
  */
 
 #include "utilities/base_fixture.hpp"
-#include "utilities/test_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
