@@ -151,9 +151,9 @@ def induced_subgraph(
     # renumbered, the node ID must also be renumbered.
     if input_graph.renumbered:
         vertices = input_graph.lookup_internal_vertex_id(vertices)
-        vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
+        vertices_type = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     else:
-        vertices_type = input_graph.input_df.dtypes[0]
+        vertices_type = input_graph.input_df.dtypes.iloc[0]
 
     if isinstance(vertices, (cudf.Series, cudf.DataFrame)):
         vertices = dask_cudf.from_cudf(vertices, npartitions=input_graph._npartitions)

@@ -191,7 +191,7 @@ def louvain(
     part_mod_score = [client.submit(convert_to_cudf, r) for r in result]
     wait(part_mod_score)
 
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     empty_df = cudf.DataFrame(
         {
             "vertex": numpy.empty(shape=0, dtype=vertex_dtype),
