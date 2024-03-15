@@ -2051,16 +2051,20 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param k The desired k to be used for extracting the K-Truss subgraph
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return edge list of the K-Truss subgraph
  */
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> k_truss(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_t k,
-  bool do_expensive_check = false);
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss(raft::handle_t const& handle,
+        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+        edge_t k,
+        bool do_expensive_check = false);
 
 /**
  * @brief     Compute Jaccard similarity coefficient
