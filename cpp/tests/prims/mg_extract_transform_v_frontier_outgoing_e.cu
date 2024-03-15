@@ -17,11 +17,11 @@
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
-#include "property_generator.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -183,8 +183,8 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -192,11 +192,12 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 
     const int hash_bin_count = 5;
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
@@ -308,9 +309,9 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+        auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
-        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+        auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
