@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "utilities/test_utilities.hpp"
-
 #include <gtest/gtest.h>
 
 #include <limits>

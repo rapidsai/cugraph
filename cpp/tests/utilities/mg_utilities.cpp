@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "utilities/test_utilities.hpp"
+#include "utilities/mg_utilities.hpp"
 
 #include <cugraph/partition_manager.hpp>
 
