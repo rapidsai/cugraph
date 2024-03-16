@@ -16,16 +16,16 @@
 
 #include <cugraph_c/algorithms.h>
 
+#include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
+
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/induced_subgraph_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
-
-#include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/graph_functions.hpp>
 
 #include <optional>
 
@@ -85,12 +85,13 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
       std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
 
-      auto [result_src, result_dst, result_wgt] = cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
-        k_,
-        do_expensive_check_);
+      auto [result_src, result_dst, result_wgt] =
+        cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
+          k_,
+          do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,

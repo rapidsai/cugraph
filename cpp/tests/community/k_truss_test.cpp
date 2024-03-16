@@ -72,8 +72,8 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       hr_timer.start("MG Construct graph");
     }
 
-    //cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    //std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    // cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+    // std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
     auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, false, true);
@@ -93,7 +93,8 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       hr_timer.start("K-truss");
     }
 
-    cugraph::k_truss<vertex_t, edge_t, weight_t, false>(handle, graph_view, edge_weight_view, k_truss_usecase.k, false);
+    cugraph::k_truss<vertex_t, edge_t, weight_t, false>(
+      handle, graph_view, edge_weight_view, k_truss_usecase.k, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

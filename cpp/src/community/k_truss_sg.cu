@@ -20,7 +20,7 @@ namespace cugraph {
 
 // SG instantiation
 
-template std::tuple<rmm::device_uvector<int32_t>, 
+template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 k_truss(raft::handle_t const& handle,
@@ -29,7 +29,7 @@ k_truss(raft::handle_t const& handle,
         int32_t k,
         bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>, 
+template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 k_truss(raft::handle_t const& handle,
