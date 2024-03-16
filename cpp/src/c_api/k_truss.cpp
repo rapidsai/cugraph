@@ -118,7 +118,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
-        wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
                                                                      graph_->weight_type_)
             : NULL,
         NULL,
