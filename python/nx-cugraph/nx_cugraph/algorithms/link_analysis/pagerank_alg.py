@@ -48,12 +48,7 @@ def pagerank(
     G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:
         return {}
-    if dtype is not None:
-        dtype = _get_float_dtype(dtype)
-    elif weight in G.edge_values:
-        dtype = _get_float_dtype(G.edge_values[weight].dtype)
-    else:
-        dtype = np.float32
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     if nstart is not None:
         nstart = G._dict_to_nodearray(nstart, 0, dtype=dtype)
         if (total := nstart.sum()) == 0:

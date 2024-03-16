@@ -2331,11 +2331,37 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @return A device vector containing vertices found in the maximal independent set
+ * @return A device vector containing vertices in the maximal independent set.
  */
-
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state);
+
+/*
+ * @brief Find a Greedy Vertex Coloring
+ *
+ * A vertex coloring is an assignment of colors or labels to each vertex of a graph so that
+ * no two adjacent vertices have the same color or label. Finding the minimum number of colors
+ * needed to color the vertices of a graph is an NP-hard problem and therefore for practical
+ * use cases greedy coloring is used. Here we provide an implementation of greedy vertex
+ * coloring based on maximal independent set.
+ * See
+ * https://research.nvidia.com/sites/default/files/pubs/2015-05_Parallel-Graph-Coloring/nvr-2015-001.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @return A device vector containing color for each vertex.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> vertex_coloring(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);

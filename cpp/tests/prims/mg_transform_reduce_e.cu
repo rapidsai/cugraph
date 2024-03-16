@@ -17,6 +17,7 @@
 #include "prims/transform_reduce_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "property_generator.cuh"
+#include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
@@ -51,44 +52,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename T>
-struct result_compare {
-  static constexpr double threshold_ratio{1e-3};
-  constexpr auto operator()(const T& t1, const T& t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
-    }
-    return t1 == t2;
-  }
-};
-
-template <typename... Args>
-struct result_compare<thrust::tuple<Args...>> {
-  static constexpr double threshold_ratio{1e-3};
-
-  using type = thrust::tuple<Args...>;
-  constexpr auto operator()(const type& t1, const type& t2)
-  {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
-  }
-
- private:
-  template <typename T>
-  constexpr bool equal(T t1, T t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
-    }
-    return t1 == t2;
-  }
-  template <typename T, std::size_t... I>
-  constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
-  {
-    return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
-  }
-};
 
 struct Prims_Usecase {
   bool test_weighted{false};
@@ -231,7 +194,7 @@ class Tests_MGTransformReduceE
             }
           },
           property_initial_value);
-        result_compare<result_t> compare{};
+        cugraph::test::scalar_result_compare compare{};
         ASSERT_TRUE(compare(expected_result, result));
       }
     }

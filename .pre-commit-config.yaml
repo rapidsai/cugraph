@@ -63,3 +63,23 @@ repos:
               [.]flake8[.]cython$|
               meta[.]yaml$|
               setup[.]cfg$
+  - repo: local
+    hooks:
+      - id: nx-cugraph-meta-data-update
+        name: nx-cugraph meta-data updater
+        entry: bash -c "PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/_nx_cugraph/__init__.py"
+        files: ^python/nx-cugraph/
+        types: [python]
+        language: python
+        pass_filenames: false
+        additional_dependencies: ["networkx>=3.2"]
+  - repo: local
+    hooks:
+      - id: nx-cugraph-readme-update
+        name: nx-cugraph README updater
+        entry: bash -c "PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/scripts/update_readme.py ./python/nx-cugraph/README.md"
+        files: ^python/nx-cugraph/
+        types_or: [python, markdown]
+        language: python
+        pass_filenames: false
+        additional_dependencies: ["networkx>=3.2"]

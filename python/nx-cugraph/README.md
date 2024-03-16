@@ -7,11 +7,10 @@ to run supported algorithms with GPU acceleration.
 ## System Requirements
 
 nx-cugraph requires the following:
-
- * NVIDIA GPU, Pascal architecture or later
+ * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
  * CUDA 11.2, 11.4, 11.5, 11.8, or 12.0
- * Python versions 3.9, 3.10, or 3.11
- * NetworkX >= version 3.2
+ * Python version 3.9, 3.10, or 3.11
+ * NetworkX >= version 3.0 (version 3.2 or higher recommended)
 
 More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req).
 
@@ -20,16 +19,25 @@ More details about system requirements can be found in the [RAPIDS System Requir
 nx-cugraph can be installed using either conda or pip.
 
 ### conda
+#### latest nightly version
 ```
 conda install -c rapidsai-nightly -c conda-forge -c nvidia nx-cugraph
 ```
+#### latest stable version
+```
+conda install -c rapidsai -c conda-forge -c nvidia nx-cugraph
+```
 ### pip
+#### latest nightly version
+```
+python -m pip install nx-cugraph-cu11 --extra-index-url https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+```
+#### latest stable version
 ```
 python -m pip install nx-cugraph-cu11 --extra-index-url https://pypi.nvidia.com
 ```
 Notes:
-
- * Nightly wheel builds will not be available until the 23.12 release, therefore the index URL for the stable release version is being used in the pip install command above.
+ * The pip example above installs for CUDA 11. To install for CUDA 12, replace `-cu11` with `-cu12`
  * Additional information relevant to installing any RAPIDS package can be found [here](https://rapids.ai/#quick-start).
 
 ## Enabling nx-cugraph
@@ -95,8 +103,6 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 
 <pre>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/bipartite.html#module-networkx.algorithms.bipartite">bipartite</a>
- ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/bipartite.html#module-networkx.algorithms.bipartite.basic">basic</a>
- │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.bipartite.basic.is_bipartite.html#networkx.algorithms.bipartite.basic.is_bipartite">is_bipartite</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/bipartite.html#module-networkx.algorithms.bipartite.generators">generators</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.bipartite.generators.complete_bipartite_graph.html#networkx.algorithms.bipartite.generators.complete_bipartite_graph">complete_bipartite_graph</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#module-networkx.algorithms.centrality">centrality</a>
@@ -152,9 +158,26 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
  ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.reciprocity.overall_reciprocity.html#networkx.algorithms.reciprocity.overall_reciprocity">overall_reciprocity</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.reciprocity.reciprocity.html#networkx.algorithms.reciprocity.reciprocity">reciprocity</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html">shortest_paths</a>
- └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html#module-networkx.algorithms.shortest_paths.unweighted">unweighted</a>
-     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path_length.html#networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path_length">single_source_shortest_path_length</a>
-     └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path_length.html#networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path_length">single_target_shortest_path_length</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html#module-networkx.algorithms.shortest_paths.generic">generic</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.generic.has_path.html#networkx.algorithms.shortest_paths.generic.has_path">has_path</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.generic.shortest_path.html#networkx.algorithms.shortest_paths.generic.shortest_path">shortest_path</a>
+ │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.generic.shortest_path_length.html#networkx.algorithms.shortest_paths.generic.shortest_path_length">shortest_path_length</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html#module-networkx.algorithms.shortest_paths.unweighted">unweighted</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.all_pairs_shortest_path.html#networkx.algorithms.shortest_paths.unweighted.all_pairs_shortest_path">all_pairs_shortest_path</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.all_pairs_shortest_path_length.html#networkx.algorithms.shortest_paths.unweighted.all_pairs_shortest_path_length">all_pairs_shortest_path_length</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.bidirectional_shortest_path.html#networkx.algorithms.shortest_paths.unweighted.bidirectional_shortest_path">bidirectional_shortest_path</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path.html#networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path">single_source_shortest_path</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path_length.html#networkx.algorithms.shortest_paths.unweighted.single_source_shortest_path_length">single_source_shortest_path_length</a>
+ │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path.html#networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path">single_target_shortest_path</a>
+ │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path_length.html#networkx.algorithms.shortest_paths.unweighted.single_target_shortest_path_length">single_target_shortest_path_length</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html#module-networkx.algorithms.shortest_paths.weighted">weighted</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path">all_pairs_bellman_ford_path</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path_length">all_pairs_bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.bellman_ford_path">bellman_ford_path</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.bellman_ford_path_length">bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford">single_source_bellman_ford</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path">single_source_bellman_ford_path</a>
+     └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length">single_source_bellman_ford_path_length</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/traversal.html">traversal</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/traversal.html#module-networkx.algorithms.traversal.breadth_first_search">breadth_first_search</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.traversal.breadth_first_search.bfs_edges.html#networkx.algorithms.traversal.breadth_first_search.bfs_edges">bfs_edges</a>

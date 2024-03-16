@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 
 #include "c_test_utils.h"
+#include "c_api/resource_handle.hpp"
+
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <math.h>
 
@@ -387,4 +390,13 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_free(src);
 
   return test_ret_value;
+}
+
+extern "C" size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* handle, size_t value)
+{
+  auto internal_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const *>(handle);
+  return cugraph::host_scalar_allreduce(internal_handle->handle_->get_comms(),
+                                        value,
+                                        raft::comms::op_t::SUM,
+                                        internal_handle->handle_->get_stream());
 }
