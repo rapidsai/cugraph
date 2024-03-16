@@ -698,10 +698,7 @@ k_truss(raft::handle_t const& handle,
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
     cur_graph_view.attach_edge_mask(edge_mask.view());
 
-    edge_t num_invalid_edges{0};
-    size_t num_edges_with_triangles{0};
     while (true) {
-
       // 'invalid_transposed_edge_triangle_count_first' marks the beginning of the edges to be
       // removed 'invalid_transposed_edge_triangle_count_first' + edgelist_srcs.size() marks the end
       // of the edges to be removed 'edge_triangle_count_pair_first' marks the begining of the valid
@@ -715,6 +712,7 @@ k_truss(raft::handle_t const& handle,
                                    return num_triangles >= k - 2;
                                  });
       size_t num_edges_with_triangles{0};
+      edge_t num_invalid_edges{0};
       num_invalid_edges = static_cast<size_t>(
         thrust::distance(invalid_transposed_edge_triangle_count_first,
                          transposed_edge_triangle_count_pair_first + edgelist_srcs.size()));
