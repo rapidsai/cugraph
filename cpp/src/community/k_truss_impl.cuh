@@ -884,8 +884,12 @@ k_truss(raft::handle_t const& handle,
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
-    symmetrize_edgelist<vertex_t, weight_t, false /* dummy */, multi_gpu>(
-      handle, std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(*edgelist_wgts), false);
+      symmetrize_edgelist<vertex_t, weight_t, false /* dummy */, multi_gpu>(
+        handle,
+        std::move(edgelist_srcs),
+        std::move(edgelist_dsts),
+        std::move(*edgelist_wgts),
+        false);
 
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
