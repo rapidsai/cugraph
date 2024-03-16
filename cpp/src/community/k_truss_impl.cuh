@@ -883,13 +883,6 @@ k_truss(raft::handle_t const& handle,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-    printf("\nthe number of edges after = %d\n", edgelist_srcs.size());
-    raft::print_device_vector("src ", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-    raft::print_device_vector("dst ", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-    if (edge_weight_view) {
-      raft::print_device_vector("wgt ", (*edgelist_wgts).data(), edgelist_dsts.size(), std::cout);
-    }
-
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
   }
