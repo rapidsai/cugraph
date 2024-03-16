@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,22 +85,12 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
       std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
 
-      std::tie(src, dst, wgt, std::ignore) = cugraph::decompress_to_edgelist(
+      auto [result_src, result_dst, result_wgt] = cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
         edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt),
+        k_,
         do_expensive_check_);
-
-      auto [result_src, result_dst, result_wgt] = cugraph::k_truss_subgraph(
-        handle_,
-        raft::device_span<vertex_t>(src.data(), src.size()),
-        raft::device_span<vertex_t>(dst.data(), dst.size()),
-        wgt ? std::make_optional(raft::device_span<weight_t>(wgt->data(), wgt->size()))
-            : std::nullopt,
-        graph_view.number_of_vertices(),
-        k_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
