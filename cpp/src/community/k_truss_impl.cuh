@@ -55,14 +55,14 @@ rmm::device_uvector<edge_t> edge_triangle_count(
   raft::device_span<vertex_t> edgelist_srcs,
   raft::device_span<vertex_t> edgelist_dsts);
 
-template <typename vertex_t, typename edge_t, typename EdgeIterator>
+template <typename vertex_t, typename edge_t, typename EdgeBuffer>
 struct unroll_edge {
   edge_t num_valid_edges{};
   raft::device_span<edge_t> num_triangles{};
-  EdgeIterator edge_to_unroll_first{};
-  EdgeIterator transposed_valid_edge_first{};
-  EdgeIterator transposed_valid_edge_last{};
-  EdgeIterator transposed_invalid_edge_last{};
+  EdgeBuffer edge_to_unroll_first{};
+  EdgeBuffer transposed_valid_edge_first{};
+  EdgeBuffer transposed_valid_edge_last{};
+  EdgeBuffer transposed_invalid_edge_last{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -121,10 +121,11 @@ rmm::device_uvector<vertex_t> prefix_sum_valid_and_invalid_edges(
   return prefix_sum;
 }
 
-template <typename vertex_t, typename edge_t, typename EdgeIterator>
+template <typename vertex_t, typename edge_t, typename EdgeBuffer>
 edge_t remove_overcompensating_edges(raft::handle_t const& handle,
-                                     EdgeIterator&& potential_closing_or_incoming_edges,
-                                     EdgeIterator&& incoming_or_potential_closing_edges,
+                                     edge_t buffer_size,
+                                     EdgeBuffer potential_closing_or_incoming_edges,
+                                     EdgeBuffer incoming_or_potential_closing_edges,
                                      raft::device_span<vertex_t const> invalid_edgelist_srcs,
                                      raft::device_span<vertex_t const> invalid_edgelist_dsts)
 {
@@ -132,11 +133,11 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
   // are within the invalid edges. If yes, the was already unrolled
   auto edges_not_overcomp = thrust::remove_if(
     handle.get_thrust_policy(),
-    thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_or_incoming_edges),
-                              get_dataframe_buffer_begin(incoming_or_potential_closing_edges)),
+    thrust::make_zip_iterator(potential_closing_or_incoming_edges,
+                              incoming_or_potential_closing_edges),
     thrust::make_zip_iterator(
-      get_dataframe_buffer_begin(potential_closing_or_incoming_edges) + size_dataframe_buffer(potential_closing_or_incoming_edges),
-      get_dataframe_buffer_begin(incoming_or_potential_closing_edges) + size_dataframe_buffer(incoming_or_potential_closing_edges)),
+      potential_closing_or_incoming_edges + buffer_size,
+      incoming_or_potential_closing_edges + buffer_size),
     [num_invalid_edges = invalid_edgelist_dsts.size(),
      invalid_first = thrust::make_zip_iterator(invalid_edgelist_dsts.begin(),
                                                invalid_edgelist_srcs.begin()),
@@ -154,14 +155,9 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
     });
 
   auto dist = thrust::distance(
-    thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_or_incoming_edges),
-                              get_dataframe_buffer_begin(incoming_or_potential_closing_edges)),
+    thrust::make_zip_iterator(potential_closing_or_incoming_edges,
+                              incoming_or_potential_closing_edges),
     edges_not_overcomp);
-
-  // After pushing the non-existant edges to the second partition,
-  // remove them by resizing  both vertex pair buffer
-  resize_dataframe_buffer(potential_closing_or_incoming_edges, dist, handle.get_stream());
-  resize_dataframe_buffer(incoming_or_potential_closing_edges, dist, handle.get_stream());
 
   return dist;
 }
@@ -312,24 +308,34 @@ void unroll_p_r_or_q_r_edges(
   resize_dataframe_buffer(incoming_edges_to_r, num_edge_exists, handle.get_stream());
 
   edge_t num_edges_not_overcomp =
-    remove_overcompensating_edges<vertex_t, edge_t, decltype(potential_closing_edges)>(
+    remove_overcompensating_edges<vertex_t, edge_t, decltype(get_dataframe_buffer_begin(potential_closing_edges))>(
       handle,
-      std::move(potential_closing_edges),
-      std::move(incoming_edges_to_r),
+      edge_t{num_edge_exists},
+      get_dataframe_buffer_begin(potential_closing_edges),
+      get_dataframe_buffer_begin(incoming_edges_to_r),
       raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
       raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
+  
+  // After pushing the non-existant edges to the second partition,
+  // remove them by resizing  both vertex pair buffer
+  resize_dataframe_buffer(potential_closing_edges, num_edges_not_overcomp, handle.get_stream());
+  resize_dataframe_buffer(incoming_edges_to_r, num_edges_not_overcomp, handle.get_stream());
 
   // Extra check for 'incoming_edges_to_r'
   if constexpr (!is_q_r_edge) {
     // Exchange the arguments (incoming_edges_to_r, num_edges_not_overcomp) order
     // To also check if the 'incoming_edges_to_r' belong the the invalid_edgelist
     num_edges_not_overcomp =
-      remove_overcompensating_edges<vertex_t, edge_t, decltype(potential_closing_edges)>(
+      remove_overcompensating_edges<vertex_t, edge_t, decltype(get_dataframe_buffer_begin(potential_closing_edges))>(
         handle,
-        std::move(incoming_edges_to_r),
-        std::move(potential_closing_edges),
+        edge_t{num_edges_not_overcomp},
+        get_dataframe_buffer_begin(incoming_edges_to_r),
+        get_dataframe_buffer_begin(potential_closing_edges),
         raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
         raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
+    
+    resize_dataframe_buffer(potential_closing_edges, num_edges_not_overcomp, handle.get_stream());
+  resize_dataframe_buffer(incoming_edges_to_r, num_edges_not_overcomp, handle.get_stream());
   }
 
   // FIXME: Combine both 'thrust::for_each'
@@ -533,6 +539,7 @@ k_truss(raft::handle_t const& handle,
     modified_graph_view = (*modified_graph).view();
   }
 
+  // FIXME: Remove because it yields to incorrect results
   // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core
   /*
   {
@@ -693,7 +700,6 @@ k_truss(raft::handle_t const& handle,
 
     edge_t num_invalid_edges{0};
     size_t num_edges_with_triangles{0};
-    int iteration = 0;
     while (true) {
 
       // 'invalid_transposed_edge_triangle_count_first' marks the beginning of the edges to be
@@ -828,7 +834,6 @@ k_truss(raft::handle_t const& handle,
         raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()));
 
-
       // Remove edges that have a triangle count of zero. Those should not be accounted
       // for during the unroling phase.
       auto edges_with_triangle_last =
@@ -873,7 +878,6 @@ k_truss(raft::handle_t const& handle,
       edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
       num_triangles.resize(num_edges_with_triangles, handle.get_stream());
       
-      iteration = iteration + 1;
     }
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
