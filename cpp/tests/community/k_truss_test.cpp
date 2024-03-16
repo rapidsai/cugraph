@@ -112,11 +112,12 @@ TEST_P(Tests_KTruss_File, CheckInt32Int32)
   run_current_test<int32_t, int32_t>(override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-INSTANTIATE_TEST_SUITE_P(file_test,
-                         Tests_KTruss_File,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(KTruss_Usecase{5}),
-                           ::testing::Values(cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_KTruss_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KTruss_Usecase{5}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
