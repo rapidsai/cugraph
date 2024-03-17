@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -145,7 +145,7 @@ def random_walks(
     if isinstance(start_vertices, list):
         # Ensure the 'start_vertices' have the same dtype as the edge list.
         # Failing to do that may produce erroneous results.
-        vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+        vertex_dtype = G.edgelist.edgelist_df.dtypes.iloc[0]
         start_vertices = cudf.Series(start_vertices, dtype=vertex_dtype)
 
     if G.renumbered is True:
