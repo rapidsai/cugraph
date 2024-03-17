@@ -81,9 +81,6 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
-      rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
-      rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
-      std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
 
       auto [result_src, result_dst, result_wgt] =
         cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(

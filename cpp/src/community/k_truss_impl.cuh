@@ -888,7 +888,7 @@ k_truss(raft::handle_t const& handle,
         handle,
         std::move(edgelist_srcs),
         std::move(edgelist_dsts),
-        std::move(*edgelist_wgts),
+        std::move(edgelist_wgts),
         false);
 
     return std::make_tuple(
