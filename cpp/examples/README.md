@@ -17,10 +17,10 @@
 
 ## Build instructions:
 
-Run `build.sh` from the examples dir to build the above listed examples.
+Run `build.sh all` from the examples dir to build the above listed examples.
 
 ```sh
-~/cugraph/cpp/examples$./build.sh
+~/cugraph/cpp/examples$./build.sh all
 ```
 
 ## Run instructions
