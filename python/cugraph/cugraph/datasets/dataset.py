@@ -161,7 +161,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, reader="cudf"):
+    def get_edgelist(self, download=False, reader="cudf", overwrite=False):
         """
         Return an Edgelist.
 
@@ -173,8 +173,13 @@ class Dataset:
 
         reader : 'cudf' or 'pandas' (default='cudf')
             The library used to read a CSV and return an edgelist DataFrame.
+
+        overwrite : Boolean (default=False)
+            Overwrite the internal edgelist stored from reading the dataset.
+            By default, the stored edgelist is reused without reading from
+            the dataset.
         """
-        if self._edgelist is None:
+        if self._edgelist is None or overwrite:
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -213,7 +218,7 @@ class Dataset:
 
         return self._edgelist.copy()
 
-    def get_dask_edgelist(self, download=False):
+    def get_dask_edgelist(self, download=False, overwrite=False):
         """
         Return a distributed Edgelist.
 
@@ -222,8 +227,13 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
+
+        overwrite : Boolean (default=False)
+            Overwrite the internal edgelist stored from reading the dataset.
+            By default, the stored edgelist is reused without reading from
+            the dataset.
         """
-        if self._edgelist is None:
+        if self._edgelist is None or overwrite:
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -257,6 +267,7 @@ class Dataset:
     def get_graph(
         self,
         download=False,
+        overwrite=False,
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
@@ -268,6 +279,11 @@ class Dataset:
         ----------
         download : Boolean (default=False)
             Downloads the dataset from the web.
+
+        overwrite : Boolean (default=False)
+            Overwrite the internal edgelist stored from reading the dataset.
+            By default, the stored edgelist is reused without reading from
+            the dataset.
 
         create_using: cugraph.Graph (instance or class), optional
         (default=Graph)
@@ -286,7 +302,7 @@ class Dataset:
             for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
-            self.get_edgelist(download)
+            self.get_edgelist(download=download, overwrite=overwrite)
 
         if create_using is None:
             G = Graph()
@@ -322,6 +338,7 @@ class Dataset:
     def get_dask_graph(
         self,
         download=False,
+        overwrite=False,
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
@@ -333,6 +350,11 @@ class Dataset:
         ----------
         download : Boolean (default=False)
             Downloads the dataset from the web.
+
+        overwrite : Boolean (default=False)
+            Overwrite the internal edgelist stored from reading the dataset.
+            By default, the stored edgelist is reused without reading from
+            the dataset.
 
         create_using: cugraph.Graph (instance or class), optional
         (default=Graph)
@@ -351,7 +373,7 @@ class Dataset:
             for certain algorithms.
         """
         if self._edgelist is None:
-            self.get_dask_edgelist(download)
+            self.get_dask_edgelist(download=download, overwrite=overwrite)
 
         if create_using is None:
             G = Graph()
@@ -367,7 +389,7 @@ class Dataset:
                 f"{type(create_using)}"
             )
 
-        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+        if len(self.metadata["col_names"]) > 2 and not ignore_weights:
             G.from_dask_cudf_edgelist(
                 self._edgelist,
                 source=self.metadata["col_names"][0],

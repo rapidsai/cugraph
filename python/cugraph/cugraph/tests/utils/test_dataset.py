@@ -20,7 +20,11 @@ import pandas
 import pytest
 
 import cudf
+import cugraph
 import dask_cudf
+from cugraph import datasets
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.datasets import karate
 from cugraph.structure import Graph
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
@@ -29,8 +33,7 @@ from cugraph.testing import (
     SMALL_DATASETS,
     BENCHMARKING_DATASETS,
 )
-from cugraph import datasets
-from cugraph.dask.common.mg_utils import is_single_gpu
+
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
@@ -38,6 +41,7 @@ pytestmark = pytest.mark.sg
 
 ###############################################################################
 # Fixtures
+###############################################################################
 
 
 # module fixture - called once for this module
@@ -201,7 +205,10 @@ def test_reader_dask(dask_client, dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
     E = dataset.get_edgelist(download=True)
+    compare_to = type(cudf.DataFrame())
+
     assert E is not None
+    assert isinstance(E, compare_to)
 
 
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
@@ -209,13 +216,19 @@ def test_get_edgelist(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_dask_edgelist(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
+    df = cudf.DataFrame({"foo": [0, 0, 0], "bar": [1, 1, 1]})
+    compare_to = type(dask_cudf.from_cudf(df, npartitions=2))
+
     assert E is not None
+    assert isinstance(E, compare_to)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
     G = dataset.get_graph(download=True)
+    compare_to = type(cugraph.Graph())
     assert G is not None
+    assert isinstance(G, compare_to)
 
 
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
@@ -224,12 +237,14 @@ def test_get_graph(dataset):
 def test_get_dask_graph(dask_client, dataset):
     G = dataset.get_dask_graph(download=True)
     assert G is not None
+    # TODO Check type is DistributedGraph
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
     M = dataset.metadata
     assert M is not None
+    assert isinstance(M, type({}))
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -346,32 +361,35 @@ def test_ctor_with_datafile():
     assert ds.get_path() == karate_csv
 
 
-def test_unload():
-    email_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+@pytest.mark.parametrize("dataset", [karate])
+def test_unload(dataset):
+    assert dataset._edgelist is None
 
-    ds = datasets.Dataset(
-        csv_file=email_csv.as_posix(),
-        csv_col_names=["src", "dst", "wgt"],
-        csv_col_dtypes=["int32", "int32", "float32"],
-    )
+    dataset.get_edgelist()
+    assert dataset._edgelist is not None
+    dataset.unload()
+    assert dataset._edgelist is None
 
-    # FIXME: another (better?) test would be to check free memory and assert
-    # the memory use increases after get_*(), then returns to the pre-get_*()
-    # level after unload(). However, that type of test may fail for several
-    # reasons (the device being monitored is accidentally also being used by
-    # another process, and the use of memory pools to name two). Instead, just
-    # test that the internal members get cleared on unload().
-    assert ds._edgelist is None
+    dataset.get_graph()
+    assert dataset._edgelist is not None
+    dataset.unload()
+    assert dataset._edgelist is None
 
-    ds.get_edgelist()
-    assert ds._edgelist is not None
-    ds.unload()
-    assert ds._edgelist is None
 
-    ds.get_graph()
-    assert ds._edgelist is not None
-    ds.unload()
-    assert ds._edgelist is None
+# NOTE this tests the usage for hybrid SG and MG workflows
+@pytest.mark.parametrize("dataset", [karate])
+def test_overwrite(dask_client, dataset):
+    assert dataset._edgelist is None
+
+    dataset._edgelist = -1
+    df = dataset.get_edgelist(download=True, overwrite=True)
+    compare_to = type(cudf.DataFrame())
+
+    assert isinstance(df, compare_to)
+
+    df = dataset.get_dask_edgelist(download=True, overwrite=True)
+
+    assert not isinstance(df, compare_to)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
