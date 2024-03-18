@@ -16,6 +16,8 @@
 #pragma once
 
 #include "prims/extract_transform_e.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 
@@ -55,31 +57,9 @@ struct invalid_or_outside_local_vertex_partition_range_t {
   }
 };
 
-template <typename vertex_t>
-struct exclude_self_loop_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
-  {
-    return src != dst
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
-  }
-};
-
 template <typename edge_t>
 struct is_two_or_greater_t {
   __device__ bool operator()(edge_t core_number) const { return core_number >= edge_t{2}; }
-};
-
-template <typename vertex_t>
-struct extract_two_core_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, bool src_in_two_core, bool dst_in_two_core, thrust::nullopt_t) const
-  {
-    return (src_in_two_core && dst_in_two_core)
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
-  }
 };
 
 template <typename vertex_t, typename edge_t>
@@ -156,8 +136,6 @@ void triangle_count(raft::handle_t const& handle,
 
   // 1. Check input arguments.
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
     "Invalid input arguments: triangle_count currently supports undirected graphs only.");
@@ -194,22 +172,111 @@ void triangle_count(raft::handle_t const& handle,
     }
   }
 
-  // FIXME: if vertices.has_value(), we may better work with the subgraph including only the
-  // neighbors within two-hop.
-
-  // 2. Exclude self-loops (FIXME: better mask-out once we add masking support).
-
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
-  if (graph_view.count_self_loops(handle) > edge_t{0}) {
-    auto [srcs, dsts] = extract_transform_e(handle,
-                                            graph_view,
-                                            edge_src_dummy_property_t{}.view(),
-                                            edge_dst_dummy_property_t{}.view(),
-                                            edge_dummy_property_t{}.view(),
-                                            exclude_self_loop_t<vertex_t>{});
+  // 2. Extract induced subgraphs from the vertices that can be reached from vertices in two-hops
+  // (if vertices.has_value() is true)
+
+  if (vertices) {
+    rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), unique_vertices.begin());
+    thrust::sort(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end());
+    unique_vertices.resize(
+      thrust::distance(
+        unique_vertices.begin(),
+        thrust::unique(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end())),
+      handle.get_stream());
+
+    rmm::device_uvector<vertex_t> one_hop_nbrs(0, handle.get_stream());
+    std::tie(std::ignore, one_hop_nbrs) = cugraph::k_hop_nbrs(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t const>(unique_vertices.data(), unique_vertices.size()),
+      size_t{1});
+
+    rmm::device_uvector<vertex_t> unique_one_hop_nbrs(one_hop_nbrs.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 one_hop_nbrs.begin(),
+                 one_hop_nbrs.end(),
+                 unique_one_hop_nbrs.begin());
+    one_hop_nbrs.resize(0, handle.get_stream());
+    one_hop_nbrs.shrink_to_fit(handle.get_stream());
+    thrust::sort(
+      handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
+    unique_one_hop_nbrs.resize(thrust::distance(unique_one_hop_nbrs.begin(),
+                                                thrust::unique(handle.get_thrust_policy(),
+                                                               unique_one_hop_nbrs.begin(),
+                                                               unique_one_hop_nbrs.end())),
+                               handle.get_stream());
+
+    rmm::device_uvector<vertex_t> two_hop_nbrs(0, handle.get_stream());
+    std::tie(std::ignore, two_hop_nbrs) = cugraph::k_hop_nbrs(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t const>(unique_one_hop_nbrs.data(), unique_one_hop_nbrs.size()),
+      size_t{1});
+
+    rmm::device_uvector<vertex_t> unique_two_hop_nbrs(two_hop_nbrs.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 two_hop_nbrs.begin(),
+                 two_hop_nbrs.end(),
+                 unique_two_hop_nbrs.begin());
+    two_hop_nbrs.resize(0, handle.get_stream());
+    two_hop_nbrs.shrink_to_fit(handle.get_stream());
+    thrust::sort(
+      handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
+    unique_two_hop_nbrs.resize(thrust::distance(unique_two_hop_nbrs.begin(),
+                                                thrust::unique(handle.get_thrust_policy(),
+                                                               unique_two_hop_nbrs.begin(),
+                                                               unique_two_hop_nbrs.end())),
+                               handle.get_stream());
+
+    rmm::device_uvector<vertex_t> subgraph_vertices(
+      unique_vertices.size() + unique_one_hop_nbrs.size(), handle.get_stream());
+    thrust::merge(unique_vertices.begin(),
+                  unique_vertices.end(),
+                  unique_one_hop_nbrs.begin(),
+                  unique_one_hop_nbrs.end(),
+                  subgraph_vertices.begin());
+    unique_vertices = std::move(subgraph_vertices);
+    unique_one_hop_nbrs.resize(0, handle.get_stream());
+    unique_one_hop_nbrs.shrink_to_fit(handle.get_stream());
+
+    subgraph_vertices = rmm::device_uvector<vertex_t>(
+      unique_vertices.size() + unique_two_hop_nbrs.size(), handle.get_stream());
+    thrust::merge(unique_vertices.begin(),
+                  unique_vertices.end(),
+                  unique_two_hop_nbrs.begin(),
+                  unique_two_hop_nbrs.end(),
+                  subgraph_vertices.begin());
+    unique_vertices.resize(0, handle.get_stream());
+    unique_vertices.shrink_to_fit(handle.get_stream());
+    unique_two_hop_nbrs.resize(0, handle.get_stream());
+    unique_two_hop_nbrs.shrink_to_fit(handle.get_stream());
+
+    subgraph_vertices.resize(thrust::distance(subgraph_vertices.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             subgraph_vertices.begin(),
+                                                             subgraph_vertices.end())),
+                             handle.get_stream());
+
+    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+    std::vector<size_t> h_subgraph_offsets = {0, unique_vertices.size()};
+    rmm::device_uvector<size_t> d_subgraph_offsets(h_subgraph_offsets.size(), handle.get_stream());
+    raft::update_device(d_subgraph_offsets.data(),
+                        h_subgraph_offsets.data(),
+                        h_subgraph_offsets.size(),
+                        handle.get_stream());
+    std::tie(srcs, dsts, std::ignore, std::ignore) = extract_induced_subgraphs(
+      handle,
+      graph_view,
+      std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+      raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
+      raft::device_span<vertex_t const>(unique_vertices.data(), unique_vertices.size()));
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
@@ -220,7 +287,8 @@ void triangle_count(raft::handle_t const& handle,
           handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
     }
 
-    std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
+    std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+    std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
@@ -229,21 +297,48 @@ void triangle_count(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         std::nullopt,
-        cugraph::graph_properties_t{true, graph_view.is_multigraph()},
+        cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
         true);
 
     modified_graph_view = (*modified_graph).view();
+
+    renumber_map = std::move(tmp_renumber_map);
   }
 
-  // 3. Find 2-core and exclude edges that do not belong to 2-core (FIXME: better mask-out once we
-  // add masking support).
+  // 3. Exclude self-loops
+
+  auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+
+  auto unmasked_cur_graph_view = cur_graph_view;
+  if (unmasked_cur_graph_view.has_edge_mask()) { unmasked_cur_graph_view.clear_edge_mask(); }
+
+  cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle);
 
   {
-    auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
-    auto vertex_partition_range_lasts =
-      renumber_map
-        ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
-        : std::nullopt;
+    cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
+                                                                                 cur_graph_view);
+    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, self_loop_edge_mask);
+
+    transform_e(
+      handle,
+      cur_graph_view,
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; },
+      self_loop_edge_mask.mutable_view());
+
+    edge_mask = std::move(self_loop_edge_mask);
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cur_graph_view.attach_edge_mask(edge_mask.view());
+  }
+
+  // 4. Find 2-core and exclude edges that do not belong to 2-core add masking support).
+
+  {
+    cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
+                                                                                   cur_graph_view);
+    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, in_two_core_edge_mask);
 
     rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                              handle.get_stream());
@@ -265,51 +360,26 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
     update_edge_dst_property(
       handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
-    auto [srcs, dsts] = extract_transform_e(handle,
-                                            cur_graph_view,
-                                            edge_src_in_two_cores.view(),
-                                            edge_dst_in_two_cores.view(),
-                                            edge_dummy_property_t{}.view(),
-                                            extract_two_core_t<vertex_t>{});
 
-    if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
-    }
+    transform_e(
+      handle,
+      cur_graph_view,
+      edge_src_in_two_cores.view(),
+      edge_dst_in_two_cores.view(),
+      edge_dummy_property_t{}.view(),
+      [] __device__(auto, auto, auto src_in_two_core, auto dst_in_two_core, auto) {
+        return src_in_two_core && dst_in_two_core;
+      },
+      in_two_core_edge_mask.mutable_view());
 
-    std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
-        handle,
-        std::nullopt,
-        std::move(srcs),
-        std::move(dsts),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        true);
-
-    modified_graph_view = (*modified_graph).view();
-
-    if (renumber_map) {  // collapse renumber_map
-      unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
-                                                   (*tmp_renumber_map).data(),
-                                                   (*tmp_renumber_map).size(),
-                                                   (*renumber_map).data(),
-                                                   *vertex_partition_range_lasts);
-    }
-    renumber_map = std::move(tmp_renumber_map);
+    edge_mask = std::move(in_two_core_edge_mask);
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cur_graph_view.attach_edge_mask(edge_mask.view());
   }
 
-  // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
+  // 5. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
-    auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
@@ -364,11 +434,10 @@ void triangle_count(raft::handle_t const& handle,
     renumber_map = std::move(tmp_renumber_map);
   }
 
-  // 5. neighbor intersection
+  // 6. neighbor intersection
 
   rmm::device_uvector<edge_t> cur_graph_counts(size_t{0}, handle.get_stream());
   {
-    auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     cur_graph_counts.resize(cur_graph_view.local_vertex_partition_range_size(),
                             handle.get_stream());
 
@@ -382,7 +451,7 @@ void triangle_count(raft::handle_t const& handle,
                                                               do_expensive_check);
   }
 
-  // 6. update counts
+  // 7. update counts
 
   {
     thrust::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), edge_t{0});
