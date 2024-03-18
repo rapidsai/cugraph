@@ -172,11 +172,11 @@ int test_k_truss()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  vertex_t h_result_src[]   = {0, 0, 2, 2, 3};
-  vertex_t h_result_dst[]   = {1, 2, 1, 3, 1};
-  weight_t h_result_wgt[]   = {0.1, 5.1, 0.1, 3.1, 2.1};
-  size_t h_result_offsets[] = {0, 5};
-  size_t num_expected_edges = 5;
+  vertex_t h_result_src[]   = {0, 0, 2, 2, 3, 1, 2, 1, 3, 1};
+  vertex_t h_result_dst[]   = {1, 2, 1, 3, 1, 0, 0, 2, 2, 3};
+  weight_t h_result_wgt[]   = {0.1, 5.1, 0.1, 3.1, 2.1, 0.1, 5.1, 0.1, 3.1, 2.1};
+  size_t h_result_offsets[] = {0, 10};
+  size_t num_expected_edges = 10;
   size_t num_expected_offsets = 2;
 
   return generic_k_truss_test(h_src,
@@ -203,10 +203,10 @@ int test_k_truss_no_weights()
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
 
-  vertex_t h_result_src[]   = {0, 0, 2, 2, 3};
-  vertex_t h_result_dst[]   = {1, 2, 1, 3, 1};
-  size_t h_result_offsets[] = {0, 5};
-  size_t num_expected_edges = 5;
+  vertex_t h_result_src[]   = {0, 0, 2, 2, 3, 1, 2, 1, 3, 1};
+  vertex_t h_result_dst[]   = {1, 2, 1, 3, 1, 0, 0, 2, 2, 3};
+  size_t h_result_offsets[] = {0, 10};
+  size_t num_expected_edges = 10;
   size_t num_expected_offsets = 2;
 
   return generic_k_truss_test(h_src,
