@@ -120,7 +120,6 @@ int generic_k_truss_test(vertex_t* h_src,
       TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
     }
 
-
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       resource_handle, (byte_t*)h_result_offsets, offsets, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
