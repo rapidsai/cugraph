@@ -70,6 +70,9 @@ MANUAL_OBJECT_URLS = {
         "https://networkx.org/documentation/stable/reference/"
         "algorithms/component.html#weak-connectivity"
     ),
+    "networkx.classes": (
+        "https://networkx.org/documentation/stable/reference/classes/index.html"
+    ),
 }
 
 
@@ -193,9 +196,9 @@ def main(readme_file, objects_filename):
 
 
 def find_or_download_objs_file(objs_file_dir):
-    """
-    Returns the path to <objs_file_dir>/objects.inv, downloading it from
-    _objs_file_url if it does not already exist.
+    """Return the path to <objs_file_dir>/objects.inv and download it if necessary.
+
+    Download objects.inv from _objs_file_url if it does not already exist.
     """
     objs_file_path = objs_file_dir / "objects.inv"
     if not objs_file_path.exists():
