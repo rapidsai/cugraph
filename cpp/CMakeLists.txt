@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-include(../fetch_rapids.cmake)
+include(../rapids_config.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-cuda)
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 24.04.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -186,9 +186,9 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/detail/shuffle_vertices.cu
+    src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
-    src/detail/shuffle_vertex_pairs.cu
+    src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
@@ -197,8 +197,8 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_sg.cu
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
-    src/community/detail/mis_sg.cu
-    src/community/detail/mis_mg.cu
+    src/community/detail/maximal_independent_moves_sg.cu
+    src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/structure/remove_self_loops.cu
@@ -295,6 +295,10 @@ set(CUGRAPH_SOURCES
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
+    src/components/mis_sg.cu
+    src/components/mis_mg.cu
+    src/components/vertex_coloring_sg.cu
+    src/components/vertex_coloring_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
@@ -411,6 +415,8 @@ endif()
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/degrees.cu
+        src/c_api/degrees_result.cpp
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
@@ -584,7 +590,7 @@ find_package(Doxygen 1.8.11)
 if(Doxygen_FOUND)
     add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                       COMMAND doxygen Doxyfile
+                       COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION_MAJOR_MINOR=${RAPIDS_VERSION_MAJOR_MINOR}" doxygen Doxyfile
                        VERBATIM)
 
     add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)

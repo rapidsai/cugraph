@@ -127,7 +127,7 @@ template <bool hypersparse,
           typename BufferKeyOutputIterator,
           typename BufferValueOutputIterator,
           typename EdgeOp>
-__global__ void extract_transform_v_frontier_e_hypersparse_or_low_degree(
+__global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -295,7 +295,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferValueOutputIterator,
           typename EdgeOp>
-__global__ void extract_transform_v_frontier_e_mid_degree(
+__global__ static void extract_transform_v_frontier_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -396,7 +396,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferValueOutputIterator,
           typename EdgeOp>
-__global__ void extract_transform_v_frontier_e_high_degree(
+__global__ static void extract_transform_v_frontier_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,

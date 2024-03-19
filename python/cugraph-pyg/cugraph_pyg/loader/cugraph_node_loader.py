@@ -28,7 +28,6 @@ from cugraph_pyg.sampler.cugraph_sampler import (
     _sampler_output_from_sampling_results_heterogeneous,
     _sampler_output_from_sampling_results_homogeneous_csr,
     _sampler_output_from_sampling_results_homogeneous_coo,
-    filter_cugraph_store_csc,
 )
 
 from typing import Union, Tuple, Sequence, List, Dict
@@ -454,31 +453,20 @@ class BulkSampleLoader:
 
         start_time_feature = perf_counter()
         # Create a PyG HeteroData object, loading the required features
-        if self.__coo:
-            pyg_filter_fn = (
-                torch_geometric.loader.utils.filter_custom_hetero_store
-                if hasattr(torch_geometric.loader.utils, "filter_custom_hetero_store")
-                else torch_geometric.loader.utils.filter_custom_store
-            )
-            out = pyg_filter_fn(
-                self.__feature_store,
-                self.__graph_store,
-                sampler_output.node,
-                sampler_output.row,
-                sampler_output.col,
-                sampler_output.edge,
-            )
-        else:
-            out = filter_cugraph_store_csc(
-                self.__feature_store,
-                self.__graph_store,
-                sampler_output.node,
-                sampler_output.row,
-                sampler_output.col,
-                sampler_output.edge,
-            )
+        if self.__graph_store != self.__feature_store:
+            # TODO Possibly support this if there is an actual use case
+            raise ValueError("Separate graph and feature stores currently unsupported")
+
+        out = self.__graph_store.filter(
+            "COO" if self.__coo else "CSC",
+            sampler_output.node,
+            sampler_output.row,
+            sampler_output.col,
+            sampler_output.edge,
+        )
 
         # Account for CSR format in cuGraph vs. CSC format in PyG
+        # TODO deprecate and remove this functionality
         if self.__coo and self.__graph_store.order == "CSC":
             for edge_type in out.edge_index_dict:
                 out[edge_type].edge_index = out[edge_type].edge_index.flip(dims=[0])

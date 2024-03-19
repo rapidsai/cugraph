@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -160,7 +160,7 @@ def betweenness_centrality(
 
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
-            vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+            vertex_dtype = G.edgelist.edgelist_df.dtypes.iloc[0]
             k = cudf.Series(k, dtype=vertex_dtype)
 
     if isinstance(k, (cudf.DataFrame, cudf.Series)):
@@ -300,7 +300,7 @@ def edge_betweenness_centrality(
 
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
-            vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+            vertex_dtype = G.edgelist.edgelist_df.dtypes.iloc[0]
             k = cudf.Series(k, dtype=vertex_dtype)
 
     if isinstance(k, (cudf.DataFrame, cudf.Series)):

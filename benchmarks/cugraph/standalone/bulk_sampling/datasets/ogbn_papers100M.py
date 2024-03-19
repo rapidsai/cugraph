@@ -34,6 +34,7 @@ class OGBNPapers100MDataset(Dataset):
         train_split=0.8,
         val_split=0.5,
         load_edge_index=True,
+        backend="torch",
     ):
         self.__replication_factor = replication_factor
         self.__disk_x = None
@@ -43,6 +44,7 @@ class OGBNPapers100MDataset(Dataset):
         self.__train_split = train_split
         self.__val_split = val_split
         self.__load_edge_index = load_edge_index
+        self.__backend = backend
 
     def download(self):
         import logging
@@ -152,6 +154,27 @@ class OGBNPapers100MDataset(Dataset):
             )
             ldf.to_parquet(node_label_file_path)
 
+        # WholeGraph
+        wg_bin_file_path = os.path.join(dataset_path, "wgb", "paper")
+        if self.__replication_factor == 1:
+            wg_bin_rep_path = os.path.join(wg_bin_file_path, "node_feat.d")
+        else:
+            wg_bin_rep_path = os.path.join(
+                wg_bin_file_path, f"node_feat_{self.__replication_factor}x.d"
+            )
+
+        if not os.path.exists(wg_bin_rep_path):
+            os.makedirs(wg_bin_rep_path)
+            if dataset is None:
+                from ogb.nodeproppred import NodePropPredDataset
+
+                dataset = NodePropPredDataset(
+                    name="ogbn-papers100M", root=self.__dataset_dir
+                )
+            node_feat = dataset[0][0]["node_feat"]
+            for k in range(self.__replication_factor):
+                node_feat.tofile(os.path.join(wg_bin_rep_path, f"{k:04d}.bin"))
+
     @property
     def edge_index_dict(
         self,
@@ -224,45 +247,87 @@ class OGBNPapers100MDataset(Dataset):
 
     @property
     def x_dict(self) -> Dict[str, torch.Tensor]:
+        if self.__disk_x is None:
+            if self.__backend == "wholegraph":
+                self.__load_x_wg()
+            else:
+                self.__load_x_torch()
+
+        return self.__disk_x
+
+    def __load_x_torch(self) -> None:
         node_type_path = os.path.join(
             self.__dataset_dir, "ogbn_papers100M", "npy", "paper"
         )
+        if self.__replication_factor == 1:
+            full_path = os.path.join(node_type_path, "node_feat.npy")
+        else:
+            full_path = os.path.join(
+                node_type_path, f"node_feat_{self.__replication_factor}x.npy"
+            )
 
-        if self.__disk_x is None:
-            if self.__replication_factor == 1:
-                full_path = os.path.join(node_type_path, "node_feat.npy")
-            else:
-                full_path = os.path.join(
-                    node_type_path, f"node_feat_{self.__replication_factor}x.npy"
-                )
+        self.__disk_x = {"paper": torch.as_tensor(np.load(full_path, mmap_mode="r"))}
 
-            self.__disk_x = {"paper": np.load(full_path, mmap_mode="r")}
+    def __load_x_wg(self) -> None:
+        import logging
 
-        return self.__disk_x
+        logger = logging.getLogger("OGBNPapers100MDataset")
+        logger.info("Loading x into WG embedding...")
+
+        import pylibwholegraph.torch as wgth
+
+        node_type_path = os.path.join(
+            self.__dataset_dir, "ogbn_papers100M", "wgb", "paper"
+        )
+        if self.__replication_factor == 1:
+            full_path = os.path.join(node_type_path, "node_feat.d")
+        else:
+            full_path = os.path.join(
+                node_type_path, f"node_feat_{self.__replication_factor}x.d"
+            )
+
+        file_list = [os.path.join(full_path, f) for f in os.listdir(full_path)]
+
+        x = wgth.create_embedding_from_filelist(
+            wgth.get_global_communicator(),
+            "distributed",  # TODO support other options
+            "cpu",  # TODO support GPU
+            file_list,
+            torch.float32,
+            128,
+        )
+        from pylibwholegraph.torch.initialize import get_global_communicator
+
+        wm_comm = get_global_communicator()
+        wm_comm.barrier()
+
+        logger.info("created x wg embedding")
+
+        self.__disk_x = {"paper": x}
 
     @property
     def y_dict(self) -> Dict[str, torch.Tensor]:
         if self.__y is None:
-            self.__get_labels()
+            self.__get_y()
 
         return self.__y
 
     @property
     def train_dict(self) -> Dict[str, torch.Tensor]:
         if self.__train is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__train
 
     @property
     def test_dict(self) -> Dict[str, torch.Tensor]:
         if self.__test is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__test
 
     @property
     def val_dict(self) -> Dict[str, torch.Tensor]:
         if self.__val is None:
-            self.__get_labels()
+            self.__get_split()
         return self.__val
 
     @property
@@ -271,7 +336,7 @@ class OGBNPapers100MDataset(Dataset):
 
     @property
     def num_labels(self) -> int:
-        return int(self.y_dict["paper"].max()) + 1
+        return 172
 
     def num_nodes(self, node_type: str) -> int:
         if node_type != "paper":
@@ -285,46 +350,49 @@ class OGBNPapers100MDataset(Dataset):
 
         return 1_615_685_872 * self.__replication_factor
 
-    def __get_labels(self):
+    def __get_y(self):
         label_path = os.path.join(
             self.__dataset_dir,
             "ogbn_papers100M",
-            "parquet",
+            "wgb",
             "paper",
-            "node_label.parquet",
+            "node_label.d",
+            "0.bin",
         )
 
-        node_label = pandas.read_parquet(label_path)
+        if self.__backend == "wholegraph":
+            import pylibwholegraph.torch as wgth
 
-        if self.__replication_factor > 1:
-            orig_num_nodes = self.num_nodes("paper") // self.__replication_factor
-            dfr = pandas.DataFrame(
-                {
-                    "node": pandas.concat(
-                        [
-                            node_label.node + (r * orig_num_nodes)
-                            for r in range(1, self.__replication_factor)
-                        ]
-                    ),
-                    "label": pandas.concat(
-                        [node_label.label for r in range(1, self.__replication_factor)]
-                    ),
-                }
+            node_label = wgth.create_embedding_from_filelist(
+                wgth.get_global_communicator(),
+                "distributed",  # TODO support other options
+                "cpu",  # TODO support GPU
+                [label_path] * self.__replication_factor,
+                torch.int16,
+                1,
             )
-            node_label = pandas.concat([node_label, dfr]).reset_index(drop=True)
 
+        else:
+            node_label_1x = torch.as_tensor(
+                np.fromfile(label_path, dtype="int16"), device="cpu"
+            )
+
+            if self.__replication_factor > 1:
+                node_label = torch.concatenate(
+                    [node_label_1x] * self.__replication_factor
+                )
+            else:
+                node_label = node_label_1x
+
+        self.__y = {"paper": node_label}
+
+    def __get_split(self):
         num_nodes = self.num_nodes("paper")
-        node_label_tensor = torch.full(
-            (num_nodes,), -1, dtype=torch.float32, device="cpu"
-        )
-        node_label_tensor[
-            torch.as_tensor(node_label.node.values, device="cpu")
-        ] = torch.as_tensor(node_label.label.values, device="cpu")
 
-        self.__y = {"paper": node_label_tensor.contiguous()}
+        node = self.y_dict["paper"][self.y_dict["paper"] > 0]
 
         train_ix, test_val_ix = train_test_split(
-            torch.as_tensor(node_label.node.values),
+            node,
             train_size=self.__train_split,
             random_state=num_nodes,
         )
