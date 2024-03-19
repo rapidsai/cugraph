@@ -16,7 +16,7 @@
 
 #include "link_prediction/similarity_compare.hpp"
 
-#include "utilities/test_utilities.hpp"
+#include "utilities/check_utilities.hpp"
 
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>

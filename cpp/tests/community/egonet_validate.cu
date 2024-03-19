@@ -15,7 +15,7 @@
  */
 
 #include "community/egonet_validate.hpp"
-#include "utilities/test_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 

@@ -16,13 +16,13 @@
 
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_v.cuh"
-#include "property_generator.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -106,10 +106,11 @@ class Tests_MGReduceV
     const int initial_value  = 10;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, (*mg_renumber_map), hash_bin_count);
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, (*mg_renumber_map), hash_bin_count);
     auto property_iter = cugraph::get_dataframe_buffer_begin(mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
@@ -173,11 +174,12 @@ class Tests_MGReduceV
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-          *handle_,
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-          hash_bin_count);
+        auto sg_vertex_prop =
+          cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
+            *handle_,
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            hash_bin_count);
         auto sg_property_iter = cugraph::get_dataframe_buffer_begin(sg_vertex_prop);
 
         for (auto reduction_type : reduction_types) {
