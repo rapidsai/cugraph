@@ -172,6 +172,8 @@ void triangle_count(raft::handle_t const& handle,
     }
   }
 
+  if (vertices.has_value() && ((*vertices).size() == 0)) { return; }
+
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
@@ -212,6 +214,18 @@ void triangle_count(raft::handle_t const& handle,
                                                                unique_one_hop_nbrs.end())),
                                handle.get_stream());
 
+    if constexpr (multi_gpu) {
+      unique_one_hop_nbrs = detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(unique_one_hop_nbrs), graph_view.vertex_partition_range_lasts());
+      thrust::sort(
+        handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
+      unique_one_hop_nbrs.resize(thrust::distance(unique_one_hop_nbrs.begin(),
+                                                  thrust::unique(handle.get_thrust_policy(),
+                                                                 unique_one_hop_nbrs.begin(),
+                                                                 unique_one_hop_nbrs.end())),
+                                 handle.get_stream());
+    }
+
     rmm::device_uvector<vertex_t> two_hop_nbrs(0, handle.get_stream());
     std::tie(std::ignore, two_hop_nbrs) = cugraph::k_hop_nbrs(
       handle,
@@ -234,9 +248,22 @@ void triangle_count(raft::handle_t const& handle,
                                                                unique_two_hop_nbrs.end())),
                                handle.get_stream());
 
+    if constexpr (multi_gpu) {
+      unique_two_hop_nbrs = detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(unique_two_hop_nbrs), graph_view.vertex_partition_range_lasts());
+      thrust::sort(
+        handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
+      unique_two_hop_nbrs.resize(thrust::distance(unique_two_hop_nbrs.begin(),
+                                                  thrust::unique(handle.get_thrust_policy(),
+                                                                 unique_two_hop_nbrs.begin(),
+                                                                 unique_two_hop_nbrs.end())),
+                                 handle.get_stream());
+    }
+
     rmm::device_uvector<vertex_t> subgraph_vertices(
       unique_vertices.size() + unique_one_hop_nbrs.size(), handle.get_stream());
-    thrust::merge(unique_vertices.begin(),
+    thrust::merge(handle.get_thrust_policy(),
+                  unique_vertices.begin(),
                   unique_vertices.end(),
                   unique_one_hop_nbrs.begin(),
                   unique_one_hop_nbrs.end(),
@@ -247,7 +274,8 @@ void triangle_count(raft::handle_t const& handle,
 
     subgraph_vertices = rmm::device_uvector<vertex_t>(
       unique_vertices.size() + unique_two_hop_nbrs.size(), handle.get_stream());
-    thrust::merge(unique_vertices.begin(),
+    thrust::merge(handle.get_thrust_policy(),
+                  unique_vertices.begin(),
                   unique_vertices.end(),
                   unique_two_hop_nbrs.begin(),
                   unique_two_hop_nbrs.end(),
@@ -265,7 +293,7 @@ void triangle_count(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
-    std::vector<size_t> h_subgraph_offsets = {0, unique_vertices.size()};
+    std::vector<size_t> h_subgraph_offsets = {0, subgraph_vertices.size()};
     rmm::device_uvector<size_t> d_subgraph_offsets(h_subgraph_offsets.size(), handle.get_stream());
     raft::update_device(d_subgraph_offsets.data(),
                         h_subgraph_offsets.data(),
@@ -276,7 +304,7 @@ void triangle_count(raft::handle_t const& handle,
       graph_view,
       std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
       raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
-      raft::device_span<vertex_t const>(unique_vertices.data(), unique_vertices.size()));
+      raft::device_span<vertex_t const>(subgraph_vertices.data(), subgraph_vertices.size()));
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
@@ -432,6 +460,8 @@ void triangle_count(raft::handle_t const& handle,
                                                    *vertex_partition_range_lasts);
     }
     renumber_map = std::move(tmp_renumber_map);
+
+    cur_graph_view = *modified_graph_view;
   }
 
   // 6. neighbor intersection
