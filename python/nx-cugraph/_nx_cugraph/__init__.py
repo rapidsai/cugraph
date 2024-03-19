@@ -96,6 +96,7 @@ _info = {
         "is_connected",
         "is_forest",
         "is_isolate",
+        "is_negatively_weighted",
         "is_tree",
         "is_weakly_connected",
         "isolates",
