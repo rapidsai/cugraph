@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,11 +38,11 @@ batch_col_name = "_BATCH_"
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph, start_list):
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     if isinstance(start_list, cudf.Series):
         start_list_dtypes = start_list.dtype
     else:
-        start_list_dtypes = start_list.dtypes[0]
+        start_list_dtypes = start_list.dtypes.iloc[0]
 
     if start_list_dtypes != vertex_dtype:
         warning_msg = (
