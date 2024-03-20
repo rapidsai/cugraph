@@ -19,7 +19,6 @@
 #include "prims/transform_reduce_e.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>

@@ -15,7 +15,9 @@
  */
 #pragma once
 
-#include "utilities/test_utilities.hpp"
+#include "utilities/csv_file_utilities.hpp"
+#include "utilities/matrix_market_file_utilities.hpp"
+#include "utilities/misc_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
