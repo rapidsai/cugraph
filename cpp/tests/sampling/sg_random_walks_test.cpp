@@ -17,7 +17,6 @@
 #include "sampling/random_walks_check.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
