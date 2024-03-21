@@ -8,6 +8,8 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
+#include "utilities/conversion_utilities.hpp"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
