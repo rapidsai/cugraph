@@ -144,8 +144,7 @@ class FullyConnectedTensorProductConv(nn.Module):
         src_features: torch.Tensor,
         edge_sh: torch.Tensor,
         edge_emb: torch.Tensor,
-        src: torch.Tensor,
-        dst: torch.Tensor,
+        edge_index: torch.Tensor,
         num_dst_nodes: torch.Tensor,
         src_scalars: Optional[torch.Tensor] = None,
         dst_scalars: Optional[torch.Tensor] = None,
@@ -171,9 +170,9 @@ class FullyConnectedTensorProductConv(nn.Module):
             - num_edge_scalars, with the sum of num_[edge/src/dst]_scalars being
               mlp_channels[0]
 
-        src, dst, num_dst_nodes: torch.Tensor
-            graph information, with the first two elements being
-            the adjacency matrix in COO, and the third element being dst shape
+        edge_index, num_dst_nodes: torch.Tensor
+            graph information, with the first element being
+            the adjacency matrix in COO, and the second element being dst shape
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
@@ -199,6 +198,8 @@ class FullyConnectedTensorProductConv(nn.Module):
             Output node features.
             Shape: (num_dst_nodes, out_irreps.dim)
         """
+        src=edge_index[0]
+        dst=edge_index[1]
         edge_emb_size = edge_emb.size(-1)
         src_scalars_size = 0 if src_scalars is None else src_scalars.size(-1)
         dst_scalars_size = 0 if dst_scalars is None else dst_scalars.size(-1)
