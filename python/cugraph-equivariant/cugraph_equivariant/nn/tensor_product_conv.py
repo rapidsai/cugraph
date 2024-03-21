@@ -18,7 +18,7 @@ from torch import nn
 from e3nn import o3
 from e3nn.nn import BatchNorm
 
-from cugraph_equivariant.utils import scatter_reduce
+from cugraph_equivariant.utils import scatter_reduce, scatter_mean
 
 from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
 
@@ -144,7 +144,9 @@ class FullyConnectedTensorProductConv(nn.Module):
         src_features: torch.Tensor,
         edge_sh: torch.Tensor,
         edge_emb: torch.Tensor,
-        graph: tuple[torch.Tensor, tuple[int, int]],
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        num_dst_nodes: torch.Tensor,
         src_scalars: Optional[torch.Tensor] = None,
         dst_scalars: Optional[torch.Tensor] = None,
         reduce: str = "mean",
@@ -169,10 +171,9 @@ class FullyConnectedTensorProductConv(nn.Module):
             - num_edge_scalars, with the sum of num_[edge/src/dst]_scalars being
               mlp_channels[0]
 
-        graph : tuple
-            A tuple that stores the graph information, with the first element being
-            the adjacency matrix in COO, and the second element being its shape:
-            (num_src_nodes, num_dst_nodes).
+        src, dst, num_dst_nodes: torch.Tensor
+            graph information, with the first two elements being
+            the adjacency matrix in COO, and the third element being dst shape
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
@@ -223,8 +224,6 @@ class FullyConnectedTensorProductConv(nn.Module):
                 f"reduce argument must be either 'mean' or 'sum', got {reduce}."
             )
 
-        (src, dst), (num_src_nodes, num_dst_nodes) = graph
-
         if self.mlp is not None:
             if src_scalars is None and dst_scalars is None:
                 tp_weights = self.mlp(edge_emb)
@@ -251,10 +250,10 @@ class FullyConnectedTensorProductConv(nn.Module):
         if edge_envelope is not None:
             out = out * edge_envelope.view(-1, 1)
 
-        dtype = out.dtype
-        out = scatter_reduce(
-            out.float(), dst, dim=0, dim_size=num_dst_nodes, reduce=reduce
-        ).to(dtype)
+        if reduce == "mean":
+            out = scatter_mean(out, dst, dim=0, dim_size=num_dst_nodes)
+        else:
+            out = scatter_reduce(out, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
 
         if self.batch_norm:
             out = self.batch_norm(out)

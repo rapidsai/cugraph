@@ -40,3 +40,39 @@ def scatter_reduce(
 
     out = torch.zeros(size, dtype=src.dtype, device=src.device)
     return out.scatter_reduce_(dim, index, src, reduce, include_self=False)
+
+def scatter_sum(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
+                out: Optional[torch.Tensor] = None,
+                dim_size: Optional[int] = None) -> torch.Tensor:
+    if out is None:
+        size = list(src.size())
+        if dim_size is not None:
+            size[dim] = dim_size
+        elif index.numel() == 0:
+            size[dim] = 0
+        else:
+            size[dim] = int(index.max()) + 1
+        out = src.new_zeros(size)
+    index = broadcast(index, src, dim)        
+    return out.scatter_add_(dim, index, src)
+
+
+def scatter_mean(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
+                 out: Optional[torch.Tensor] = None,
+                 dim_size: Optional[int] = None) -> torch.Tensor:
+    out = scatter_sum(src, index, dim, out, dim_size)
+    dim_size = out.size(dim)
+    index_dim = dim
+    if index_dim < 0:
+        index_dim = index_dim + src.dim()
+    if index.dim() <= index_dim:
+        index_dim = index.dim() - 1
+    ones = torch.ones(index.size(), dtype=src.dtype, device=src.device)
+    count = scatter_sum(ones, index, index_dim, None, dim_size)
+    count[count < 1] = 1
+    count = broadcast(count, out, dim)
+    if out.is_floating_point():
+        out.true_divide_(count)
+    else:
+        out.div_(count, rounding_mode='floor')
+    return out            
