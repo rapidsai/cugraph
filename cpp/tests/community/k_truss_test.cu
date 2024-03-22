@@ -31,7 +31,8 @@
 #include <gtest/gtest.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/check_utilities.hpp"
 #include <utilities/thrust_wrapper.hpp>
 
 #include <algorithm>
