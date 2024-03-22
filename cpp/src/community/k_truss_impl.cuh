@@ -437,6 +437,25 @@ struct exclude_self_loop_t {
   }
 };
 
+template <typename vertex_t, typename weight_t, typename edge_t>
+struct extract_low_to_high_degree_weighted_edges_t {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>> operator()(vertex_t src,
+                                                                            vertex_t dst,
+                                                                            edge_t src_out_degree,
+                                                                            edge_t dst_out_degree,
+                                                                            weight_t wgt) const
+  {
+
+    return (src_out_degree < dst_out_degree)
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(src, dst, wgt)}
+             : (((src_out_degree == dst_out_degree) &&
+                 (src < dst) /* tie-breaking using vertex ID */)
+                  ? thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(src,
+                                                                                           dst, wgt)}
+                  : thrust::nullopt);
+  }
+};
+
 template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_t {
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
@@ -488,6 +507,7 @@ k_truss(raft::handle_t const& handle,
         edge_t k,
         bool do_expensive_check)
 {
+  
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
@@ -496,6 +516,7 @@ k_truss(raft::handle_t const& handle,
                   "Invalid input arguments: K-truss currently supports undirected graphs only.");
   CUGRAPH_EXPECTS(!graph_view.is_multigraph(),
                   "Invalid input arguments: K-truss currently does not support multi-graphs.");
+
 
   if (do_expensive_check) {
     // nothing to do
@@ -506,6 +527,7 @@ k_truss(raft::handle_t const& handle,
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>> edge_weight{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
     auto [srcs, dsts] = extract_transform_e(handle,
@@ -618,30 +640,45 @@ k_truss(raft::handle_t const& handle,
                                                                                cur_graph_view);
     update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
     update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
-    auto [srcs, dsts] = extract_transform_e(handle,
-                                            cur_graph_view,
-                                            edge_src_out_degrees.view(),
-                                            edge_dst_out_degrees.view(),
-                                            edge_dummy_property_t{}.view(),
-                                            extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
+
+    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> wgts{std::nullopt};
+    if (edge_weight_view) {
+      std::tie(srcs, dsts, wgts) = extract_transform_e(handle,
+                                                       cur_graph_view,
+                                                       edge_src_out_degrees.view(),
+                                                       edge_dst_out_degrees.view(),
+                                                       *edge_weight_view,
+                                                       extract_low_to_high_degree_weighted_edges_t<vertex_t, weight_t, edge_t>{});
+    } else {
+      std::tie(srcs, dsts) = extract_transform_e(handle,
+                                                 cur_graph_view,
+                                                 edge_src_out_degrees.view(),
+                                                 edge_dst_out_degrees.view(),
+                                                 edge_dummy_property_t{}.view(),
+                                                 extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
+
+    }
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, wgts, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
+          handle, std::move(srcs), std::move(dsts), std::move(wgts), std::nullopt, std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
+
+    std::tie(*modified_graph, edge_weight, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
-        std::nullopt,
+        std::move(wgts),
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
@@ -667,10 +704,11 @@ k_truss(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) = decompress_to_edgelist(
+    edge_weight_view = edge_weight ? std::make_optional((*edge_weight).view()) : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
       handle,
       cur_graph_view,
-      std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+      edge_weight_view,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
@@ -857,18 +895,34 @@ k_truss(raft::handle_t const& handle,
                                     edgelist_dsts.begin() + num_edges_with_triangles);
 
       cur_graph_view.clear_edge_mask();
-      cugraph::transform_e(
-        handle,
-        cur_graph_view,
-        edges_with_no_triangle,
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
-          return false;
-        },
-        edge_mask.mutable_view(),
-        false);
+      if (edge_weight_view) {
+        cugraph::transform_e(
+          handle,
+          cur_graph_view,
+          edges_with_no_triangle,
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          *edge_weight_view,
+          [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto wgt) {
+            return false;
+          },
+          edge_mask.mutable_view(),
+          false);
+      } else {
+        cugraph::transform_e(
+          handle,
+          cur_graph_view,
+          edges_with_no_triangle,
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          []
+          __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+            return false;
+          },
+          edge_mask.mutable_view(),
+          false);
+      }
       cur_graph_view.attach_edge_mask(edge_mask.view());
 
       edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
@@ -879,12 +933,12 @@ k_truss(raft::handle_t const& handle,
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
       handle,
       cur_graph_view,
-      edge_weight_view,
+      edge_weight_view? std::make_optional(*edge_weight_view): std::nullopt,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
-      symmetrize_edgelist<vertex_t, weight_t, false /* dummy */, multi_gpu>(
+      symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(
         handle,
         std::move(edgelist_srcs),
         std::move(edgelist_dsts),
