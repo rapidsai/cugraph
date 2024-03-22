@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
+#include "c_api/abstract_functor.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/induced_subgraph_result.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
+
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <c_api/abstract_functor.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/induced_subgraph_result.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
 
 #include <optional>
 
