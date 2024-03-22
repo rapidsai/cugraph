@@ -25,9 +25,10 @@ rapids_test_init()
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
             utilities/csv_file_utilities.cu
+            utilities/property_generator_utilities_sg.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
-            utilities/test_utilities_sg.cu
+            utilities/conversion_utilities_sg.cu
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
@@ -442,7 +443,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
                 utilities/mg_utilities.cpp
-                utilities/test_utilities_mg.cu
+                utilities/conversion_utilities_mg.cu
+                utilities/property_generator_utilities_mg.cu
                 sampling/random_walks_check_mg.cu
                 c_api/mg_test_utils.cpp
                 )

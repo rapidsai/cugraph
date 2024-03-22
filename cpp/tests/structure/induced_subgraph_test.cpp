@@ -15,6 +15,7 @@
  */
 #include "structure/induced_subgraph_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/graph.hpp>
@@ -190,8 +191,11 @@ class Tests_InducedSubgraph
     if (induced_subgraph_usecase.check_correctness) {
       auto h_subgraph_vertices = cugraph::test::to_host(handle, d_subgraph_vertices);
 
-      auto [h_offsets, h_indices, h_weights] =
-        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       auto [h_reference_subgraph_edgelist_majors,
             h_reference_subgraph_edgelist_minors,

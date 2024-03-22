@@ -53,6 +53,7 @@ def get_sg_graph(dataset, directed, edge_ids):
         if not directed:
             # Edge ids not supported for undirected graph
             return None
+
         dtype = df.dtypes.iloc[0]
         edge_id = "edge_id"
         df[edge_id] = df.index
@@ -79,7 +80,7 @@ def get_mg_graph(dataset, directed, edge_ids, weight):
         weight = None
 
     if edge_ids:
-        dtype = ddf.dtypes[0]
+        dtype = ddf.dtypes.iloc[0]
         edge_id = "edge_id"
         ddf = ddf.assign(idx=1)
         ddf["edge_id"] = ddf.idx.cumsum().astype(dtype) - 1

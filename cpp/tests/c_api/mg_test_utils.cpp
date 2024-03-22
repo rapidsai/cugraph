@@ -19,8 +19,8 @@
 #include "c_api/array.hpp"
 #include "c_api/c_test_utils.h"
 #include "c_api/resource_handle.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
-#include "utilities/test_utilities.hpp"
 
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
