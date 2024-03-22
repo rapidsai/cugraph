@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include "utilities/check_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -31,8 +34,6 @@
 #include <gtest/gtest.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_graphs.hpp>
-#include "utilities/conversion_utilities.hpp"
-#include "utilities/check_utilities.hpp"
 #include <utilities/thrust_wrapper.hpp>
 
 #include <algorithm>
@@ -351,7 +352,6 @@ TEST_P(Tests_KTruss_File, CheckInt32Int64Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-
 TEST_P(Tests_KTruss_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
@@ -379,20 +379,18 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{4, true, false},
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
-      cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_KTruss_Rmat,
-  // enable correctness checks
-  ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{5, true, false},
-                      KTruss_Usecase{4, true, false},
-                      KTruss_Usecase{9, true, true},
-                      KTruss_Usecase{7, true, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_KTruss_Rmat,
+                         // enable correctness checks
+                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, true, false},
+                                                              KTruss_Usecase{4, true, false},
+                                                              KTruss_Usecase{9, true, true},
+                                                              KTruss_Usecase{7, true, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
