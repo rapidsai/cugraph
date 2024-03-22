@@ -131,7 +131,7 @@ class simpleGraphImpl:
         edge_id=None,
         edge_type=None,
         renumber=True,
-        legacy_renum_only=True,
+        legacy_renum_only=False,
         store_transposed=False,
     ):
         if legacy_renum_only:
@@ -261,14 +261,16 @@ class simpleGraphImpl:
         # will be dropped unless the graph is a MultiGraph(Not Implemented yet)
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
         if edge_attr is not None:
-            source_col, dest_col, value_col = symmetrize(
-                elist,
-                source,
-                destination,
-                edge_attr,
-                multi=self.properties.multi_edge,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", "Multi is deprecated", FutureWarning)
+                source_col, dest_col, value_col = symmetrize(
+                    elist,
+                    source,
+                    destination,
+                    edge_attr,
+                    multi=self.properties.multi_edge,  # Deprecated parameter
+                    symmetrize=not self.properties.directed,
+                )
 
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
@@ -277,13 +279,15 @@ class simpleGraphImpl:
                 value_col = value_dict
         else:
             value_col = None
-            source_col, dest_col = symmetrize(
-                elist,
-                source,
-                destination,
-                multi=self.properties.multi_edge,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", "Multi is deprecated", FutureWarning)
+                source_col, dest_col = symmetrize(
+                    elist,
+                    source,
+                    destination,
+                    multi=self.properties.multi_edge,  # Deprecated parameter
+                    symmetrize=not self.properties.directed,
+                )
 
         if isinstance(value_col, dict):
             value_col = {
