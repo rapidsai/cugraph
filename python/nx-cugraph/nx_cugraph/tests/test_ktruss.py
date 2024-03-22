@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,9 +25,6 @@ def test_k_truss(get_graph):
     for k in range(6):
         Hnx = nx.k_truss(Gnx, k)
         Hcg = nxcg.k_truss(Gcg, k)
-        # FIXME: nx.utils.graphs_equal returns False for dataset
-        # 'les_miserables_graph' after k = 3 eventhough the number of
-        # vertices and edges match
-        assert nx.is_isomorphic(Hnx, nxcg.to_networkx(Hcg))
+        assert nx.utils.graphs_equal(Hnx, nxcg.to_networkx(Hcg))
         if Hnx.number_of_edges() == 0:
             break
