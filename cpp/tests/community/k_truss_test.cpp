@@ -40,8 +40,8 @@
 
 struct KTruss_Usecase {
   int32_t k{3};
-  bool check_correctness{true};
   bool test_weighted_{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -316,8 +316,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, true, false},
-                                                              KTruss_Usecase{4, true, false},
+                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, false, true},
+                                                              KTruss_Usecase{4, false, true},
                                                               KTruss_Usecase{9, true, true},
                                                               KTruss_Usecase{7, true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
