@@ -39,9 +39,9 @@
 #include <vector>
 
 struct KTruss_Usecase {
-  int32_t k{3};
+  int32_t k_{3};
   bool test_weighted_{false};
-  bool check_correctness{true};
+  bool check_correctness_{true};
 };
 
 template <typename input_usecase_t>
@@ -205,7 +205,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         handle,
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        k_truss_usecase.k,
+        k_truss_usecase.k_,
         false);
 
     if (cugraph::test::g_perf) {
@@ -214,7 +214,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       hr_timer.display_and_clear(std::cout);
     }
 
-    if (k_truss_usecase.check_correctness) {
+    if (k_truss_usecase.check_correctness_) {
       std::optional<cugraph::graph_t<vertex_t, edge_t, false, false>> modified_graph{std::nullopt};
 
       std::optional<
@@ -249,7 +249,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
           handle,
           graph_view,
           edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-          k_truss_usecase.k);
+          k_truss_usecase.k_);
 
       EXPECT_EQ(h_cugraph_offsets.size(), h_reference_offsets.size());
 
@@ -310,8 +310,9 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
     ::testing::Values(
-      cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx"),
-      cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/karate.mtx"))));
+      cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,
