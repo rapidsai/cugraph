@@ -16,32 +16,17 @@
 
 #pragma once
 
-#include <cugraph/detail/decompress_edge_partition.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
+
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/mask_utils.cuh>
-
-#include <raft/core/handle.hpp>
-#include <raft/util/cudart_utils.hpp>
-
-#include <rmm/device_uvector.hpp>
 
 #include <thrust/adjacent_difference.h>
-#include <thrust/binary_search.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-
-#include <detail/graph_partition_utils.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-
-#include <optional>
-#include <tuple>
-#include <type_traits>
-#include <vector>
 
 namespace cugraph {
 
