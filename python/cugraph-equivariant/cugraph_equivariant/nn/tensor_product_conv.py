@@ -22,7 +22,6 @@ from cugraph_equivariant.utils import scatter_reduce, scatter_mean
 
 from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
 
-
 class FullyConnectedTensorProductConv(nn.Module):
     r"""Message passing layer for tensor products in DiffDock-like architectures.
     The left operand of tensor product is the spherical harmonic representation
@@ -251,10 +250,13 @@ class FullyConnectedTensorProductConv(nn.Module):
         if edge_envelope is not None:
             out = out * edge_envelope.view(-1, 1)
 
-        if reduce == "mean":
-            out = scatter_mean(out, dst, dim=0, dim_size=num_dst_nodes)
+        # WAR for bfloat16 scatter being slow
+        dtype=out.dtype
+        # WAR for ONNX::scatterElements not handling 'mean' reduction
+        if torch.jit.is_tracing and reduce == "mean":
+            out = scatter_mean(out.float(), dst, dim=0, dim_size=num_dst_nodes).to(dtype)
         else:
-            out = scatter_reduce(out, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
+            out = scatter_reduce(out.float(), dst, dim=0, dim_size=num_dst_nodes, reduce=reduce).to(dtype)
 
         if self.batch_norm:
             out = self.batch_norm(out)

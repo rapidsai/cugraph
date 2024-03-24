@@ -17,6 +17,7 @@ import torch
 from torch import nn
 from e3nn import o3
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
+from typing import Optional
 
 device = torch.device("cuda:0")
 
@@ -43,7 +44,7 @@ def empty_scatter_data():
     return src_feat, dst_indices
 
 e3nn_compat_mode = [True, False]
-batch_norm = [True, False]
+batch_norm = [False, True]
 MLP=[
     [(30, 8, 8), nn.Sequential(nn.Dropout(0.3), nn.ReLU()), (15, 15, 0)],
     [(7,), nn.GELU(), (2, 3, 2)],
@@ -73,6 +74,7 @@ def create_tp_conv(request):
         batch_norm=batch_norm,
         e3nn_compat_mode=e3nn_compat_mode,
     ).to(device)
+    tp_conv.eval()
     return tp_conv, request.param
     
 @pytest.fixture(scope="module")
@@ -117,5 +119,6 @@ def create_tp_conv_and_data(create_tp_conv):
             edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device)
             src_scalars = dst_scalars = None
 
-    return (tp_conv, (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars), (D_in, D_sh, D_out))
+    return (tp_conv, (src_features, edge_sh, edge_emb, edge_index, torch.tensor(num_dst_nodes),
+                      src_scalars, dst_scalars), (D_in, D_sh, D_out))
     
