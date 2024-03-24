@@ -89,6 +89,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
 
   thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
 
+  // FIXME: Perform 'nbr_intersection' in chunks to reduce peak memory.
   auto [intersection_offsets, intersection_indices] =
     detail::nbr_intersection(handle,
                              graph_view,
