@@ -65,14 +65,12 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     bool operator()(type_t lhs, type_t rhs) const
     {
       return std::abs(lhs - rhs) <
-            std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
     }
   };
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  std::tuple<std::vector<vertex_t>,
-             std::vector<vertex_t>,
-             std::optional<std::vector<weight_t>>>
+  std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
   k_truss_reference(
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
@@ -80,11 +78,11 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     edge_t k)
   {
     auto [h_offsets, h_indices, h_values] = cugraph::test::graph_to_host_csr(
-        handle,
-        graph_view,
-        edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-    
+      handle,
+      graph_view,
+      edge_weight_view,
+      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+
     std::vector<vertex_t> vertices(h_offsets.size() - 1);
     std::iota(vertices.begin(), vertices.end(), 0);
 
@@ -98,12 +96,12 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         std::set<vertex_t> nbrs_u;
         // Find all neighbors of u from the offsets and indices array
         auto idx_start = (h_offsets.begin() + (*u));
-        auto idx_end = idx_start + 1;
+        auto idx_end   = idx_start + 1;
 
         for (edge_t i = *idx_start; i < *idx_end; ++i) {
           nbrs_u.insert(*(h_indices.begin() + i));
         }
-        
+
         seen.insert(*u);
         std::set<vertex_t> new_nbrs;
         std::set_difference(nbrs_u.begin(),
@@ -117,10 +115,10 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
           std::set<vertex_t> nbrs_v;
           // Find all neighbors of v from the offsets and indices array
           idx_start = (h_offsets.begin() + (*v));
-          idx_end = idx_start + 1;
+          idx_end   = idx_start + 1;
           for (edge_t i = *idx_start; i < *idx_end; ++i) {
             nbrs_v.insert(*(h_indices.begin() + i));
-          }    
+          }
 
           std::set<vertex_t> nbr_intersection_u_v;
           // Find the intersection of nbr_u and nbr_v
@@ -131,22 +129,30 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
                                 std::inserter(nbr_intersection_u_v, nbr_intersection_u_v.end()));
 
           if (nbr_intersection_u_v.size() < (k - 2)) {
-            auto del_v = std::find(h_indices.begin() + h_offsets[*u], h_indices.begin() + h_offsets[*u + 1], *v);
-            
-            if (edge_weight_view){
+            auto del_v = std::find(
+              h_indices.begin() + h_offsets[*u], h_indices.begin() + h_offsets[*u + 1], *v);
+
+            if (edge_weight_view) {
               (*h_values).erase((*h_values).begin() + std::distance(h_indices.begin(), del_v));
             }
 
-            std::transform(std::begin(h_offsets) + (*u) + 1,std::end(h_offsets),std::begin(h_offsets) + (*u) + 1,[](int x){return x-1;});
+            std::transform(std::begin(h_offsets) + (*u) + 1,
+                           std::end(h_offsets),
+                           std::begin(h_offsets) + (*u) + 1,
+                           [](int x) { return x - 1; });
             h_indices.erase(del_v);
 
             // Delete edge in both directions
-            auto del_u = std::find(h_indices.begin() + h_offsets[*v], h_indices.begin() + h_offsets[*v + 1], *u);
+            auto del_u = std::find(
+              h_indices.begin() + h_offsets[*v], h_indices.begin() + h_offsets[*v + 1], *u);
 
-            if (edge_weight_view){
+            if (edge_weight_view) {
               (*h_values).erase((*h_values).begin() + std::distance(h_indices.begin(), del_u));
             }
-            std::transform(std::begin(h_offsets) + (*v) + 1,std::end(h_offsets),std::begin(h_offsets) + (*v) + 1,[](int x){return x-1;});
+            std::transform(std::begin(h_offsets) + (*v) + 1,
+                           std::end(h_offsets),
+                           std::begin(h_offsets) + (*v) + 1,
+                           [](int x) { return x - 1; });
             h_indices.erase(del_u);
             n_dropped += 1;
           }
@@ -154,17 +160,17 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       }
     }
 
-    h_offsets.erase(std::unique(h_offsets.begin() + 1, h_offsets.end() ), h_offsets.end()); // CSR start from 0
+    h_offsets.erase(std::unique(h_offsets.begin() + 1, h_offsets.end()),
+                    h_offsets.end());  // CSR start from 0
 
-    return std::make_tuple(std::move(h_offsets),
-                           std::move(h_indices),
-                           edge_weight_view ? h_values : std::nullopt);
+    return std::make_tuple(
+      std::move(h_offsets), std::move(h_indices), edge_weight_view ? h_values : std::nullopt);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<KTruss_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = false;
+    constexpr bool renumber               = false;
     auto [k_truss_usecase, input_usecase] = param;
     raft::handle_t handle{};
 
@@ -199,7 +205,8 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         handle,
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        k_truss_usecase.k, false);
+        k_truss_usecase.k,
+        false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -208,35 +215,36 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     }
 
     if (k_truss_usecase.check_correctness) {
-    std::optional<cugraph::graph_t<vertex_t, edge_t, false, false>> modified_graph{std::nullopt};
+      std::optional<cugraph::graph_t<vertex_t, edge_t, false, false>> modified_graph{std::nullopt};
 
-    std::optional<cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>> modified_edge_weight{std::nullopt};
-    std::tie(*modified_graph, modified_edge_weight, std::ignore, std::ignore, std::ignore) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_t,
-                                          int32_t,
-                                          false,
-                                          false>(handle,
-                                                    std::nullopt,
-                                                    std::move(d_cugraph_src),
-                                                    std::move(d_cugraph_dst),
-                                                    std::move(d_cugraph_wgt),
-                                                    std::nullopt,
-                                                    std::nullopt,
-                                                    cugraph::graph_properties_t{true, false},
-                                                    renumber);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        modified_edge_weight{std::nullopt};
+      std::tie(*modified_graph, modified_edge_weight, std::ignore, std::ignore, std::ignore) =
+        cugraph::
+          create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, false>(
+            handle,
+            std::nullopt,
+            std::move(d_cugraph_src),
+            std::move(d_cugraph_dst),
+            std::move(d_cugraph_wgt),
+            std::nullopt,
+            std::nullopt,
+            cugraph::graph_properties_t{true, false},
+            renumber);
 
       // Convert cugraph results CSR
-      auto [h_cugraph_offsets, h_cugraph_indices, h_cugraph_values] = cugraph::test::graph_to_host_csr( // FIXME: remove renumber map which is unused *********************
-        handle,
-        (*modified_graph).view(),
-        modified_edge_weight ? std::make_optional((*modified_edge_weight).view()) : std::nullopt,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+      auto [h_cugraph_offsets, h_cugraph_indices, h_cugraph_values] =
+        cugraph::test::graph_to_host_csr(  // FIXME: remove renumber map which is unused
+                                           // *********************
+          handle,
+          (*modified_graph).view(),
+          modified_edge_weight ? std::make_optional((*modified_edge_weight).view()) : std::nullopt,
+          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       // Remove isolated vertices.
-      h_cugraph_offsets.erase(std::unique(h_cugraph_offsets.begin() + 1, h_cugraph_offsets.end() ), h_cugraph_offsets.end()); // CSR start from 0
+      h_cugraph_offsets.erase(std::unique(h_cugraph_offsets.begin() + 1, h_cugraph_offsets.end()),
+                              h_cugraph_offsets.end());  // CSR start from 0
       auto [h_reference_offsets, h_reference_indices, h_reference_values] =
         k_truss_reference<vertex_t, edge_t, weight_t>(
           handle,
@@ -246,13 +254,11 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
       EXPECT_EQ(h_cugraph_offsets.size(), h_reference_offsets.size());
 
-      ASSERT_TRUE(std::equal(h_cugraph_offsets.begin(),
-                             h_cugraph_offsets.end(),
-                             h_reference_offsets.begin()));
+      ASSERT_TRUE(std::equal(
+        h_cugraph_offsets.begin(), h_cugraph_offsets.end(), h_reference_offsets.begin()));
 
-      ASSERT_TRUE(std::equal(h_cugraph_indices.begin(),
-                             h_cugraph_indices.end(),
-                             h_reference_indices.begin()));
+      ASSERT_TRUE(std::equal(
+        h_cugraph_indices.begin(), h_cugraph_indices.end(), h_reference_indices.begin()));
 
       if (edge_weight) {
         auto compare_functor = device_nearly_equal<weight_t>{
@@ -264,7 +270,6 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
                                (*h_reference_values).begin(),
                                compare_functor));
       }
-      
     }
   }
 };
@@ -305,8 +310,9 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{4, true, false},
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx"),
-                      cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/karate.mtx"))));
+    ::testing::Values(
+      cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/dolphins.mtx"),
+      cugraph::test::File_Usecase("/home/nfs/jnke/ktruss/cugraph/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,

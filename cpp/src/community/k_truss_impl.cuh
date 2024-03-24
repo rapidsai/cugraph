@@ -619,7 +619,6 @@ k_truss(raft::handle_t const& handle,
   }
   */
 
-
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
@@ -691,8 +690,6 @@ k_truss(raft::handle_t const& handle,
                                                    *vertex_partition_range_lasts);
     }
     renumber_map = std::move(tmp_renumber_map);
-
-
   }
 
   // 5. Decompress the resulting graph to an edges list and ind intersection of edges endpoints
@@ -719,8 +716,6 @@ k_truss(raft::handle_t const& handle,
       cur_graph_view,
       raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
       raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
-    
-    
 
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
