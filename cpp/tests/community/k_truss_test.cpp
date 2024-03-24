@@ -309,10 +309,9 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{4, true, false},
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
-      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,
