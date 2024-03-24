@@ -15,7 +15,15 @@
  */
 #pragma once
 
-// FIXME: remove all unused imports
+#include "prims/edge_bucket.cuh"
+#include "prims/extract_transform_e.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_e.cuh"
+#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
+#include "prims/transform_reduce_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -35,15 +43,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
-
-#include <prims/edge_bucket.cuh>
-#include <prims/extract_transform_e.cuh>
-#include <prims/fill_edge_property.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/transform_reduce_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
 
 namespace cugraph {
 
@@ -620,6 +619,7 @@ k_truss(raft::handle_t const& handle,
   }
   */
 
+
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
@@ -691,6 +691,8 @@ k_truss(raft::handle_t const& handle,
                                                    *vertex_partition_range_lasts);
     }
     renumber_map = std::move(tmp_renumber_map);
+
+
   }
 
   // 5. Decompress the resulting graph to an edges list and ind intersection of edges endpoints
@@ -717,6 +719,8 @@ k_truss(raft::handle_t const& handle,
       cur_graph_view,
       raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
       raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+    
+    
 
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
