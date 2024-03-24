@@ -181,8 +181,8 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       hr_timer.start("SG Construct graph");
     }
 
-    // NX k_truss is not implemented for graph with self loop and isolated
-    // vertices therefore dropped them especially for rmat generated graphs
+    // NX k_truss is not implemented for graph with self loop and multi edges therefore dropped
+    // them especially for rmat generated graphs.
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, k_truss_usecase.test_weighted_, renumber, true, true);
@@ -233,7 +233,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
             cugraph::graph_properties_t{true, false},
             renumber);
 
-      // Convert cugraph results CSR
+      // Convert cugraph results to CSR
       auto [h_cugraph_offsets, h_cugraph_indices, h_cugraph_values] =
         cugraph::test::graph_to_host_csr(
           handle,
