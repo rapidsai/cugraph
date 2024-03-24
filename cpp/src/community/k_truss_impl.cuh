@@ -18,28 +18,21 @@
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_e.cuh"
 #include "prims/fill_edge_property.cuh"
-#include "prims/reduce_op.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
-#include "prims/transform_reduce_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <thrust/adjacent_difference.h>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
-#include <thrust/fill.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/optional.h>
-#include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>

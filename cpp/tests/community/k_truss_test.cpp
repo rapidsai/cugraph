@@ -235,8 +235,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
       // Convert cugraph results CSR
       auto [h_cugraph_offsets, h_cugraph_indices, h_cugraph_values] =
-        cugraph::test::graph_to_host_csr(  // FIXME: remove renumber map which is unused
-                                           // *********************
+        cugraph::test::graph_to_host_csr(
           handle,
           (*modified_graph).view(),
           modified_edge_weight ? std::make_optional((*modified_edge_weight).view()) : std::nullopt,
