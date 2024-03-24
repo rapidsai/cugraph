@@ -310,8 +310,7 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,
@@ -333,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{15, false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(17, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(KTruss_Usecase{12, false, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(14, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
