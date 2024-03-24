@@ -179,7 +179,6 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
       prefix_sum_invalid.back_element(handle.get_stream()),
     handle.get_stream());
 
-  // const bool const_is_q_r_edge = is_q_r_edge;
   thrust::for_each(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator<edge_t>(0),
@@ -465,7 +464,7 @@ struct extract_low_to_high_degree_edges_t {
 };
 
 template <typename vertex_t, typename edge_t, bool generate_p_r>
-struct generate_p_r_and_q_r_from_p_q {
+struct generate_p_r_or_q_r_from_p_q {
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t const> invalid_srcs{};
@@ -790,7 +789,7 @@ k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
         get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
-        generate_p_r_and_q_r_from_p_q<vertex_t, edge_t, true>{
+        generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, true>{
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
@@ -804,7 +803,7 @@ k_truss(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
         get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_q),
-        generate_p_r_and_q_r_from_p_q<vertex_t, edge_t, false>{
+        generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, false>{
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
