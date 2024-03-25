@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -142,11 +142,13 @@ class per_thread_edgelist_t {
    * @brief Flush thread data from host to GPU memory
    *
    * @param handle     The resource handle
+   * @param sync       If true, synchronize the asynchronous copy of data;
+   *                   defaults to false.
    */
-  void flush(handle_t const& handle)
+  void flush(handle_t const& handle, bool sync = false)
   {
     edgelist_.append(
-      handle,
+      handle.get_stream(),
       raft::host_span<vertex_t const>{src_.data(), current_pos_},
       raft::host_span<vertex_t const>{dst_.data(), current_pos_},
       wgt_ ? std::make_optional(raft::host_span<weight_t const>{wgt_->data(), current_pos_})
@@ -158,6 +160,8 @@ class per_thread_edgelist_t {
         : std::nullopt);
 
     current_pos_ = 0;
+
+    if (sync) handle.sync_stream();
   }
 
  private:
