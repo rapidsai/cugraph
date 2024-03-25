@@ -135,9 +135,6 @@ class simpleDistributedGraphImpl:
 
         src_array = [edata_x[i][src_col_name] for i in range(num_arrays)]
         dst_array = [edata_x[i][dst_col_name] for i in range(num_arrays)]
-
-        print(src_array, dst_array, weight_type, edge_id_type, edge_type_id, num_arrays)
-
         plc_graph = MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
