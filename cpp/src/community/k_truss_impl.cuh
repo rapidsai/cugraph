@@ -63,19 +63,19 @@ struct unroll_edge {
                                    thrust::get<0>(*(edge_to_unroll_first + i)));
     // Find its position in either partition of the transposed edgelist
     // An edge can be in found in either of the two partitions (valid or invalid)
-
     auto itr = thrust::lower_bound(
       thrust::seq, transposed_valid_edge_last, transposed_invalid_edge_last, pair);
-    auto idx = thrust::distance(transposed_valid_edge_last, itr) + num_valid_edges;
-
-    if (*itr != pair) {
+    size_t idx{};
+    if (itr != transposed_invalid_edge_last && *itr == pair) {
+      idx = static_cast<size_t>(thrust::distance(transposed_valid_edge_last, itr) + num_valid_edges);
+    }
+    else {
       // The edge must be in the first boundary
       itr = thrust::lower_bound(
         thrust::seq, transposed_valid_edge_first, transposed_valid_edge_last, pair);
+      assert(*itr == pair);
       idx = thrust::distance(transposed_valid_edge_first, itr);
     }
-
-    assert(*itr == pair);
     cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[idx]);
     auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
   }
