@@ -15,9 +15,9 @@
  */
 #include "centrality/betweenness_centrality_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -119,7 +119,10 @@ class Tests_MGEdgeBetweennessCentrality
       // Extract MG results
       auto [d_cugraph_src_vertex_ids, d_cugraph_dst_vertex_ids, d_cugraph_results] =
         cugraph::test::graph_to_device_coo(
-          *handle_, mg_graph_view, std::make_optional(d_centralities.view()));
+          *handle_,
+          mg_graph_view,
+          std::make_optional(d_centralities.view()),
+          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       // Create SG graph so we can generate SG results
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
@@ -152,7 +155,10 @@ class Tests_MGEdgeBetweennessCentrality
 
         auto [d_sg_src_vertex_ids, d_sg_dst_vertex_ids, d_sg_reference_centralities] =
           cugraph::test::graph_to_device_coo(
-            *handle_, sg_graph.view(), std::make_optional(d_sg_centralities.view()));
+            *handle_,
+            sg_graph.view(),
+            std::make_optional(d_sg_centralities.view()),
+            std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
         cugraph::test::edge_betweenness_centrality_validate(*handle_,
                                                             d_cugraph_src_vertex_ids,

@@ -11,7 +11,7 @@
 
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
-#include "utilities/test_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>

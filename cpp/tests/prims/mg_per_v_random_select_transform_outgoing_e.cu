@@ -16,12 +16,13 @@
 
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/vertex_frontier.cuh"
-#include "property_generator.cuh"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_kernels.cuh"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
@@ -128,8 +129,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -137,11 +138,12 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
     const int hash_bin_count = 5;
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, property_t>::vertex_property(
-      *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, property_t>::src_property(
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), property_t>::vertex_property(
+        *handle_, *mg_renumber_map, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "utilities/test_utilities.hpp"
+#include "utilities/misc_utilities.hpp"
 
 #include <cstddef>
 #include <string>
