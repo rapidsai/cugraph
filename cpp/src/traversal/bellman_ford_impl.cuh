@@ -104,8 +104,9 @@ void bellman_ford(raft::handle_t const& handle,
 
   // thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, local_vertices.begin());
 
-  vertex_t itr_cnt = 0;
-  for (itr_cnt = 0; itr_cnt <= current_graph_view.number_of_vertices(); itr_cnt++) {
+  vertex_t itr_cnt           = 0;
+  int nr_of_updated_vertices = 0;
+  while (itr_cnt < current_graph_view.number_of_vertices()) {
     if constexpr (graph_view_t::is_multi_gpu) {
       src_predecessor_cache =
         edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
@@ -199,8 +200,7 @@ void bellman_ford(raft::handle_t const& handle,
             static_cast<float>(src_dist),
             static_cast<float>(dst_dist));
 
-          auto relax = (src_dist < invalid_distance) &&
-                       ((dst_dist == invalid_distance) || (dst_dist > (src_dist + wt)));
+          auto relax = (src_dist < invalid_distance) && (dst_dist > (src_dist + wt));
 
           return relax ? thrust::make_tuple(src_dist + wt, src)
                        : thrust::make_tuple(invalid_distance, invalid_vertex);
@@ -261,51 +261,6 @@ void bellman_ford(raft::handle_t const& handle,
           handle.get_stream());
     }
 
-    using flag_t                        = uint8_t;
-    rmm::device_uvector<flag_t> updated = rmm::device_uvector<flag_t>(
-      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-    thrust::fill(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{false});
-
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(
-        edge_reduced_dst_keys.begin(), minimum_weights.begin(), closest_preds.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(
-        edge_reduced_dst_keys.end(), minimum_weights.end(), closest_preds.end())),
-      [distances,
-       predecessors,
-       updated = updated.begin(),
-       v_first = current_graph_view.local_vertex_partition_range_first(),
-       v_last =
-         current_graph_view.local_vertex_partition_range_last()] __device__(auto v_dist_pred) {
-        auto v = thrust::get<0>(v_dist_pred);
-        if ((v < v_first) || (v >= v_last)) {
-          printf("%d out of range [%d %d)\n",
-                 static_cast<int>(v),
-                 static_cast<int>(v_first),
-                 static_cast<int>(v_last));
-        }
-        auto dist     = thrust::get<1>(v_dist_pred);
-        auto pred     = thrust::get<2>(v_dist_pred);
-        auto v_offset = v - v_first;
-        if (distances[v_offset] < dist) {
-          updated[v_offset]      = flag_t{true};
-          distances[v_offset]    = dist;
-          predecessors[v_offset] = pred;
-        }
-      });
-
-    int nr_of_updated_vertices =
-      thrust::count(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{true});
-
-    if constexpr (graph_view_t::is_multi_gpu) {
-      nr_of_updated_vertices = host_scalar_allreduce(
-        handle.get_comms(), nr_of_updated_vertices, raft::comms::op_t::SUM, handle.get_stream());
-    }
-
-    if (nr_of_updated_vertices == 0) { break; }
-
     if (graph_view_t::is_multi_gpu) {
       auto const comm_rank = handle.get_comms().get_rank();
       auto const comm_size = handle.get_comms().get_size();
@@ -327,9 +282,69 @@ void bellman_ford(raft::handle_t const& handle,
       raft::print_device_vector(
         closest_preds_title.c_str(), closest_preds.begin(), closest_preds.size(), std::cout);
     }
+
+    using flag_t                        = uint8_t;
+    rmm::device_uvector<flag_t> updated = rmm::device_uvector<flag_t>(
+      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+    thrust::fill(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{false});
+
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(
+        edge_reduced_dst_keys.begin(), minimum_weights.begin(), closest_preds.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(
+        edge_reduced_dst_keys.end(), minimum_weights.end(), closest_preds.end())),
+      [distances,
+       predecessors,
+       updated = updated.begin(),
+       v_first = current_graph_view.local_vertex_partition_range_first(),
+       v_last =
+         current_graph_view.local_vertex_partition_range_last()] __device__(auto v_dist_pred) {
+        auto v = thrust::get<0>(v_dist_pred);
+        if ((v < v_first) || (v >= v_last)) {
+          printf("%d > > > > > out of range [%d %d)\n",
+                 static_cast<int>(v),
+                 static_cast<int>(v_first),
+                 static_cast<int>(v_last));
+        }
+
+        auto dist     = thrust::get<1>(v_dist_pred);
+        auto pred     = thrust::get<2>(v_dist_pred);
+        auto v_offset = v - v_first;
+
+        printf(" vertex %d : [pred=%d dist = %f)\n",
+               static_cast<int>(v),
+               static_cast<int>(pred),
+               static_cast<float>(dist));
+
+        if (pred != invalid_vertex) {
+          updated[v_offset]      = flag_t{true};
+          distances[v_offset]    = dist;
+          predecessors[v_offset] = pred;
+        }
+      });
+
+    nr_of_updated_vertices =
+      thrust::count(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{true});
+
+    if constexpr (graph_view_t::is_multi_gpu) {
+      nr_of_updated_vertices = host_scalar_allreduce(
+        handle.get_comms(), nr_of_updated_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    itr_cnt++;
+    std::cout << "itr_cnt: " << itr_cnt << std::endl;
+
+    if (nr_of_updated_vertices == 0) {
+      std::cout << "No more updates\n";
+      break;
+    }
   }
 
-  if (itr_cnt == current_graph_view.local_vertex_partition_range_size()) {
+  std::cout << "itr_cnt (out of loop) : " << itr_cnt << std::endl;
+
+  if ((itr_cnt == current_graph_view.number_of_vertices()) && (nr_of_updated_vertices > 0)) {
     std::cout << "Detected -ve cycle.\n";
   }
 
