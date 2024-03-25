@@ -332,9 +332,7 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
     resize_dataframe_buffer(incoming_edges_to_r, num_edges_not_overcomp, handle.get_stream());
   }
 
-  // FIXME: Combine both 'thrust::for_each'
-  if constexpr (is_q_r_edge) {
-    thrust::for_each(
+  thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_edges),
                                 get_dataframe_buffer_begin(incoming_edges_to_r)),
@@ -349,8 +347,14 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
          edgelist_dsts.end(), edgelist_srcs.end())] __device__(auto potential_or_incoming_e) {
         auto potential_e     = thrust::get<0>(potential_or_incoming_e);
         auto incoming_e_to_r = thrust::get<1>(potential_or_incoming_e);
+        //thrust::tuple<vertex_t, vertex_t>> transposed_invalid_edge_;
         auto transposed_invalid_edge =
           thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<1>(potential_e));
+
+        if constexpr (!is_q_r_edge) {
+          transposed_invalid_edge =
+            thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<0>(potential_e));
+        }   
         auto itr =
           thrust::lower_bound(thrust::seq, invalid_first, invalid_last, transposed_invalid_edge);
         assert(*itr == transposed_invalid_edge);
@@ -359,33 +363,6 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
         cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[dist]);
         auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
       });
-  } else {
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_edges),
-                                get_dataframe_buffer_begin(incoming_edges_to_r)),
-      thrust::make_zip_iterator(
-        get_dataframe_buffer_begin(potential_closing_edges) + num_edges_not_overcomp,
-        get_dataframe_buffer_begin(incoming_edges_to_r) + num_edges_not_overcomp),
-      [num_triangles = num_triangles.begin(),
-       num_valid_edges,
-       invalid_first = thrust::make_zip_iterator(edgelist_dsts.begin() + num_valid_edges,
-                                                 edgelist_srcs.begin() + num_valid_edges),
-       invalid_last  = thrust::make_zip_iterator(
-         edgelist_dsts.end(), edgelist_srcs.end())] __device__(auto potential_or_incoming_e) {
-        auto potential_e     = thrust::get<0>(potential_or_incoming_e);
-        auto incoming_e_to_r = thrust::get<1>(potential_or_incoming_e);
-        auto transposed_invalid_edge =
-          thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<0>(potential_e));
-        auto itr =
-          thrust::lower_bound(thrust::seq, invalid_first, invalid_last, transposed_invalid_edge);
-        assert(*itr == transposed_invalid_edge);
-        auto dist = thrust::distance(invalid_first, itr) + num_valid_edges;
-
-        cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[dist]);
-        auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
-      });
-  }
 
   thrust::for_each(
     handle.get_thrust_policy(),
