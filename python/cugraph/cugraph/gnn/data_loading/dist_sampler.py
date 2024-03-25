@@ -20,19 +20,11 @@ from typing import Union, List, Dict
 TensorType = Union['torch.Tensor', 'cupy.ndarray', 'cudf.Series']
 
 
-def nccl_init(rank: int, world_size: int, uid: int):
-    # calls a c++ function that calls ncclCommInitRank
-    # returns a resource handle and nccl communicator
-    # should wrap the resource handle and communicator in a CuGraph context object
-    pass
-
 class DistSampleWriter:
     def __init__(self, format, directory, batches_per_partition):
         self.__format = format
         self.__directory = directory
         self.__batches_per_partition = batches_per_partition
-    
-
     
     def write_minibatches(self, minibatch_dict):
         if ("majors" in minibatch_dict) and ("minors" in minibatch_dict):
