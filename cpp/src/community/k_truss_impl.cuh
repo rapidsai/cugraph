@@ -47,14 +47,14 @@ rmm::device_uvector<edge_t> edge_triangle_count(
   raft::device_span<vertex_t> edgelist_srcs,
   raft::device_span<vertex_t> edgelist_dsts);
 
-template <typename vertex_t, typename edge_t, typename EdgeBuffer>
+template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   edge_t num_valid_edges{};
   raft::device_span<edge_t> num_triangles{};
-  EdgeBuffer edge_to_unroll_first{};
-  EdgeBuffer transposed_valid_edge_first{};
-  EdgeBuffer transposed_valid_edge_last{};
-  EdgeBuffer transposed_invalid_edge_last{};
+  EdgeIterator edge_to_unroll_first{};
+  EdgeIterator transposed_valid_edge_first{};
+  EdgeIterator transposed_valid_edge_last{};
+  EdgeIterator transposed_invalid_edge_last{};
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
@@ -114,11 +114,11 @@ rmm::device_uvector<vertex_t> prefix_sum_valid_and_invalid_edges(
   return prefix_sum;
 }
 
-template <typename vertex_t, typename edge_t, typename EdgeBuffer>
+template <typename vertex_t, typename edge_t, typename EdgeIterator>
 edge_t remove_overcompensating_edges(raft::handle_t const& handle,
                                      edge_t buffer_size,
-                                     EdgeBuffer potential_closing_or_incoming_edges,
-                                     EdgeBuffer incoming_or_potential_closing_edges,
+                                     EdgeIterator potential_closing_or_incoming_edges,
+                                     EdgeIterator incoming_or_potential_closing_edges,
                                      raft::device_span<vertex_t const> invalid_edgelist_srcs,
                                      raft::device_span<vertex_t const> invalid_edgelist_dsts)
 {
