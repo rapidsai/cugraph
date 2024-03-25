@@ -67,9 +67,9 @@ struct unroll_edge {
       thrust::seq, transposed_valid_edge_last, transposed_invalid_edge_last, pair);
     size_t idx{};
     if (itr != transposed_invalid_edge_last && *itr == pair) {
-      idx = static_cast<size_t>(thrust::distance(transposed_valid_edge_last, itr) + num_valid_edges);
-    }
-    else {
+      idx =
+        static_cast<size_t>(thrust::distance(transposed_valid_edge_last, itr) + num_valid_edges);
+    } else {
       // The edge must be in the first boundary
       itr = thrust::lower_bound(
         thrust::seq, transposed_valid_edge_first, transposed_valid_edge_last, pair);
@@ -90,27 +90,27 @@ rmm::device_uvector<vertex_t> compute_prefix_sum(
   // partition.
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sorted_vertices,
-  raft::device_span<vertex_t const> query_vertices
-  )
+  raft::device_span<vertex_t const> query_vertices)
 {
   rmm::device_uvector<vertex_t> prefix_sum(query_vertices.size() + 1, handle.get_stream());
 
-  thrust::tabulate(handle.get_thrust_policy(),
-                   prefix_sum.begin(),
-                   prefix_sum.begin() + query_vertices.size(),
-                   [query_vertices,
-                    num_edges     = sorted_vertices.size(),
-                    sorted_vertices = sorted_vertices.begin()] __device__(auto idx) {
-                     auto itr_lower_valid = thrust::lower_bound(
-                       thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
+  thrust::tabulate(
+    handle.get_thrust_policy(),
+    prefix_sum.begin(),
+    prefix_sum.begin() + query_vertices.size(),
+    [query_vertices,
+     num_edges       = sorted_vertices.size(),
+     sorted_vertices = sorted_vertices.begin()] __device__(auto idx) {
+      auto itr_lower_valid = thrust::lower_bound(
+        thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
 
-                     auto itr_upper_valid = thrust::upper_bound(
-                       thrust::seq, itr_lower_valid, sorted_vertices + num_edges, query_vertices[idx]);
+      auto itr_upper_valid = thrust::upper_bound(
+        thrust::seq, itr_lower_valid, sorted_vertices + num_edges, query_vertices[idx]);
 
-                     auto dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
+      auto dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
 
-                     return dist_valid;
-                   });
+      return dist_valid;
+    });
   thrust::exclusive_scan(
     handle.get_thrust_policy(), prefix_sum.begin(), prefix_sum.end(), prefix_sum.begin());
 
@@ -333,36 +333,36 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
   }
 
   thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_edges),
-                                get_dataframe_buffer_begin(incoming_edges_to_r)),
-      thrust::make_zip_iterator(
-        get_dataframe_buffer_begin(potential_closing_edges) + num_edges_not_overcomp,
-        get_dataframe_buffer_begin(incoming_edges_to_r) + num_edges_not_overcomp),
-      [num_triangles = num_triangles.begin(),
-       num_valid_edges,
-       invalid_first = thrust::make_zip_iterator(edgelist_dsts.begin() + num_valid_edges,
-                                                 edgelist_srcs.begin() + num_valid_edges),
-       invalid_last  = thrust::make_zip_iterator(
-         edgelist_dsts.end(), edgelist_srcs.end())] __device__(auto potential_or_incoming_e) {
-        auto potential_e     = thrust::get<0>(potential_or_incoming_e);
-        auto incoming_e_to_r = thrust::get<1>(potential_or_incoming_e);
-        //thrust::tuple<vertex_t, vertex_t>> transposed_invalid_edge_;
-        auto transposed_invalid_edge =
-          thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<1>(potential_e));
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(get_dataframe_buffer_begin(potential_closing_edges),
+                              get_dataframe_buffer_begin(incoming_edges_to_r)),
+    thrust::make_zip_iterator(
+      get_dataframe_buffer_begin(potential_closing_edges) + num_edges_not_overcomp,
+      get_dataframe_buffer_begin(incoming_edges_to_r) + num_edges_not_overcomp),
+    [num_triangles = num_triangles.begin(),
+     num_valid_edges,
+     invalid_first = thrust::make_zip_iterator(edgelist_dsts.begin() + num_valid_edges,
+                                               edgelist_srcs.begin() + num_valid_edges),
+     invalid_last  = thrust::make_zip_iterator(
+       edgelist_dsts.end(), edgelist_srcs.end())] __device__(auto potential_or_incoming_e) {
+      auto potential_e     = thrust::get<0>(potential_or_incoming_e);
+      auto incoming_e_to_r = thrust::get<1>(potential_or_incoming_e);
+      // thrust::tuple<vertex_t, vertex_t>> transposed_invalid_edge_;
+      auto transposed_invalid_edge =
+        thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<1>(potential_e));
 
-        if constexpr (!is_q_r_edge) {
-          transposed_invalid_edge =
-            thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<0>(potential_e));
-        }   
-        auto itr =
-          thrust::lower_bound(thrust::seq, invalid_first, invalid_last, transposed_invalid_edge);
-        assert(*itr == transposed_invalid_edge);
-        auto dist = thrust::distance(invalid_first, itr) + num_valid_edges;
+      if constexpr (!is_q_r_edge) {
+        transposed_invalid_edge =
+          thrust::make_tuple(thrust::get<1>(incoming_e_to_r), thrust::get<0>(potential_e));
+      }
+      auto itr =
+        thrust::lower_bound(thrust::seq, invalid_first, invalid_last, transposed_invalid_edge);
+      if (itr != invalid_last) { assert(*itr == transposed_invalid_edge); }
+      auto dist = thrust::distance(invalid_first, itr) + num_valid_edges;
 
-        cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[dist]);
-        auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
-      });
+      cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(num_triangles[dist]);
+      auto r = atomic_counter.fetch_sub(edge_t{1}, cuda::std::memory_order_relaxed);
+    });
 
   thrust::for_each(
     handle.get_thrust_policy(),
