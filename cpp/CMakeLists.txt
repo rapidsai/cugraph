@@ -280,6 +280,8 @@ set(CUGRAPH_SOURCES
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
+    src/traversal/bellman_ford_sg.cu
+    src/traversal/bellman_ford_mg.cu
     src/traversal/od_shortest_distances_sg.cu
     src/traversal/sssp_mg.cu
     src/link_analysis/hits_sg.cu
