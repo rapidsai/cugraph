@@ -81,28 +81,31 @@ struct unroll_edge {
   }
 };
 
+// FIXME: May re-locate this function as a general utility function for graph algorithm
+// implementations.
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> prefix_sum_valid_and_invalid_edges(
+rmm::device_uvector<vertex_t> compute_prefix_sum(
   // The edgelist is segmented into 2 partitions (valid and invalid edges)
   // and edges to be unrolled can be either in the valid or the invalid edge
   // partition.
   raft::handle_t const& handle,
-  raft::device_span<vertex_t const> invalid_dsts,
-  raft::device_span<vertex_t const> edgelist_dsts)
+  raft::device_span<vertex_t const> sorted_vertices,
+  raft::device_span<vertex_t const> query_vertices
+  )
 {
-  rmm::device_uvector<vertex_t> prefix_sum(invalid_dsts.size() + 1, handle.get_stream());
+  rmm::device_uvector<vertex_t> prefix_sum(query_vertices.size() + 1, handle.get_stream());
 
   thrust::tabulate(handle.get_thrust_policy(),
                    prefix_sum.begin(),
-                   prefix_sum.begin() + invalid_dsts.size(),
-                   [invalid_dsts,
-                    num_edges     = edgelist_dsts.size(),
-                    edgelist_dsts = edgelist_dsts.begin()] __device__(auto idx) {
+                   prefix_sum.begin() + query_vertices.size(),
+                   [query_vertices,
+                    num_edges     = sorted_vertices.size(),
+                    sorted_vertices = sorted_vertices.begin()] __device__(auto idx) {
                      auto itr_lower_valid = thrust::lower_bound(
-                       thrust::seq, edgelist_dsts, edgelist_dsts + num_edges, invalid_dsts[idx]);
+                       thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
 
                      auto itr_upper_valid = thrust::upper_bound(
-                       thrust::seq, itr_lower_valid, edgelist_dsts + num_edges, invalid_dsts[idx]);
+                       thrust::seq, itr_lower_valid, sorted_vertices + num_edges, query_vertices[idx]);
 
                      auto dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
 
@@ -159,12 +162,12 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
                              raft::device_span<vertex_t const> edgelist_dsts,
                              raft::device_span<edge_t> num_triangles)
 {
-  auto prefix_sum_valid = prefix_sum_valid_and_invalid_edges(
+  auto prefix_sum_valid = compute_prefix_sum(
     handle,
-    raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges),
-    raft::device_span<vertex_t const>(edgelist_dsts.data(), num_valid_edges));
+    raft::device_span<vertex_t const>(edgelist_dsts.data(), num_valid_edges),
+    raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
 
-  auto prefix_sum_invalid = prefix_sum_valid_and_invalid_edges(
+  auto prefix_sum_invalid = compute_prefix_sum(
     handle,
     raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges),
     raft::device_span<vertex_t const>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges));
