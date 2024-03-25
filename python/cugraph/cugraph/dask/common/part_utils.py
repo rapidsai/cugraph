@@ -115,9 +115,9 @@ def persist_dask_df_equal_parts_per_worker(
         raise ValueError("return_type must be either 'dask_cudf.DataFrame' or 'dict'")
 
     ddf_keys = dask_df.to_delayed()
-    worker_to_rank = Comms.rank_to_worker(client)
+    rank_to_worker = Comms.rank_to_worker(client)
     # rank-worker mappings are in ascending order
-    workers = dict(sorted(worker_to_rank.items())).values()
+    workers = dict(sorted(rank_to_worker.items())).values()
 
     ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
     persisted_keys_d = {}
