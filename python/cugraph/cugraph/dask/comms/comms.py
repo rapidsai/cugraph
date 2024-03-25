@@ -269,7 +269,7 @@ def get_n_workers(sID=None, dask_worker=None):
 
 def rank_to_worker(client):
     """
-    Return a mapping of dask workers to ranks.
+    Return a mapping of ranks to dask workers.
     """
     workers = client.scheduler_info()["workers"].keys()
     worker_info = __instance.worker_info(workers)
