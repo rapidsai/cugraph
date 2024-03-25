@@ -512,8 +512,6 @@ k_truss(raft::handle_t const& handle,
     // nothing to do
   }
 
-  // 2. Exclude self-loops (FIXME: better mask-out once we add masking support).
-
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
