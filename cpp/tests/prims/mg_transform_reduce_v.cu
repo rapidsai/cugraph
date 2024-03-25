@@ -15,13 +15,14 @@
  */
 
 #include "prims/transform_reduce_v.cuh"
-#include "property_generator.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_kernels.cuh"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -114,7 +115,7 @@ class Tests_MGTransformReduceV
 
     v_op_t<vertex_t, result_t> v_op{hash_bin_count};
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
     std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};

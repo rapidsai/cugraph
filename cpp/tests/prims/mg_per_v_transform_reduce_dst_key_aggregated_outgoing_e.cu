@@ -17,13 +17,13 @@
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "property_generator.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -125,8 +125,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -138,16 +138,18 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
     const int initial_value              = 4;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *mg_renumber_map, vertex_prop_hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *mg_renumber_map, vertex_prop_hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    auto mg_vertex_key = cugraph::test::generate<vertex_t, vertex_t>::vertex_property(
-      *handle_, *mg_renumber_map, key_hash_bin_count);
-    auto mg_dst_key = cugraph::test::generate<vertex_t, vertex_t>::dst_property(
+    auto mg_vertex_key =
+      cugraph::test::generate<decltype(mg_graph_view), vertex_t>::vertex_property(
+        *handle_, *mg_renumber_map, key_hash_bin_count);
+    auto mg_dst_key = cugraph::test::generate<decltype(mg_graph_view), vertex_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_key);
 
     rmm::device_uvector<vertex_t> mg_kv_store_keys(comm_rank == 0 ? key_hash_bin_count : int{0},
@@ -156,8 +158,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
       handle_->get_thrust_policy(), mg_kv_store_keys.begin(), mg_kv_store_keys.end(), vertex_t{0});
     mg_kv_store_keys = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
       *handle_, std::move(mg_kv_store_keys));
-    auto mg_kv_store_values = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, mg_kv_store_keys, key_prop_hash_bin_count);
+    auto mg_kv_store_values =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, mg_kv_store_keys, key_prop_hash_bin_count);
 
     static_assert(std::is_same_v<result_t, int> ||
                   std::is_same_v<result_t, thrust::tuple<int, float>>);
@@ -346,29 +349,34 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
           auto sg_edge_weight_view =
             sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-            *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-            vertex_prop_hash_bin_count);
-          auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
-            *handle_, sg_graph_view, sg_vertex_prop);
+          auto sg_vertex_prop =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
+              *handle_,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+              vertex_prop_hash_bin_count);
+          auto sg_src_prop =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
+              *handle_, sg_graph_view, sg_vertex_prop);
 
-          auto sg_vertex_key = cugraph::test::generate<vertex_t, vertex_t>::vertex_property(
-            *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-            key_hash_bin_count);
-          auto sg_dst_key = cugraph::test::generate<vertex_t, vertex_t>::dst_property(
-            *handle_, sg_graph_view, sg_vertex_key);
+          auto sg_vertex_key =
+            cugraph::test::generate<decltype(sg_graph_view), vertex_t>::vertex_property(
+              *handle_,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+              key_hash_bin_count);
+          auto sg_dst_key =
+            cugraph::test::generate<decltype(sg_graph_view), vertex_t>::dst_property(
+              *handle_, sg_graph_view, sg_vertex_key);
 
           rmm::device_uvector<vertex_t> sg_kv_store_keys(key_hash_bin_count, handle_->get_stream());
           thrust::sequence(handle_->get_thrust_policy(),
                            sg_kv_store_keys.begin(),
                            sg_kv_store_keys.end(),
                            vertex_t{0});
-          auto sg_kv_store_values = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-            *handle_, sg_kv_store_keys, key_prop_hash_bin_count);
+          auto sg_kv_store_values =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
+              *handle_, sg_kv_store_keys, key_prop_hash_bin_count);
 
           cugraph::kv_store_t<vertex_t, result_t, false> sg_kv_store(
             sg_kv_store_keys.begin(),
@@ -487,15 +495,12 @@ using Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_File =
 using Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat =
   Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE<cugraph::test::Rmat_Usecase>;
 
-// FIXME: this tests do not build as cugrpah::kv_store_t has a build error when use_binary_search =
-// false and value_t is thrust::tuple, this will be fixed in a separate PR
-#if 0
 TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                              std::get<1>(param));
+                                                                       std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
@@ -524,7 +529,6 @@ TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-#endif
 
 TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_File,
        CheckInt32Int32FloatTransposeFalse)

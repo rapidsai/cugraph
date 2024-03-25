@@ -15,7 +15,7 @@
  */
 
 #include "detail/graph_partition_utils.cuh"
-#include "utilities/test_utilities.hpp"
+#include "utilities/csv_file_utilities.hpp"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>

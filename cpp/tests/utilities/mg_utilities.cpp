@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "utilities/test_utilities.hpp"
+#include "utilities/mg_utilities.hpp"
+
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>

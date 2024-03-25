@@ -23,18 +23,19 @@ or
 $ python _nx_cugraph/__init__.py
 """
 
-from packaging.version import Version
-
 from _nx_cugraph._version import __version__
 
-_nx_cugraph_version = Version(__version__)
+# This is normally handled by packaging.version.Version, but instead of adding
+# an additional runtime dependency on "packaging", assume __version__ will
+# always be in <major>.<minor>.<build> format.
+(_version_major, _version_minor) = __version__.split(".")[:2]
 
 # Entries between BEGIN and END are automatically generated
 _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_nx_cugraph_version.major:02}.{_nx_cugraph_version.minor:02}/python/nx-cugraph",
+    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_version_major:0>2}.{_version_minor:0>2}/python/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -95,6 +96,7 @@ _info = {
         "is_connected",
         "is_forest",
         "is_isolate",
+        "is_negatively_weighted",
         "is_tree",
         "is_weakly_connected",
         "isolates",
@@ -260,6 +262,22 @@ def get_info():
 
 if __name__ == "__main__":
     from pathlib import Path
+
+    # This script imports nx_cugraph modules, which imports nx_cugraph runtime
+    # dependencies. The modules do not need the runtime deps, so stub them out
+    # to avoid installing them.
+    class Stub:
+        def __getattr__(self, *args, **kwargs):
+            return Stub()
+
+        def __call__(self, *args, **kwargs):
+            return Stub()
+
+    import sys
+
+    sys.modules["cupy"] = Stub()
+    sys.modules["numpy"] = Stub()
+    sys.modules["pylibcugraph"] = Stub()
 
     from _nx_cugraph.core import main
 

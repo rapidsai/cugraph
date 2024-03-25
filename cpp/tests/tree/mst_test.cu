@@ -19,7 +19,6 @@
 
 #include "../src/converters/legacy/COOtoCSR.cuh"
 #include "utilities/base_fixture.hpp"
-#include "utilities/test_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>

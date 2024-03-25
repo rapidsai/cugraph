@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,7 @@ from cugraph.testing import utils, SMALL_DATASETS
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 COMPRESSED = [False, True]
+START_VERTICES_TYPE = ["int32", "int64"]
 LINE = small_line
 KARATE = karate
 
@@ -150,11 +151,8 @@ def test_node2vec_line(graph_file, directed):
 @pytest.mark.parametrize(*_get_param_args("graph_file", SMALL_DATASETS))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
-def test_node2vec(
-    graph_file,
-    directed,
-    compress,
-):
+@pytest.mark.parametrize(*_get_param_args("start_vertices_type", START_VERTICES_TYPE))
+def test_node2vec(graph_file, directed, compress, start_vertices_type):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
 
@@ -165,8 +163,23 @@ def test_node2vec(
     )
     num_verts = G.number_of_vertices()
     k = random.randint(6, 12)
-    start_vertices = cudf.Series(random.sample(range(num_verts), k), dtype="int32")
+    # FIXME: Random sample can make it hard to debug
+    start_vertices = cudf.Series(
+        random.sample(range(num_verts), k), dtype=start_vertices_type
+    )
     max_depth = 5
+
+    if start_vertices_type == "int64":
+        warning_msg = (
+            "Node2vec requires 'start_vertices' to match the graph's "
+            "'vertex' type. input graph's vertex type is: int32 and "
+            "got 'start_vertices' of type: int64."
+        )
+        with pytest.warns(UserWarning, match=warning_msg):
+            calc_node2vec(
+                G, start_vertices, max_depth, compress_result=compress, p=0.8, q=0.5
+            )
+
     result, seeds = calc_node2vec(
         G, start_vertices, max_depth, compress_result=compress, p=0.8, q=0.5
     )
