@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
-#include "property_generator.cuh"
+#include "prims/transform_e.cuh"
+#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
@@ -37,14 +45,6 @@
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
 
 #include <random>
 
@@ -114,8 +114,8 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -125,13 +125,13 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
     const int initial_value  = 4;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, edge_t>::initial_value(initial_value);
+      cugraph::test::generate<decltype(mg_graph_view), edge_t>::initial_value(initial_value);
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, edge_t>::vertex_property(
+    auto mg_vertex_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::vertex_property(
       *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, edge_t>::src_property(
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, edge_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     auto mg_result_buffer = rmm::device_uvector<edge_t>(
@@ -185,14 +185,15 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_vertex_prop = cugraph::test::generate<vertex_t, edge_t>::vertex_property(
-          *handle_,
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-          hash_bin_count);
-        auto sg_src_prop = cugraph::test::generate<vertex_t, edge_t>::src_property(
+        auto sg_vertex_prop =
+          cugraph::test::generate<decltype(sg_graph_view), edge_t>::vertex_property(
+            *handle_,
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), edge_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
-        auto sg_dst_prop = cugraph::test::generate<vertex_t, edge_t>::dst_property(
+        auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), edge_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
         auto sg_result_buffer = cugraph::allocate_dataframe_buffer<edge_t>(

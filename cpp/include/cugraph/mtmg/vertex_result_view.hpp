@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,8 @@ class vertex_result_view_t : public detail::device_shared_device_span_t<result_t
     raft::device_span<vertex_t const> vertices,
     std::vector<vertex_t> const& vertex_partition_range_lasts,
     cugraph::vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition_view,
-    std::optional<cugraph::mtmg::renumber_map_view_t<vertex_t>>& renumber_map_view);
+    std::optional<cugraph::mtmg::renumber_map_view_t<vertex_t>>& renumber_map_view,
+    result_t default_value = 0);
 };
 
 }  // namespace mtmg
