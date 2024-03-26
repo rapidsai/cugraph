@@ -336,9 +336,7 @@ class CuGraphStore:
     def __make_offsets(self, input_dict):
         offsets = {}
         offsets["stop"] = [input_dict[v] for v in sorted(input_dict.keys())]
-        offsets["stop"] = torch.tensor(offsets["stop"])
-        if torch.has_cuda:
-            offsets["stop"] = offsets["stop"].cuda()
+        offsets["stop"] = torch.tensor(offsets["stop"]).cuda()
 
         cumsum = offsets["stop"].cumsum(0)
         offsets["start"] = cumsum - offsets["stop"]
