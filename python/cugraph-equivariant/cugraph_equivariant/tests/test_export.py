@@ -30,12 +30,8 @@ from polygraphy.backend.trt import (
     TrtRunner,
 )
 
-from tp_plugin import FusedTensorProductPluginCreator
-from tr_plugin import SegmentedTransposePluginCreator
-# Register plugin creator
-plg_registry = trt.get_plugin_registry()
-plg_registry.register_creator(FusedTensorProductPluginCreator(), "")
-plg_registry.register_creator(SegmentedTransposePluginCreator(), "")
+from pylibcugraphops.pytorch.onnx import register_trt_plugins
+register_trt_plugins()
 
 # from polygraphy.logger import G_LOGGER
 # G_LOGGER.module_severity = {'': G_LOGGER.EXTRA_VERBOSE}
