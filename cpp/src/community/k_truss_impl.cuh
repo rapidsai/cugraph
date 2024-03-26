@@ -522,8 +522,8 @@ k_truss(raft::handle_t const& handle,
     modified_graph_view = (*modified_graph).view();
   }
 
-  // FIXME: Remove because it yields to incorrect results
-  // 3. Find (k+1)-core and exclude edges that do not belong to (k+1)-core
+  // FIXME: Investigate k-1 core failure to yield correct results.
+  // 3. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
   /*
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
@@ -542,7 +542,7 @@ k_truss(raft::handle_t const& handle,
       k_core(handle,
              cur_graph_view,
              std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-             size_t{k + 1},
+             size_t{k - 1},
              std::make_optional(k_core_degree_type_t::OUT),
              // Seems like the below argument is required. passing a std::nullopt
              // create a compiler error
@@ -712,9 +712,7 @@ k_truss(raft::handle_t const& handle,
                                    auto num_triangles = thrust::get<1>(e);
                                    return num_triangles >= k - 2;
                                  });
-      size_t num_edges_with_triangles{0};
-      edge_t num_invalid_edges{0};
-      num_invalid_edges = static_cast<size_t>(
+      auto num_invalid_edges = static_cast<size_t>(
         thrust::distance(invalid_transposed_edge_triangle_count_first,
                          transposed_edge_triangle_count_pair_first + edgelist_srcs.size()));
 
@@ -845,7 +843,7 @@ k_truss(raft::handle_t const& handle,
                                    return num_triangles > 0;
                                  });
 
-      num_edges_with_triangles = static_cast<size_t>(
+      auto num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(transposed_edge_triangle_count_pair_first, edges_with_triangle_last));
 
       thrust::sort(handle.get_thrust_policy(),

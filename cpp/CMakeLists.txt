@@ -37,30 +37,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
 endif()
 
-# Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
-# cuhornet currently doesn't support
-#
-# >= 90
-set(supported_archs "70" "72" "75" "80" "86" "89" "90")
-foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
-    string(REPLACE "-real" "" arch ${arch})
-    if( arch IN_LIST supported_archs )
-        list(APPEND usable_arch_values ${arch})
-    endif()
-endforeach()
-# Make sure everything but the 'newest' arch
-# is marked as `-real` so we only generate PTX for
-# arch > 86
-list(POP_BACK usable_arch_values latest_arch)
-list(TRANSFORM usable_arch_values APPEND "-real")
-if (usable_arch_values)
-    list(APPEND usable_arch_values ${latest_arch})
-else()
-    list(APPEND usable_arch_values ${latest_arch}-real)
-endif()
-
-set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
-
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 rapids_cmake_write_version_file(include/cugraph_c/version_config.hpp)
@@ -168,7 +144,6 @@ if(USE_CUGRAPH_OPS)
 endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
-include(cmake/thirdparty/get_cuhornet.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
   include(cmake/thirdparty/get_ucp.cmake)
@@ -223,7 +198,6 @@ set(CUGRAPH_SOURCES
     src/community/ecg_sg.cu
     src/community/ecg_mg.cu
     src/community/legacy/louvain.cu
-    src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
@@ -393,7 +367,6 @@ if (USE_CUGRAPH_OPS)
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
-            cugraph::cuHornet
             NCCL::NCCL
     )
 else()
@@ -406,7 +379,6 @@ else()
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
-            cugraph::cuHornet
             NCCL::NCCL
     )
 endif()
