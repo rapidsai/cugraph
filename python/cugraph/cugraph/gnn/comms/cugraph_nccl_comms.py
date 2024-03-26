@@ -24,6 +24,7 @@ from cugraph.dask.comms.comms_wrapper import init_subcomms
 __nccl_comms = None
 __raft_handle = None
 
+
 def nccl_init(rank: int, world_size: int, uid: int):
     # calls a c++ function that calls ncclCommInitRank
     # returns a resource handle and nccl communicator
@@ -35,17 +36,15 @@ def nccl_init(rank: int, world_size: int, uid: int):
     except Exception as ex:
         raise RuntimeError(f"A nccl error occurred: {ex}")
 
-def make_raft_handle(rank, world_size, nccl_comms, n_streams_per_handle=0, verbose=False):
+
+def make_raft_handle(
+    rank, world_size, nccl_comms, n_streams_per_handle=0, verbose=False
+):
     handle = Handle(n_streams=n_streams_per_handle)
-    inject_comms_on_handle_coll_only(
-        handle,
-        nccl_comms,
-        world_size,
-        rank,
-        verbose
-    )
+    inject_comms_on_handle_coll_only(handle, nccl_comms, world_size, rank, verbose)
 
     return handle
+
 
 def __get_2D_div(ngpus):
     prows = int(math.sqrt(ngpus))
@@ -70,10 +69,7 @@ def cugraph_comms_init(rank, world_size, uid, device=0):
     raft_handle = make_raft_handle(rank, world_size, nccl_comms, verbose=True)
 
     pcols, _ = __get_2D_div(world_size)
-    init_subcomms(
-        raft_handle,
-        pcols
-    )
+    init_subcomms(raft_handle, pcols)
 
     __nccl_comms = nccl_comms
     __raft_handle = raft_handle
@@ -81,10 +77,10 @@ def cugraph_comms_init(rank, world_size, uid, device=0):
 
 def cugraph_comms_shutdown():
     global __raft_handle, __nccl_comms, __old_device
-    
+
     __nccl_comms.destroy()
     setDevice(__old_device)
-    
+
     del __raft_handle
     del __nccl_comms
     del __old_device

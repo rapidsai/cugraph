@@ -25,51 +25,42 @@ from pylibcugraph import SGGraph, ResourceHandle, GraphProperties, degrees
 
 from ogb.nodeproppred import NodePropPredDataset
 
-def calc_degree(edgelist):
-    src = cudf.Series(
-        edgelist[0]
-    )
-    dst = cudf.Series(
-        edgelist[1]
-    )
-    
-    seeds = cudf.Series(
-        np.arange(256)
-    )
 
-    print('constructing graph')
+def calc_degree(edgelist):
+    src = cudf.Series(edgelist[0])
+    dst = cudf.Series(edgelist[1])
+
+    seeds = cudf.Series(np.arange(256))
+
+    print("constructing graph")
     G = SGGraph(
         ResourceHandle(),
-        GraphProperties(is_multigraph=True,is_symmetric=False),
+        GraphProperties(is_multigraph=True, is_symmetric=False),
         src,
         dst,
     )
-    print('graph constructed')
+    print("graph constructed")
 
-    print('calculating degrees')
+    print("calculating degrees")
     vertices, in_deg, out_deg = degrees(
-        ResourceHandle(),
-        G,
-        seeds,
-        do_expensive_check=False
+        ResourceHandle(), G, seeds, do_expensive_check=False
     )
-    print('degrees calculated')
+    print("degrees calculated")
 
-    print('constructing dataframe')
-    df = pandas.DataFrame({
-        'v': vertices.get(),
-        'in': in_deg.get(),
-        'out': out_deg.get()
-    })
+    print("constructing dataframe")
+    df = pandas.DataFrame(
+        {"v": vertices.get(), "in": in_deg.get(), "out": out_deg.get()}
+    )
     print(df)
 
-    print('done')
+    print("done")
 
 
 def main():
-    dataset = NodePropPredDataset('ogbn-products')
-    el = dataset[0][0]['edge_index'].astype('int64')
+    dataset = NodePropPredDataset("ogbn-products")
+    el = dataset[0][0]["edge_index"].astype("int64")
     calc_degree(el)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
