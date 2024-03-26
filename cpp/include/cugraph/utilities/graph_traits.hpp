@@ -67,8 +67,8 @@ struct is_candidate {
 };
 
 // meta-function that constrains
-// all 3 template param candidates where vertex_t and edge_t
-// are restricted to int32_t:
+// vertex_t and edge_t are restricted to int32_t:
+// FIXME: Drop this functor as it was only used by legacy K-Truss
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct is_candidate_legacy {
