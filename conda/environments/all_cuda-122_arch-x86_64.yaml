@@ -13,7 +13,7 @@ dependencies:
 - aiohttp
 - breathe
 - c-compiler
-- cmake>=3.26.4
+- cmake>=3.26.4,<3.29
 - cuda-cudart-dev
 - cuda-nvcc
 - cuda-nvtx-dev

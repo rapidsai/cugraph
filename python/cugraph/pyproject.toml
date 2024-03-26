@@ -3,7 +3,7 @@
 [build-system]
 
 requires = [
-    "cmake>=3.26.4",
+    "cmake>=3.26.4,<3.29",
     "cython>=3.0.0",
     "ninja",
     "pylibcugraph==24.4.*",
