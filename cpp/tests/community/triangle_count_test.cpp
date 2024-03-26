@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -91,6 +92,8 @@ void triangle_count_reference(edge_t const* offsets,
 
 struct TriangleCount_Usecase {
   double vertex_subset_ratio{0.0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -137,6 +140,13 @@ class Tests_TriangleCount
     }
 
     auto graph_view = graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (triangle_count_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     std::optional<std::vector<vertex_t>> h_vertices{std::nullopt};
     if (triangle_count_usecase.vertex_subset_ratio < 1.0) {
@@ -188,24 +198,23 @@ class Tests_TriangleCount
     }
 
     if (triangle_count_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
-      if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false, false, true);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      std::vector<edge_t> h_offsets{};
+      std::vector<vertex_t> h_indices{};
+      std::tie(h_offsets, h_indices, std::ignore) =
+        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          graph_view,
+          std::nullopt,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
-
-      std::vector<edge_t> h_reference_triangle_counts(unrenumbered_graph_view.number_of_vertices());
+      std::vector<edge_t> h_reference_triangle_counts(graph_view.number_of_vertices());
 
       triangle_count_reference(h_offsets.data(),
                                h_indices.data(),
-                               unrenumbered_graph_view.number_of_vertices(),
+                               graph_view.number_of_vertices(),
                                h_reference_triangle_counts.data());
 
       std::vector<vertex_t> h_cugraph_vertices{};
@@ -269,7 +278,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_TriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(TriangleCount_Usecase{0.1}, TriangleCount_Usecase{1.0}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false},
+                      TriangleCount_Usecase{0.1, true},
+                      TriangleCount_Usecase{1.0, false},
+                      TriangleCount_Usecase{1.0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -278,7 +290,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_TriangleCount_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(TriangleCount_Usecase{0.1}, TriangleCount_Usecase{1.0}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false},
+                      TriangleCount_Usecase{0.1, true},
+                      TriangleCount_Usecase{1.0, false},
+                      TriangleCount_Usecase{1.0, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -290,7 +305,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_TriangleCount_File,
   ::testing::Combine(
     // disable correctness checks
-    ::testing::Values(TriangleCount_Usecase{0.1, false}, TriangleCount_Usecase{1.0, false}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false, false},
+                      TriangleCount_Usecase{0.1, true, false},
+                      TriangleCount_Usecase{1.0, false, false},
+                      TriangleCount_Usecase{1.0, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -302,7 +320,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_TriangleCount_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(TriangleCount_Usecase{0.1, false}, TriangleCount_Usecase{1.0, false}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false, false},
+                      TriangleCount_Usecase{0.1, true, false},
+                      TriangleCount_Usecase{1.0, false, false},
+                      TriangleCount_Usecase{1.0, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
