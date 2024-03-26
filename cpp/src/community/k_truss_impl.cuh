@@ -84,30 +84,32 @@ struct unroll_edge {
 // FIXME: May re-locate this function as a general utility function for graph algorithm
 // implementations.
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> compute_prefix_sum(
-  raft::handle_t const& handle,
-  raft::device_span<vertex_t const> sorted_vertices,
-  raft::device_span<vertex_t const> query_vertices)
+rmm::device_uvector<vertex_t> compute_prefix_sum(raft::handle_t const& handle,
+                                                 raft::device_span<vertex_t const> sorted_vertices,
+                                                 raft::device_span<vertex_t const> query_vertices)
 {
   rmm::device_uvector<vertex_t> prefix_sum(query_vertices.size() + 1, handle.get_stream());
 
   auto count_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<vertex_t>(
-    [query_vertices,
-     num_edges = sorted_vertices.size(),
-     sorted_vertices = sorted_vertices.begin()]__device__(size_t idx) {
-      auto itr_lower = thrust::lower_bound(
-        thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
+      [query_vertices,
+       num_edges       = sorted_vertices.size(),
+       sorted_vertices = sorted_vertices.begin()] __device__(size_t idx) {
+        auto itr_lower = thrust::lower_bound(
+          thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
 
-      auto itr_upper = thrust::upper_bound(
-        thrust::seq, itr_lower, sorted_vertices + num_edges, query_vertices[idx]);
-      vertex_t dist = thrust::distance(itr_lower, itr_upper);
+        auto itr_upper = thrust::upper_bound(
+          thrust::seq, itr_lower, sorted_vertices + num_edges, query_vertices[idx]);
+        vertex_t dist = thrust::distance(itr_lower, itr_upper);
 
-      return dist;
-    }));
-    
-  thrust::exclusive_scan(handle.get_thrust_policy(), count_first, count_first + query_vertices.size() + 1, prefix_sum.begin());
+        return dist;
+      }));
+
+  thrust::exclusive_scan(handle.get_thrust_policy(),
+                         count_first,
+                         count_first + query_vertices.size() + 1,
+                         prefix_sum.begin());
 
   return prefix_sum;
 }

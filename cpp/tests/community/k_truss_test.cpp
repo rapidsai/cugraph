@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include "utilities/base_fixture.hpp"
 #include "utilities/check_utilities.hpp"
 #include "utilities/conversion_utilities.hpp"
-#include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -71,11 +71,10 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
   template <typename vertex_t, typename edge_t, typename weight_t>
   std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
-  k_truss_reference(
-    std::vector<vertex_t> h_offsets,
-    std::vector<vertex_t> h_indices,
-    std::optional<std::vector<weight_t>> h_values,
-    edge_t k)
+  k_truss_reference(std::vector<vertex_t> h_offsets,
+                    std::vector<vertex_t> h_indices,
+                    std::optional<std::vector<weight_t>> h_values,
+                    edge_t k)
   {
     std::vector<vertex_t> vertices(h_offsets.size() - 1);
     std::iota(vertices.begin(), vertices.end(), 0);
@@ -157,8 +156,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     h_offsets.erase(std::unique(h_offsets.begin() + 1, h_offsets.end()),
                     h_offsets.end());  // CSR start from 0
 
-    return std::make_tuple(
-      std::move(h_offsets), std::move(h_indices), std::move(h_values));
+    return std::make_tuple(std::move(h_offsets), std::move(h_indices), std::move(h_values));
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
@@ -247,10 +245,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
       auto [h_reference_offsets, h_reference_indices, h_reference_values] =
         k_truss_reference<vertex_t, edge_t, weight_t>(
-          h_offsets,
-          h_indices,
-          h_values,
-          k_truss_usecase.k_);
+          h_offsets, h_indices, h_values, k_truss_usecase.k_);
 
       EXPECT_EQ(h_cugraph_offsets.size(), h_reference_offsets.size());
 
@@ -333,7 +328,7 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{4, false, false}),
+    ::testing::Values(KTruss_Usecase{12, false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(14, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
