@@ -17,6 +17,7 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -38,6 +39,8 @@ struct EdgeBetweennessCentrality_Usecase {
   size_t num_seeds{std::numeric_limits<size_t>::max()};
   bool normalized{false};
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -84,6 +87,13 @@ class Tests_MGEdgeBetweennessCentrality
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (betweenness_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
     auto d_mg_seeds = cugraph::select_random_vertices(
       *handle_,
@@ -116,6 +126,9 @@ class Tests_MGEdgeBetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
+      auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()});
+
       // Extract MG results
       auto [d_cugraph_src_vertex_ids, d_cugraph_dst_vertex_ids, d_cugraph_results] =
         cugraph::test::graph_to_device_coo(
@@ -135,9 +148,6 @@ class Tests_MGEdgeBetweennessCentrality
         mg_edge_weight_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);
-
-      auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
-        *handle_, raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()});
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_edge_weights_view =
@@ -214,7 +224,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEdgeBetweennessCentrality_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{20, false, false, true},
+    ::testing::Values(EdgeBetweennessCentrality_Usecase{20, false, false, false},
+                      EdgeBetweennessCentrality_Usecase{20, false, false, true},
+                      EdgeBetweennessCentrality_Usecase{20, false, true, false},
                       EdgeBetweennessCentrality_Usecase{20, false, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
@@ -226,8 +238,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // enable correctness checks
   ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, true},
-                      EdgeBetweennessCentrality_Usecase{50, false, true, true}),
+    ::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, false},
+                      EdgeBetweennessCentrality_Usecase{50, false, false, true},
+                      EdgeBetweennessCentrality_Usecase{50, false, true, false},
+                      EdgeBetweennessCentrality_Usecase{50, false, true, true},
+                      EdgeBetweennessCentrality_Usecase{50, true, false, false},
+                      EdgeBetweennessCentrality_Usecase{50, true, false, true},
+                      EdgeBetweennessCentrality_Usecase{50, true, true, false},
+                      EdgeBetweennessCentrality_Usecase{50, true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -239,8 +257,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false},
-                      EdgeBetweennessCentrality_Usecase{500, false, true, false}),
+    ::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false, false},
+                      EdgeBetweennessCentrality_Usecase{500, false, false, true, false},
+                      EdgeBetweennessCentrality_Usecase{500, false, true, false, false},
+                      EdgeBetweennessCentrality_Usecase{500, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

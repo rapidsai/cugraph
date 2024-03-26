@@ -1047,8 +1047,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   weight_t cutoff,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   auto const num_vertices = graph_view.number_of_vertices();
   auto const num_edges    = graph_view.compute_number_of_edges(handle);
 

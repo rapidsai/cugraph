@@ -17,6 +17,7 @@
 #include "betweenness_centrality_validate.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -39,6 +40,8 @@ struct BetweennessCentrality_Usecase {
   bool normalized{false};
   bool include_endpoints{false};
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -84,6 +87,13 @@ class Tests_BetweennessCentrality
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (betweenness_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     raft::random::RngState rng_state(0);
     auto d_seeds = cugraph::select_random_vertices(
       handle,
@@ -121,7 +131,23 @@ class Tests_BetweennessCentrality
         graph_view,
         edge_weight_view,
         std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-      auto h_seeds = cugraph::test::to_host(handle, d_seeds);
+
+      std::vector<vertex_t> h_seeds{};
+      if (renumber) {
+        rmm::device_uvector<vertex_t> d_unrenumbered_seeds(d_seeds.size(), handle.get_stream());
+        raft::copy_async(
+          d_unrenumbered_seeds.data(), d_seeds.data(), d_seeds.size(), handle.get_stream());
+        cugraph::unrenumber_local_int_vertices(handle,
+                                               d_unrenumbered_seeds.data(),
+                                               d_unrenumbered_seeds.size(),
+                                               (*d_renumber_map_labels).data(),
+                                               vertex_t{0},
+                                               graph_view.number_of_vertices());
+        h_seeds = cugraph::test::to_host(handle, d_seeds);
+        std::sort(h_seeds.begin(), h_seeds.end());
+      } else {
+        h_seeds = cugraph::test::to_host(handle, d_seeds);
+      }
 
       auto h_reference_centralities =
         betweenness_centrality_reference(h_offsets,
@@ -173,9 +199,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BetweennessCentrality_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(BetweennessCentrality_Usecase{20, false, false, false, true},
+    ::testing::Values(BetweennessCentrality_Usecase{20, false, false, false, false},
+                      BetweennessCentrality_Usecase{20, false, false, false, true},
+                      BetweennessCentrality_Usecase{20, false, false, true, false},
                       BetweennessCentrality_Usecase{20, false, false, true, true},
+                      BetweennessCentrality_Usecase{20, false, true, false, false},
                       BetweennessCentrality_Usecase{20, false, true, false, true},
+                      BetweennessCentrality_Usecase{20, false, true, true, false},
                       BetweennessCentrality_Usecase{20, false, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
@@ -184,7 +214,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BetweennessCentrality_Rmat,
   // enable correctness checks
   ::testing::Combine(
-    ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, true},
+    ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, false},
+                      BetweennessCentrality_Usecase{50, false, false, false, true},
+                      BetweennessCentrality_Usecase{50, false, false, true, false},
                       BetweennessCentrality_Usecase{50, false, false, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -197,8 +229,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BetweennessCentrality_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(BetweennessCentrality_Usecase{500, false, false, false, false},
-                      BetweennessCentrality_Usecase{500, false, false, true, false}),
+    ::testing::Values(BetweennessCentrality_Usecase{500, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{500, false, false, false, true, false},
+                      BetweennessCentrality_Usecase{500, false, false, true, false, false},
+                      BetweennessCentrality_Usecase{500, false, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

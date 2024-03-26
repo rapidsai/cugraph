@@ -113,6 +113,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / num_vertices);
   }
+
   size_t iter{0};
   while (true) {
     // Update current destination authorities property
@@ -208,8 +209,6 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   bool normalize,
                                   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   return detail::hits(handle,
                       graph_view,
                       hubs,

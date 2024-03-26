@@ -425,8 +425,6 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   size_t max_iterations,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   rmm::device_uvector<result_t> local_pageranks(graph_view.local_vertex_partition_range_size(),
                                                 handle.get_stream());
   if (!initial_pageranks) {

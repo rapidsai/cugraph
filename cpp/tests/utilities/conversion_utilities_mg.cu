@@ -294,6 +294,90 @@ graph_to_host_csr(
   std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int64_t const>> renumber_map);
 
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> renumber_map);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> renumber_map);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> renumber_map);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> renumber_map);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<double>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> renumber_map);
+
 template std::tuple<
   cugraph::graph_t<int32_t, int32_t, true, false>,
   std::optional<cugraph::edge_property_t<graph_view_t<int32_t, int32_t, true, false>, float>>,

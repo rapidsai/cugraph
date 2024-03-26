@@ -358,24 +358,25 @@ void transform_e(raft::handle_t const& handle,
       }
     } else {
       if (edge_partition_e_mask) {
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(edge_t{0}),
-                         thrust::make_counting_iterator(num_edges),
-                         detail::update_e_value_t<true,
-                                                  GraphViewType,
-                                                  edge_partition_src_input_device_view_t,
-                                                  edge_partition_dst_input_device_view_t,
-                                                  edge_partition_e_input_device_view_t,
-                                                  decltype(*edge_partition_e_mask),
-                                                  EdgeOp,
-                                                  edge_partition_e_output_device_view_t>{
-                           edge_partition,
-                           edge_partition_src_value_input,
-                           edge_partition_dst_value_input,
-                           edge_partition_e_value_input,
-                           *edge_partition_e_mask,
-                           e_op,
-                           edge_partition_e_value_output});
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(edge_t{0}),
+          thrust::make_counting_iterator(num_edges),
+          detail::update_e_value_t<true,
+                                   GraphViewType,
+                                   edge_partition_src_input_device_view_t,
+                                   edge_partition_dst_input_device_view_t,
+                                   edge_partition_e_input_device_view_t,
+                                   std::remove_reference_t<decltype(*edge_partition_e_mask)>,
+                                   EdgeOp,
+                                   edge_partition_e_output_device_view_t>{
+            edge_partition,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
+            edge_partition_e_value_input,
+            *edge_partition_e_mask,
+            e_op,
+            edge_partition_e_value_output});
       } else {
         thrust::for_each(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(edge_t{0}),
@@ -595,24 +596,25 @@ void transform_e(raft::handle_t const& handle,
       edge_partition_e_output_device_view_t(edge_value_output, i);
 
     if (edge_partition_e_mask) {
-      thrust::for_each(handle.get_thrust_policy(),
-                       edge_first + edge_partition_offsets[i],
-                       edge_first + edge_partition_offsets[i + 1],
-                       detail::update_e_value_t<true,
-                                                GraphViewType,
-                                                edge_partition_src_input_device_view_t,
-                                                edge_partition_dst_input_device_view_t,
-                                                edge_partition_e_input_device_view_t,
-                                                decltype(*edge_partition_e_mask),
-                                                EdgeOp,
-                                                edge_partition_e_output_device_view_t>{
-                         edge_partition,
-                         edge_partition_src_value_input,
-                         edge_partition_dst_value_input,
-                         edge_partition_e_value_input,
-                         *edge_partition_e_mask,
-                         e_op,
-                         edge_partition_e_value_output});
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        edge_first + edge_partition_offsets[i],
+        edge_first + edge_partition_offsets[i + 1],
+        detail::update_e_value_t<true,
+                                 GraphViewType,
+                                 edge_partition_src_input_device_view_t,
+                                 edge_partition_dst_input_device_view_t,
+                                 edge_partition_e_input_device_view_t,
+                                 std::remove_reference_t<decltype(*edge_partition_e_mask)>,
+                                 EdgeOp,
+                                 edge_partition_e_output_device_view_t>{
+          edge_partition,
+          edge_partition_src_value_input,
+          edge_partition_dst_value_input,
+          edge_partition_e_value_input,
+          *edge_partition_e_mask,
+          e_op,
+          edge_partition_e_value_output});
     } else {
       thrust::for_each(handle.get_thrust_policy(),
                        edge_first + edge_partition_offsets[i],

@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -37,6 +38,8 @@
 
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -82,6 +85,13 @@ class Tests_MGKatzCentrality
     auto mg_graph_view = mg_graph.view();
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (katz_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. compute max in-degree
 
@@ -236,7 +246,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKatzCentrality_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(KatzCentrality_Usecase{false, false},
+                      KatzCentrality_Usecase{false, true},
+                      KatzCentrality_Usecase{true, false},
+                      KatzCentrality_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -247,7 +260,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKatzCentrality_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(KatzCentrality_Usecase{false, false},
+                      KatzCentrality_Usecase{false, true},
+                      KatzCentrality_Usecase{true, false},
+                      KatzCentrality_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -259,7 +275,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKatzCentrality_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
+    ::testing::Values(KatzCentrality_Usecase{false, false, false},
+                      KatzCentrality_Usecase{false, true, false},
+                      KatzCentrality_Usecase{true, false, false},
+                      KatzCentrality_Usecase{true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
