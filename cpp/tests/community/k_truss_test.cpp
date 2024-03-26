@@ -18,6 +18,7 @@
 #include "utilities/check_utilities.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -152,11 +153,14 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         }
       }
     }
+    
+    std::vector<vertex_t> h_srcs(h_indices.size());
+  
+    for (auto i = 0; i < h_offsets.size() - 1; ++i){
+      std::fill(h_srcs.begin() + h_offsets[i], h_srcs.begin() + h_offsets[i + 1], i);
+    }
 
-    h_offsets.erase(std::unique(h_offsets.begin() + 1, h_offsets.end()),
-                    h_offsets.end());  // CSR start from 0
-
-    return std::make_tuple(std::move(h_offsets), std::move(h_indices), std::move(h_values));
+    return std::make_tuple(std::move(h_srcs), std::move(h_indices), std::move(h_values));
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
@@ -192,7 +196,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       hr_timer.start("K-truss");
     }
 
-    auto [d_cugraph_src, d_cugraph_dst, d_cugraph_wgt] =
+    auto [d_cugraph_srcs, d_cugraph_dsts, d_cugraph_wgts] =
       cugraph::k_truss<vertex_t, edge_t, weight_t, false>(
         handle,
         graph_view,
@@ -208,63 +212,54 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
     if (k_truss_usecase.check_correctness_) {
       std::optional<cugraph::graph_t<vertex_t, edge_t, false, false>> modified_graph{std::nullopt};
-
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        modified_edge_weight{std::nullopt};
-      std::tie(*modified_graph, modified_edge_weight, std::ignore, std::ignore, std::ignore) =
-        cugraph::
-          create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, false>(
-            handle,
-            std::nullopt,
-            std::move(d_cugraph_src),
-            std::move(d_cugraph_dst),
-            std::move(d_cugraph_wgt),
-            std::nullopt,
-            std::nullopt,
-            cugraph::graph_properties_t{true, false},
-            renumber);
-
-      // Convert cugraph results to CSR
-      auto [h_cugraph_offsets, h_cugraph_indices, h_cugraph_values] =
-        cugraph::test::graph_to_host_csr(
-          handle,
-          (*modified_graph).view(),
-          modified_edge_weight ? std::make_optional((*modified_edge_weight).view()) : std::nullopt,
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-
-      // Remove isolated vertices.
-      h_cugraph_offsets.erase(std::unique(h_cugraph_offsets.begin() + 1, h_cugraph_offsets.end()),
-                              h_cugraph_offsets.end());  // CSR start from 0
-
       auto [h_offsets, h_indices, h_values] = cugraph::test::graph_to_host_csr(
         handle,
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
         std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-      auto [h_reference_offsets, h_reference_indices, h_reference_values] =
+      rmm::device_uvector<weight_t> d_sorted_cugraph_wgts{0, handle.get_stream()};
+      rmm::device_uvector<vertex_t> d_sorted_cugraph_srcs{0, handle.get_stream()};
+      rmm::device_uvector<vertex_t> d_sorted_cugraph_dsts{0, handle.get_stream()};
+
+      if (edge_weight){
+        std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts, d_sorted_cugraph_wgts) =
+          cugraph::test::sort_by_key(handle, d_cugraph_srcs, d_cugraph_dsts, *d_cugraph_wgts);
+      } else {
+        std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts) =
+          cugraph::test::sort(handle, d_cugraph_srcs, d_cugraph_dsts);
+      }
+      
+      auto h_cugraph_srcs =
+        cugraph::test::to_host(handle, d_sorted_cugraph_srcs);
+      
+      auto h_cugraph_dsts =
+        cugraph::test::to_host(handle, d_sorted_cugraph_dsts);
+      
+      auto [h_reference_srcs, h_reference_dsts, h_reference_wgts] =
         k_truss_reference<vertex_t, edge_t, weight_t>(
           h_offsets, h_indices, h_values, k_truss_usecase.k_);
 
-      EXPECT_EQ(h_cugraph_offsets.size(), h_reference_offsets.size());
+      EXPECT_EQ(h_cugraph_srcs.size(), h_reference_srcs.size());
+      ASSERT_TRUE(std::equal(
+        h_cugraph_srcs.begin(), h_cugraph_srcs.end(), h_reference_srcs.begin()));
 
       ASSERT_TRUE(std::equal(
-        h_cugraph_offsets.begin(), h_cugraph_offsets.end(), h_reference_offsets.begin()));
-
-      ASSERT_TRUE(std::equal(
-        h_cugraph_indices.begin(), h_cugraph_indices.end(), h_reference_indices.begin()));
+        h_cugraph_dsts.begin(), h_cugraph_dsts.end(), h_reference_dsts.begin()));
 
       if (edge_weight) {
+        auto h_cugraph_wgts =
+          cugraph::test::to_host(handle, d_sorted_cugraph_wgts);
         auto compare_functor = host_nearly_equal<weight_t>{
           weight_t{1e-3},
-          weight_t{(weight_t{1} / static_cast<weight_t>((*h_cugraph_values).size())) *
-                   weight_t{1e-3}}};
-        EXPECT_TRUE(std::equal((*h_cugraph_values).begin(),
-                               (*h_cugraph_values).end(),
-                               (*h_reference_values).begin(),
-                               compare_functor));
+          weight_t{(weight_t{1} / static_cast<weight_t>((h_cugraph_wgts).size())) *
+                  weight_t{1e-3}}};
+        EXPECT_TRUE(std::equal((h_cugraph_wgts).begin(),
+                              (h_cugraph_wgts).end(),
+                              (*h_reference_wgts).begin(),
+                              compare_functor));
       }
+
     }
   }
 };
@@ -305,7 +300,7 @@ INSTANTIATE_TEST_SUITE_P(
                       KTruss_Usecase{4, true, false},
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
