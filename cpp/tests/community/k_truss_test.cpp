@@ -16,6 +16,8 @@
 
 #include "utilities/check_utilities.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -27,8 +29,6 @@
 #include <raft/util/cudart_utils.hpp>
 
 #include <gtest/gtest.h>
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
 
 #include <algorithm>
 #include <iterator>
