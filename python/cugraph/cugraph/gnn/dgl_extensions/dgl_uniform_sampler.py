@@ -150,7 +150,7 @@ class DGLUniformSampler:
 
         for etype_id, (start, stop) in etype_id_range_dict.items():
             range_types = (start <= indices) & (indices < stop)
-            type_ser[range_types] = etype_id
+            type_ser[range_types] = type_ser.dtype.type(etype_id)
 
         return type_ser
 

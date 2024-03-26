@@ -15,7 +15,7 @@
  */
 
 #include "betweenness_centrality_validate.hpp"
-#include "utilities/test_utilities.hpp"
+#include "utilities/check_utilities.hpp"
 
 #include <thrust/sort.h>
 
