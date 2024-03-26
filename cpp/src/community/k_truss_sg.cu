@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <community/k_truss_impl.cuh>
+#include "community/k_truss_impl.cuh"
 
 namespace cugraph {
 

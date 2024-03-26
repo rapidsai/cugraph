@@ -97,14 +97,14 @@ rmm::device_uvector<vertex_t> compute_prefix_sum(
     [query_vertices,
      num_edges = sorted_vertices.size(),
      sorted_vertices = sorted_vertices.begin()]__device__(size_t idx) {
-      auto itr_lower_valid = thrust::lower_bound(
+      auto itr_lower = thrust::lower_bound(
         thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
 
-      auto itr_upper_valid = thrust::upper_bound(
-        thrust::seq, itr_lower_valid, sorted_vertices + num_edges, query_vertices[idx]);
-      vertex_t dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
+      auto itr_upper = thrust::upper_bound(
+        thrust::seq, itr_lower, sorted_vertices + num_edges, query_vertices[idx]);
+      vertex_t dist = thrust::distance(itr_lower, itr_upper);
 
-      return dist_valid;
+      return dist;
     }));
     
   thrust::exclusive_scan(handle.get_thrust_policy(), count_first, count_first + query_vertices.size() + 1, prefix_sum.begin());
