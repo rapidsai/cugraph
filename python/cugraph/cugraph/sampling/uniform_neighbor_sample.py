@@ -293,7 +293,7 @@ def uniform_neighbor_sample(
         random_state=random_state,
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
-        return_hops=return_hops,
+        return_hops=True,
         renumber=renumber,
         compression=compression,
         compress_per_hop=compress_per_hop,
@@ -302,7 +302,6 @@ def uniform_neighbor_sample(
 
     dfs = sampling_results_from_cupy_array_dict(
         sampling_result_array_dict,
-        weight_t,
         len(fanout_vals),
         return_offsets=return_offsets,
         renumber=renumber,

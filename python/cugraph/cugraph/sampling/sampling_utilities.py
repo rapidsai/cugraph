@@ -14,12 +14,9 @@
 import cupy
 import cudf
 
-import warnings
-
 
 def sampling_results_from_cupy_array_dict(
     cupy_array_dict,
-    weight_t,
     num_hops,
     return_offsets=False,
     renumber=False,
@@ -106,6 +103,21 @@ def sampling_results_from_cupy_array_dict(
             results_df["batch_id"] = batch_ids_r
         else:
             results_df["batch_id"] = None
+
+        if len(batch_ids) > 0:
+            hop_ids_r = cudf.Series(cupy.arange(num_hops))
+            hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids), ignore_index=True)
+
+            # generate the hop column
+            hop_ids_r = (
+                cudf.Series(hop_ids_r, name="hop_id")
+                .repeat(cupy.diff(label_hop_offsets))
+                .reset_index(drop=True)
+            )
+        else:
+            hop_ids_r = cudf.Series(name="hop_id", dtype="int32")
+
+        results_df = results_df.join(hop_ids_r, how="outer").sort_index()
 
     if "majors" not in results_df:
         major_offsets_series = cudf.Series(
