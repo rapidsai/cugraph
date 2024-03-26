@@ -58,7 +58,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    if constexpr (!cugraph::is_candidate_legacy<vertex_t, edge_t, weight_t>::value) {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else if constexpr (multi_gpu) {
       unsupported();
