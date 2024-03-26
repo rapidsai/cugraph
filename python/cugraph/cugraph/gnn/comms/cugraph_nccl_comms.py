@@ -26,9 +26,6 @@ __raft_handle = None
 
 
 def nccl_init(rank: int, world_size: int, uid: int):
-    # calls a c++ function that calls ncclCommInitRank
-    # returns a resource handle and nccl communicator
-    # should wrap the resource handle and communicator in a CuGraph context object
     try:
         ni = nccl()
         ni.init(world_size, uid, rank)
