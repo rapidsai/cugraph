@@ -85,34 +85,29 @@ struct unroll_edge {
 // implementations.
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> compute_prefix_sum(
-  // The edgelist is segmented into 2 partitions (valid and invalid edges)
-  // and edges to be unrolled can be either in the valid or the invalid edge
-  // partition.
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sorted_vertices,
   raft::device_span<vertex_t const> query_vertices)
 {
   rmm::device_uvector<vertex_t> prefix_sum(query_vertices.size() + 1, handle.get_stream());
 
-  thrust::tabulate(
-    handle.get_thrust_policy(),
-    prefix_sum.begin(),
-    prefix_sum.begin() + query_vertices.size(),
+  auto count_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<vertex_t>(
     [query_vertices,
-     num_edges       = sorted_vertices.size(),
-     sorted_vertices = sorted_vertices.begin()] __device__(auto idx) {
+     num_edges = sorted_vertices.size(),
+     sorted_vertices = sorted_vertices.begin()]__device__(size_t idx) {
       auto itr_lower_valid = thrust::lower_bound(
         thrust::seq, sorted_vertices, sorted_vertices + num_edges, query_vertices[idx]);
 
       auto itr_upper_valid = thrust::upper_bound(
         thrust::seq, itr_lower_valid, sorted_vertices + num_edges, query_vertices[idx]);
-
-      auto dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
+      vertex_t dist_valid = thrust::distance(itr_lower_valid, itr_upper_valid);
 
       return dist_valid;
-    });
-  thrust::exclusive_scan(
-    handle.get_thrust_policy(), prefix_sum.begin(), prefix_sum.end(), prefix_sum.begin());
+    }));
+    
+  thrust::exclusive_scan(handle.get_thrust_policy(), count_first, count_first + query_vertices.size() + 1, prefix_sum.begin());
 
   return prefix_sum;
 }
