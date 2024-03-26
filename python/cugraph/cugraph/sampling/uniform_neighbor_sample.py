@@ -62,16 +62,13 @@ def uniform_neighbor_sample(
     fanout_vals: List[int],
     *,
     with_replacement: bool = True,
-    with_edge_properties: bool = False,  # deprecated
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
     return_hops: bool = True,
-    include_hop_column: bool = True,  # deprecated
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
-    use_legacy_names: bool = True,  # deprecated
     compress_per_hop: bool = False,
     compression: str = "COO",
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
@@ -95,11 +92,6 @@ def uniform_neighbor_sample(
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
-    with_edge_properties: bool, optional (default=False)
-        Deprecated.
-        Flag to specify whether to return edge properties (weight, edge id,
-        edge type, batch id, hop id) with the sampled edges.
-
     with_batch_ids: bool, optional (default=False)
         Flag to specify whether batch ids are present in the start_list
         Assumes they are the last column in the start_list dataframe
@@ -118,12 +110,6 @@ def uniform_neighbor_sample(
         corresponding to the hop where the edge appeared.
         Defaults to True.
 
-    include_hop_column: bool, optional (default=True)
-        Deprecated.  Defaults to True.
-        If True, will include the hop column even if
-        return_offsets is True.  This option will
-        be removed in release 23.12.
-
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
         Default will leave the source list as-is.
@@ -141,13 +127,6 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
-
-    use_legacy_names: bool, optional (default=True)
-        Whether to use the legacy column names (sources, destinations).
-        If True, will use "sources" and "destinations" as the column names.
-        If False, will use "majors" and "minors" as the column names.
-        Deprecated.  Will be removed in release 23.12 in favor of always
-        using the new names "majors" and "minors".
 
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
@@ -221,20 +200,8 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
-    if use_legacy_names:
-        major_col_name = "sources"
-        minor_col_name = "destinations"
-        warning_msg = (
-            "The legacy column names (sources, destinations)"
-            " will no longer be supported for uniform_neighbor_sample"
-            " in release 23.12.  The use_legacy_names=False option will"
-            " become the only option, and (majors, minors) will be the"
-            " only supported column names."
-        )
-        warnings.warn(warning_msg, FutureWarning)
-    else:
-        major_col_name = "majors"
-        minor_col_name = "minors"
+    major_col_name = "majors"
+    minor_col_name = "minors"
 
     if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
         raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
@@ -257,27 +224,6 @@ def uniform_neighbor_sample(
             " of the libcugraph C++ API"
         )
 
-    if include_hop_column:
-        warning_msg = (
-            "The include_hop_column flag is deprecated and will be"
-            " removed in the next release in favor of always "
-            "excluding the hop column when return_offsets is True"
-        )
-        warnings.warn(warning_msg, FutureWarning)
-
-        if compression != "COO":
-            raise ValueError(
-                "Including the hop id column is only supported with COO compression."
-            )
-
-    if with_edge_properties:
-        warning_msg = (
-            "The with_edge_properties flag is deprecated"
-            " and will be removed in the next release in favor"
-            " of returning all properties in the graph"
-        )
-        warnings.warn(warning_msg, FutureWarning)
-
     if isinstance(start_list, int):
         start_list = [start_list]
 
@@ -286,7 +232,7 @@ def uniform_neighbor_sample(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
-    if with_edge_properties and not with_batch_ids:
+    if not with_batch_ids:
         if isinstance(start_list, cudf.Series):
             start_list = start_list.reset_index(drop=True).to_frame()
 
@@ -343,7 +289,7 @@ def uniform_neighbor_sample(
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         do_expensive_check=False,
-        with_edge_properties=with_edge_properties,
+        with_edge_properties=True,
         random_state=random_state,
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
@@ -358,11 +304,8 @@ def uniform_neighbor_sample(
         sampling_result_array_dict,
         weight_t,
         len(fanout_vals),
-        with_edge_properties=with_edge_properties,
         return_offsets=return_offsets,
         renumber=renumber,
-        use_legacy_names=use_legacy_names,
-        include_hop_column=include_hop_column,
     )
 
     if G.renumbered and not renumber:
