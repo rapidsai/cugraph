@@ -169,17 +169,19 @@ class FullyConnectedTensorProductConv(nn.Module):
             - num_edge_scalars, with the sum of num_[edge/src/dst]_scalars being
               mlp_channels[0]
 
-        edge_index, num_dst_nodes: torch.Tensor
-            graph information, with the first element being
-            the adjacency matrix in COO, and the second element being dst shape
+        edge_index: torch.Tensor
+            graph information - the adjacency matrix in COO
+
+        num_dst_nodes: torch.Tensor
+            graph information - shape Tensor. num_dst_nodes.shape[0] = dst shape[0]
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
-            Shape: (num_src_nodes, num_src_scalars)
+            Shape: (src_features.shape[0], num_src_scalars)
 
         dst_scalars: torch.Tensor, optional
             Scalar features of destination nodes.
-            Shape: (num_dst_nodes, num_dst_scalars)
+            Shape: (num_dst_nodes.shape[0], num_dst_scalars)
 
         reduce : str, optional (default="mean")
             Reduction operator. Choose between "mean" and "sum".
@@ -253,10 +255,10 @@ class FullyConnectedTensorProductConv(nn.Module):
         # WAR for bfloat16 scatter being slow
         dtype=out.dtype
         # WAR for ONNX::scatterElements not handling 'mean' reduction
-        if torch.jit.is_tracing and reduce == "mean":
-            out = scatter_mean(out.float(), dst, dim=0, dim_size=num_dst_nodes).to(dtype)
+        if reduce == "mean":
+            out = scatter_mean(out.float(), dst, dim=0, dim_size=num_dst_nodes.shape[0]).to(dtype)
         else:
-            out = scatter_reduce(out.float(), dst, dim=0, dim_size=num_dst_nodes, reduce=reduce).to(dtype)
+            out = scatter_reduce(out.float(), dst, dim=0, dim_size=num_dst_nodes.shape[0], reduce=reduce).to(dtype)
 
         if self.batch_norm:
             out = self.batch_norm(out)
