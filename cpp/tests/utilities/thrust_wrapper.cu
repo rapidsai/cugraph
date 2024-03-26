@@ -78,10 +78,12 @@ std::tuple<value_buffer_type, value_buffer_type> sort(raft::handle_t const& hand
                cugraph::get_dataframe_buffer_begin(second),
                cugraph::get_dataframe_buffer_end(second),
                cugraph::get_dataframe_buffer_begin(sorted_second));
-  thrust::sort(execution_policy,
-               thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first), cugraph::get_dataframe_buffer_begin(sorted_second)),
-               thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first) + first.size(), cugraph::get_dataframe_buffer_begin(sorted_second) + first.size()));
-
+  thrust::sort(
+    execution_policy,
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first),
+                              cugraph::get_dataframe_buffer_begin(sorted_second)),
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first) + first.size(),
+                              cugraph::get_dataframe_buffer_begin(sorted_second) + first.size()));
 
   return std::make_tuple(std::move(sorted_first), std::move(sorted_second));
 }
@@ -183,10 +185,11 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> 
   rmm::device_uvector<int64_t> const& values);
 
 template <typename key_buffer_type, typename value_buffer_type>
-std::tuple<key_buffer_type, key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
-                                                           key_buffer_type const& first,
-                                                           key_buffer_type const& second,
-                                                           value_buffer_type const& values)
+std::tuple<key_buffer_type, key_buffer_type, value_buffer_type> sort_by_key(
+  raft::handle_t const& handle,
+  key_buffer_type const& first,
+  key_buffer_type const& second,
+  value_buffer_type const& values)
 {
   auto sorted_first =
     cugraph::allocate_dataframe_buffer<cugraph::dataframe_element_t<key_buffer_type>>(
@@ -211,37 +214,45 @@ std::tuple<key_buffer_type, key_buffer_type, value_buffer_type> sort_by_key(raft
                cugraph::get_dataframe_buffer_begin(values),
                cugraph::get_dataframe_buffer_end(values),
                cugraph::get_dataframe_buffer_begin(sorted_values));
-  thrust::sort_by_key(execution_policy,
-               thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first), cugraph::get_dataframe_buffer_begin(sorted_second)),
-               thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first) + first.size(), cugraph::get_dataframe_buffer_begin(sorted_second) + first.size()),
-               cugraph::get_dataframe_buffer_begin(sorted_values));
+  thrust::sort_by_key(
+    execution_policy,
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first),
+                              cugraph::get_dataframe_buffer_begin(sorted_second)),
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(sorted_first) + first.size(),
+                              cugraph::get_dataframe_buffer_begin(sorted_second) + first.size()),
+    cugraph::get_dataframe_buffer_begin(sorted_values));
 
-  return std::make_tuple(std::move(sorted_first), std::move(sorted_second), std::move(sorted_values));
+  return std::make_tuple(
+    std::move(sorted_first), std::move(sorted_second), std::move(sorted_values));
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& first,
-  rmm::device_uvector<int32_t> const& second,
-  rmm::device_uvector<float> const& values);
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
+  sort_by_key(raft::handle_t const& handle,
+              rmm::device_uvector<int32_t> const& first,
+              rmm::device_uvector<int32_t> const& second,
+              rmm::device_uvector<float> const& values);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> const& first,
-  rmm::device_uvector<int64_t> const& second,
-  rmm::device_uvector<float> const& values);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
+  sort_by_key(raft::handle_t const& handle,
+              rmm::device_uvector<int64_t> const& first,
+              rmm::device_uvector<int64_t> const& second,
+              rmm::device_uvector<float> const& values);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& first,
-  rmm::device_uvector<int32_t> const& second,
-  rmm::device_uvector<double> const& values);
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+  sort_by_key(raft::handle_t const& handle,
+              rmm::device_uvector<int32_t> const& first,
+              rmm::device_uvector<int32_t> const& second,
+              rmm::device_uvector<double> const& values);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>> sort_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> const& first,
-  rmm::device_uvector<int64_t> const& second,
-  rmm::device_uvector<double> const& values);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
+  sort_by_key(raft::handle_t const& handle,
+              rmm::device_uvector<int64_t> const& first,
+              rmm::device_uvector<int64_t> const& second,
+              rmm::device_uvector<double> const& values);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>

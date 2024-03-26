@@ -153,10 +153,10 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         }
       }
     }
-    
+
     std::vector<vertex_t> h_srcs(h_indices.size());
-  
-    for (auto i = 0; i < h_offsets.size() - 1; ++i){
+
+    for (auto i = 0; i < h_offsets.size() - 1; ++i) {
       std::fill(h_srcs.begin() + h_offsets[i], h_srcs.begin() + h_offsets[i + 1], i);
     }
 
@@ -222,44 +222,40 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
       rmm::device_uvector<vertex_t> d_sorted_cugraph_srcs{0, handle.get_stream()};
       rmm::device_uvector<vertex_t> d_sorted_cugraph_dsts{0, handle.get_stream()};
 
-      if (edge_weight){
+      if (edge_weight) {
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts, d_sorted_cugraph_wgts) =
           cugraph::test::sort_by_key(handle, d_cugraph_srcs, d_cugraph_dsts, *d_cugraph_wgts);
       } else {
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts) =
           cugraph::test::sort(handle, d_cugraph_srcs, d_cugraph_dsts);
       }
-      
-      auto h_cugraph_srcs =
-        cugraph::test::to_host(handle, d_sorted_cugraph_srcs);
-      
-      auto h_cugraph_dsts =
-        cugraph::test::to_host(handle, d_sorted_cugraph_dsts);
-      
+
+      auto h_cugraph_srcs = cugraph::test::to_host(handle, d_sorted_cugraph_srcs);
+
+      auto h_cugraph_dsts = cugraph::test::to_host(handle, d_sorted_cugraph_dsts);
+
       auto [h_reference_srcs, h_reference_dsts, h_reference_wgts] =
         k_truss_reference<vertex_t, edge_t, weight_t>(
           h_offsets, h_indices, h_values, k_truss_usecase.k_);
 
       EXPECT_EQ(h_cugraph_srcs.size(), h_reference_srcs.size());
-      ASSERT_TRUE(std::equal(
-        h_cugraph_srcs.begin(), h_cugraph_srcs.end(), h_reference_srcs.begin()));
+      ASSERT_TRUE(
+        std::equal(h_cugraph_srcs.begin(), h_cugraph_srcs.end(), h_reference_srcs.begin()));
 
-      ASSERT_TRUE(std::equal(
-        h_cugraph_dsts.begin(), h_cugraph_dsts.end(), h_reference_dsts.begin()));
+      ASSERT_TRUE(
+        std::equal(h_cugraph_dsts.begin(), h_cugraph_dsts.end(), h_reference_dsts.begin()));
 
       if (edge_weight) {
-        auto h_cugraph_wgts =
-          cugraph::test::to_host(handle, d_sorted_cugraph_wgts);
+        auto h_cugraph_wgts  = cugraph::test::to_host(handle, d_sorted_cugraph_wgts);
         auto compare_functor = host_nearly_equal<weight_t>{
           weight_t{1e-3},
           weight_t{(weight_t{1} / static_cast<weight_t>((h_cugraph_wgts).size())) *
-                  weight_t{1e-3}}};
+                   weight_t{1e-3}}};
         EXPECT_TRUE(std::equal((h_cugraph_wgts).begin(),
-                              (h_cugraph_wgts).end(),
-                              (*h_reference_wgts).begin(),
-                              compare_functor));
+                               (h_cugraph_wgts).end(),
+                               (*h_reference_wgts).begin(),
+                               compare_functor));
       }
-
     }
   }
 };
