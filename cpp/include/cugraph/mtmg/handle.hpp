@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,11 @@ class handle_t {
    * @brief Sync on the cuda stream for this handle
    */
   void sync_stream() const { sync_stream(get_stream()); }
+
+  /**
+   * @brief Sync all streams in the stream pool
+   */
+  void sync_stream_pool() const { raft::resource::sync_stream_pool(raft_handle_); }
 
   /**
    * @brief get thrust policy for the stream

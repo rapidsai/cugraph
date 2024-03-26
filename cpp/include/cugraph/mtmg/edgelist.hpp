@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,11 @@ class edgelist_t : public detail::device_shared_wrapper_t<
            bool use_edge_type)
   {
     detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> tmp(
-      handle, device_buffer_size, use_weight, use_edge_id, use_edge_type);
+      handle.raft_handle().get_stream(),
+      device_buffer_size,
+      use_weight,
+      use_edge_id,
+      use_edge_type);
 
     detail::device_shared_wrapper_t<
       detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>>::set(handle,
@@ -49,7 +53,11 @@ class edgelist_t : public detail::device_shared_wrapper_t<
   /**
    * @brief Stop inserting edges into this edgelist so we can use the edges
    */
-  void finalize_buffer(handle_t const& handle) { this->get(handle).finalize_buffer(handle); }
+  void finalize_buffer(handle_t const& handle)
+  {
+    handle.sync_stream_pool();
+    this->get(handle).finalize_buffer(handle.get_stream());
+  }
 
   /**
    * @brief Consolidate for the edgelist edges into a single edgelist and then
