@@ -111,7 +111,7 @@ def betweenness_centrality(
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding betweenness centrality values.
         Please note that the resulting the 'vertex' column might not be
-        in ascending order.  The Dictionary contains the same two columns
+        in ascending order.  The Dictionary contains the same two columns.
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
