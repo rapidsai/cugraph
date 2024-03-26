@@ -49,7 +49,7 @@ rmm::device_uvector<edge_t> edge_triangle_count(
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
-  edge_t num_valid_edges{};
+  size_t num_valid_edges{};
   raft::device_span<edge_t> num_triangles{};
   EdgeIterator edge_to_unroll_first{};
   EdgeIterator transposed_valid_edge_first{};
@@ -116,7 +116,7 @@ rmm::device_uvector<vertex_t> compute_prefix_sum(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 edge_t remove_overcompensating_edges(raft::handle_t const& handle,
-                                     edge_t buffer_size,
+                                     size_t buffer_size,
                                      EdgeIterator potential_closing_or_incoming_edges,
                                      EdgeIterator incoming_or_potential_closing_edges,
                                      raft::device_span<vertex_t const> invalid_edgelist_srcs,
@@ -153,8 +153,8 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu, bool is_q_r_edge>
 void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
                              graph_view_t<vertex_t, edge_t, false, false>& graph_view,
-                             edge_t num_invalid_edges,
-                             edge_t num_valid_edges,
+                             size_t num_invalid_edges,
+                             size_t num_valid_edges,
                              raft::device_span<vertex_t const> edgelist_srcs,
                              raft::device_span<vertex_t const> edgelist_dsts,
                              raft::device_span<edge_t> num_triangles)
@@ -292,12 +292,12 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
   resize_dataframe_buffer(potential_closing_edges, num_edge_exists, handle.get_stream());
   resize_dataframe_buffer(incoming_edges_to_r, num_edge_exists, handle.get_stream());
 
-  edge_t num_edges_not_overcomp =
+  auto num_edges_not_overcomp =
     remove_overcompensating_edges<vertex_t,
                                   edge_t,
                                   decltype(get_dataframe_buffer_begin(potential_closing_edges))>(
       handle,
-      edge_t{num_edge_exists},
+      num_edge_exists,
       get_dataframe_buffer_begin(potential_closing_edges),
       get_dataframe_buffer_begin(incoming_edges_to_r),
       raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
@@ -317,7 +317,7 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
                                     edge_t,
                                     decltype(get_dataframe_buffer_begin(potential_closing_edges))>(
         handle,
-        edge_t{num_edges_not_overcomp},
+        num_edges_not_overcomp,
         get_dataframe_buffer_begin(incoming_edges_to_r),
         get_dataframe_buffer_begin(potential_closing_edges),
         raft::device_span<vertex_t const>(edgelist_srcs.data() + num_valid_edges,
@@ -368,7 +368,7 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
     unroll_edge<vertex_t,
                 edge_t,
                 decltype(thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()))>{
-      edge_t{num_valid_edges},
+      num_valid_edges,
       raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
       get_dataframe_buffer_begin(potential_closing_edges),
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin()),
@@ -383,7 +383,7 @@ void unroll_p_r_or_q_r_edges(raft::handle_t const& handle,
     unroll_edge<vertex_t,
                 edge_t,
                 decltype(thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()))>{
-      edge_t{num_valid_edges},
+      num_valid_edges,
       raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
       get_dataframe_buffer_begin(incoming_edges_to_r),
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin()),
@@ -794,7 +794,7 @@ k_truss(raft::handle_t const& handle,
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
                        unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
-                         edge_t{num_valid_edges},
+                         num_valid_edges,
                          raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                          get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
                          transposed_edge_first,
@@ -805,7 +805,7 @@ k_truss(raft::handle_t const& handle,
                        thrust::make_counting_iterator<edge_t>(0),
                        thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
                        unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
-                         edge_t{num_valid_edges},
+                         num_valid_edges,
                          raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
                          get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
                          transposed_edge_first,
