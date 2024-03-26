@@ -85,7 +85,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     while (n_dropped > 0) {
       n_dropped = 0;
       std::set<vertex_t> seen;
-      // Go over all the vertices
+      // Go over all the vertices.
       for (auto u = vertices.begin(); u != vertices.end(); ++u) {
         std::set<vertex_t> nbrs_u;
         // Find all neighbors of u from the offsets and indices array
