@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023, NVIDIA CORPORATION.
+# Copyright (c) 2018-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -265,3 +265,16 @@ def get_n_workers(sID=None, dask_worker=None):
             dask_worker = get_worker()
         sessionstate = get_raft_comm_state(sID, dask_worker)
         return sessionstate["nworkers"]
+
+
+def rank_to_worker(client):
+    """
+    Return a mapping of ranks to dask workers.
+    """
+    workers = client.scheduler_info()["workers"].keys()
+    worker_info = __instance.worker_info(workers)
+    rank_to_worker = {}
+    for w in worker_info:
+        rank_to_worker[worker_info[w]["rank"]] = w
+
+    return rank_to_worker
