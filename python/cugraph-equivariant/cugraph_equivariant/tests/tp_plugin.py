@@ -40,8 +40,13 @@ class FusedTensorProductPlugin(trt.IPluginV2DynamicExt):
             self.path_csr_offsets = torch.as_tensor(fc_dict["path_csr_offsets"], device = "cuda")
             self.path_cg_values = torch.as_tensor(fc_dict["path_cg_values"], device = "cuda")
             self.path_offsets = torch.as_tensor(fc_dict["path_offsets"], device = "cuda")
+            # WAR for TRT bug:
+            #"for plugin attributes we only support primitive types, so tensor  are treated as 1D vectors"
+            # Generic solution would be to pass 'shape' attribute for each tensor attribute.
             if len(self.path_offsets.shape)==1:
                 self.path_offsets = self.path_offsets.reshape((self.path_cg_values.shape[0], -1))
+            # WAR for TRT bug:
+            # Trailing '\0' is being passed in "string" attribute 
             self.connection_mode = fc_dict["connection_mode"][:-1].tobytes().decode()
             # print ("connection_mode :", fc_dict["connection_mode"], self.connection_mode)
             self.stride_out = fc_dict["stride_out"]

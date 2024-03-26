@@ -16,12 +16,12 @@ import torch
 
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 # import torch._C._onnx as _C_onnx
-import threading
-lock_sm = threading.Lock()
 
 import tensorrt as trt
 TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
 trt.init_libnvinfer_plugins(TRT_LOGGER, '')
+
+from polygraphy.backend.onnx import onnx_from_path, fold_constants, save_onnx
 
 from polygraphy.backend.trt import (
     CreateConfig,
@@ -29,8 +29,13 @@ from polygraphy.backend.trt import (
     NetworkFromOnnxPath,
     TrtRunner,
 )
+
 from tp_plugin import FusedTensorProductPluginCreator
 from tr_plugin import SegmentedTransposePluginCreator
+# Register plugin creator
+plg_registry = trt.get_plugin_registry()
+plg_registry.register_creator(FusedTensorProductPluginCreator(), "")
+plg_registry.register_creator(SegmentedTransposePluginCreator(), "")
 
 # from polygraphy.logger import G_LOGGER
 # G_LOGGER.module_severity = {'': G_LOGGER.EXTRA_VERBOSE}
@@ -60,32 +65,30 @@ def test_onnx_export(
                           # verbose=True
                           )
 
-@pytest.mark.skip(reason="Only works with any single conftest option, crashes with any two. Reduce conftest to a single tp_conv to run this. TODO: fix that")
 def test_trt(
         create_tp_conv_and_data,
 ):
     (tp_conv, inputs, _) = create_tp_conv_and_data
     (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
-
-    with lock_sm:
-        # Register plugin creator
-        plg_registry = trt.get_plugin_registry()
-        plg_registry.register_creator(FusedTensorProductPluginCreator(), "")
-        plg_registry.register_creator(SegmentedTransposePluginCreator(), "")
-        
+    
+    with torch.no_grad():
         my_input_names = input_names
-        
+    
         if src_scalars is None and dst_scalars is None:
             my_input_names = my_input_names[:-2]
+        onnx_path = "a.onnx"
         torch.onnx.export(tp_conv,
                           inputs,
-                          "a.onnx",
+                          onnx_path,
                           input_names=my_input_names,
                           output_names=output_names,
                           # operator_export_type=_C_onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
                           # verbose=True
                           )
 
+        model_onnx = onnx_from_path(onnx_path)
+        fold_constants(model_onnx)
+        save_onnx(model_onnx, onnx_path)
         
         # build engine
         build_engine = EngineFromNetwork(
@@ -93,7 +96,7 @@ def test_trt(
         )
 
         # Run
-        with torch.no_grad(), TrtRunner(build_engine, "trt_runner") as runner:
+        with TrtRunner(build_engine, "trt_runner") as runner:
             expected = tp_conv(*inputs)
             trt_inputs = {}
             my_input_names = input_names
