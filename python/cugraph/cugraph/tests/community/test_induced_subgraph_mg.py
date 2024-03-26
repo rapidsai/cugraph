@@ -17,7 +17,6 @@ import pytest
 
 import cugraph
 import cugraph.dask as dcg
-import dask_cudf
 from cudf.testing.testing import assert_frame_equal
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.datasets import karate, dolphins, email_Eu_core
@@ -36,10 +35,12 @@ def setup_function():
 # Parameters
 # =============================================================================
 
+
 DATASETS = [karate, dolphins, email_Eu_core]
 IS_DIRECTED = [True, False]
 NUM_VERTICES = [2, 5, 10, 20]
 OFFSETS = [None]
+
 
 # =============================================================================
 # Helper functions
@@ -47,21 +48,15 @@ OFFSETS = [None]
 
 
 def get_sg_graph(dataset, directed):
+    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
 
     return G
 
 
 def get_mg_graph(dataset, directed):
-    input_data_path = dataset.get_path()
-    blocksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        blocksize=blocksize,
-        delimiter=dataset.metadata["delim"],
-        names=dataset.metadata["col_names"],
-        dtype=dataset.metadata["col_types"],
-    )
+    dataset.unload()
+    ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
         ddf,
@@ -108,7 +103,7 @@ def test_mg_induced_subgraph(
 
     # FIXME: This parameter is not yet tested
     # mg_offsets = mg_offsets.compute().reset_index(drop=True)
-    mg_df, mg_offsets = result_induced_subgraph
+    mg_df, _ = result_induced_subgraph
 
     if mg_df is not None and sg_induced_subgraph is not None:
         # FIXME: 'edges()' or 'view_edgelist()' takes half the edges out if
@@ -126,3 +121,6 @@ def test_mg_induced_subgraph(
         # of all the vertices and ensure that there is None
         assert sg_induced_subgraph is None
         assert mg_df is None
+
+    # Clean-up stored dataset edge-lists
+    dataset.unload()
