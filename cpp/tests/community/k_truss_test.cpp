@@ -58,7 +58,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
   // FIXME: There is an utility equivalent functor not
   // supporting host vectors.
   template <typename type_t>
-  struct device_nearly_equal {
+  struct host_nearly_equal {
     const type_t threshold_ratio;
     const type_t threshold_magnitude;
 
@@ -260,7 +260,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         h_cugraph_indices.begin(), h_cugraph_indices.end(), h_reference_indices.begin()));
 
       if (edge_weight) {
-        auto compare_functor = device_nearly_equal<weight_t>{
+        auto compare_functor = host_nearly_equal<weight_t>{
           weight_t{1e-3},
           weight_t{(weight_t{1} / static_cast<weight_t>((*h_cugraph_values).size())) *
                    weight_t{1e-3}}};
