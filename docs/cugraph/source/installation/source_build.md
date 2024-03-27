@@ -13,8 +13,8 @@ __Compilers:__
 
 __CUDA:__
 * CUDA 11.2+
-* NVIDIA driver 450.80.02+
-* Pascal architecture or better
+* NVIDIA driver 470.42.01 or newer
+* NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
 
 Further details and download links for these prerequisites are available on the
 [RAPIDS System Requirements page](https://docs.rapids.ai/install#system-req).
@@ -42,6 +42,10 @@ files](https://github.com/rapidsai/cugraph/blob/main/conda/environments).
 # for CUDA 11.x
 conda env create --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-118_arch-x86_64.yaml
 
+# for CUDA 12.x
+conda env create --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-12.2_arch-x86_64.yaml
+
+
 # activate the environment
 conda activate cugraph_dev
 
@@ -55,6 +59,13 @@ The environment can be updated as cugraph adds/removes/updates its dependencies.
 # for CUDA 11.x
 conda env update --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-118_arch-x86_64.yaml
 conda activate cugraph_dev
+
+# for CUDA 12.x
+conda env update --name cugraph_dev --file $CUGRAPH_HOME/conda/environments/all_cuda-122_arch-x86_64.yaml
+conda activate cugraph_dev
+
+
+
 ```
 
 ### Build and Install
@@ -167,7 +178,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
+Note: This conda installation only applies to Linux and Python versions 3.8/3.11.
 
 ### (OPTIONAL) Set environment variable on activation
 
