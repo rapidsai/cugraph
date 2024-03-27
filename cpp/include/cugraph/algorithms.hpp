@@ -428,41 +428,6 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
- * @brief     Compute k truss for a graph  ** temporary
- *
- * K Truss is the maximal subgraph of a graph which contains at least three
- * vertices where every edge is incident to at least k-2 triangles.
- *
- * This version is a temporary solution to clean up python integration through the C API.
- *
- * This version is only supported SG.
- *
- * @throws                  cugraph::logic_error with a custom message when an error
- * occurs.
- *
- * @tparam vertex_t         Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam weight_t         Type of edge weights. Supported values : float or double.
- *
- * @param[in] handle        Library handle (RAFT).
- * @param[in] src           Source vertices from COO
- * @param[in] dst           Destination vertices from COO
- * @param[in] wgt           Optional edge weights from COO
- * @param[in] k             The order of the truss
- * @return                  Tuple containing extracted src, dst and optional weights for the
- * subgraph
- */
-template <typename vertex_t, typename weight_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<vertex_t> src,
-                 raft::device_span<vertex_t> dst,
-                 std::optional<raft::device_span<weight_t>> wgt,
-                 size_t number_of_vertices,
-                 int k);
-
-/**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -1842,7 +1807,7 @@ void weakly_connected_components(raft::handle_t const& handle,
 enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
- * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
  * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
  * supported.
@@ -1855,11 +1820,11 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param core_numbers Pointer to the output core number array.
- * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * @param degree_type Dictate whether to compute the K-Core decomposition based on in-degrees,
  * out-degrees, or in-degrees + out_degrees.
- * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * @param k_first Find K-Cores from K = k_first. Any vertices that do not belong to k_first-core
  * will have core numbers of 0.
- * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * @param k_last Find K-Cores to K = k_last. Any vertices that belong to (k_last)-core will have
  * their core numbers set to their degrees on k_last-core.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
@@ -1873,7 +1838,7 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
- * @brief   Extract K Core of a graph
+ * @brief   Extract K-Core of a graph
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
@@ -1884,7 +1849,7 @@ void core_number(raft::handle_t const& handle,
  * @param  graph_view      Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param  k               Order of the core. This value must not be negative.
- * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ * @param degree_type Optional parameter to dictate whether to compute the K-Core decomposition
  *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
  *                    degree_type and @p core_numbers must be specified.
  * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
@@ -2039,6 +2004,32 @@ void triangle_count(raft::handle_t const& handle,
                     std::optional<raft::device_span<vertex_t const>> vertices,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
+
+/*
+ * @brief Compute K-Truss.
+ *
+ * Extract the K-Truss subgraph of a graph
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param k The desired k to be used for extracting the K-Truss subgraph
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return edge list of the K-Truss subgraph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss(raft::handle_t const& handle,
+        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+        edge_t k,
+        bool do_expensive_check = false);
 
 /**
  * @brief     Compute Jaccard similarity coefficient

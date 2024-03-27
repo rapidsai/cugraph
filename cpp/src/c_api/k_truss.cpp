@@ -58,7 +58,7 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    if constexpr (!cugraph::is_candidate_legacy<vertex_t, edge_t, weight_t>::value) {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else if constexpr (multi_gpu) {
       unsupported();
@@ -81,26 +81,14 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
-      rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
-      rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
-      std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
 
-      std::tie(src, dst, wgt, std::ignore) = cugraph::decompress_to_edgelist(
-        handle_,
-        graph_view,
-        edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt),
-        do_expensive_check_);
-
-      auto [result_src, result_dst, result_wgt] = cugraph::k_truss_subgraph(
-        handle_,
-        raft::device_span<vertex_t>(src.data(), src.size()),
-        raft::device_span<vertex_t>(dst.data(), dst.size()),
-        wgt ? std::make_optional(raft::device_span<weight_t>(wgt->data(), wgt->size()))
-            : std::nullopt,
-        graph_view.number_of_vertices(),
-        k_);
+      auto [result_src, result_dst, result_wgt] =
+        cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
+          k_,
+          do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -127,9 +115,9 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
-        wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
-                                                                     graph_->weight_type_)
-            : NULL,
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
+                                                                            graph_->weight_type_)
+                   : NULL,
         NULL,
         NULL,
         new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
