@@ -95,9 +95,7 @@ def sampling_results_from_cupy_array_dict(
     else:
         if len(batch_ids) > 0:
             batch_ids_r = cudf.Series(cupy.repeat(batch_ids, num_hops))
-            batch_ids_r = cudf.Series(batch_ids_r).repeat(
-                cupy.diff(label_hop_offsets)
-            )
+            batch_ids_r = cudf.Series(batch_ids_r).repeat(cupy.diff(label_hop_offsets))
             batch_ids_r.reset_index(drop=True, inplace=True)
 
             results_df["batch_id"] = batch_ids_r
@@ -125,9 +123,7 @@ def sampling_results_from_cupy_array_dict(
         )
         if len(major_offsets_series) > len(results_df):
             # this is extremely rare so the inefficiency is ok
-            results_df = results_df.join(
-                major_offsets_series, how="outer"
-            ).sort_index()
+            results_df = results_df.join(major_offsets_series, how="outer").sort_index()
         else:
             results_df["major_offsets"] = major_offsets_series
 

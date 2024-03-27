@@ -65,7 +65,6 @@ def uniform_neighbor_sample(
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
-    return_hops: bool = True,
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
@@ -104,11 +103,6 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets.
-
-    return_hops: bool, optional (default=True)
-        Whether to return the sampling results with hop ids
-        corresponding to the hop where the edge appeared.
-        Defaults to True.
 
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
@@ -251,11 +245,6 @@ def uniform_neighbor_sample(
         fanout_vals = fanout_vals.values_host.astype("int32")
     else:
         raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
-
-    if "weights" in G.edgelist.edgelist_df:
-        weight_t = G.edgelist.edgelist_df["weights"].dtype
-    else:
-        weight_t = "float32"
 
     start_list = ensure_valid_dtype(G, start_list)
 

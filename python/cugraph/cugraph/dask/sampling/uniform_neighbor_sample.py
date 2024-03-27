@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
 # limitations under the License.
 
 from __future__ import annotations
-
-import warnings
 
 import numpy
 from dask import delayed
@@ -143,10 +141,8 @@ def _call_plc_uniform_neighbor_sample(
     max_batch_id,
     fanout_vals,
     with_replacement,
-    weight_t,
     random_state=None,
     return_offsets=False,
-    return_hops=True,
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
@@ -179,7 +175,7 @@ def _call_plc_uniform_neighbor_sample(
         random_state=random_state,
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
-        return_hops=return_hops,
+        return_hops=True,
         renumber=renumber,
         compression=compression,
         compress_per_hop=compress_per_hop,
@@ -193,7 +189,6 @@ def _call_plc_uniform_neighbor_sample(
 
     return sampling_results_from_cupy_array_dict(
         cupy_array_dict,
-        weight_t,
         len(fanout_vals),
         return_offsets=return_offsets,
         renumber=renumber,
@@ -214,7 +209,6 @@ def _mg_call_plc_uniform_neighbor_sample(
     indices_t,
     random_state,
     return_offsets=False,
-    return_hops=True,
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
@@ -242,11 +236,9 @@ def _mg_call_plc_uniform_neighbor_sample(
             max_batch_id,
             fanout_vals,
             with_replacement,
-            weight_t=weight_t,
             # FIXME accept and properly transmute a numpy/cupy random state.
             random_state=hash((random_state, w)),
             return_offsets=return_offsets,
-            return_hops=return_hops,
             prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
             renumber=renumber,
@@ -259,14 +251,12 @@ def _mg_call_plc_uniform_neighbor_sample(
     ]
     del ddf
 
-    empty_df = (
-        create_empty_df_with_edge_props(
-            indices_t,
-            weight_t,
-            return_offsets=return_offsets,
-            renumber=renumber,
-            compression=compression,
-        )
+    empty_df = create_empty_df_with_edge_props(
+        indices_t,
+        weight_t,
+        return_offsets=return_offsets,
+        renumber=renumber,
+        compression=compression,
     )
     if not isinstance(empty_df, (list, tuple)):
         empty_df = [empty_df]
@@ -321,7 +311,6 @@ def uniform_neighbor_sample(
     max_batch_id=None,
     random_state: int = None,
     return_offsets: bool = False,
-    return_hops: bool = True,
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
@@ -370,11 +359,6 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets per rank.
-
-    return_hops: bool, optional (default=True)
-        Whether to return the sampling results with hop ids
-        corresponding to the hop where the edge appeared.
-        Defaults to True.
 
     prior_sources_behavior: str (Optional)
         Options are "carryover", and "exclude".
@@ -582,7 +566,6 @@ def uniform_neighbor_sample(
         "indices_t": indices_t,
         "random_state": random_state,
         "return_offsets": return_offsets,
-        "return_hops": return_hops,
         "prior_sources_behavior": prior_sources_behavior,
         "deduplicate_sources": deduplicate_sources,
         "renumber": renumber,
