@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,7 @@ def test_dask_mg_bfs(dask_client, directed):
 
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -114,7 +114,7 @@ def test_dask_mg_bfs_invalid_start(dask_client, directed):
 
     el = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -150,7 +150,7 @@ def test_dask_mg_bfs_multi_column_depthlimit(dask_client, directed):
 
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src_a", "dst_a", "value"],
         dtype=["int32", "int32", "float32"],

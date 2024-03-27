@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -95,11 +95,11 @@ def k_truss(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
-        k_sub = ktruss_subgraph(G, k)
+        k_sub = ktruss_subgraph(G, k, use_weights=False)
         S = cugraph_to_nx(k_sub)
         return S
     else:
-        return ktruss_subgraph(G, k)
+        return ktruss_subgraph(G, k, use_weights=False)
 
 
 # FIXME: merge this function with k_truss
@@ -174,7 +174,7 @@ def ktruss_subgraph(
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
-    >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
+    >>> k_subgraph = cugraph.ktruss_subgraph(G, 3, use_weights=False)
 
     """
 

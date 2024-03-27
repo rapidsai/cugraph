@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -67,7 +67,7 @@ def daskGraphFromDataset(request, dask_client):
     chunksize = dcg.get_chunksize(dataset)
     ddf = dask_cudf.read_csv(
         dataset,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -96,7 +96,7 @@ def uddaskGraphFromDataset(request, dask_client):
     chunksize = dcg.get_chunksize(dataset)
     ddf = dask_cudf.read_csv(
         dataset,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],

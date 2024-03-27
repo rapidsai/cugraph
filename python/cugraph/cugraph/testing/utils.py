@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -245,7 +245,7 @@ def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True, single_partition=
             chunksize = os.path.getsize(csv_file)
             return dask_cudf.read_csv(
                 csv_file,
-                chunksize=chunksize,
+                blocksize=chunksize,
                 delimiter=" ",
                 names=["src", "dst", "weight"],
                 dtype=["int32", "int32", "float32"],
@@ -264,7 +264,7 @@ def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True, single_partition=
             chunksize = os.path.getsize(csv_file)
             return dask_cudf.read_csv(
                 csv_file,
-                chunksize=chunksize,
+                blocksize=chunksize,
                 delimiter=" ",
                 names=["src", "dst", "weight"],
                 dtype=["int32", "int32", "float32"],

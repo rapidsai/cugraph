@@ -87,7 +87,7 @@ def input_combo(request):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", indices_type],
@@ -224,7 +224,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -1256,7 +1256,7 @@ def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_sam
 
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "int32"],

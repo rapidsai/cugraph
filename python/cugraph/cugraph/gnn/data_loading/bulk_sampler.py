@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -259,18 +259,24 @@ class BulkSampler:
         start_time_sample_call = time.perf_counter()
 
         # Call uniform neighbor sample
-        output = sample_fn(
-            self.__graph,
-            **self.__sample_call_args,
-            start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
-                batch_id_filter
-            ],
-            with_batch_ids=True,
-            with_edge_properties=True,
-            return_offsets=True,
-            renumber=self.__renumber,
-            # use_legacy_names=False,
-        )
+        with warnings.catch_warnings():
+            # TODO: Address the following uniform_neighbor_sample deprecations
+            # with_edge_properties
+            # include_hop_column
+            # use_legacy_names
+            warnings.simplefilter("ignore", FutureWarning)
+            output = sample_fn(
+                self.__graph,
+                **self.__sample_call_args,
+                start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
+                    batch_id_filter
+                ],
+                with_batch_ids=True,
+                with_edge_properties=True,
+                return_offsets=True,
+                renumber=self.__renumber,
+                # use_legacy_names=False,
+            )
 
         if self.__renumber:
             samples, offsets, renumber_map = output

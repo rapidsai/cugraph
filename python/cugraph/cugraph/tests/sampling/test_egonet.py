@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,7 +63,8 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     )
 
     # cugraph
-    df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
+    with pytest.warns(DeprecationWarning):
+        df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
     for i in range(len(seeds)):
         ego_nx = nx.ego_graph(Gnx, seeds[i], radius=radius)
         ego_df = df[offsets[i] : offsets[i + 1]]
