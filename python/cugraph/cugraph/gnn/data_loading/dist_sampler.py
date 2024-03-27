@@ -45,6 +45,9 @@ class DistSampleWriter:
     @property
     def _batches_per_partition(self):
         return self.__batches_per_partition
+    
+    def __write_minibatches_coo(self):
+        
 
     def write_minibatches(self, minibatch_dict):
         if ("majors" in minibatch_dict) and ("minors" in minibatch_dict):
@@ -64,6 +67,7 @@ class DistSampler:
         rank: int = 0,
     ):
         self.__graph = graph
+        self.__writer = writer
         self.__local_seeds_per_call = local_seeds_per_call
         self.__rank = rank
 
@@ -118,8 +122,6 @@ class UniformNeighborSampler(DistSampler):
         fanout: List[int],
         prior_sources_behavior: str,
         deduplicate_sources: bool,
-        return_hops: bool,
-        renumber: bool,
         compression: str,
         compress_per_hop: bool,
     ):
@@ -127,8 +129,6 @@ class UniformNeighborSampler(DistSampler):
         self.__fanout = fanout
         self.__prior_sources_behavior = prior_sources_behavior
         self.__deduplicate_sources = deduplicate_sources
-        self.__return_hops = return_hops
-        self.__renumber = renumber
         self.__compress_per_hop = compress_per_hop
         self.__compression = compression
 
@@ -158,7 +158,7 @@ class UniformNeighborSampler(DistSampler):
                 random_state=random_state,
                 prior_sources_behavior=self.__prior_sources_behavior,
                 deduplicate_sources=self.__deduplicate_sources,
-                return_hops=self.__return_hops,
+                return_hops=True,
                 renumber=self.__renumber,
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
