@@ -39,8 +39,11 @@ def scatter_reduce(
         size[dim] = 0 if index.numel() == 0 else int(index.max()) + 1
 
     out = torch.zeros(size, dtype=src.dtype, device=src.device)
-    # WAR for include_self=False not supported by ONNX
-    return out.scatter_reduce_(dim, index, src, reduce) #, include_self=False)
+    # WAR for onnx::If/ with different shapes not supported by TRT
+    if reduce == "sum":
+        return out.scatter_add_(dim, index, src)
+    else:
+        return out.scatter_reduce_(dim, index, src, reduce, include_self=False)
 
 # This WAR is needed for export only - because onnx::scatterElements does not support 'mean' reduction
 def scatter_mean(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
