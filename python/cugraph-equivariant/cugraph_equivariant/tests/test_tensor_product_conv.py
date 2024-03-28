@@ -13,6 +13,7 @@
 
 import pytest
 import torch
+from conftest import compare_results
 
 def test_tensor_product_conv_equivariance(
         create_tp_conv_and_data, 
@@ -49,4 +50,4 @@ def test_tensor_product_conv_equivariance(
         @ D_out.T
     )
 
-    torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-4)
+    compare_results(out_before, out_after)

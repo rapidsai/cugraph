@@ -13,6 +13,7 @@
 
 import pytest
 import torch
+from conftest import compare_results
 
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 # import torch._C._onnx as _C_onnx
@@ -107,7 +108,7 @@ def test_trt(
             
             t_res = torch.as_tensor(outputs["out"], device="cuda")
             
-            torch.testing.assert_close(t_res, expected)
+            compare_results(t_res, expected)
 
         
 def test_torch_compile(
@@ -120,7 +121,7 @@ def test_torch_compile(
         expected = tp_conv(*inputs)
         tp_conv = torch.compile(tp_conv)
         compiled = tp_conv(*inputs)
-        torch.testing.assert_close(compiled, expected)
+        compare_results(compiled, expected)
 
 @pytest.mark.skip(reason="Need registry/onnx extension to test this")
 def test_dynamo_compile(
@@ -132,8 +133,7 @@ def test_dynamo_compile(
     with torch.no_grad():
         expected = tp_conv(*inputs)
         tp_ex = torch.onnx.dynamo_export(tp_conv, *inputs)
-        
-@pytest.mark.skip(reason="RuntimeError: _Map_base::at")
+
 def test_jit(
         create_tp_conv_and_data, 
 ):
@@ -142,8 +142,9 @@ def test_jit(
     inputs = tuple([i for i in inputs if i is not None])
     with torch.no_grad():
         expected = tp_conv(*inputs)
-        tp_conv = torch.jit.freeze(torch.jit.trace(tp_conv, inputs))
-        torch.jit.save("test.ts")
+        tp_conv = torch.jit.trace(tp_conv, inputs)
+        torch.jit.save(tp_conv, "test.ts")
         restored_conv = torch.jit.load("test.ts")
         compiled = restored_conv(*inputs)
-        torch.testing.assert_close(compiled, expected)
+        compare_results(compiled, expected)
+

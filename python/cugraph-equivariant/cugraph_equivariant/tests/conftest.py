@@ -43,6 +43,7 @@ def empty_scatter_data():
 
     return src_feat, dst_indices
 
+Float = [torch.float32, torch.bfloat16]
 e3nn_compat_mode = [True, False]
 batch_norm = [True, False]
 MLP=[
@@ -51,11 +52,11 @@ MLP=[
     [None, None, None],
 ]
 
-BatchCompatMLP=itertools.product(batch_norm, e3nn_compat_mode, MLP)
+BatchCompatMLP=itertools.product(Float, batch_norm, e3nn_compat_mode, MLP)
 
 @pytest.fixture(scope="module", params=BatchCompatMLP)
 def create_tp_conv(request):
-    (batch_norm, e3nn_compat_mode, (mlp_channels, mlp_activation, scalar_sizes)) = request.param
+    (dtype, batch_norm, e3nn_compat_mode, (mlp_channels, mlp_activation, scalar_sizes)) = request.param
     # TODO: parameterize
     # mlp_channels=[(30, 8, 8), nn.Sequential(nn.Dropout(0.3), nn.ReLU()), (15, 15, 0)]
     # mlp_activation=[(7,), nn.GELU(), (2, 3, 2)]
@@ -73,14 +74,14 @@ def create_tp_conv(request):
         mlp_activation=mlp_activation,
         batch_norm=batch_norm,
         e3nn_compat_mode=e3nn_compat_mode,
-    ).to(device)
+    ).to(device).to(dtype)
     tp_conv.eval()
     return tp_conv, request.param
     
 @pytest.fixture(scope="module")
 def create_tp_conv_and_data(create_tp_conv):
     tp_conv, param = create_tp_conv
-    (batch_norm, e3nn_compat_mode, (mlp_channels, mlp_activation, scalar_sizes)) = param
+    (dtype, batch_norm, e3nn_compat_mode, (mlp_channels, mlp_activation, scalar_sizes)) = param
     num_src_nodes, num_dst_nodes = 9, 7
     num_edges = 40
     src = torch.randint(num_src_nodes, (num_edges,), device=device)
@@ -92,33 +93,43 @@ def create_tp_conv_and_data(create_tp_conv):
     edge_vec = dst_pos[dst] - src_pos[src]
     edge_sh = o3.spherical_harmonics(
         tp_conv.sh_irreps, edge_vec, normalize=True, normalization="component"
-    ).to(device)
-    src_features = torch.randn(num_src_nodes, tp_conv.in_irreps.dim, device=device)
+    ).to(device, dtype)
+    src_features = torch.randn(num_src_nodes, tp_conv.in_irreps.dim, device=device,  dtype=dtype)
     rot = o3.rand_matrix()
-    D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device)
-    D_sh = tp_conv.sh_irreps.D_from_matrix(rot).to(device)
-    D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device)
+    D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device, dtype)
+    D_sh = tp_conv.sh_irreps.D_from_matrix(rot).to(device, dtype)
+    D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device, dtype)
 
     if mlp_channels is None:
-        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel, device=device)
+        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel, device=device,  dtype=dtype)
         src_scalars = dst_scalars = None
     else:
         if scalar_sizes:
-            edge_emb = torch.randn(num_edges, scalar_sizes[0], device=device)
+            edge_emb = torch.randn(num_edges, scalar_sizes[0], device=device,  dtype=dtype)
             src_scalars = (
                 None
                 if scalar_sizes[1] == 0
-                else torch.randn(num_src_nodes, scalar_sizes[1], device=device)
+                else torch.randn(num_src_nodes, scalar_sizes[1], device=device, dtype=dtype)
             )
             dst_scalars = (
                 None
                 if scalar_sizes[2] == 0
-                else torch.randn(num_dst_nodes, scalar_sizes[2], device=device)
+                else torch.randn(num_dst_nodes, scalar_sizes[2], device=device, dtype=dtype)
             )
         else:
-            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device)
+            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device, dtype=dtype)
             src_scalars = dst_scalars = None
 
     return (tp_conv, (src_features, edge_sh, edge_emb, edge_index, torch.empty((num_dst_nodes, 0)),
                       src_scalars, dst_scalars), (D_in, D_sh, D_out))
     
+
+def atol_rtol(dtype):
+    if dtype == torch.bfloat16:
+        return (1e-1, 1e-1)
+    else:
+        return (1e-3, 1e-3)
+
+def compare_results(compiled, expected):
+    atol, rtol = atol_rtol(compiled.dtype)
+    torch.testing.assert_close(compiled, expected, atol=atol, rtol=rtol)
