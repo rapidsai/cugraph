@@ -18,10 +18,9 @@ from torch import nn
 from e3nn import o3
 from e3nn.nn import BatchNorm
 
-from cugraph_equivariant.utils import scatter_reduce
+from cugraph_equivariant.utils import scatter_reduce, scatter_mean
 
 from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
-
 
 class FullyConnectedTensorProductConv(nn.Module):
     r"""Message passing layer for tensor products in DiffDock-like architectures.
@@ -144,7 +143,8 @@ class FullyConnectedTensorProductConv(nn.Module):
         src_features: torch.Tensor,
         edge_sh: torch.Tensor,
         edge_emb: torch.Tensor,
-        graph: tuple[torch.Tensor, tuple[int, int]],
+        edge_index: torch.Tensor,
+        num_dst_nodes: torch.Tensor,
         src_scalars: Optional[torch.Tensor] = None,
         dst_scalars: Optional[torch.Tensor] = None,
         reduce: str = "mean",
@@ -169,18 +169,19 @@ class FullyConnectedTensorProductConv(nn.Module):
             - num_edge_scalars, with the sum of num_[edge/src/dst]_scalars being
               mlp_channels[0]
 
-        graph : tuple
-            A tuple that stores the graph information, with the first element being
-            the adjacency matrix in COO, and the second element being its shape:
-            (num_src_nodes, num_dst_nodes).
+        edge_index: torch.Tensor
+            graph information - the adjacency matrix in COO
+
+        num_dst_nodes: torch.Tensor
+            graph information - shape Tensor. num_dst_nodes.shape[0] = dst shape[0]
 
         src_scalars: torch.Tensor, optional
             Scalar features of source nodes.
-            Shape: (num_src_nodes, num_src_scalars)
+            Shape: (src_features.shape[0], num_src_scalars)
 
         dst_scalars: torch.Tensor, optional
             Scalar features of destination nodes.
-            Shape: (num_dst_nodes, num_dst_scalars)
+            Shape: (num_dst_nodes.shape[0], num_dst_scalars)
 
         reduce : str, optional (default="mean")
             Reduction operator. Choose between "mean" and "sum".
@@ -198,6 +199,8 @@ class FullyConnectedTensorProductConv(nn.Module):
             Output node features.
             Shape: (num_dst_nodes, out_irreps.dim)
         """
+        src=edge_index[0]
+        dst=edge_index[1]
         edge_emb_size = edge_emb.size(-1)
         src_scalars_size = 0 if src_scalars is None else src_scalars.size(-1)
         dst_scalars_size = 0 if dst_scalars is None else dst_scalars.size(-1)
@@ -222,8 +225,6 @@ class FullyConnectedTensorProductConv(nn.Module):
             raise RuntimeError(
                 f"reduce argument must be either 'mean' or 'sum', got {reduce}."
             )
-
-        (src, dst), (num_src_nodes, num_dst_nodes) = graph
 
         if self.mlp is not None:
             if src_scalars is None and dst_scalars is None:
@@ -251,10 +252,13 @@ class FullyConnectedTensorProductConv(nn.Module):
         if edge_envelope is not None:
             out = out * edge_envelope.view(-1, 1)
 
-        dtype = out.dtype
-        out = scatter_reduce(
-            out.float(), dst, dim=0, dim_size=num_dst_nodes, reduce=reduce
-        ).to(dtype)
+        # WAR for bfloat16 scatter being slow
+        dtype=out.dtype
+        # WAR for ONNX::scatterElements not handling 'mean' reduction
+        if reduce == "mean":
+            out = scatter_mean(out.float(), dst, dim=0, dim_size=num_dst_nodes.shape[0]).to(dtype)
+        else:
+            out = scatter_reduce(out.float(), dst, dim=0, dim_size=num_dst_nodes.shape[0], reduce=reduce).to(dtype)
 
         if self.batch_norm:
             out = self.batch_norm(out)
