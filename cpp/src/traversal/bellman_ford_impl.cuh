@@ -19,7 +19,10 @@
 #include "prims/reduce_op.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_e_by_src_dst_key.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
+#include "prims/update_v_frontier.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -64,6 +67,8 @@ void bellman_ford(raft::handle_t const& handle,
 
   current_graph_view.attach_edge_mask(edge_masks_even.view());
 
+  bool debug_flag = current_graph_view.number_of_vertices() <= 7;
+
   // 2. initialize distances and predecessors
 
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
@@ -81,13 +86,30 @@ void bellman_ford(raft::handle_t const& handle,
       return thrust::make_tuple(distance, invalid_vertex);
     });
 
-  edge_src_property_t<graph_view_t, vertex_t> src_predecessor_cache(handle);
-  edge_src_property_t<graph_view_t, weight_t> src_distance_cache(handle);
+  // auto src_predecessor_cache =
+  //   graph_view_t::is_multi_gpu
+  //     ? edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view)
+  //     : edge_src_property_t<graph_view_t, vertex_t>(handle);
 
-  edge_dst_property_t<graph_view_t, vertex_t> dst_predecessor_cache(handle);
-  edge_dst_property_t<graph_view_t, weight_t> dst_distance_cache(handle);
+  auto src_distance_cache =
+    graph_view_t::is_multi_gpu
+      ? edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view)
+      : edge_src_property_t<graph_view_t, weight_t>(handle);
 
-  edge_dst_property_t<graph_view_t, vertex_t> dst_key_cache(handle);
+  // auto dst_predecessor_cache =
+  //   graph_view_t::is_multi_gpu
+  //     ? edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view)
+  //     : edge_dst_property_t<graph_view_t, vertex_t>(handle);
+
+  // auto dst_distance_cache =
+  //   graph_view_t::is_multi_gpu
+  //     ? edge_dst_property_t<graph_view_t, weight_t>(handle, current_graph_view)
+  //     : edge_dst_property_t<graph_view_t, weight_t>(handle);
+
+  // auto dst_key_cache = graph_view_t::is_multi_gpu
+  //                        ? edge_dst_property_t<graph_view_t, vertex_t>(handle,
+  //                        current_graph_view) : edge_dst_property_t<graph_view_t,
+  //                        vertex_t>(handle);
 
   rmm::device_uvector<vertex_t> local_vertices(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -97,49 +119,264 @@ void bellman_ford(raft::handle_t const& handle,
                         local_vertices.size(),
                         current_graph_view.local_vertex_partition_range_first());
 
-  // auto vertex_begin =
-  //   thrust::make_counting_iterator(current_graph_view.local_vertex_partition_range_first());
-  // auto vertex_end =
-  //   thrust::make_counting_iterator(current_graph_view.local_vertex_partition_range_last());
+  constexpr size_t bucket_idx_curr = 0;
+  constexpr size_t bucket_idx_next = 1;
+  constexpr size_t num_buckets     = 2;
 
-  // thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, local_vertices.begin());
+  vertex_frontier_t<vertex_t, void, graph_view_t::is_multi_gpu, true> vertex_frontier(handle,
+                                                                                      num_buckets);
+
+  if (current_graph_view.in_local_vertex_partition_range_nocheck(source)) {
+    vertex_frontier.bucket(bucket_idx_curr).insert(source);
+  }
+
+  rmm::device_uvector<vertex_t> enqueue_counter(
+    current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+  thrust::fill(
+    handle.get_thrust_policy(), enqueue_counter.begin(), enqueue_counter.end(), vertex_t{0});
 
   vertex_t itr_cnt           = 0;
   int nr_of_updated_vertices = 0;
-  while (itr_cnt < current_graph_view.number_of_vertices()) {
+
+  vertex_t nr_vertices_n_plus_times = 0;
+  while (true) {
     if constexpr (graph_view_t::is_multi_gpu) {
-      src_predecessor_cache =
-        edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
-      src_distance_cache = edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+      // update_edge_src_property(handle,
+      //                          current_graph_view,
+      //                          vertex_frontier.bucket(bucket_idx_curr).begin(),
+      //                          vertex_frontier.bucket(bucket_idx_curr).end(),
+      //                          predecessors,
+      //                          src_predecessor_cache);
+      update_edge_src_property(handle,
+                               current_graph_view,
+                               vertex_frontier.bucket(bucket_idx_curr).begin(),
+                               vertex_frontier.bucket(bucket_idx_curr).end(),
+                               distances,
+                               src_distance_cache);
 
-      dst_predecessor_cache =
-        edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
-      dst_distance_cache = edge_dst_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+      // update_edge_dst_property(handle,
+      //                          current_graph_view,
+      //                          vertex_frontier.bucket(bucket_idx_curr).begin(),
+      //                          vertex_frontier.bucket(bucket_idx_curr).end(),
+      //                          predecessors,
+      //                          dst_predecessor_cache);
+      // update_edge_dst_property(handle,
+      //                          current_graph_view,
+      //                          vertex_frontier.bucket(bucket_idx_curr).begin(),
+      //                          vertex_frontier.bucket(bucket_idx_curr).end(),
+      //                          distances,
+      //                          dst_distance_cache);
 
-      dst_key_cache = edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
-
-      update_edge_src_property(handle, current_graph_view, predecessors, src_predecessor_cache);
-      update_edge_src_property(handle, current_graph_view, distances, src_distance_cache);
-
-      update_edge_dst_property(handle, current_graph_view, predecessors, dst_predecessor_cache);
-      update_edge_dst_property(handle, current_graph_view, distances, dst_distance_cache);
-
-      update_edge_dst_property(handle, current_graph_view, local_vertices.begin(), dst_key_cache);
+      // update_edge_dst_property(handle,
+      //                          current_graph_view,
+      //                          vertex_frontier.bucket(bucket_idx_curr).begin(),
+      //                          vertex_frontier.bucket(bucket_idx_curr).end(),
+      //                          local_vertices.begin(),
+      //                          dst_key_cache);
     }
 
+    /*
     auto src_input_property_values =
       graph_view_t::is_multi_gpu
-        ? view_concat(src_predecessor_cache.view(), src_distance_cache.view())
-        : view_concat(detail::edge_major_property_view_t<vertex_t, vertex_t const*>(predecessors),
-                      detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances));
+        // ? view_concat(src_predecessor_cache.view(), src_distance_cache.view())
+        ? src_distance_cache.view()
+        // : view_concat(detail::edge_major_property_view_t<vertex_t, vertex_t
+        // const*>(predecessors),
+        //               detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances));
+        : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances);
 
-    auto dst_input_property_values =
-      graph_view_t::is_multi_gpu
-        ? view_concat(dst_predecessor_cache.view(), dst_distance_cache.view())
-        : view_concat(
-            detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(predecessors,
-                                                                          vertex_t{0}),
-            detail::edge_minor_property_view_t<vertex_t, weight_t const*>(distances, weight_t{0}));
+
+    auto dst_input_property_values = graph_view_t::is_multi_gpu
+      // ? view_concat(dst_predecessor_cache.view(), dst_distance_cache.view())
+      ? dst_distance_cache.view()
+        // : view_concat(
+        //     detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(predecessors,
+        //                                                                   vertex_t{0}),
+        //     detail::edge_minor_property_view_t<vertex_t, weight_t const*>(distances,
+        //     weight_t{0}));
+
+        //     : view_concat(
+        detail::edge_minor_property_view_t<vertex_t, weight_t const*>(distances, weight_t{0});
+      */
+    auto [new_frontier_vertex_buffer, distance_predecessor_buffer] =
+      transform_reduce_v_frontier_outgoing_e_by_dst(
+        handle,
+        current_graph_view,
+        vertex_frontier.bucket(bucket_idx_curr),
+        graph_view_t::is_multi_gpu
+          ? src_distance_cache.view()
+          : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
+        edge_dst_dummy_property_t{}.view(),
+        *edge_weight_view,
+        [debug_flag,
+         distances,
+         v_first = current_graph_view.local_vertex_partition_range_first(),
+         v_last  = current_graph_view
+                    .local_vertex_partition_range_last()] __device__(auto src,
+                                                                     auto dst,
+                                                                     auto src_dist,
+                                                                     thrust::nullopt_t,
+                                                                     // auto dst_dist,
+                                                                     // thrust::tuple<vertex_t,
+                                                                     // weight_t> src_pred_dist,
+                                                                     // thrust::tuple<vertex_t,
+                                                                     // weight_t> dst_pred_dist,
+                                                                     auto wt) {
+          if (dst < v_first || dst >= v_last) {
+            printf("\n ****** dst = %d is not in this VP \n", static_cast<int>(dst));
+          }
+          // auto src_pred = thrust::get<0>(src_pred_dist);
+          // auto src_dist = thrust::get<1>(src_pred_dist);
+
+          // auto dst_pred = thrust::get<0>(dst_pred_dist);
+          // auto dst_dist = thrust::get<1>(dst_pred_dist);
+
+          auto dst_dist = distances[dst - v_first];
+
+          /*src_pred = %d dst_pred = %d,*/
+          if (debug_flag)
+            printf("src = %d dst = %d wt = %f  src_dist = %f dst_dist = %f\n",
+                   static_cast<int>(src),
+                   static_cast<int>(dst),
+                   static_cast<float>(wt),
+                   // static_cast<int>(src_pred),
+                   // static_cast<int>(dst_pred),
+                   static_cast<float>(src_dist),
+                   static_cast<float>(dst_dist));
+
+          auto relax = (dst_dist > (src_dist + wt));
+
+          return relax ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                           src_dist + wt, src)}
+                       : thrust::nullopt;
+        },
+        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>(),
+        true);
+
+    if (graph_view_t::is_multi_gpu) {
+      auto const comm_rank = handle.get_comms().get_rank();
+      auto const comm_size = handle.get_comms().get_size();
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto new_frontier_vertex_buffer_title = std::string("nvb_").append(std::to_string(comm_rank));
+      if (debug_flag)
+        raft::print_device_vector(new_frontier_vertex_buffer_title.c_str(),
+                                  new_frontier_vertex_buffer.begin(),
+                                  new_frontier_vertex_buffer.size(),
+                                  std::cout);
+
+      auto key_buffer = thrust::get<0>(
+        cugraph::get_dataframe_buffer_cbegin(distance_predecessor_buffer).get_iterator_tuple());
+      auto value_buffer = thrust::get<1>(
+        cugraph::get_dataframe_buffer_cbegin(distance_predecessor_buffer).get_iterator_tuple());
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto key_buffer_title = std::string("key_buffer_").append(std::to_string(comm_rank));
+      if (debug_flag)
+        raft::print_device_vector(
+          key_buffer_title.c_str(), key_buffer, new_frontier_vertex_buffer.size(), std::cout);
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto value_buffer_title = std::string("value_buffer_").append(std::to_string(comm_rank));
+      if (debug_flag)
+        raft::print_device_vector(
+          value_buffer_title.c_str(), value_buffer, new_frontier_vertex_buffer.size(), std::cout);
+    }
+
+    nr_of_updated_vertices = new_frontier_vertex_buffer.size();
+
+    if (graph_view_t::is_multi_gpu) {
+      nr_of_updated_vertices = host_scalar_allreduce(
+        handle.get_comms(), nr_of_updated_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    if (nr_of_updated_vertices == 0) {
+      std::cout << "no update break\n";
+      break;
+    }
+
+    if (graph_view_t::is_multi_gpu) {
+      auto const comm_rank = handle.get_comms().get_rank();
+      auto const comm_size = handle.get_comms().get_size();
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto enqueue_counter_title = std::string("qc_b_").append(std::to_string(comm_rank));
+      if (debug_flag)
+        raft::print_device_vector(enqueue_counter_title.c_str(),
+                                  enqueue_counter.begin(),
+                                  enqueue_counter.size(),
+                                  std::cout);
+    }
+
+    thrust::for_each(handle.get_thrust_policy(),
+                     new_frontier_vertex_buffer.begin(),
+                     new_frontier_vertex_buffer.end(),
+                     [v_first         = current_graph_view.local_vertex_partition_range_first(),
+                      v_last          = current_graph_view.local_vertex_partition_range_last(),
+                      enqueue_counter = enqueue_counter.begin()] __device__(vertex_t v) {
+                       if (v < v_first || v >= v_last) {
+                         printf("\n enque conter: *** v = %d is not in this VP \n",
+                                static_cast<int>(v));
+                       }
+                       enqueue_counter[v - v_first] += 1;
+                     });
+
+    if (graph_view_t::is_multi_gpu) {
+      auto const comm_rank = handle.get_comms().get_rank();
+      auto const comm_size = handle.get_comms().get_size();
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto enqueue_counter_title = std::string("qc_a_").append(std::to_string(comm_rank));
+      if (debug_flag)
+        raft::print_device_vector(enqueue_counter_title.c_str(),
+                                  enqueue_counter.begin(),
+                                  enqueue_counter.size(),
+                                  std::cout);
+    }
+
+    nr_vertices_n_plus_times = thrust::count_if(
+      handle.get_thrust_policy(),
+      enqueue_counter.begin(),
+      enqueue_counter.end(),
+      [n = current_graph_view.number_of_vertices()] __device__(auto flag) { return flag >= n; });
+
+    if (graph_view_t::is_multi_gpu) {
+      nr_vertices_n_plus_times = host_scalar_allreduce(
+        handle.get_comms(), nr_vertices_n_plus_times, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    if (nr_vertices_n_plus_times > 0) {
+      std::cout << "enque n+ break\n";
+      break;
+    }
+
+    update_v_frontier(handle,
+                      current_graph_view,
+                      std::move(new_frontier_vertex_buffer),
+                      std::move(distance_predecessor_buffer),
+                      vertex_frontier,
+                      std::vector<size_t>{bucket_idx_next},
+                      distances,
+                      thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
+                      [] __device__(auto v, auto v_val, auto pushed_val) {
+                        auto new_dist = thrust::get<0>(pushed_val);
+                        auto update   = (new_dist < v_val);
+                        return thrust::make_tuple(
+                          update ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
+                          update ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+                                 : thrust::nullopt);
+                      });
+
+    vertex_frontier.bucket(bucket_idx_curr).clear();
+    vertex_frontier.bucket(bucket_idx_curr).shrink_to_fit();
+
+    if (vertex_frontier.bucket(bucket_idx_next).aggregate_size() > 0) {
+      vertex_frontier.swap_buckets(bucket_idx_curr, bucket_idx_next);
+    } else {
+      std::cout << "swap break\n";
+      break;
+    }
 
     if (graph_view_t::is_multi_gpu) {
       auto const comm_rank = handle.get_comms().get_rank();
@@ -147,265 +384,37 @@ void bellman_ford(raft::handle_t const& handle,
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto local_vertices_title = std::string("local_vertices_").append(std::to_string(comm_rank));
-      raft::print_device_vector(
-        local_vertices_title.c_str(), local_vertices.begin(), local_vertices.size(), std::cout);
+      if (debug_flag)
+        raft::print_device_vector(
+          local_vertices_title.c_str(), local_vertices.begin(), local_vertices.size(), std::cout);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto distances_title = std::string("distances_").append(std::to_string(comm_rank));
-      raft::print_device_vector(distances_title.c_str(),
-                                distances,
-                                current_graph_view.local_vertex_partition_range_size(),
-                                std::cout);
+      if (debug_flag)
+        raft::print_device_vector(distances_title.c_str(),
+                                  distances,
+                                  current_graph_view.local_vertex_partition_range_size(),
+                                  std::cout);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto predecessors_title = std::string("predecessors_").append(std::to_string(comm_rank));
-      raft::print_device_vector(predecessors_title.c_str(),
-                                predecessors,
-                                current_graph_view.local_vertex_partition_range_size(),
-                                std::cout);
-    }
-
-    rmm::device_uvector<vertex_t> edge_reduced_dst_keys(0, handle.get_stream());
-    rmm::device_uvector<weight_t> minimum_weights(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> closest_preds(0, handle.get_stream());
-
-    std::forward_as_tuple(edge_reduced_dst_keys, std::tie(minimum_weights, closest_preds)) =
-      cugraph::transform_reduce_e_by_dst_key(
-        handle,
-        current_graph_view,
-        src_input_property_values,
-        dst_input_property_values,
-        *edge_weight_view,
-        graph_view_t::is_multi_gpu ? dst_key_cache.view()
-                                   : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                                       local_vertices.begin(), vertex_t{0}),
-        [] __device__(auto src,
-                      auto dst,
-                      thrust::tuple<vertex_t, weight_t> src_pred_dist,
-                      thrust::tuple<vertex_t, weight_t> dst_pred_dist,
-                      auto wt) {
-          auto src_pred = thrust::get<0>(src_pred_dist);
-          auto src_dist = thrust::get<1>(src_pred_dist);
-
-          auto dst_pred = thrust::get<0>(dst_pred_dist);
-          auto dst_dist = thrust::get<1>(dst_pred_dist);
-
-          printf(
-            "src = %d dst = %d wt = %f src_pred = %d dst_pred = %d, src_dist = %f dst_dist = %f\n",
-            static_cast<int>(src),
-            static_cast<int>(dst),
-            static_cast<float>(wt),
-            static_cast<int>(src_pred),
-            static_cast<int>(dst_pred),
-            static_cast<float>(src_dist),
-            static_cast<float>(dst_dist));
-
-          auto relax = (src_dist < invalid_distance) && (dst_dist > (src_dist + wt));
-
-          return relax ? thrust::make_tuple(src_dist + wt, src)
-                       : thrust::make_tuple(invalid_distance, invalid_vertex);
-        },
-        thrust::make_tuple(invalid_distance, invalid_vertex),
-        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>{},
-        true);
-
-    if constexpr (graph_view_t::is_multi_gpu) {
-      auto vertex_partition_range_lasts = current_graph_view.vertex_partition_range_lasts();
-
-      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-        vertex_partition_range_lasts.size(), handle.get_stream());
-
-      raft::update_device(d_vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.size(),
-                          handle.get_stream());
-
-      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
-
-      auto func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size};
-
-      rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
-
-      auto triplet_first = thrust::make_zip_iterator(
-        edge_reduced_dst_keys.begin(), minimum_weights.begin(), closest_preds.begin());
-
-      d_tx_value_counts = cugraph::groupby_and_count(
-        triplet_first,
-        triplet_first + edge_reduced_dst_keys.size(),
-        [func] __device__(auto val) { return func(thrust::get<0>(val)); },
-        handle.get_comms().get_size(),
-        std::numeric_limits<vertex_t>::max(),
-        handle.get_stream());
-
-      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-      raft::update_host(h_tx_value_counts.data(),
-                        d_tx_value_counts.data(),
-                        d_tx_value_counts.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-
-      std::forward_as_tuple(std::tie(edge_reduced_dst_keys, minimum_weights, closest_preds),
-                            std::ignore) =
-        shuffle_values(
-          handle.get_comms(),
-          thrust::make_zip_iterator(
-            edge_reduced_dst_keys.begin(), minimum_weights.begin(), closest_preds.begin()),
-          h_tx_value_counts,
-          handle.get_stream());
-    }
-
-    if (graph_view_t::is_multi_gpu) {
-      auto const comm_rank = handle.get_comms().get_rank();
-      auto const comm_size = handle.get_comms().get_size();
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto edge_reduced_dst_keys_title =
-        std::string("edge_reduced_dst_keys_").append(std::to_string(comm_rank));
-      raft::print_device_vector(edge_reduced_dst_keys_title.c_str(),
-                                edge_reduced_dst_keys.begin(),
-                                edge_reduced_dst_keys.size(),
-                                std::cout);
-
-      auto minimum_weights_title =
-        std::string("minimum_weights_").append(std::to_string(comm_rank));
-      raft::print_device_vector(
-        minimum_weights_title.c_str(), minimum_weights.begin(), minimum_weights.size(), std::cout);
-
-      auto closest_preds_title = std::string("closest_preds_").append(std::to_string(comm_rank));
-      raft::print_device_vector(
-        closest_preds_title.c_str(), closest_preds.begin(), closest_preds.size(), std::cout);
-    }
-
-    using flag_t                        = uint8_t;
-    rmm::device_uvector<flag_t> updated = rmm::device_uvector<flag_t>(
-      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-    thrust::fill(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{false});
-
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(
-        edge_reduced_dst_keys.begin(), minimum_weights.begin(), closest_preds.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(
-        edge_reduced_dst_keys.end(), minimum_weights.end(), closest_preds.end())),
-      [distances,
-       predecessors,
-       updated = updated.begin(),
-       v_first = current_graph_view.local_vertex_partition_range_first(),
-       v_last =
-         current_graph_view.local_vertex_partition_range_last()] __device__(auto v_dist_pred) {
-        auto v = thrust::get<0>(v_dist_pred);
-        if ((v < v_first) || (v >= v_last)) {
-          printf("%d > > > > > out of range [%d %d)\n",
-                 static_cast<int>(v),
-                 static_cast<int>(v_first),
-                 static_cast<int>(v_last));
-        }
-
-        auto dist     = thrust::get<1>(v_dist_pred);
-        auto pred     = thrust::get<2>(v_dist_pred);
-        auto v_offset = v - v_first;
-
-        printf(" vertex %d : [pred=%d dist = %f)\n",
-               static_cast<int>(v),
-               static_cast<int>(pred),
-               static_cast<float>(dist));
-
-        if (pred != invalid_vertex) {
-          updated[v_offset]      = flag_t{true};
-          distances[v_offset]    = dist;
-          predecessors[v_offset] = pred;
-        }
-      });
-
-    nr_of_updated_vertices =
-      thrust::count(handle.get_thrust_policy(), updated.begin(), updated.end(), flag_t{true});
-
-    if constexpr (graph_view_t::is_multi_gpu) {
-      nr_of_updated_vertices = host_scalar_allreduce(
-        handle.get_comms(), nr_of_updated_vertices, raft::comms::op_t::SUM, handle.get_stream());
+      if (debug_flag)
+        raft::print_device_vector(predecessors_title.c_str(),
+                                  predecessors,
+                                  current_graph_view.local_vertex_partition_range_size(),
+                                  std::cout);
     }
 
     itr_cnt++;
     std::cout << "itr_cnt: " << itr_cnt << std::endl;
-
-    if (nr_of_updated_vertices == 0) {
-      std::cout << "No more updates\n";
-      break;
-    }
   }
 
   std::cout << "itr_cnt (out of loop) : " << itr_cnt << std::endl;
 
-  if ((itr_cnt == current_graph_view.number_of_vertices()) && (nr_of_updated_vertices > 0)) {
-    std::cout << "Detected -ve cycle.\n";
-  }
-
-  ///
-
-  /*
-  vertex_t color_id = 0;
-  while (true) {
-    using flag_t                                 = uint8_t;
-    rmm::device_uvector<flag_t> is_vertex_in_mis = rmm::device_uvector<flag_t>(
-      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
-
-    if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
-
-    cugraph::edge_src_property_t<graph_view_t, flag_t> src_mis_flags(handle, current_graph_view);
-    cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_mis_flags(handle, current_graph_view);
-
-    cugraph::update_edge_src_property(
-      handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags);
-
-    cugraph::update_edge_dst_property(
-      handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags);
-
-    if (color_id % 2 == 0) {
-      cugraph::transform_e(
-        handle,
-        current_graph_view,
-        src_mis_flags.view(),
-        dst_mis_flags.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [color_id] __device__(
-          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
-          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
-        },
-        edge_masks_odd.mutable_view());
-
-      if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
-      current_graph_view.attach_edge_mask(edge_masks_odd.view());
-    } else {
-      cugraph::transform_e(
-        handle,
-        current_graph_view,
-        src_mis_flags.view(),
-        dst_mis_flags.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [color_id] __device__(
-          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
-          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
-        },
-        edge_masks_even.mutable_view());
-
-      if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
-      current_graph_view.attach_edge_mask(edge_masks_even.view());
-    }
-
-    color_id++;
-  }
-  */
+  if (nr_vertices_n_plus_times > 0) { std::cout << "Found -ve cycle " << std::endl; }
+  // if ((itr_cnt == current_graph_view.number_of_vertices()) && (nr_of_updated_vertices > 0)) {
+  //   std::cout << "Detected -ve cycle.\n";
+  // }
 }
 }  // namespace detail
 
@@ -418,6 +427,7 @@ void bellman_ford(raft::handle_t const& handle,
                   weight_t* distances)
 {
   detail::bellman_ford(handle, graph_view, edge_weight_view, source, predecessors, distances);
+  std::cout << " returning from cugraph::bellman\n";
 }
 
 }  // namespace cugraph
