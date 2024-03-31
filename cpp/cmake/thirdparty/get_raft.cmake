@@ -39,7 +39,7 @@ function(find_and_configure_raft)
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
-      GLOBAL_TARGETS      raft::raft
+      GLOBAL_TARGETS      raft::raft raft::raft_lib
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
       COMPONENTS ${RAFT_COMPONENTS}
