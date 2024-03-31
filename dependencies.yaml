@@ -132,6 +132,7 @@ files:
     extras:
       table: project
     includes:
+      - depends_on_cupy
       - depends_on_rmm
       - depends_on_pylibraft
       - libcugraph_wheel
