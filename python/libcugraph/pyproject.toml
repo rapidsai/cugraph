@@ -37,6 +37,9 @@ classifiers = [
 Homepage = "https://github.com/rapidsai/cugraph"
 Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 
+[project.entry-points."cmake.prefix"]
+libcugraph = "libcugraph"
+
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
