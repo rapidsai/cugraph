@@ -64,6 +64,22 @@ files:
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
+  py_build_libcugraph:
+    output: pyproject
+    pyproject_dir: python/libcugraph
+    extras:
+      table: build-system
+    includes:
+      - common_build
+      - libcugraph_build
+      - cpp_wheels
+  py_run_libcugraph:
+    output: pyproject
+    pyproject_dir: python/libcugraph
+    extras:
+      table: project
+    includes:
+      - cpp_wheels
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -71,11 +87,11 @@ files:
       table: build-system
     includes:
       - common_build
-      - python_build_wheel
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
       - python_build_cythonize
+      - libcugraph_wheel
   py_run_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -89,6 +105,7 @@ files:
       - depends_on_pylibcugraph
       - depends_on_cupy
       - python_run_cugraph
+      - libcugraph_wheel
   py_test_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -105,10 +122,10 @@ files:
       table: build-system
     includes:
       - common_build
-      - python_build_wheel
       - depends_on_rmm
       - depends_on_pylibraft
       - python_build_cythonize
+      - libcugraph_wheel
   py_run_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -117,6 +134,7 @@ files:
     includes:
       - depends_on_rmm
       - depends_on_pylibraft
+      - libcugraph_wheel
   py_test_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -442,6 +460,22 @@ dependencies:
       - output_types: [pyproject, requirements]
         packages:
           - scikit-build-core[pyproject]>=0.7.0
+  libcugraph_wheel:
+    common:
+      - output_types: [pyproject, requirements]
+        packages:
+          - libcugraph==24.6.*
+  libcugraph_build:
+    common:
+      - output_types: [pyproject, requirements]
+        packages:
+          - scikit-build-core[pyproject]>=0.7.0
+  cpp_wheels:
+    common:
+      - output_types: [requirements, pyproject]
+        packages:
+          - librmm==24.6.*
+          - libraft==24.6.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
