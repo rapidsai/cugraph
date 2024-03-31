@@ -27,6 +27,7 @@ authors = [
 license = { text = "Apache 2.0" }
 requires-python = ">=3.9"
 dependencies = [
+    "cupy-cuda11x>=12.0.0",
     "libcugraph==24.6.*",
     "pylibraft==24.6.*",
     "rmm==24.6.*",
