@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -23,3 +23,6 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}"
   ASSOCIATED_TARGETS cugraph
 )
+foreach(target IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
+  rapids_cython_link_to_site_packages_library(${target} cugraph::cugraph)
+endforeach()
