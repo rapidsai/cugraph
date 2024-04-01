@@ -29,6 +29,7 @@ add_library(cugraphtestutil STATIC
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             utilities/conversion_utilities_sg.cu
+            utilities/debug_utilities_sg.cpp
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
@@ -445,6 +446,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/mg_utilities.cpp
                 utilities/conversion_utilities_mg.cu
                 utilities/property_generator_utilities_mg.cu
+                utilities/debug_utilities_mg.cpp
                 sampling/random_walks_check_mg.cu
                 c_api/mg_test_utils.cpp
                 )
