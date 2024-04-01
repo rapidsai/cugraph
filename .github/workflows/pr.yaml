@@ -20,6 +20,7 @@ jobs:
       - conda-python-build
       - conda-python-tests
       - docs-build
+      - wheel-build-cpp
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
@@ -93,8 +94,20 @@ jobs:
       arch: "amd64"
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/build_docs.sh"
-  wheel-build-pylibcugraph:
+  wheel-build-cpp:
     needs: checks
+    secrets: inherit
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.06
+    with:
+      matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
+      build_type: pull-request
+      script: ci/build_wheel_cpp.sh
+      extra-repo: rapidsai/cugraph-ops
+      extra-repo-sha: branch-24.06
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      node_type: cpu32
+  wheel-build-pylibcugraph:
+    needs: wheel-build-cpp
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.06
     with:
@@ -112,7 +125,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
   wheel-build-cugraph:
-    needs: wheel-tests-pylibcugraph
+    needs: wheel-build-pylibcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.06
     with:
