@@ -19,10 +19,14 @@ from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 # import torch._C._onnx as _C_onnx
 
 import tensorrt as trt
+import onnxruntime as ort
+import onnxruntime_extensions
+
 TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
 trt.init_libnvinfer_plugins(TRT_LOGGER, '')
 
 from polygraphy.backend.onnx import onnx_from_path, fold_constants, save_onnx
+from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
 
 from polygraphy.backend.trt import (
     CreateConfig,
@@ -31,14 +35,31 @@ from polygraphy.backend.trt import (
     TrtRunner,
 )
 
-from pylibcugraphops.pytorch.onnx import register_trt_plugins
-register_trt_plugins()
+import pylibcugraphops.pytorch.onnx as cg_onnx
 
 # from polygraphy.logger import G_LOGGER
 # G_LOGGER.module_severity = {'': G_LOGGER.EXTRA_VERBOSE}
 
 input_names=["src_features", "edge_sh", "edge_emb", "edge_index", "num_dst_nodes", "src_scalars", "dst_scalars"]
 output_names=["out"]
+
+def run_onnx(ex_name, inputs):
+    from onnxruntime import InferenceSession
+    onnx_runner = OnnxrtRunner(
+        InferenceSession(ex_name, providers=["CUDAExecutionProvider"],
+                         sess_options=cg_onnx.register_custom_ops_library())
+    )
+    trt_inputs = {}
+    onnx_runner.activate()
+    for inp, name in zip(inputs, input_names):
+        if inp is not None:
+            trt_inputs[name]=inp
+    # TODO: dynamic axes
+    trt_inputs.pop("num_dst_nodes")
+
+    ret = onnx_runner.infer(trt_inputs)
+    return torch.as_tensor(ret["out"], device="cuda")        
+
 
 def test_onnx_export(
         create_tp_conv_and_data, 
@@ -49,25 +70,28 @@ def test_onnx_export(
     
     if src_scalars is None and dst_scalars is None:
         my_input_names = my_input_names[:-2]
-    
+    ex_name = "a.onnx"
     with torch.no_grad():
         expected = tp_conv(*inputs)
         
         torch.onnx.export(tp_conv,
                           inputs,
-                          "a.onnx",
+                          ex_name,
                           input_names=my_input_names,
                           output_names=output_names,
                           # operator_export_type=_C_onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
                           # verbose=True
                           )
-
+        res = run_onnx(ex_name, inputs)
+        compare_results(res, expected)
+         
 def test_trt(
         create_tp_conv_and_data,
 ):
     (tp_conv, inputs, _) = create_tp_conv_and_data
     (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
-    
+    cg_onnx.register_trt_plugins()
+
     with torch.no_grad():
         my_input_names = input_names
     
@@ -96,8 +120,6 @@ def test_trt(
         with TrtRunner(build_engine, "trt_runner") as runner:
             expected = tp_conv(*inputs)
             trt_inputs = {}
-            my_input_names = input_names
-            
             for inp, name in zip(inputs, input_names):
                 if inp is not None:
                     trt_inputs[name]=inp
@@ -123,17 +145,28 @@ def test_torch_compile(
         compiled = tp_conv(*inputs)
         compare_results(compiled, expected)
 
-@pytest.mark.skip(reason="Need registry/onnx extension to test this")
-def test_dynamo_compile(
+@pytest.mark.skip(reason="Export fails on o3.Irreps in BatchNorm, TRT fails to parse the rest")
+def test_dynamo_export(
         create_tp_conv_and_data, 
 ):
     (tp_conv, inputs, _) = create_tp_conv_and_data
     (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
 
+    options = torch.onnx.ExportOptions(dynamic_shapes=True,
+                                       onnx_registry=cg_onnx.register_custom_ops())
+
+    ex_name="a.onnx"
     with torch.no_grad():
         expected = tp_conv(*inputs)
-        tp_ex = torch.onnx.dynamo_export(tp_conv, *inputs)
 
+        tp_ex = torch.onnx.dynamo_export(tp_conv,
+                                         *inputs,
+                                         export_options=options
+                                         )
+        tp_ex.save(ex_name)
+        res = run_onnx(ex_name, inputs)
+        compare_results(res, expected)
+        
 def test_jit(
         create_tp_conv_and_data, 
 ):

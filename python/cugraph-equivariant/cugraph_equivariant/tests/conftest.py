@@ -57,10 +57,6 @@ BatchCompatMLP=itertools.product(Float, batch_norm, e3nn_compat_mode, MLP)
 @pytest.fixture(scope="module", params=BatchCompatMLP)
 def create_tp_conv(request):
     (dtype, batch_norm, e3nn_compat_mode, (mlp_channels, mlp_activation, scalar_sizes)) = request.param
-    # TODO: parameterize
-    # mlp_channels=[(30, 8, 8), nn.Sequential(nn.Dropout(0.3), nn.ReLU()), (15, 15, 0)]
-    # mlp_activation=[(7,), nn.GELU(), (2, 3, 2)]
-    # scalar_sizes=[None, None, None]
     
     in_irreps = o3.Irreps("10x0e + 10x1e")
     out_irreps = o3.Irreps("20x0e + 10x1e")
