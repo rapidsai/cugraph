@@ -67,6 +67,3 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES ${linked_libraries}
   ASSOCIATED_TARGETS cugraph
 )
-foreach(target IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  rapids_cython_link_to_site_packages_library(${target} cugraph::cugraph)
-endforeach()
