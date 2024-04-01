@@ -37,7 +37,20 @@ def load_library():
             ctypes.RTLD_GLOBAL,
         )
 
-    # The caller almost never needs to do anything with this library, but no
+    # Dynamically load libcugraph_c.so. Prefer a system library if one is present to
+    # avoid clobbering symbols that other packages might expect, but if no
+    # other library is present use the one in the wheel.
+    try:
+        libcugraph_c_lib = ctypes.CDLL("libcugraph_c.so", ctypes.RTLD_GLOBAL)
+    except OSError:
+        libcugraph_c_lib = ctypes.CDLL(
+            # TODO: Do we always know it will be lib64? Should we consider
+            # finding a way for CMake to export the path for us to find here?
+            os.path.join(os.path.dirname(__file__), "lib64", "libcugraph_c.so"),
+            ctypes.RTLD_GLOBAL,
+        )
+
+    # The caller almost never needs to do anything with these libraries, but no
     # harm in offering the option since this object at least provides a handle
     # to inspect where libcugraph was loaded from.
-    return libcugraph_lib
+    return libcugraph_lib, libcugraph_c_lib
