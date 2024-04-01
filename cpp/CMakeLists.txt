@@ -91,6 +91,10 @@ list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
+if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
+   CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.4.0)
+  list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-algo=5)
+endif()
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
