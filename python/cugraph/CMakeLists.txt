@@ -27,11 +27,6 @@ project(
   LANGUAGES CXX CUDA
 )
 
-################################################################################
-# - User Options  --------------------------------------------------------------
-option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
-       OFF
-)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 if(NOT USE_CUGRAPH_OPS)
@@ -39,31 +34,13 @@ if(NOT USE_CUGRAPH_OPS)
     add_compile_definitions(NO_CUGRAPH_OPS)
 endif()
 
-# If the user requested it,  we attempt to find CUGRAPH.
-if(FIND_CUGRAPH_CPP)
-  find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
-else()
-  set(cugraph_FOUND OFF)
-endif()
+find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
+
+# TODO: Wait until this is implemented in rapids-cmake. At that point also
+# should have the llinking automated as part of rapids_cython_create_modules.
+rapids_cython_register_site_packages_library(cugraph::cugraph)
 
 include(rapids-cython-core)
-
-if(NOT cugraph_FOUND)
-  set(BUILD_TESTS OFF)
-  set(BUILD_CUGRAPH_MG_TESTS OFF)
-  set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
-  set(CUDA_STATIC_RUNTIME ON)
-  set(USE_RAFT_STATIC ON)
-  set(CUGRAPH_COMPILE_RAFT_LIB ON)
-  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
-  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
-  set(ALLOW_CLONE_CUGRAPH_OPS ON)
-
-  add_subdirectory(../../cpp cugraph-cpp EXCLUDE_FROM_ALL)
-
-  set(cython_lib_dir cugraph)
-  install(TARGETS cugraph DESTINATION ${cython_lib_dir})
-endif()
 
 rapids_cython_init()
 
@@ -76,7 +53,3 @@ add_subdirectory(cugraph/linear_assignment)
 add_subdirectory(cugraph/structure)
 add_subdirectory(cugraph/tree)
 add_subdirectory(cugraph/utilities)
-
-if(DEFINED cython_lib_dir)
-  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
-endif()
