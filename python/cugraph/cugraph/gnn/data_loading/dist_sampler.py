@@ -47,7 +47,65 @@ class DistSampleWriter:
         return self.__batches_per_partition
     
     def __write_minibatches_coo(self):
-        
+        label_hop_offsets_array = offsets.offsets.dropna().values
+        batch_id_array = offsets.batch_id.dropna().values
+        renumber_map_offsets_array = offsets.renumber_map_offsets.dropna().values
+
+        # Offsets is always in order, so the last batch id is always the highest
+        print(offsets_array, batch_id_array)
+        max_batch_id = batch_id_array[-1]
+        results.dropna(axis=1, how="all", inplace=True)
+
+
+        for p in range(0, int(ceil(len(batch_id_array) / batches_per_partition))):
+            partition_start = p * (batches_per_partition)
+            partition_end = (p + 1) * (batches_per_partition)
+
+            label_hop_offsets_array_current_partition = label_hop_offsets_array[
+                partition_start * fanout_length : partition_end * fanout_length + 1
+            ]
+
+            batch_ids_current_partition = batch_id_array[partition_start:partition_end]
+            start_batch_id = batch_ids_current_partition[0]
+
+            start_ix, end_ix = label_hop_offsets_array_current_partition[[0, -1]]
+            results_p = results.iloc[start_ix:end_ix].reset_index(drop=True)
+
+            if renumber_map is None:
+                raise ValueError("Bulk sampling without renumbering is no longer supported")
+            
+            # create the renumber map offsets
+            renumber_map_offsets_array_current_partition = renumber_map_offsets_array[
+                partition_start : partition_end + 1
+            ]
+
+            renumber_map_start_ix, renumber_map_end_ix = renumber_map_offsets_array_current_partition[[0,-1]]
+
+            renumber_map_current_partition = renumber_map.renumber_map.values[
+                renumber_map_start_ix:renumber_map_end_ix
+            ]
+
+            results_current_partition = create_df_from_disjoint_series(
+                [
+                    results_p.majors,
+                    results_p.minors,
+                    cudf.Series(renumber_map_current_partition, name="map"),
+                    cudf.Series(label_hop_offsets_array_current_partition, name="label_hop_offsets"),
+                    results_p.weight,
+                    results_p.edge_id,
+                    results_p.edge_type,
+                    cudf.Series(renumber_map_offsets_array_current_partition, name='renumber_map_offsets'),
+                ]
+            )
+
+            end_batch_id = start_batch_id + len(batch_ids_current_partition) - 1
+            full_output_path = os.path.join(
+                output_path, f"batch={start_batch_id:010d}-{end_batch_id:010d}.parquet"
+            )
+
+            results_p.to_parquet(
+                full_output_path, compression=None, index=False, force_nullable_schema=True
+            )
 
     def write_minibatches(self, minibatch_dict):
         if ("majors" in minibatch_dict) and ("minors" in minibatch_dict):
