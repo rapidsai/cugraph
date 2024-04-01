@@ -339,10 +339,12 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
-if(CUDA_STATIC_RUNTIME)
+if(USE_RAFT_STATIC)
   get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
   target_include_directories(cugraph PUBLIC ${_includes})
-  # Add CTK include paths because we make our CTK library links private below
+endif()
+
+if(CUDA_STATIC_RUNTIME)
   target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
 endif()
 
@@ -458,10 +460,12 @@ target_include_directories(cugraph_c
         "$<INSTALL_INTERFACE:include>"
 )
 
-if(CUDA_STATIC_RUNTIME)
+if(USE_RAFT_STATIC)
   get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
   target_include_directories(cugraph_c PUBLIC ${_includes})
-  # Add CTK include paths because we make our CTK library links private below
+endif()
+
+if(CUDA_STATIC_RUNTIME)
   target_include_directories(cugraph_c SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
   set(_ctk_static_suffix "_static")
 endif()
