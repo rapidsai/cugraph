@@ -12,9 +12,9 @@
 # limitations under the License.
 
 # This example shows how to use cuGraph nccl-only comms, pylibcuGraph,
-# and PyTorch DDP to run a multi-GPU sampling workflow.  Most users of the
+# and PyTorch to run a single-GPU sampling workflow.  Most users of the
 # GNN packages will not interact with cuGraph directly.  This example
-# is intented for users who want to extend cuGraph within a DDP workflow.
+# is intented for users who want to extend cuGraph within a PyTorch workflow.
 
 import os
 import re
