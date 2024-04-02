@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from math import ceil
+
 import pylibcugraph
 import numpy as np
 import cupy
@@ -20,7 +23,7 @@ from typing import Union, List
 from cugraph.utilities import import_optional
 from cugraph.gnn import cugraph_comms_get_raft_handle
 
-from math import ceil
+from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 
 # PyTorch is NOT optional but this is required for container builds.
 torch = import_optional("torch")
@@ -46,71 +49,83 @@ class DistSampleWriter:
     def _batches_per_partition(self):
         return self.__batches_per_partition
     
-    def __write_minibatches_coo(self):
-        label_hop_offsets_array = offsets.offsets.dropna().values
-        batch_id_array = offsets.batch_id.dropna().values
-        renumber_map_offsets_array = offsets.renumber_map_offsets.dropna().values
+    def __write_minibatches_coo(self, minibatch_dict):
+        has_edge_ids = minibatch_dict['edge_id'] is not None
+        has_edge_types = minibatch_dict['edge_type'] is not None
+        has_weights = minibatch_dict['weight'] is not None
 
-        # Offsets is always in order, so the last batch id is always the highest
-        print(offsets_array, batch_id_array)
-        max_batch_id = batch_id_array[-1]
-        results.dropna(axis=1, how="all", inplace=True)
+        if minibatch_dict['renumber_map'] is None:
+            raise ValueError("Distributed sampling without renumbering is not supported")
 
+        fanout_length = (len(minibatch_dict['label_hop_offsets']) - 1) // len(minibatch_dict['batch_id'])
 
-        for p in range(0, int(ceil(len(batch_id_array) / batches_per_partition))):
-            partition_start = p * (batches_per_partition)
-            partition_end = (p + 1) * (batches_per_partition)
+        for p in range(0, int(ceil(len(minibatch_dict['batch_id']) / self.__batches_per_partition))):
+            partition_start = p * (self.__batches_per_partition)
+            partition_end = (p + 1) * (self.__batches_per_partition)
 
-            label_hop_offsets_array_current_partition = label_hop_offsets_array[
+            label_hop_offsets_array_p = minibatch_dict['label_hop_offsets'][
                 partition_start * fanout_length : partition_end * fanout_length + 1
             ]
 
-            batch_ids_current_partition = batch_id_array[partition_start:partition_end]
-            start_batch_id = batch_ids_current_partition[0]
+            batch_id_array_p = minibatch_dict['batch_id'][partition_start:partition_end]
+            start_batch_id = batch_id_array_p[0]
 
-            start_ix, end_ix = label_hop_offsets_array_current_partition[[0, -1]]
-            results_p = results.iloc[start_ix:end_ix].reset_index(drop=True)
-
-            if renumber_map is None:
-                raise ValueError("Bulk sampling without renumbering is no longer supported")
+            start_ix, end_ix = label_hop_offsets_array_p[[0, -1]]
+            majors_array_p = minibatch_dict["majors"][start_ix:end_ix]
+            minors_array_p = minibatch_dict["minors"][start_ix:end_ix]
+            edge_id_array_p = (
+                minibatch_dict["edge_id"][start_ix:end_ix] if has_edge_ids
+                else cupy.array([], dtype='int64')
+            )
+            edge_type_array_p = (
+                minibatch_dict["edge_type"][start_ix:end_ix] if has_edge_types
+                else cupy.array([], dtype='int32')
+            )
+            weight_array_p = (
+                minibatch_dict["weight"][start_ix:end_ix] if has_weights
+                else cupy.array([], dtype='float32')
+            )
             
             # create the renumber map offsets
-            renumber_map_offsets_array_current_partition = renumber_map_offsets_array[
+            renumber_map_offsets_array_p = minibatch_dict['renumber_map_offsets'][
                 partition_start : partition_end + 1
             ]
 
-            renumber_map_start_ix, renumber_map_end_ix = renumber_map_offsets_array_current_partition[[0,-1]]
+            renumber_map_start_ix, renumber_map_end_ix = renumber_map_offsets_array_p[[0,-1]]
 
-            renumber_map_current_partition = renumber_map.renumber_map.values[
+            renumber_map_array_p = minibatch_dict['renumber_map'][
                 renumber_map_start_ix:renumber_map_end_ix
             ]
 
-            results_current_partition = create_df_from_disjoint_series(
-                [
-                    results_p.majors,
-                    results_p.minors,
-                    cudf.Series(renumber_map_current_partition, name="map"),
-                    cudf.Series(label_hop_offsets_array_current_partition, name="label_hop_offsets"),
-                    results_p.weight,
-                    results_p.edge_id,
-                    results_p.edge_type,
-                    cudf.Series(renumber_map_offsets_array_current_partition, name='renumber_map_offsets'),
-                ]
+            results_dataframe_p = create_df_from_disjoint_arrays(
+                {
+                    'majors': majors_array_p,
+                    'minors': minors_array_p,
+                    'map': renumber_map_array_p,
+                    'label_hop_offsets': label_hop_offsets_array_p,
+                    'weight': weight_array_p,
+                    'edge_id': edge_id_array_p,
+                    'edge_type': edge_type_array_p,
+                    'renumber_map_offsets': renumber_map_offsets_array_p,
+                }
             )
 
-            end_batch_id = start_batch_id + len(batch_ids_current_partition) - 1
+            end_batch_id = start_batch_id + len(batch_id_array_p) - 1
             full_output_path = os.path.join(
-                output_path, f"batch={start_batch_id:010d}-{end_batch_id:010d}.parquet"
+                self.__directory, f"batch={start_batch_id:010d}-{end_batch_id:010d}.parquet"
             )
 
-            results_p.to_parquet(
+            results_dataframe_p.to_parquet(
                 full_output_path, compression=None, index=False, force_nullable_schema=True
             )
+        
+    def __write_minibatches_csr(self, minibatch_dict):
+        raise NotImplementedError("CSR format currently not supported for distributed sampling")
 
     def write_minibatches(self, minibatch_dict):
-        if ("majors" in minibatch_dict) and ("minors" in minibatch_dict):
+        if (minibatch_dict['majors'] is not None) and (minibatch_dict['minors'] is not None):
             self.__write_minibatches_coo(minibatch_dict)
-        elif "major_offsets" in minibatch_dict and "minors" in minibatch_dict:
+        elif (minibatch_dict["major_offsets"] is not None) and (minibatch_dict['minors'] is not None):
             self.__write_minibatches_csr(minibatch_dict)
         else:
             raise ValueError("invalid columns")
