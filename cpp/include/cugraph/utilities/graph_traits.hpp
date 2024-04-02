@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,8 +67,8 @@ struct is_candidate {
 };
 
 // meta-function that constrains
-// all 3 template param candidates where vertex_t and edge_t
-// are restricted to int32_t:
+// vertex_t and edge_t are restricted to int32_t:
+// FIXME: Drop this functor as it was only used by legacy K-Truss
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct is_candidate_legacy {
