@@ -21,15 +21,11 @@ commit=$(git ls-remote https://github.com/rapidsai/rmm.git refs/heads/pull-reque
 librmm_wheelhouse=$(rapids-get-artifact "ci/rmm/pull-request/1512/${commit}/${artifact_name}")
 
 artifact_name=$(RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=raft RAPIDS_PY_VERSION="3.11" rapids-package-name wheel_python)
-#commit=$(git ls-remote https://github.com/rapidsai/raft.git refs/heads/pull-request/2251 | cut -c1-7)
-commit="a107fa5"
+commit=$(git ls-remote https://github.com/rapidsai/raft.git refs/heads/pull-request/2251 | cut -c1-7)
 libraft_wheelhouse=$(rapids-get-artifact "ci/raft/pull-request/2251/${commit}/${artifact_name}")
 
 artifact_name=$(RAPIDS_PY_WHEEL_NAME="pylibraft_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=raft rapids-package-name wheel_python)
-# I have an older raft commit with working cpp, but still waiting on Python so
-# just pull the head and hope it's ready.
 commit=$(git ls-remote https://github.com/rapidsai/raft.git refs/heads/pull-request/2251 | cut -c1-7)
-#commit="a107fa5"
 pylibraft_wheelhouse=$(rapids-get-artifact "ci/raft/pull-request/2251/${commit}/${artifact_name}")
 
 # This is the version of the suffix with a preceding hyphen. It's used
