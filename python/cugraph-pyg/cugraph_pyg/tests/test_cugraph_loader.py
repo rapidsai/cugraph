@@ -32,7 +32,11 @@ from typing import Dict, Tuple
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
+
 trim_to_layer = import_optional("torch_geometric.utils.trim_to_layer")
+if isinstance(trim_to_layer, MissingModule):
+    trim_to_layer = import_optional("torch_geometric.utils._trim_to_layer")
+
 
 try:
     import torch_sparse  # noqa: F401
@@ -333,8 +337,8 @@ def test_cugraph_loader_e2e_coo():
     for hetero_data in loader:
         ei = hetero_data["t0", "knows", "t0"]["edge_index"]
         x = hetero_data["t0"]["x"].cuda()
-        num_sampled_nodes = hetero_data["t0"]["num_sampled_nodes"]
-        num_sampled_edges = hetero_data["t0", "knows", "t0"]["num_sampled_edges"]
+        num_sampled_nodes = hetero_data["t0"]["num_sampled_nodes"].tolist()
+        num_sampled_edges = hetero_data["t0", "knows", "t0"]["num_sampled_edges"].tolist()
 
         for i in range(len(convs)):
             x, ei, _ = trim(i, num_sampled_nodes, num_sampled_edges, x, ei, None)

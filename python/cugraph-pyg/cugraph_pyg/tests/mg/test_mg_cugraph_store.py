@@ -373,9 +373,14 @@ def test_get_input_nodes(karate_gnn, dask_client):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
-    node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
+    nodes = torch_geometric.loader.utils.get_input_nodes(
         (cugraph_store, cugraph_store), "type0"
     )
+
+    if len(nodes) == 2:
+        node_type, input_nodes = nodes
+    else:
+        node_type, input_nodes, _ = nodes
 
     assert node_type == "type0"
     assert input_nodes.tolist() == torch.arange(17, dtype=torch.int32).tolist()
