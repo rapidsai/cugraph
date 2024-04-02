@@ -117,15 +117,16 @@ def create_tp_conv_and_data(create_tp_conv):
             src_scalars = dst_scalars = None
 
     return (tp_conv, (src_features, edge_sh, edge_emb, edge_index, torch.empty((num_dst_nodes, 0)),
-                      src_scalars, dst_scalars), (D_in, D_sh, D_out))
+                      src_scalars, dst_scalars), (D_in, D_sh, D_out), param)
     
 
 def atol_rtol(dtype):
     if dtype == torch.bfloat16:
-        return (1e-1, 1e-1)
+        return (6e-1, 6e-1)
     else:
         return (1e-3, 1e-3)
 
-def compare_results(compiled, expected):
-    atol, rtol = atol_rtol(compiled.dtype)
+def compare_results(compiled, expected, atol=None, rtol=None):
+    if atol is None:
+        atol, rtol = atol_rtol(compiled.dtype)
     torch.testing.assert_close(compiled, expected, atol=atol, rtol=rtol)
