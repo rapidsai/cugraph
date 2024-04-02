@@ -26,7 +26,11 @@
 namespace cugraph {
 namespace test {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
 void print_edges(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
