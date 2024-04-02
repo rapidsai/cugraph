@@ -14,7 +14,7 @@ rapids-dependency-file-generator \
   --file_key test_python \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -141,7 +141,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
+    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
 
     # activate test_cugraph_dgl environment for dgl
     set +u
@@ -187,7 +187,7 @@ fi
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
+    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_pyg
 
     # Temporarily allow unbound variables for conda activation.
     set +u
