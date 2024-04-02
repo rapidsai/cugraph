@@ -17,8 +17,9 @@
 # is intented for users who want to extend cuGraph within a DDP workflow.
 
 import os
-
+import re
 import tempfile
+
 import numpy as np
 import torch
 import torch.multiprocessing as tmp
@@ -99,6 +100,14 @@ def main():
             args=(world_size, uid, el, '.'),
             nprocs=world_size,
         )
+
+        print("Printing samples...")
+        for file in os.listdir(directory):
+            m=re.match(r'batch=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet', file)
+            rank, start, _, end = int(m[1]), int(m[2]), int(m[3]), int(m[4])
+            print(f'File: {file} (batches {start} to {end} for rank {rank})')
+            print(cudf.read_parquet(os.path.join(directory, file)))
+            print('\n')
 
 
 if __name__ == "__main__":

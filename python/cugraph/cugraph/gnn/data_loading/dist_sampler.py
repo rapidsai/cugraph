@@ -58,7 +58,6 @@ class DistSampleWriter:
         has_edge_types = minibatch_dict['edge_type'] is not None
         has_weights = minibatch_dict['weight'] is not None
 
-        print(minibatch_dict)
         if minibatch_dict['renumber_map'] is None:
             raise ValueError("Distributed sampling without renumbering is not supported")
 
@@ -120,7 +119,7 @@ class DistSampleWriter:
             if 'rank' in minibatch_dict:
                 rank = minibatch_dict['rank']
                 full_output_path = os.path.join(
-                    self.__directory, f"batch={rank:05d}{start_batch_id:08d}-{rank:05d}{end_batch_id:08d}.parquet"
+                    self.__directory, f"batch={rank:05d}.{start_batch_id:08d}-{rank:05d}.{end_batch_id:08d}.parquet"
                 )
             else:
                 full_output_path = os.path.join(
