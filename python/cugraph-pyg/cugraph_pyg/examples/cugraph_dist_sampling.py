@@ -33,7 +33,7 @@ from cugraph.gnn import (
     cugraph_comms_create_unique_id,
     cugraph_comms_get_raft_handle,
     DistSampleWriter,
-    UniformNeighborSampler
+    UniformNeighborSampler,
 )
 
 from pylibcugraph import MGGraph, ResourceHandle, GraphProperties
@@ -70,14 +70,11 @@ def sample(rank: int, world_size: int, uid, edgelist, directory):
     )
     print("graph constructed")
 
-    sample_writer = DistSampleWriter(
-        directory=directory,
-        batches_per_partition=2
-    )
+    sample_writer = DistSampleWriter(directory=directory, batches_per_partition=2)
     sampler = UniformNeighborSampler(
         G,
         sample_writer,
-        fanout=[5,5],
+        fanout=[5, 5],
     )
 
     sampler.sample_from_nodes(seeds, batch_size=16, random_state=62)
@@ -97,17 +94,17 @@ def main():
     with tempfile.TemporaryDirectory() as directory:
         tmp.spawn(
             sample,
-            args=(world_size, uid, el, '.'),
+            args=(world_size, uid, el, "."),
             nprocs=world_size,
         )
 
         print("Printing samples...")
         for file in os.listdir(directory):
-            m=re.match(r'batch=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet', file)
+            m = re.match(r"batch=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet", file)
             rank, start, _, end = int(m[1]), int(m[2]), int(m[3]), int(m[4])
-            print(f'File: {file} (batches {start} to {end} for rank {rank})')
+            print(f"File: {file} (batches {start} to {end} for rank {rank})")
             print(cudf.read_parquet(os.path.join(directory, file)))
-            print('\n')
+            print("\n")
 
 
 if __name__ == "__main__":
