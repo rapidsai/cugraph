@@ -36,10 +36,6 @@ endif()
 
 find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
 
-# TODO: Wait until this is implemented in rapids-cmake. At that point also
-# should have the llinking automated as part of rapids_cython_create_modules.
-rapids_cython_register_site_packages_library(cugraph::cugraph)
-
 include(rapids-cython-core)
 
 rapids_cython_init()
