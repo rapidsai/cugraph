@@ -87,7 +87,7 @@ def input_expected_output(dask_client, input_combo):
     dstCol = sg_k_core_graph.destination_columns
     wgtCol = sg_k_core_graph.weight_column
     sg_k_core_results = (
-        symmetrize_df(sg_k_core_results, srcCol, dstCol, wgtCol)
+        symmetrize_df(sg_k_core_results, srcCol, dstCol, wgtCol, multi=True)
         .sort_values([srcCol, dstCol])
         .reset_index(drop=True)
     )

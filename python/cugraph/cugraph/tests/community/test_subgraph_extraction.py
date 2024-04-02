@@ -74,7 +74,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-    cu_sg = cugraph_call(M, verts, True)
+    cu_sg = cugraph_call(M, verts, True)[0]
     nx_sg = nx_call(M, verts, True)
     assert compare_edges(cu_sg, nx_sg)
 
@@ -88,7 +88,7 @@ def test_subgraph_extraction_Graph(graph_file):
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-    cu_sg = cugraph_call(M, verts, False)
+    cu_sg = cugraph_call(M, verts, False)[0]
     nx_sg = nx_call(M, verts, False)
     assert compare_edges(cu_sg, nx_sg)
 
@@ -155,11 +155,11 @@ def test_subgraph_extraction_multi_column(graph_file):
     sG2 = cugraph.induced_subgraph(G2, verts)
 
     # FIXME: Replace with multi-column view_edge_list()
-    edgelist_df = sG1.edgelist.edgelist_df
-    edgelist_df_res = sG1.unrenumber(edgelist_df, "src")
-    edgelist_df_res = sG1.unrenumber(edgelist_df_res, "dst")
+    edgelist_df = sG1[0].edgelist.edgelist_df
+    edgelist_df_res = sG1[0].unrenumber(edgelist_df, "src")
+    edgelist_df_res = sG1[0].unrenumber(edgelist_df_res, "dst")
     for i in range(len(edgelist_df_res)):
-        assert sG2.has_edge(
+        assert sG2[0].has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
 
