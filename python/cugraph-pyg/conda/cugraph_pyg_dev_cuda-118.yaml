@@ -13,7 +13,7 @@ dependencies:
 - cugraph==24.6.*
 - pandas
 - pre-commit
-- pyg>=2.4.0
+- pyg>=2.5.0
 - pylibcugraphops==24.6.*
 - pytest
 - pytest-benchmark
