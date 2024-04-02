@@ -21,9 +21,28 @@ if [[ "${package_name}" == "nx-cugraph" ]]; then
 else
     RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
 fi
+
+artifact_name=$(RAPIDS_PY_WHEEL_NAME="librmm_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=rmm RAPIDS_PY_VERSION="3.11" rapids-package-name wheel_python)
+commit=$(git ls-remote https://github.com/rapidsai/rmm.git refs/heads/pull-request/1512 | cut -c1-7)
+librmm_wheelhouse=$(rapids-get-artifact "ci/rmm/pull-request/1512/${commit}/${artifact_name}")
+
+artifact_name=$(RAPIDS_PY_WHEEL_NAME="rmm_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=rmm rapids-package-name wheel_python)
+commit=$(git ls-remote https://github.com/rapidsai/rmm.git refs/heads/pull-request/1512 | cut -c1-7)
+rmm_wheelhouse=$(rapids-get-artifact "ci/rmm/pull-request/1512/${commit}/${artifact_name}")
+
+artifact_name=$(RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=raft RAPIDS_PY_VERSION="3.11" rapids-package-name wheel_python)
+commit=$(git ls-remote https://github.com/rapidsai/raft.git refs/heads/pull-request/2251 | cut -c1-7)
+libraft_wheelhouse=$(rapids-get-artifact "ci/raft/pull-request/2251/${commit}/${artifact_name}")
+
+artifact_name=$(RAPIDS_PY_WHEEL_NAME="pylibraft_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_REPOSITORY=raft rapids-package-name wheel_python)
+commit=$(git ls-remote https://github.com/rapidsai/raft.git refs/heads/pull-request/2251 | cut -c1-7)
+pylibraft_wheelhouse=$(rapids-get-artifact "ci/raft/pull-request/2251/${commit}/${artifact_name}")
+
+RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_VERSION="3.11" rapids-download-wheels-from-s3 /tmp/libcugraph_dist
+
 # use 'ls' to expand wildcard before adding `[extra]` requires for pip
 # pip creates wheels using python package names
-python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
+python -m pip install $(ls ./dist/${python_package_name}*.whl)[test] --find-links /tmp/libcugraph_dist --find-links ${librmm_wheelhouse} --find-links ${rmm_wheelhouse} --find-links ${libraft_wheelhouse} --find-links ${pylibraft_wheelhouse}
 
 # Run smoke tests for aarch64 pull requests
 arch=$(uname -m)
