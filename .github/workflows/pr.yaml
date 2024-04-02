@@ -101,7 +101,7 @@ jobs:
       build_type: pull-request
       script: ci/build_wheel_pylibcugraph.sh
       extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: use-new-runners
+      extra-repo-sha: branch-24.06
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       node_type: cpu32
   wheel-tests-pylibcugraph:
@@ -119,7 +119,7 @@ jobs:
       build_type: pull-request
       script: ci/build_wheel_cugraph.sh
       extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: use-new-runners
+      extra-repo-sha: branch-24.06
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
