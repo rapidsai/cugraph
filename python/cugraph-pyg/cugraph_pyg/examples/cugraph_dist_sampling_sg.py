@@ -21,9 +21,6 @@ import re
 import tempfile
 
 import numpy as np
-import torch
-import torch.multiprocessing as tmp
-import torch.distributed as dist
 
 import cudf
 

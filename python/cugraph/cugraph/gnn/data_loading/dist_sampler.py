@@ -134,7 +134,7 @@ class DistSampleWriter:
 
             end_batch_id = start_batch_id + len(batch_id_array_p) - 1
             rank = minibatch_dict["rank"] if "rank" in minibatch_dict else 0
-            
+
             full_output_path = os.path.join(
                 self.__directory,
                 f"batch={rank:05d}.{start_batch_id:08d}-"
