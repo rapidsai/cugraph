@@ -69,7 +69,7 @@ fi
 
 cd "${package_dir}"
 
-python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+PIP_FIND_LINKS="/tmp/libcugraph_dist ${librmm_wheelhouse} ${libraft_wheelhouse} ${pylibraft_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
 if [[ ${package_name} == "nx-cugraph" ]] || \
