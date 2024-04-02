@@ -51,4 +51,10 @@ cd "${package_dir}"
 
 PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 dist
+# Don't repair raft into this wheel. Everything else is fair game.
+# TODO: Check if this works transitively, i.e. if raft links to something that
+# it bundles in then will cugraph try to pull that into its own libs? If so,
+# we'll need to programatically exclude raft's dependencies from cugraph's.
+mkdir -p final_dist
+python -m auditwheel repair --exclude libraft.so -w final_dist dist/*
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 final_dist
