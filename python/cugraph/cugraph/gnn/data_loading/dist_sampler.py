@@ -133,18 +133,13 @@ class DistSampleWriter:
             )
 
             end_batch_id = start_batch_id + len(batch_id_array_p) - 1
-            if "rank" in minibatch_dict:
-                rank = minibatch_dict["rank"]
-                full_output_path = os.path.join(
-                    self.__directory,
-                    f"batch={rank:05d}.{start_batch_id:08d}-"
-                    f"{rank:05d}.{end_batch_id:08d}.parquet",
-                )
-            else:
-                full_output_path = os.path.join(
-                    self.__directory,
-                    f"batch={start_batch_id:010d}-{end_batch_id:010d}.parquet",
-                )
+            rank = minibatch_dict["rank"] if "rank" in minibatch_dict else 0
+            
+            full_output_path = os.path.join(
+                self.__directory,
+                f"batch={rank:05d}.{start_batch_id:08d}-"
+                f"{rank:05d}.{end_batch_id:08d}.parquet",
+            )
 
             results_dataframe_p.to_parquet(
                 full_output_path,
@@ -334,7 +329,7 @@ class UniformNeighborSampler(DistSampler):
         else:
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
                 pylibcugraph.ResourceHandle(),
-                self.__graph,
+                self._graph,
                 start_list=cupy.asarray(seeds),
                 batch_id_list=cupy.asarray(batch_ids),
                 h_fan_out=np.array(self.__fanout, dtype="int32"),
@@ -344,7 +339,7 @@ class UniformNeighborSampler(DistSampler):
                 random_state=random_state,
                 prior_sources_behavior=self.__prior_sources_behavior,
                 deduplicate_sources=self.__deduplicate_sources,
-                return_hops=self.__return_hops,
+                return_hops=True,
                 renumber=True,
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
