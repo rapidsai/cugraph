@@ -178,7 +178,7 @@ class DistSampler:
         self.__local_seeds_per_call = local_seeds_per_call
 
     def sample_batches(
-        self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0
+        self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0, assume_equal_input_size: bool=False
     ) -> Dict[str, TensorType]:
         """
         For a single call group of seeds and associated batch ids, performs
@@ -192,6 +192,10 @@ class DistSampler:
             The batch id for each seed.
         random_state: int
             The random seed to use for sampling.
+        assume_equal_input_size: bool
+            If True, will assume all ranks have the same number of inputs,
+            and will skip the synchronization/gather steps to check for
+            and handle uneven inputs.
         
         Returns
         -------
@@ -199,8 +203,49 @@ class DistSampler:
         """
         raise NotImplementedError("Must be implemented by subclass")
 
+    def get_start_batch_offset(self, local_num_batches:int, assume_equal_input_size:bool=False) -> int:
+        """
+        Gets the starting batch offset to ensure each rank's set of batch ids is
+        disjoint.
+        
+        Parameters
+        ----------
+        local_num_batches: int
+            The number of batches for this rank.
+        assume_equal_input_size: bool
+            Whether to assume all ranks have the same number of batches.
+        
+        Returns
+        -------
+        The starting batch offset (int).
+
+        """
+        rank = torch.distributed.get_rank()
+        world_size = torch.distributed.get_world_size()
+        
+        if self.is_multi_gpu:
+            if assume_equal_input_size:
+                t = torch.full((world_size,), local_num_batches, dtype=torch.int64, device='cpu')
+            else:
+                t = torch.empty((world_size,), dtype=torch.int64, device="cuda")
+                local_size = torch.tensor(
+                    [local_num_batches], dtype=torch.int64, device="cuda"
+                )
+
+                torch.distributed.all_gather_into_tensor(t, local_size)
+                if (t != local_size).any() and rank == 0:
+                    warnings.warn(
+                        "Not all ranks received the same number of batches. "
+                        "This might cause your training loop to hang due to uneven inputs."
+                    )
+
+                return t.cumsum(dim=0)[rank] - t[0]
+        else:
+            return 0
+
+
     def sample_from_nodes(
-        self, nodes: TensorType, *, batch_size: int = 16, random_state: int = 62
+        self, nodes: TensorType, *, batch_size: int = 16, random_state: int = 62, assume_equal_input_size:bool=False
     ):
         """
         Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
@@ -225,26 +270,9 @@ class DistSampler:
         nodes_call_groups = torch.split(
             torch.as_tensor(nodes, device="cuda"), actual_seeds_per_call
         )
-
-        if self.is_multi_gpu:
-            rank = torch.distributed.get_rank()
-            world_size = torch.distributed.get_world_size()
-
-            t = torch.empty((world_size,), dtype=torch.int64, device="cuda")
-            local_size = torch.tensor(
-                [int(ceil(num_seeds / batch_size))], dtype=torch.int64, device="cuda"
-            )
-
-            torch.distributed.all_gather_into_tensor(t, local_size)
-            if (t != local_size).any() and rank == 0:
-                warnings.warn(
-                    "Not all ranks received the same number of batches. "
-                    "This might cause your training loop to hang due to uneven inputs."
-                )
-
-            batch_id_start = t.cumsum(dim=0)[rank] - t[0]
-        else:
-            batch_id_start = 0
+        
+        local_num_batches = int(ceil(num_seeds / batch_size))
+        batch_id_start = self.get_batch_start_offset(local_num_batches, assume_equal_input_size=assume_equal_input_size)
 
         for i, current_seeds in enumerate(nodes_call_groups):
             current_batches = torch.arange(
@@ -300,32 +328,58 @@ class UniformNeighborSampler(DistSampler):
         self.__compression = compression
         self.__with_replacement = with_replacement
 
-    def sample_batches(
-        self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0
-    ):
-        # FIXME allow skipping of the synchronization logic with a boolean
-        # flag that assumes all ranks have the same number of batches.
-        if self.is_multi_gpu:
-            rank = torch.distributed.get_rank()
-            handle = pylibcugraph.ResourceHandle(
-                cugraph_comms_get_raft_handle().getHandle()
-            )
+    def get_label_list_and_output_rank(self, local_label_list: TensorType, assume_equal_input_size: bool=False):
+        """
+        Computes the label list and output rank mapping for the list of labels (batch ids).
 
-            local_label_list = torch.unique(batch_ids)
-            local_label_to_output_comm_rank = torch.full(
-                (len(local_label_list),), rank, dtype=torch.int32, device="cuda"
-            )
+        Parameters
+        ----------
+        local_label_list: TensorType
+            The list of unique labels on this rank.
+        assume_equal_input_size: bool
+            If True, assumes that all ranks have the same number of inputs (batches)
+            and skips some synchronization/gathering accordingly.
+        
+        Returns
+        -------
+        label_list: TensorType
+            The global label list containing all labels used across ranks.
+        label_to_output_comm_rank: TensorType
+            The global mapping of labels to ranks.
+        """
+        rank = torch.distributed.get_rank()
+        world_size = torch.distributed.get_world_size()
 
+        if assume_equal_input_size:
+            num_batches = len(local_label_list) * world_size
+        else:
             num_batches = torch.tensor(
                 [len(local_label_list)], device="cuda", dtype=torch.int64
             )
             torch.distributed.all_reduce(num_batches, op=torch.distributed.ReduceOp.SUM)
 
-            label_list = torch.empty((num_batches,), device="cuda", dtype=torch.int32)
-            w1 = torch.distributed.all_gather_into_tensor(
-                label_list, local_label_list, async_op=True
-            )
+        # Can't avoid the all gather here even with equal input size, since we don't know
+        # which labels the other ranks are using.
+        label_list = torch.empty((num_batches,), device="cuda", dtype=torch.int32)
+        w1 = torch.distributed.all_gather_into_tensor(
+            label_list, local_label_list, async_op=True
+        )
 
+        if assume_equal_input_size:
+            label_to_output_comm_rank = torch.concat([
+                torch.full(
+                    (len(local_label_list),),
+                    r,
+                    dtype=torch.int32,
+                    device="cuda"
+                )
+                for r in range(world_size)
+            ])
+            w2 = None
+        else:
+            local_label_to_output_comm_rank = torch.full(
+                (len(local_label_list),), rank, dtype=torch.int32, device="cuda"
+            )
             label_to_output_comm_rank = torch.empty(
                 (num_batches,), device="cuda", dtype=torch.int32
             )
@@ -335,8 +389,23 @@ class UniformNeighborSampler(DistSampler):
                 async_op=True,
             )
 
-            w1.wait()
+        w1.wait()
+        if w2 is not None:
             w2.wait()
+
+        return label_list, label_to_output_comm_rank
+
+
+    def sample_batches(
+        self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0, assume_equal_input_size: bool=False
+    ):
+        if self.is_multi_gpu:
+            handle = pylibcugraph.ResourceHandle(
+                cugraph_comms_get_raft_handle().getHandle()
+            )
+
+            local_label_list = torch.unique(batch_ids)
+            label_list, label_to_output_comm_rank = self.get_label_list_and_output_rank(local_label_list, assume_equal_input_size=assume_equal_input_size)
 
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
                 handle,
