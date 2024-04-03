@@ -58,7 +58,8 @@ def sample(rank: int, world_size: int, uid, edgelist, directory):
     src = cudf.Series(np.array_split(edgelist[0], world_size)[rank])
     dst = cudf.Series(np.array_split(edgelist[1], world_size)[rank])
 
-    seeds = cudf.Series(np.arange(rank * 50, (rank + 1) * 50))
+    seeds_per_rank = 50
+    seeds = cudf.Series(np.arange(rank * seeds_per_rank, (rank + 1) * seeds_per_rank))
     handle = ResourceHandle(cugraph_comms_get_raft_handle().getHandle())
 
     print("constructing graph")
