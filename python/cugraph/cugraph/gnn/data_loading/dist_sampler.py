@@ -20,7 +20,7 @@ import numpy as np
 import cupy
 import cudf
 
-from typing import Union, List
+from typing import Union, List, Dict
 from cugraph.utilities import import_optional
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
@@ -179,12 +179,45 @@ class DistSampler:
 
     def sample_batches(
         self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0
-    ):
+    ) -> Dict[str, TensorType]:
+        """
+        For a single call group of seeds and associated batch ids, performs
+        sampling.
+
+        Parameters
+        ----------
+        seeds: TensorType
+            Input seeds for a single call group (node ids).
+        batch_ids: TensorType
+            The batch id for each seed.
+        random_state: int
+            The random seed to use for sampling.
+        
+        Returns
+        -------
+        A dictionary containing the sampling outputs (majors, minors, map, etc.)
+        """
         raise NotImplementedError("Must be implemented by subclass")
 
     def sample_from_nodes(
         self, nodes: TensorType, *, batch_size: int = 16, random_state: int = 62
     ):
+        """
+        Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
+        Splits the seed list into batches, then divides the batches into call groups
+        based on the number of seeds per call this sampler was set to use.  Then calls
+        sample_batches for each call group and writes the result using the writer
+        associated with this sampler.
+
+        Parameters
+        ----------
+        nodes: TensorType
+            Input seeds (node ids).
+        batch_size: int
+            The size of each batch.
+        random_state: int
+            The random seed to use for sampling.
+        """
         batches_per_call = self._local_seeds_per_call // batch_size
         actual_seeds_per_call = batches_per_call * batch_size
 
