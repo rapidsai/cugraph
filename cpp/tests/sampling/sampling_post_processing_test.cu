@@ -581,14 +581,6 @@ class Tests_SamplingPostProcessing
       std::optional<rmm::device_uvector<size_t>> renumbered_and_sorted_renumber_map_label_offsets{
         std::nullopt};
 
-      {
-        size_t free_size{};
-        size_t total_size{};
-        RAFT_CUDA_TRY(cudaMemGetInfo(&free_size, &total_size));
-        std::cout << "free_size=" << free_size / (1024.0 * 1024.0 * 1024.0)
-                  << "GB total_size=" << total_size / (1024.0 * 1024.0 * 1024.0) << "GB."
-                  << std::endl;
-      }
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         hr_timer.start("Renumber and sort sampled edgelist");
@@ -1144,14 +1136,6 @@ class Tests_SamplingPostProcessing
 
       std::optional<rmm::device_uvector<size_t>> sorted_edgelist_label_hop_offsets{std::nullopt};
 
-      {
-        size_t free_size{};
-        size_t total_size{};
-        RAFT_CUDA_TRY(cudaMemGetInfo(&free_size, &total_size));
-        std::cout << "free_size=" << free_size / (1024.0 * 1024.0 * 1024.0)
-                  << "GB total_size=" << total_size / (1024.0 * 1024.0 * 1024.0) << "GB."
-                  << std::endl;
-      }
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         hr_timer.start("Sort sampled edgelist");
@@ -1370,8 +1354,8 @@ INSTANTIATE_TEST_SUITE_P(
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, false, true},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, true, true},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, true}),
-    ::testing::Values(cugraph::test::File_Usecase("karate.mtx"),
-                      cugraph::test::File_Usecase("dolphins.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
