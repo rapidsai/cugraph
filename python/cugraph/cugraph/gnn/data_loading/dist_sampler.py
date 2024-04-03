@@ -189,7 +189,7 @@ class DistSampler:
         actual_seeds_per_call = batches_per_call * batch_size
 
         num_seeds = len(nodes)
-        nodes = torch.split(
+        nodes_call_groups = torch.split(
             torch.as_tensor(nodes, device="cuda"), actual_seeds_per_call
         )
 
@@ -213,7 +213,7 @@ class DistSampler:
         else:
             batch_id_start = 0
 
-        for i, current_seeds in enumerate(nodes):
+        for i, current_seeds in enumerate(nodes_call_groups):
             current_batches = torch.arange(
                 batch_id_start + i * batches_per_call,
                 batch_id_start + (i + 1) * batches_per_call,
