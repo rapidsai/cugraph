@@ -176,6 +176,7 @@ class DistSampler:
         self.__graph = graph
         self.__writer = writer
         self.__local_seeds_per_call = local_seeds_per_call
+        self.__handle = None
 
     def sample_batches(
         self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0, assume_equal_input_size: bool=False
@@ -305,6 +306,17 @@ class DistSampler:
     def _graph(self):
         return self.__graph
 
+    @property
+    def _resource_handle(self):
+        if self.__handle is None:
+            if self.is_multi_gpu:
+                self.__handle = pylibcugraph.ResourceHandle(
+                    cugraph_comms_get_raft_handle().getHandle()
+                )
+            else:
+                self.__handle = pylibcugraph.ResourceHandle()
+        return self.__handle
+
 
 class UniformNeighborSampler(DistSampler):
     def __init__(
@@ -400,15 +412,13 @@ class UniformNeighborSampler(DistSampler):
         self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0, assume_equal_input_size: bool=False
     ):
         if self.is_multi_gpu:
-            handle = pylibcugraph.ResourceHandle(
-                cugraph_comms_get_raft_handle().getHandle()
-            )
+            rank = torch.distributed.get_rank()
 
             local_label_list = torch.unique(batch_ids)
             label_list, label_to_output_comm_rank = self.get_label_list_and_output_rank(local_label_list, assume_equal_input_size=assume_equal_input_size)
 
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
-                handle,
+                self._resource_handle,
                 self._graph,
                 start_list=cupy.asarray(seeds),
                 batch_id_list=cupy.asarray(batch_ids),
@@ -430,7 +440,7 @@ class UniformNeighborSampler(DistSampler):
             sampling_results_dict["rank"] = rank
         else:
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
-                pylibcugraph.ResourceHandle(),
+                self._resource_handle,
                 self._graph,
                 start_list=cupy.asarray(seeds),
                 batch_id_list=cupy.asarray(batch_ids),
