@@ -76,6 +76,6 @@ if [[ ${package_name} == "nx-cugraph" ]] || \
     RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-upload-wheels-to-s3 python dist
 else
     mkdir -p final_dist
-    python -m auditwheel repair -w final_dist dist/*
+    python -m auditwheel repair -w final_dist --exclude libcugraph.so --exclude libcugraph_c.so --exclude libraft.so dist/*
     RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 python final_dist
 fi
