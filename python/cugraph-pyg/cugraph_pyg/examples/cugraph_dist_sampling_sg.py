@@ -38,7 +38,8 @@ def sample(edgelist, directory):
     src = cudf.Series(edgelist[0])
     dst = cudf.Series(edgelist[1])
 
-    seeds = cudf.Series(np.arange(0, 50))
+    seeds_per_rank = 50
+    seeds = cudf.Series(np.arange(0, seeds_per_rank))
 
     print("constructing graph")
     G = SGGraph(
