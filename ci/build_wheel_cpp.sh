@@ -21,6 +21,7 @@ RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
 librmm_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="librmm_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact rmm 1512 cpp)
 libraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2251 cpp)
+libcugraphops_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libcugraphops_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact cugraph-ops 629 cpp)
 
 # This is the version of the suffix with a preceding hyphen. It's used
 # everywhere except in the final wheel name.
@@ -42,13 +43,13 @@ if ! rapids-is-release-build; then
     alpha_spec=',>=0.0.0a0'
 fi
 
-for dep in librmm libraft; do
+for dep in librmm libraft libcugraphops; do
     sed -r -i "s/${dep}==(.*)\"/${dep}${PACKAGE_CUDA_SUFFIX}==\1${alpha_spec}\"/g" ${pyproject_file}
 done
 
 cd "${package_dir}"
 
-SKBUILD_CMAKE_ARGS="-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/" PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse} ${libcugraphops_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # Don't repair raft into this wheel. Everything else is fair game.
 # TODO: Check if this works transitively, i.e. if raft links to something that
