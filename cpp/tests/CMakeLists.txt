@@ -414,6 +414,10 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
+###############################################################################################
+# - K-truss tests --------------------------------------------------------------------------
+ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
+
 ###################################################################################################
 # - Triangle Count tests --------------------------------------------------------------------------
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
@@ -769,7 +773,7 @@ ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_DEGREES c_api/degrees_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
-ConfigureCTest(CAPI_LEGACY_K_TRUSS_TEST c_api/legacy_k_truss_test.c)
+ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################
