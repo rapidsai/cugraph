@@ -48,7 +48,7 @@ done
 
 cd "${package_dir}"
 
-PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+SKBUILD_CMAKE_ARGS="-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/" PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse}" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # Don't repair raft into this wheel. Everything else is fair game.
 # TODO: Check if this works transitively, i.e. if raft links to something that
