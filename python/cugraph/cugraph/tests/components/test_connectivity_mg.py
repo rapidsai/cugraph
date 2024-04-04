@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,11 +15,9 @@ import gc
 
 import pytest
 
-import cudf
-import dask_cudf
 import cugraph
 import cugraph.dask as dcg
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.datasets import netscience
 
 
 # =============================================================================
@@ -31,41 +29,35 @@ def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+
+DATASETS = [netscience]
 # Directed graph is not currently supported
 IS_DIRECTED = [False, True]
 
 
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
+# =============================================================================
+# Tests
+# =============================================================================
+
+
 @pytest.mark.mg
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_mg_wcc(dask_client, directed):
+def test_dask_mg_wcc(dask_client, directed, dataset):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
+    input_data_path = dataset.get_path()
     print(f"dataset={input_data_path}")
-    chunksize = dcg.get_chunksize(input_data_path)
+    create_using = cugraph.Graph(directed=directed)
 
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
+    g = dataset.get_graph(create_using=create_using)
+    dataset.unload()
 
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g = cugraph.Graph(directed=directed)
-    g.from_cudf_edgelist(df, "src", "dst", renumber=True)
-
-    dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg = dataset.get_dask_graph(create_using=create_using)
+    dataset.unload()
 
     if not directed:
         expected_dist = cugraph.weakly_connected_components(g)
