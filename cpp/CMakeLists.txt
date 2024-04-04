@@ -355,7 +355,7 @@ target_link_libraries(cugraph
         rmm::rmm
         raft::raft
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
-        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:cugraph-ops::cugraph-ops++>>
+        $<TARGET_NAME_IF_EXISTS:cugraph-ops::cugraph-ops++>
     PRIVATE
         ${COMPILED_RAFT_LIB}
         cuco::cuco
