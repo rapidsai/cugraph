@@ -17,12 +17,14 @@ import ctypes
 import os
 
 import libraft
+import libcugraphops
 
 
 def load_library():
-    # libraft must be loaded before libcugraph since libcugraph references symbols in
-    # libraft.
+    # libraft and libcugraphops must be loaded before libcugraph since libcugraph
+    # references their symbols.
     libraft.load_library()
+    libcugraphops.load_library()
 
     # Dynamically load libcugraph.so. Prefer a system library if one is present to
     # avoid clobbering symbols that other packages might expect, but if no
