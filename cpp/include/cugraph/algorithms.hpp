@@ -2366,6 +2366,11 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+weight_t matching(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+              edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+              raft::device_span<vertex_t> partners);
 }  // namespace cugraph
 
 /**
