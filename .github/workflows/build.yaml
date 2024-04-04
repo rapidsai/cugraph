@@ -76,9 +76,6 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_pylibcugraph.sh
-      extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-24.06
-      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       node_type: cpu32
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
@@ -100,9 +97,6 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_cugraph.sh
-      extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-24.06
-      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
