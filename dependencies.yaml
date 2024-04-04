@@ -477,6 +477,7 @@ dependencies:
         packages:
           - librmm==24.6.*
           - libraft==24.6.*
+          - libcugraphops==24.6.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
