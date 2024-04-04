@@ -27,8 +27,7 @@ project(
   LANGUAGES CXX CUDA
 )
 
-# TODO: Temporarily not using cugraph-ops for wheels
-option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" OFF)
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 if(NOT USE_CUGRAPH_OPS)
     message(STATUS "Disabling libcugraph functions that reference cugraph-ops")

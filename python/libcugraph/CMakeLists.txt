@@ -25,9 +25,7 @@ project(
   LANGUAGES CXX CUDA
 )
 
-# TODO: Temporarily not using cugraph-ops for wheels while testing the new
-# libcugraph wheel approach
-option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" OFF)
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 if(NOT USE_CUGRAPH_OPS)
     message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
@@ -38,5 +36,8 @@ set(BUILD_TESTS OFF)
 set(BUILD_CUGRAPH_MG_TESTS OFF)
 set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
 set(CUDA_STATIC_RUNTIME ON)
+set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
+set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
+set(ALLOW_CLONE_CUGRAPH_OPS ON)
 
 add_subdirectory(../../cpp cugraph-cpp)
