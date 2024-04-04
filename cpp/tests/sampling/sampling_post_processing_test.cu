@@ -548,11 +548,9 @@ class Tests_SamplingPostProcessing
       std::optional<rmm::device_uvector<edge_type_t>> renumbered_and_sorted_edgelist_edge_types{
         std::nullopt};
       auto renumbered_and_sorted_edgelist_hops =
-        org_edgelist_hops
-          ? std::make_optional(std::make_tuple(
-              rmm::device_uvector<int32_t>((*org_edgelist_hops).size(), handle.get_stream()),
-              sampling_post_processing_usecase.fanouts.size()))
-          : std::nullopt;
+        org_edgelist_hops ? std::make_optional(rmm::device_uvector<int32_t>(
+                              (*org_edgelist_hops).size(), handle.get_stream()))
+                          : std::nullopt;
 
       raft::copy(renumbered_and_sorted_edgelist_srcs.data(),
                  org_edgelist_srcs.data(),
@@ -569,7 +567,7 @@ class Tests_SamplingPostProcessing
                    handle.get_stream());
       }
       if (renumbered_and_sorted_edgelist_hops) {
-        raft::copy(std::get<0>(*renumbered_and_sorted_edgelist_hops).data(),
+        raft::copy((*renumbered_and_sorted_edgelist_hops).data(),
                    (*org_edgelist_hops).data(),
                    (*org_edgelist_hops).size(),
                    handle.get_stream());
@@ -594,7 +592,7 @@ class Tests_SamplingPostProcessing
                renumbered_and_sorted_edgelist_label_hop_offsets,
                renumbered_and_sorted_renumber_map,
                renumbered_and_sorted_renumber_map_label_offsets) =
-        cugraph::renumber_and_sort_sampled_edgelist(
+        cugraph::renumber_and_sort_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
           handle,
           std::move(renumbered_and_sorted_edgelist_srcs),
           std::move(renumbered_and_sorted_edgelist_dsts),
@@ -602,12 +600,14 @@ class Tests_SamplingPostProcessing
           std::move(renumbered_and_sorted_edgelist_edge_ids),
           std::move(renumbered_and_sorted_edgelist_edge_types),
           std::move(renumbered_and_sorted_edgelist_hops),
+          std::nullopt,
+          std::nullopt,
           org_edgelist_label_offsets
-            ? std::make_optional(std::make_tuple(
-                raft::device_span<size_t const>((*org_edgelist_label_offsets).data(),
-                                                (*org_edgelist_label_offsets).size()),
-                sampling_post_processing_usecase.num_labels))
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
             : std::nullopt,
+          sampling_post_processing_usecase.num_labels,
+          sampling_post_processing_usecase.fanouts.size(),
           sampling_post_processing_usecase.src_is_major);
 
       if (cugraph::test::g_perf) {
@@ -786,11 +786,9 @@ class Tests_SamplingPostProcessing
       std::optional<rmm::device_uvector<edge_type_t>> renumbered_and_compressed_edgelist_edge_types{
         std::nullopt};
       auto renumbered_and_compressed_edgelist_hops =
-        org_edgelist_hops
-          ? std::make_optional(std::make_tuple(
-              rmm::device_uvector<int32_t>((*org_edgelist_hops).size(), handle.get_stream()),
-              sampling_post_processing_usecase.fanouts.size()))
-          : std::nullopt;
+        org_edgelist_hops ? std::make_optional(rmm::device_uvector<int32_t>(
+                              (*org_edgelist_hops).size(), handle.get_stream()))
+                          : std::nullopt;
 
       raft::copy(renumbered_and_compressed_edgelist_srcs.data(),
                  org_edgelist_srcs.data(),
@@ -807,7 +805,7 @@ class Tests_SamplingPostProcessing
                    handle.get_stream());
       }
       if (renumbered_and_compressed_edgelist_hops) {
-        raft::copy(std::get<0>(*renumbered_and_compressed_edgelist_hops).data(),
+        raft::copy((*renumbered_and_compressed_edgelist_hops).data(),
                    (*org_edgelist_hops).data(),
                    (*org_edgelist_hops).size(),
                    handle.get_stream());
@@ -838,7 +836,7 @@ class Tests_SamplingPostProcessing
                renumbered_and_compressed_offset_label_hop_offsets,
                renumbered_and_compressed_renumber_map,
                renumbered_and_compressed_renumber_map_label_offsets) =
-        cugraph::renumber_and_compress_sampled_edgelist(
+        cugraph::renumber_and_compress_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
           handle,
           std::move(renumbered_and_compressed_edgelist_srcs),
           std::move(renumbered_and_compressed_edgelist_dsts),
@@ -846,12 +844,14 @@ class Tests_SamplingPostProcessing
           std::move(renumbered_and_compressed_edgelist_edge_ids),
           std::move(renumbered_and_compressed_edgelist_edge_types),
           std::move(renumbered_and_compressed_edgelist_hops),
+          std::nullopt,
+          std::nullopt,
           org_edgelist_label_offsets
-            ? std::make_optional(std::make_tuple(
-                raft::device_span<size_t const>((*org_edgelist_label_offsets).data(),
-                                                (*org_edgelist_label_offsets).size()),
-                sampling_post_processing_usecase.num_labels))
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
             : std::nullopt,
+          sampling_post_processing_usecase.num_labels,
+          sampling_post_processing_usecase.fanouts.size(),
           sampling_post_processing_usecase.src_is_major,
           sampling_post_processing_usecase.compress_per_hop,
           sampling_post_processing_usecase.doubly_compress);
@@ -1106,12 +1106,10 @@ class Tests_SamplingPostProcessing
                                        : std::nullopt;
       std::optional<rmm::device_uvector<edge_id_t>> sorted_edgelist_edge_ids{std::nullopt};
       std::optional<rmm::device_uvector<edge_type_t>> sorted_edgelist_edge_types{std::nullopt};
-      auto sorted_edgelist_hops =
-        org_edgelist_hops
-          ? std::make_optional(std::make_tuple(
-              rmm::device_uvector<int32_t>((*org_edgelist_hops).size(), handle.get_stream()),
-              sampling_post_processing_usecase.fanouts.size()))
-          : std::nullopt;
+      auto sorted_edgelist_hops = org_edgelist_hops
+                                    ? std::make_optional(rmm::device_uvector<int32_t>(
+                                        (*org_edgelist_hops).size(), handle.get_stream()))
+                                    : std::nullopt;
 
       raft::copy(sorted_edgelist_srcs.data(),
                  org_edgelist_srcs.data(),
@@ -1128,7 +1126,7 @@ class Tests_SamplingPostProcessing
                    handle.get_stream());
       }
       if (sorted_edgelist_hops) {
-        raft::copy(std::get<0>(*sorted_edgelist_hops).data(),
+        raft::copy((*sorted_edgelist_hops).data(),
                    (*org_edgelist_hops).data(),
                    (*org_edgelist_hops).size(),
                    handle.get_stream());
@@ -1147,7 +1145,7 @@ class Tests_SamplingPostProcessing
                sorted_edgelist_edge_ids,
                sorted_edgelist_edge_types,
                sorted_edgelist_label_hop_offsets) =
-        cugraph::sort_sampled_edgelist(
+        cugraph::sort_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
           handle,
           std::move(sorted_edgelist_srcs),
           std::move(sorted_edgelist_dsts),
@@ -1156,11 +1154,11 @@ class Tests_SamplingPostProcessing
           std::move(sorted_edgelist_edge_types),
           std::move(sorted_edgelist_hops),
           org_edgelist_label_offsets
-            ? std::make_optional(std::make_tuple(
-                raft::device_span<size_t const>((*org_edgelist_label_offsets).data(),
-                                                (*org_edgelist_label_offsets).size()),
-                sampling_post_processing_usecase.num_labels))
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
             : std::nullopt,
+          sampling_post_processing_usecase.num_labels,
+          sampling_post_processing_usecase.fanouts.size(),
           sampling_post_processing_usecase.src_is_major);
 
       if (cugraph::test::g_perf) {
