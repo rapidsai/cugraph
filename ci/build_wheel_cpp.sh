@@ -56,5 +56,5 @@ PIP_FIND_LINKS="${librmm_wheelhouse} ${libraft_wheelhouse} ${libcugraphops_wheel
 # it bundles in then will cugraph try to pull that into its own libs? If so,
 # we'll need to programatically exclude raft's dependencies from cugraph's.
 mkdir -p final_dist
-python -m auditwheel repair --exclude libraft.so -w final_dist dist/*
+python -m auditwheel repair --exclude libraft.so --exclude libcugraph-ops++.so -w final_dist dist/*
 RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 cpp final_dist
