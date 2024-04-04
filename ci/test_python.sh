@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# TODO: Enable dask query planning (by default) once some bugs are fixed.
+# xref: https://github.com/rapidsai/cudf/issues/15027
+export DASK_DATAFRAME__QUERY_PLANNING=False
+
 # Support invoking test_python.sh outside the script directory
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
@@ -14,7 +18,7 @@ rapids-dependency-file-generator \
   --file_key test_python \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -141,7 +145,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
+    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
 
     # activate test_cugraph_dgl environment for dgl
     set +u
