@@ -220,13 +220,13 @@ class DistSampler:
         -------
         The starting batch offset (int).
 
-        """
-        rank = torch.distributed.get_rank()
-        world_size = torch.distributed.get_world_size()
-        
+        """   
         if self.is_multi_gpu:
+            rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+
             if assume_equal_input_size:
-                t = torch.full((world_size,), local_num_batches, dtype=torch.int64, device='cpu')
+                t = torch.full((world_size,), local_num_batches, dtype=torch.int64, device='cuda')
             else:
                 t = torch.empty((world_size,), dtype=torch.int64, device="cuda")
                 local_size = torch.tensor(
@@ -240,7 +240,7 @@ class DistSampler:
                         "This might cause your training loop to hang due to uneven inputs."
                     )
 
-                return t.cumsum(dim=0)[rank] - t[0]
+            return t.cumsum(dim=0)[rank] - t[0]
         else:
             return 0
 
@@ -273,7 +273,7 @@ class DistSampler:
         )
         
         local_num_batches = int(ceil(num_seeds / batch_size))
-        batch_id_start = self.get_batch_start_offset(local_num_batches, assume_equal_input_size=assume_equal_input_size)
+        batch_id_start = self.get_start_batch_offset(local_num_batches, assume_equal_input_size=assume_equal_input_size)
 
         for i, current_seeds in enumerate(nodes_call_groups):
             current_batches = torch.arange(
@@ -291,6 +291,7 @@ class DistSampler:
                 seeds=current_seeds,
                 batch_ids=current_batches,
                 random_state=random_state,
+                assume_equal_input_size=assume_equal_input_size
             )
             self.__writer.write_minibatches(minibatch_dict)
 
@@ -364,18 +365,18 @@ class UniformNeighborSampler(DistSampler):
 
         if assume_equal_input_size:
             num_batches = len(local_label_list) * world_size
+            label_list = torch.arange(0, num_batches, device='cuda', dtype=torch.int32)
+            w1 = None
         else:
             num_batches = torch.tensor(
                 [len(local_label_list)], device="cuda", dtype=torch.int64
             )
             torch.distributed.all_reduce(num_batches, op=torch.distributed.ReduceOp.SUM)
-
-        # Can't avoid the all gather here even with equal input size, since we don't know
-        # which labels the other ranks are using.
-        label_list = torch.empty((num_batches,), device="cuda", dtype=torch.int32)
-        w1 = torch.distributed.all_gather_into_tensor(
-            label_list, local_label_list, async_op=True
-        )
+            
+            label_list = torch.empty((num_batches,), device="cuda", dtype=torch.int32)
+            w1 = torch.distributed.all_gather_into_tensor(
+                label_list, local_label_list, async_op=True
+            )
 
         if assume_equal_input_size:
             label_to_output_comm_rank = torch.concat([
@@ -401,16 +402,16 @@ class UniformNeighborSampler(DistSampler):
                 async_op=True,
             )
 
-        w1.wait()
+        if w1 is not None:
+            w1.wait()
         if w2 is not None:
             w2.wait()
 
         return label_list, label_to_output_comm_rank
 
-
     def sample_batches(
         self, seeds: TensorType, batch_ids: TensorType, random_state: int = 0, assume_equal_input_size: bool=False
-    ):
+    ) -> Dict[str, TensorType]:
         if self.is_multi_gpu:
             rank = torch.distributed.get_rank()
 
