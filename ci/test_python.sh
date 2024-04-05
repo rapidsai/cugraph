@@ -154,8 +154,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
-      --channel pytorch-nightly \
+      --channel conda-forge \
       --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
@@ -164,8 +163,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
+      'pytorch>=2.0'
 
     rapids-print-env
 
