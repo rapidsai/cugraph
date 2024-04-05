@@ -2366,11 +2366,33 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+/*
+ * @brief Approximate Weighted Matching
+ *
+ * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
+ * such that each vertex is matched with at most one other vertex, the objective
+ * being to match as many vertices as possible or to maximise the sum of the
+ * weights of the matched edges.
+ * See
+ * https://web.archive.org/web/20081031230449id_/http://www.ii.uib.no/~fredrikm/fredrik/papers/CP75.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @param[out] partners Device span to matched vetex ids, memory needs to be pre-allocated by
+ * caller.
+ * @return Sum of the weights of the matched edges.
+ */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 weight_t matching(raft::handle_t const& handle,
-              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-              edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
-              raft::device_span<vertex_t> partners);
+                  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+                  raft::device_span<vertex_t> partners);
 }  // namespace cugraph
 
 /**
