@@ -43,13 +43,12 @@ weight_t matching(raft::handle_t const& handle,
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
   graph_view_t current_graph_view(graph_view);
 
-  // edge mask
   cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
   cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
-
   cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
   cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
 
+  // Mask out self-loop
   cugraph::transform_e(
     handle,
     current_graph_view,
@@ -57,31 +56,24 @@ weight_t matching(raft::handle_t const& handle,
     cugraph::edge_dst_dummy_property_t{}.view(),
     cugraph::edge_dummy_property_t{}.view(),
     [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
-      return !(src == dst);  // mask out self-loop
+      return !(src == dst);
     },
     edge_masks_even.mutable_view());
 
   current_graph_view.attach_edge_mask(edge_masks_even.view());
 
-  // 2. initialize distances and predecessors
-
-  auto constexpr invalid_distance = weight_t{0.0};
-  auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
-
+  auto constexpr invalid_partner = invalid_vertex_id<vertex_t>::value;
   rmm::device_uvector<weight_t> offers_from_partners(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-  thrust::fill(handle.get_thrust_policy(), partners.begin(), partners.end(), invalid_vertex);
+  thrust::fill(handle.get_thrust_policy(), partners.begin(), partners.end(), invalid_partner);
   thrust::fill(handle.get_thrust_policy(),
                offers_from_partners.begin(),
                offers_from_partners.end(),
                weight_t{0.0});
 
   edge_src_property_t<graph_view_t, vertex_t> src_key_cache(handle);
-
   rmm::device_uvector<vertex_t> local_vertices(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
   detail::sequence_fill(handle.get_stream(),
                         local_vertices.begin(),
                         local_vertices.size(),
@@ -115,7 +107,7 @@ weight_t matching(raft::handle_t const& handle,
         [] __device__(auto, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto wt) {
           return thrust::make_tuple(wt, dst);
         },
-        thrust::make_tuple(invalid_distance, invalid_vertex),
+        thrust::make_tuple(weight_t{0.0}, invalid_partner),
         reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>{},
         true);
 
@@ -302,7 +294,7 @@ weight_t matching(raft::handle_t const& handle,
         auto candiate               = thrust::get<2>(msrc_tgt);
         auto offer_value            = thrust::get<3>(msrc_tgt);
 
-        if (candidate_of_candidate != invalid_vertex && candidate_of_candidate == tgt) {
+        if (candidate_of_candidate != invalid_partner && candidate_of_candidate == tgt) {
           auto tgt_offset                  = tgt - v_first;
           is_vertex_matched[tgt_offset]    = flag_t{true};
           partners[tgt_offset]             = candiate;
