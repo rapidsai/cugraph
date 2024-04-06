@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,31 +14,23 @@
 import pytest
 
 from cugraph_pyg.nn import HeteroGATConv as CuGraphHeteroGATConv
-from cugraph.utilities.utils import import_optional, MissingModule
-
-torch = import_optional("torch")
-torch_geometric = import_optional("torch_geometric")
+from cugraph_pyg.utils.imports import package_available
 
 ATOL = 1e-6
 
 
 @pytest.mark.cugraph_ops
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(
-    isinstance(torch_geometric, MissingModule), reason="torch_geometric not available"
+    package_available("torch_geometric<2.4"), reason="Test requires pyg>=2.4"
 )
 @pytest.mark.parametrize("heads", [1, 3, 10])
 @pytest.mark.parametrize("aggr", ["sum", "mean"])
 def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
-    major, minor, patch = torch_geometric.__version__.split(".")[:3]
-    pyg_version = tuple(map(int, [major, minor, patch]))
-    if pyg_version < (2, 4, 0):
-        pytest.skip("Skipping HeteroGATConv test")
-
+    import torch
     from torch_geometric.data import HeteroData
     from torch_geometric.nn import HeteroConv, GATConv
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
     data = HeteroData(sample_pyg_hetero_data).to(device)
 
     in_channels_dict = {k: v.size(1) for k, v in data.x_dict.items()}
@@ -73,9 +65,15 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     with torch.no_grad():
         for edge_type in conv2.edge_types:
             src_t, _, dst_t = edge_type
-            w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
-            if w_dst[edge_type] is not None:
-                w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
+            if src_t == dst_t:
+                w_src[edge_type][:, :] = conv1.convs[edge_type].lin.weight[:, :]
+            else:
+                w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
+                if w_dst[edge_type] is not None:
+                    w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
+            # w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
+            # if w_dst[edge_type] is not None:
+            #     w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
 
             conv2.attn_weights[edge_type][: heads * out_channels] = conv1.convs[
                 edge_type
@@ -118,7 +116,11 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     for node_t, (rels_as_src, rels_as_dst) in conv2.relations_per_ntype.items():
         grad_list = []
         for rel_t in rels_as_src:
-            grad_list.append(conv1.convs[rel_t].lin_src.weight.grad.clone())
+            src_type, _, dst_type = rel_t
+            if src_type == dst_type:
+                grad_list.append(conv1.convs[rel_t].lin.weight.grad.clone())
+            else:
+                grad_list.append(conv1.convs[rel_t].lin_src.weight.grad.clone())
         for rel_t in rels_as_dst:
             grad_list.append(conv1.convs[rel_t].lin_dst.weight.grad.clone())
         assert len(grad_list) > 0

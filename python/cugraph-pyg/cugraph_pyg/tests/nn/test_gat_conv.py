@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,10 +14,14 @@
 import pytest
 
 from cugraph_pyg.nn import GATConv as CuGraphGATConv
+from cugraph_pyg.utils.imports import package_available
 
 ATOL = 1e-6
 
 
+@pytest.mark.skipif(
+    package_available("torch_geometric<2.5"), reason="Test requires pyg>=2.5"
+)
 @pytest.mark.parametrize("bias", [True, False])
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
@@ -28,7 +32,6 @@ ATOL = 1e-6
 def test_gat_conv_equality(
     bias, bipartite, concat, heads, max_num_neighbors, use_edge_attr, graph, request
 ):
-    pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
     from torch_geometric.nn import GATConv
 
@@ -71,7 +74,7 @@ def test_gat_conv_equality(
             conv2.lin_src.weight.data = conv1.lin_src.weight.data.detach().clone()
             conv2.lin_dst.weight.data = conv1.lin_dst.weight.data.detach().clone()
         else:
-            conv2.lin.weight.data = conv1.lin_src.weight.data.detach().clone()
+            conv2.lin.weight.data = conv1.lin.weight.data.detach().clone()
 
         conv2.att.data[:out_dim] = conv1.att_src.data.flatten()
         conv2.att.data[out_dim : 2 * out_dim] = conv1.att_dst.data.flatten()
@@ -95,9 +98,7 @@ def test_gat_conv_equality(
             conv1.lin_dst.weight.grad, conv2.lin_dst.weight.grad, atol=ATOL
         )
     else:
-        assert torch.allclose(
-            conv1.lin_src.weight.grad, conv2.lin.weight.grad, atol=ATOL
-        )
+        assert torch.allclose(conv1.lin.weight.grad, conv2.lin.weight.grad, atol=ATOL)
 
     assert torch.allclose(
         conv1.att_src.grad.flatten(), conv2.att.grad[:out_dim], atol=ATOL
