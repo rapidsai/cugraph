@@ -41,7 +41,6 @@ jobs:
     with:
       enable_check_generated_files: false
   conda-cpp-build:
-    needs: checks
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@use-new-runners
     with:
@@ -94,7 +93,6 @@ jobs:
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/build_docs.sh"
   wheel-build-pylibcugraph:
-    needs: checks
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@use-new-runners
     with:
