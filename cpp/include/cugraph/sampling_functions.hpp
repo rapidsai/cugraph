@@ -38,9 +38,12 @@ namespace cugraph {
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
- * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
+ * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs. If
+ * @p seed_vertices.has-value() is true, we assume (hop=0, flag=major) for every vertex in @p
+ * *seed_vertices in renumbering (this is relevant when there are seed vertices with no neighbors).
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
- * appear only in edge minors.
+ * appear only in edge minors. If @p seed_vertices.has_value() is true, vertices in @p
+ * *seed_vertices precede vertex IDs that appear only in edge minors as well.
  * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
  * renumbered separately.
  *
@@ -160,9 +163,12 @@ renumber_and_compress_sampled_edgelist(
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
- * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
+ * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs. If
+ * @p seed_vertices.has-value() is true, we assume (hop=0, flag=major) for every vertex in @p
+ * *seed_vertices in renumbering (this is relevant when there are seed vertices with no neighbors).
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
- * appear only in edge minors.
+ * appear only in edge minors. If @p seed_vertices.has_value() is true, vertices in @p
+ * *seed_vertices precede vertex IDs that appear only in edge minors as well.
  * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
  * renumbered separately.
  *
