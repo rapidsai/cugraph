@@ -59,7 +59,6 @@ struct edge_order_t {
   __device__ bool operator()(size_t l_idx, size_t r_idx) const
   {
     if (edgelist_label_offsets) {
-      // FIXME: (*edgelist_label_offsets)[0] == always 0???
       auto l_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
                                       thrust::upper_bound(thrust::seq,
                                                           (*edgelist_label_offsets).begin() + 1,
@@ -92,7 +91,7 @@ struct edge_order_t {
 };
 
 template <typename vertex_t>
-struct is_first_in_run_t {
+struct is_first_triplet_in_run_t {
   thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
   thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
   raft::device_span<vertex_t const> edgelist_majors{};
@@ -885,7 +884,7 @@ compute_renumber_map(raft::handle_t const& handle,
       handle,
       edgelist_minors,
       edgelist_hops,
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+      std::nullopt,
       std::nullopt,
       edgelist_label_offsets);
 
@@ -1540,6 +1539,7 @@ renumber_and_compress_sampled_edgelist(
       auto output_key_first =
         thrust::make_zip_iterator(unique_key_label_indices.begin(), unique_key_hops.begin());
 
+      // FIXME: should I consider seed_vertices in computing min,max?
       auto output_it =
         thrust::reduce_by_key(handle.get_thrust_policy(),
                               input_key_first,
@@ -1581,7 +1581,7 @@ renumber_and_compress_sampled_edgelist(
         CUGRAPH_EXPECTS(num_invalids == 0,
                         "Invalid input arguments: if @p compress_per_hop is false and @p "
                         "edgelist_hops.has_value() is true, the minimum majors with hop N + 1 "
-                        "should be larger than the maximum majors with hop N after renumbering.");
+                        "should be larger than the maximum majors with hop N after renumbering.");  // FIXME: re-phrase to input requirements?
       }
     }
   }
@@ -1593,7 +1593,7 @@ renumber_and_compress_sampled_edgelist(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator(size_t{0}),
     thrust::make_counting_iterator(edgelist_majors.size()),
-    is_first_in_run_t<vertex_t>{
+    is_first_triplet_in_run_t<vertex_t>{
       detail::to_thrust_optional(edgelist_label_offsets),
       edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
                         (*edgelist_hops).data(), (*edgelist_hops).size())

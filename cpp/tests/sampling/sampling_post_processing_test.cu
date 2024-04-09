@@ -47,6 +47,7 @@ struct SamplingPostProcessing_Usecase {
   bool sample_with_replacement{false};
 
   bool src_is_major{true};
+  bool renumber_with_seeds{false};
   bool compress_per_hop{false};
   bool doubly_compress{false};
   bool check_correctness{true};
@@ -175,6 +176,7 @@ bool compare_edgelist(raft::handle_t const& handle,
 template <typename vertex_t>
 bool check_renumber_map_invariants(
   raft::handle_t const& handle,
+  std::optional<raft::device_span<vertex_t const>> starting_vertices,
   raft::device_span<vertex_t const> org_edgelist_srcs,
   raft::device_span<vertex_t const> org_edgelist_dsts,
   std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
@@ -193,6 +195,15 @@ bool check_renumber_map_invariants(
                org_edgelist_majors.begin(),
                org_edgelist_majors.end(),
                unique_majors.begin());
+  if (starting_vertices) {
+    auto old_size = unique_majors.size();
+    unique_majors.resize(old_size + (*starting_vertices).size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*starting_vertices).begin(),
+                 (*starting_vertices).end(),
+                 unique_majors.begin() + old_size);
+  }
+
   std::optional<rmm::device_uvector<int32_t>> unique_major_hops =
     org_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
                           (*org_edgelist_hops).size(), handle.get_stream())
@@ -202,6 +213,14 @@ bool check_renumber_map_invariants(
                  (*org_edgelist_hops).begin(),
                  (*org_edgelist_hops).end(),
                  (*unique_major_hops).begin());
+    if (starting_vertices) {
+      auto old_size = (*unique_major_hops).size();
+      (*unique_major_hops).resize(old_size + (*starting_vertices).size(), handle.get_stream());
+      thrust::fill(handle.get_thrust_policy(),
+                   (*unique_major_hops).begin() + old_size,
+                   (*unique_major_hops).end(),
+                   int32_t{0});
+    }
 
     auto pair_first =
       thrust::make_zip_iterator(unique_majors.begin(), (*unique_major_hops).begin());
@@ -476,6 +495,11 @@ class Tests_SamplingPostProcessing
                                     ? std::make_optional<rmm::device_uvector<label_t>>(
                                         starting_vertices.size(), handle.get_stream())
                                     : std::nullopt;
+    auto starting_vertex_label_offsets =
+      (sampling_post_processing_usecase.num_labels > 1)
+        ? std::make_optional<rmm::device_uvector<size_t>>(
+            sampling_post_processing_usecase.num_labels + 1, handle.get_stream())
+        : std::nullopt;
     if (starting_vertex_labels) {
       thrust::tabulate(
         handle.get_thrust_policy(),
@@ -483,6 +507,12 @@ class Tests_SamplingPostProcessing
         (*starting_vertex_labels).end(),
         [num_seeds_per_label = sampling_post_processing_usecase.num_seeds_per_label] __device__(
           size_t i) { return static_cast<label_t>(i / num_seeds_per_label); });
+      thrust::tabulate(
+        handle.get_thrust_policy(),
+        (*starting_vertex_label_offsets).begin(),
+        (*starting_vertex_label_offsets).end(),
+        [num_seeds_per_label = sampling_post_processing_usecase.num_seeds_per_label] __device__(
+          size_t i) { return num_seeds_per_label * i; });
     }
 
     rmm::device_uvector<vertex_t> org_edgelist_srcs(0, handle.get_stream());
@@ -529,10 +559,6 @@ class Tests_SamplingPostProcessing
     if (!sampling_post_processing_usecase.src_is_major) {
       std::swap(org_edgelist_srcs, org_edgelist_dsts);
     }
-
-    starting_vertices.resize(0, handle.get_stream());
-    starting_vertices.shrink_to_fit(handle.get_stream());
-    starting_vertex_labels = std::nullopt;
 
     {
       rmm::device_uvector<vertex_t> renumbered_and_sorted_edgelist_srcs(org_edgelist_srcs.size(),
@@ -600,8 +626,14 @@ class Tests_SamplingPostProcessing
           std::move(renumbered_and_sorted_edgelist_edge_ids),
           std::move(renumbered_and_sorted_edgelist_edge_types),
           std::move(renumbered_and_sorted_edgelist_hops),
-          std::nullopt,
-          std::nullopt,
+          sampling_post_processing_usecase.renumber_with_seeds
+            ? std::make_optional<raft::device_span<vertex_t const>>(starting_vertices.data(),
+                                                                    starting_vertices.size())
+            : std::nullopt,
+          (sampling_post_processing_usecase.renumber_with_seeds && starting_vertex_label_offsets)
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*starting_vertex_label_offsets).data(), (*starting_vertex_label_offsets).size())
+            : std::nullopt,
           org_edgelist_label_offsets
             ? std::make_optional(raft::device_span<size_t const>(
                 (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
@@ -658,6 +690,15 @@ class Tests_SamplingPostProcessing
         }
 
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
+          size_t starting_vertex_start_offset =
+            starting_vertex_label_offsets
+              ? (*starting_vertex_label_offsets).element(i, handle.get_stream())
+              : size_t{0};
+          size_t starting_vertex_end_offset =
+            starting_vertex_label_offsets
+              ? (*starting_vertex_label_offsets).element(i + 1, handle.get_stream())
+              : starting_vertices.size();
+
           size_t edgelist_start_offset =
             org_edgelist_label_offsets
               ? (*org_edgelist_label_offsets).element(i, handle.get_stream())
@@ -667,6 +708,10 @@ class Tests_SamplingPostProcessing
               ? (*org_edgelist_label_offsets).element(i + 1, handle.get_stream())
               : org_edgelist_srcs.size();
           if (edgelist_start_offset == edgelist_end_offset) continue;
+
+          auto this_label_starting_vertices = raft::device_span<vertex_t const>(
+            starting_vertices.data() + starting_vertex_start_offset,
+            starting_vertex_end_offset - starting_vertex_start_offset);
 
           auto this_label_org_edgelist_srcs =
             raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
@@ -761,12 +806,17 @@ class Tests_SamplingPostProcessing
 
           // Check the invariants in renumber_map
 
-          ASSERT_TRUE(check_renumber_map_invariants(handle,
-                                                    this_label_org_edgelist_srcs,
-                                                    this_label_org_edgelist_dsts,
-                                                    this_label_org_edgelist_hops,
-                                                    this_label_output_renumber_map,
-                                                    sampling_post_processing_usecase.src_is_major))
+          ASSERT_TRUE(check_renumber_map_invariants(
+            handle,
+            sampling_post_processing_usecase.renumber_with_seeds
+              ? std::make_optional<raft::device_span<vertex_t const>>(
+                  this_label_starting_vertices.data(), this_label_starting_vertices.size())
+              : std::nullopt,
+            this_label_org_edgelist_srcs,
+            this_label_org_edgelist_dsts,
+            this_label_org_edgelist_hops,
+            this_label_output_renumber_map,
+            sampling_post_processing_usecase.src_is_major))
             << "Renumbered and sorted output renumber map violates invariants.";
         }
       }
@@ -844,8 +894,14 @@ class Tests_SamplingPostProcessing
           std::move(renumbered_and_compressed_edgelist_edge_ids),
           std::move(renumbered_and_compressed_edgelist_edge_types),
           std::move(renumbered_and_compressed_edgelist_hops),
-          std::nullopt,
-          std::nullopt,
+          sampling_post_processing_usecase.renumber_with_seeds
+            ? std::make_optional<raft::device_span<vertex_t const>>(starting_vertices.data(),
+                                                                    starting_vertices.size())
+            : std::nullopt,
+          (sampling_post_processing_usecase.renumber_with_seeds && starting_vertex_label_offsets)
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*starting_vertex_label_offsets).data(), (*starting_vertex_label_offsets).size())
+            : std::nullopt,
           org_edgelist_label_offsets
             ? std::make_optional(raft::device_span<size_t const>(
                 (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
@@ -926,6 +982,15 @@ class Tests_SamplingPostProcessing
         }
 
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
+          size_t starting_vertex_start_offset =
+            starting_vertex_label_offsets
+              ? (*starting_vertex_label_offsets).element(i, handle.get_stream())
+              : size_t{0};
+          size_t starting_vertex_end_offset =
+            starting_vertex_label_offsets
+              ? (*starting_vertex_label_offsets).element(i + 1, handle.get_stream())
+              : starting_vertices.size();
+
           size_t edgelist_start_offset =
             org_edgelist_label_offsets
               ? (*org_edgelist_label_offsets).element(i, handle.get_stream())
@@ -935,6 +1000,10 @@ class Tests_SamplingPostProcessing
               ? (*org_edgelist_label_offsets).element(i + 1, handle.get_stream())
               : org_edgelist_srcs.size();
           if (edgelist_start_offset == edgelist_end_offset) continue;
+
+          auto this_label_starting_vertices = raft::device_span<vertex_t const>(
+            starting_vertices.data() + starting_vertex_start_offset,
+            starting_vertex_end_offset - starting_vertex_start_offset);
 
           auto this_label_org_edgelist_srcs =
             raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
@@ -1084,12 +1153,17 @@ class Tests_SamplingPostProcessing
 
           // Check the invariants in renumber_map
 
-          ASSERT_TRUE(check_renumber_map_invariants(handle,
-                                                    this_label_org_edgelist_srcs,
-                                                    this_label_org_edgelist_dsts,
-                                                    this_label_org_edgelist_hops,
-                                                    this_label_output_renumber_map,
-                                                    sampling_post_processing_usecase.src_is_major))
+          ASSERT_TRUE(check_renumber_map_invariants(
+            handle,
+            sampling_post_processing_usecase.renumber_with_seeds
+              ? std::make_optional<raft::device_span<vertex_t const>>(
+                  this_label_starting_vertices.data(), this_label_starting_vertices.size())
+              : std::nullopt,
+            this_label_org_edgelist_srcs,
+            this_label_org_edgelist_dsts,
+            this_label_org_edgelist_hops,
+            this_label_output_renumber_map,
+            sampling_post_processing_usecase.src_is_major))
             << "Renumbered and sorted output renumber map violates invariants.";
         }
       }
@@ -1311,47 +1385,86 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, true, true},
-      SamplingPostProcessing_Usecase{1, 4, {5, 10, 25}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, false, false},
       SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, true}),
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -1361,46 +1474,86 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, false, true, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, false, false, true, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, false, true, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, true, false, true, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, false, true, true, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, false, false, true, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, false, true, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, true, false, true, true},
-      SamplingPostProcessing_Usecase{1, 16, {5, 10, 15}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {10}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, false, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, false, true, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, false, true, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{1, 16, {5, 10, 25}, true, true, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, false, true, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, false, false},
       SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, false, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, false, true, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, true, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, false, true, true, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, false, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, false, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, false, true, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, true, false, false, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, true, false, true, true},
-      SamplingPostProcessing_Usecase{32, 16, {5, 10, 15}, true, true, true, false, true}),
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {10}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, false, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, false, true, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, false, true, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, false, true},
+      SamplingPostProcessing_Usecase{32, 16, {5, 10, 25}, true, true, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1409,46 +1562,87 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(
-      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, true, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, true, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, true, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, false, false, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, false, true, false},
-      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, true, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, true, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, true, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, true, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, false, false, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, false, true, false},
-      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, true, false, false}),
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, false, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {10}, true, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, false, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{1, 64, {5, 10, 15}, true, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, false, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {10}, true, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{
+        256, 64, {5, 10, 15}, false, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, false, true, true, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, false, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, false, true, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, false, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, false, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, false, true, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, true, false, false, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, true, false, true, false},
+      SamplingPostProcessing_Usecase{256, 64, {5, 10, 15}, true, true, true, true, false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
