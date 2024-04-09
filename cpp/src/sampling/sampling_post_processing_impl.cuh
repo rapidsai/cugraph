@@ -881,12 +881,7 @@ compute_renumber_map(raft::handle_t const& handle,
         unique_label_minor_pair_hops,
         unique_label_minor_pair_label_offsets] =
     compute_min_hop_for_unique_label_vertex_pairs<vertex_t, label_index_t>(
-      handle,
-      edgelist_minors,
-      edgelist_hops,
-      std::nullopt,
-      std::nullopt,
-      edgelist_label_offsets);
+      handle, edgelist_minors, edgelist_hops, std::nullopt, std::nullopt, edgelist_label_offsets);
 
   if (edgelist_label_offsets) {
     auto num_labels = (*edgelist_label_offsets).size() - 1;
@@ -1578,10 +1573,14 @@ renumber_and_compress_sampled_edgelist(
               return false;
             }
           });
-        CUGRAPH_EXPECTS(num_invalids == 0,
-                        "Invalid input arguments: if @p compress_per_hop is false and @p "
-                        "edgelist_hops.has_value() is true, the minimum majors with hop N + 1 "
-                        "should be larger than the maximum majors with hop N after renumbering.");  // FIXME: re-phrase to input requirements?
+        CUGRAPH_EXPECTS(
+          num_invalids == 0,
+          "Invalid input arguments: if @p compress_per_hop is false and @p "
+          "edgelist_hops.has_value() is true, the minimum majors with hop N + 1 "
+          "should be larger than the maximum majors with hop N after renumbering.");  // FIXME:
+                                                                                      // re-phrase
+                                                                                      // to input
+                                                                                      // requirements?
       }
     }
   }
