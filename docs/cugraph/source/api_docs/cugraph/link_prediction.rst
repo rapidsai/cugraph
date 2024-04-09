@@ -22,7 +22,6 @@ Overlap Coefficient
    cugraph.overlap_coefficient
 
 
-
 Sorensen Coefficient
 --------------------
 .. autosummary::
@@ -30,4 +29,3 @@ Sorensen Coefficient
 
    cugraph.sorensen
    cugraph.sorensen_coefficient
-
