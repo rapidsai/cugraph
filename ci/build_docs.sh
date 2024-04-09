@@ -23,6 +23,7 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel conda-forge \
   libcugraph \
   pylibcugraph \
   cugraph \
@@ -31,7 +32,8 @@ rapids-mamba-retry install \
   cugraph-service-client \
   libcugraph_etl \
   pylibcugraphops \
-  pylibwholegraph
+  pylibwholegraph \
+  "pytorch>=2.0"
 
 # This command installs `cugraph-dgl` without its dependencies
 # since this package can currently only run in `11.6` CTK environments
