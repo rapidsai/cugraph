@@ -28,19 +28,14 @@ rapids-mamba-retry install \
   pylibcugraph \
   cugraph \
   cugraph-pyg \
+  cugraph-dgl \
   cugraph-service-server \
   cugraph-service-client \
   libcugraph_etl \
   pylibcugraphops \
   pylibwholegraph \
   "pytorch>=2.0"
-
-# This command installs `cugraph-dgl` without its dependencies
-# since this package can currently only run in `11.6` CTK environments
-# due to the dependency version specifications in its conda recipe.
-rapids-logger "Install cugraph-dgl"
-rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
-
+  
 export RAPIDS_VERSION="$(rapids-version)"
 export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
 export RAPIDS_VERSION_NUMBER="$RAPIDS_VERSION_MAJOR_MINOR"
