@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2017-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #ifndef HASH_ALLOCATOR_CUH
 #define HASH_ALLOCATOR_CUH
 
+#include <rmm/resource_ref.hpp>
 #include <new>
 
 #include <rmm/cuda_stream_view.hpp>
@@ -27,7 +28,7 @@
 template <class T>
 struct managed_allocator {
   typedef T value_type;
-  rmm::mr::device_memory_resource* mr = new rmm::mr::managed_memory_resource;
+  rmm::device_async_resource_ref mr = new rmm::mr::managed_memory_resource;
 
   managed_allocator() = default;
 
@@ -63,7 +64,7 @@ bool operator!=(const managed_allocator<T>&, const managed_allocator<U>&)
 template <class T>
 struct default_allocator {
   typedef T value_type;
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource();
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource();
 
   default_allocator() = default;
 
