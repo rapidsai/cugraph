@@ -240,7 +240,7 @@ class DistSampler:
                         "This might cause your training loop to hang due to uneven inputs."
                     )
 
-            return t.cumsum(dim=0)[rank] - t[0]
+            return 0 if rank == 0 else t.cumsum(dim=0)[rank - 1]
         else:
             return 0
 
@@ -366,19 +366,7 @@ class UniformNeighborSampler(DistSampler):
         if assume_equal_input_size:
             num_batches = len(local_label_list) * world_size
             label_list = torch.arange(0, num_batches, device='cuda', dtype=torch.int32)
-            w1 = None
-        else:
-            num_batches = torch.tensor(
-                [len(local_label_list)], device="cuda", dtype=torch.int64
-            )
-            torch.distributed.all_reduce(num_batches, op=torch.distributed.ReduceOp.SUM)
             
-            label_list = torch.empty((num_batches,), device="cuda", dtype=torch.int32)
-            w1 = torch.distributed.all_gather_into_tensor(
-                label_list, local_label_list, async_op=True
-            )
-
-        if assume_equal_input_size:
             label_to_output_comm_rank = torch.concat([
                 torch.full(
                     (len(local_label_list),),
@@ -388,24 +376,21 @@ class UniformNeighborSampler(DistSampler):
                 )
                 for r in range(world_size)
             ])
-            w2 = None
         else:
-            local_label_to_output_comm_rank = torch.full(
-                (len(local_label_list),), rank, dtype=torch.int32, device="cuda"
+            num_batches = torch.tensor(
+                [len(local_label_list)], device="cuda", dtype=torch.int64
             )
-            label_to_output_comm_rank = torch.empty(
-                (num_batches,), device="cuda", dtype=torch.int32
-            )
-            w2 = torch.distributed.all_gather_into_tensor(
-                label_to_output_comm_rank,
-                local_label_to_output_comm_rank,
-                async_op=True,
-            )
+            num_batches_all_ranks = torch.empty((world_size,), device='cuda', dtype=torch.int64)
+            torch.distributed.all_gather_into_tensor(num_batches_all_ranks, num_batches)
+            
+            label_list = torch.arange(0, num_batches_all_ranks.sum(), device='cuda', dtype=torch.int32)
 
-        if w1 is not None:
-            w1.wait()
-        if w2 is not None:
-            w2.wait()
+            label_to_output_comm_rank = torch.concat([
+                torch.full(
+                    (num_batches_r,), r, device="cuda", dtype=torch.int32
+                )
+                for r, num_batches_r in enumerate(num_batches_all_ranks)
+            ])
 
         return label_list, label_to_output_comm_rank
 

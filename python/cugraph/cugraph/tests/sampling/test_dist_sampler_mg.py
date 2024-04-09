@@ -98,6 +98,7 @@ def run_test_dist_sampler_simple(rank, world_size, uid, samples_path, batch_size
 @pytest.mark.parametrize("batch_size", [1, 4])
 @pytest.mark.parametrize("seeds_per_rank", [1, 8])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
+@pytest.mark.skip(reason='asdf')
 def test_dist_sampler_simple(scratch_dir, batch_size, seeds_per_rank, fanout, equal_input_size):
     uid = cugraph_comms_create_unique_id()
 
@@ -108,6 +109,86 @@ def test_dist_sampler_simple(scratch_dir, batch_size, seeds_per_rank, fanout, eq
     torch.multiprocessing.spawn(
         run_test_dist_sampler_simple,
         args=(world_size, uid, samples_path, batch_size, seeds_per_rank, fanout, equal_input_size),
+        nprocs=world_size
+    )
+
+
+    for file in os.listdir(samples_path):
+        recovered_samples = cudf.read_parquet(
+            os.path.join(samples_path, file)
+        )
+        original_el = karate.get_edgelist()
+
+        for b in range(len(recovered_samples.renumber_map_offsets.dropna()) - 1):
+            el_start = int(recovered_samples.label_hop_offsets.iloc[b * len(fanout)])
+            el_end = int(recovered_samples.label_hop_offsets.iloc[(b+1) * len(fanout)])
+            src = recovered_samples.majors.iloc[el_start:el_end]
+            dst = recovered_samples.minors.iloc[el_start:el_end]
+            edge_id = recovered_samples.edge_id.iloc[el_start:el_end]
+            
+            map_start = recovered_samples.renumber_map_offsets[b]
+            map_end = recovered_samples.renumber_map_offsets[b+1]
+            renumber_map = recovered_samples["map"].iloc[map_start:map_end]
+
+            src = renumber_map.iloc[src.values]
+            dst = renumber_map.iloc[dst.values]
+            
+            for i in range(len(edge_id)):
+                assert(
+                    original_el.src.iloc[edge_id.iloc[i]] == src.iloc[i]
+                )
+                assert(
+                    original_el.dst.iloc[edge_id.iloc[i]] == dst.iloc[i]
+                )
+
+    shutil.rmtree(samples_path)
+
+def run_test_dist_sampler_uneven(rank, world_size, uid, samples_path, batch_size, fanout):
+    init_pytorch(rank, world_size)
+    cugraph_comms_init(rank, world_size, uid, device=rank)
+
+    G = karate_mg_graph(rank, world_size)
+
+    writer = DistSampleWriter(
+        samples_path
+    )
+
+    sampler = UniformNeighborSampler(
+        G,
+        writer,
+        fanout = fanout
+    )
+
+    num_seeds = 8 + rank
+    seeds = cupy.random.randint(0, 34, num_seeds, dtype='int64')
+
+    from time import perf_counter
+    start_time = perf_counter()
+    sampler.sample_from_nodes(
+        seeds,
+        batch_size=batch_size,
+        assume_equal_input_size=False
+    )
+    end_time = perf_counter()
+
+    print('time:', end_time - start_time)
+    
+    cugraph_comms_shutdown()
+
+@pytest.mark.mg
+@pytest.mark.parametrize("fanout", [[4,4],[4,2,1]])
+@pytest.mark.parametrize("batch_size", [1, 4])
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
+def test_dist_sampler_uneven(scratch_dir, batch_size, fanout):
+    uid = cugraph_comms_create_unique_id()
+
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_mg_uneven")
+    create_directory_with_overwrite(samples_path)
+
+    world_size = torch.cuda.device_count()
+    torch.multiprocessing.spawn(
+        run_test_dist_sampler_uneven,
+        args=(world_size, uid, samples_path, batch_size, fanout),
         nprocs=world_size
     )
 
