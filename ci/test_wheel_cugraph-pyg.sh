@@ -49,7 +49,7 @@ python -m pytest \
   --ignore=tests/mg \
   tests
 # Test examples
-for e in "$(pwd)"/examples/*; do
+for e in "$(pwd)"/examples/*.py; do
   rapids-logger "running example $e"
   python $e
 done

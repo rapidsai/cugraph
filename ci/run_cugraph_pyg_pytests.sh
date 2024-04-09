@@ -9,7 +9,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../python/cugraph-pyg/cugraph_
 pytest --cache-clear --ignore=tests/mg "$@" .
 
 # Test examples
-for e in "$(pwd)"/examples/*; do
+for e in "$(pwd)"/examples/*.py; do
   rapids-logger "running example $e"
   python $e
 done
