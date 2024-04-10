@@ -163,8 +163,6 @@ class Tests_WeightSum
       auto threshold_ratio     = weight_t{2.0 * 1e-4};
       auto threshold_magnitude = std::numeric_limits<weight_t>::min();
       auto nearly_equal        = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-        auto ret =
-          std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
 #if 1  // FIXME: for CI error debugging
         auto ret =
           std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
