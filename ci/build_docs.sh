@@ -20,10 +20,16 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  CONDA_CUDA_VERSION="11.8"
+else
+  CONDA_CUDA_VERSION="12.1"
+fi
+
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  --channel pytorch \
+  --channel conda-forge \
   libcugraph \
   pylibcugraph \
   cugraph \
@@ -33,7 +39,9 @@ rapids-mamba-retry install \
   cugraph-service-client \
   libcugraph_etl \
   pylibcugraphops \
-  pylibwholegraph
+  pylibwholegraph \
+  pytorch \
+  "cuda-version=${CONDA_CUDA_VERSION}"
 
 export RAPIDS_VERSION="$(rapids-version)"
 export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"

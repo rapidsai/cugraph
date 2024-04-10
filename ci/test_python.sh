@@ -154,7 +154,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
+      --channel conda-forge \
       --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
@@ -163,7 +163,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0'
+      'pytorch>=2.0' \
+      'cuda-version=11.8'
 
     rapids-print-env
 
@@ -195,16 +196,23 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
   conda activate test_cugraph_pyg
   set -u
 
+  if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+    CONDA_CUDA_VERSION="11.8"
+  else
+    CONDA_CUDA_VERSION="12.1"
+  fi
+
   # Will automatically install built dependencies of cuGraph-PyG
   rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
     --channel "${PYTHON_CHANNEL}" \
-    --channel pytorch \
+    --channel conda-forge \
     --channel nvidia \
     --channel pyg \
     --channel rapidsai-nightly \
     "cugraph-pyg" \
-    "pytorch>=2.0,<2.1"
+    "pytorch>=2.0,<2.1" \
+    "cuda-version=${CONDA_CUDA_VERSION}"
 
   # Install pyg dependencies (which requires pip)
   pip install \
