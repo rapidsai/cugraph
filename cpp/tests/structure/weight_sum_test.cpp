@@ -165,8 +165,19 @@ class Tests_WeightSum
       auto nearly_equal        = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         auto ret =
           std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+#if 1  // FIXME: for CI error debugging
+        auto ret =
+          std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+        if (ret == false) {
+          std::cout << "lhs=" << lhs << " rhs=" << rhs << " abs(lhs-rhs)=" << std::abs(lhs - rhs)
+                    << " threshold_ratio=" << threshold_ratio
+                    << " threshold_magnitude=" << threshold_magnitude << std::endl;
+        }
+        return ret;
+#else
         return std::abs(lhs - rhs) <
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+#endif
       };
 
       ASSERT_TRUE(std::equal(h_reference_in_weight_sums.begin(),
