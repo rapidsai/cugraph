@@ -272,7 +272,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               offsets ? std::make_optional(
                           raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
-              edge_label->size(),
+              edge_label ? edge_label->size() : size_t{1},
               fan_out_->size_,
               src_is_major,
               do_expensive_check_);
@@ -309,7 +309,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               offsets ? std::make_optional(
                           raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
-              edge_label->size(),
+              edge_label ? edge_label->size() : size_t{1},
               fan_out_->size_,
               src_is_major,
               options_.compress_per_hop_,
@@ -340,7 +340,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                            ? std::make_optional(raft::device_span<size_t const>{
                                                offsets->data(), offsets->size()})
                                            : std::nullopt,
-                                         edge_label->size(),
+                                         edge_label ? edge_label->size() : size_t{1},
                                          fan_out_->size_,
                                          src_is_major,
                                          do_expensive_check_);
