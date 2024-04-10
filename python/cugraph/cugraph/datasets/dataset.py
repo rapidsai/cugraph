@@ -161,7 +161,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, reader="cudf", overwrite=False):
+    def get_edgelist(self, download=False, reader="cudf"):
         """
         Return an Edgelist.
 
@@ -173,13 +173,8 @@ class Dataset:
 
         reader : 'cudf' or 'pandas' (default='cudf')
             The library used to read a CSV and return an edgelist DataFrame.
-
-        overwrite : Boolean (default=False)
-            Overwrite the internal edgelist stored from reading the dataset.
-            By default, the stored edgelist is reused without reading from
-            the dataset.
         """
-        if self._edgelist is None or overwrite:
+        if self._edgelist is None or not isinstance(self._edgelist, cudf.DataFrame):
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -227,13 +222,10 @@ class Dataset:
         download : Boolean (default=False)
             Automatically download the dataset from the 'url' location within
             the YAML file.
-
-        overwrite : Boolean (default=False)
-            Overwrite the internal edgelist stored from reading the dataset.
-            By default, the stored edgelist is reused without reading from
-            the dataset.
         """
-        if self._edgelist is None or overwrite:
+        if self._edgelist is None or not isinstance(
+            self._edgelist, dask_cudf.DataFrame
+        ):
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -267,7 +259,6 @@ class Dataset:
     def get_graph(
         self,
         download=False,
-        overwrite=False,
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
@@ -279,11 +270,6 @@ class Dataset:
         ----------
         download : Boolean (default=False)
             Downloads the dataset from the web.
-
-        overwrite : Boolean (default=False)
-            Overwrite the internal edgelist stored from reading the dataset.
-            By default, the stored edgelist is reused without reading from
-            the dataset.
 
         create_using: cugraph.Graph (instance or class), optional
         (default=Graph)
@@ -302,7 +288,7 @@ class Dataset:
             for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
-            self.get_edgelist(download=download, overwrite=overwrite)
+            self.get_edgelist(download=download)
 
         if create_using is None:
             G = Graph()
@@ -338,7 +324,6 @@ class Dataset:
     def get_dask_graph(
         self,
         download=False,
-        overwrite=False,
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
@@ -350,11 +335,6 @@ class Dataset:
         ----------
         download : Boolean (default=False)
             Downloads the dataset from the web.
-
-        overwrite : Boolean (default=False)
-            Overwrite the internal edgelist stored from reading the dataset.
-            By default, the stored edgelist is reused without reading from
-            the dataset.
 
         create_using: cugraph.Graph (instance or class), optional
         (default=Graph)
@@ -373,7 +353,7 @@ class Dataset:
             for certain algorithms.
         """
         if self._edgelist is None:
-            self.get_dask_edgelist(download=download, overwrite=overwrite)
+            self.get_dask_edgelist(download=download)
 
         if create_using is None:
             G = Graph()
