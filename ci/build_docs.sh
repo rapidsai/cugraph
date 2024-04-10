@@ -23,7 +23,7 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  --channel conda-forge \
+  --channel pytorch \
   libcugraph \
   pylibcugraph \
   cugraph \
@@ -33,8 +33,7 @@ rapids-mamba-retry install \
   cugraph-service-client \
   libcugraph_etl \
   pylibcugraphops \
-  pylibwholegraph \
-  "pytorch>=2.0"
+  pylibwholegraph
 
 export RAPIDS_VERSION="$(rapids-version)"
 export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"

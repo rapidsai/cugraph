@@ -154,7 +154,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel conda-forge \
+      --channel pytorch \
       --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
@@ -199,7 +199,7 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
   rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
     --channel "${PYTHON_CHANNEL}" \
-    --channel conda-forge \
+    --channel pytorch \
     --channel nvidia \
     --channel pyg \
     --channel rapidsai-nightly \
