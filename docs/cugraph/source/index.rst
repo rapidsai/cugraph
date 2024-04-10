@@ -18,7 +18,7 @@ RAPIDS Graph documentation
      - :abbr:`cugraph-service (Graph-as-a-service provides both Client and Server packages)`
    * - :abbr:`pylibcugraph (light-weight Python wrapper with no guard rails)`
      - :abbr:`cugraph-dgl (Accelerated extensions for use with the DGL framework)`
-     - 
+     -
    * - :abbr:`libcugraph (C++ API)`
      - :abbr:`cugraph-pyg (Accelerated extensions for use with the PyG framework)`
      -
@@ -33,7 +33,7 @@ Introduction
 ~~~~~~~~~~~~
 cuGraph is a library of graph algorithms that seamlessly integrates into the
 RAPIDS data science ecosystem and allows the data scientist to easily call
-graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or 
+graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or
 even CuPy or SciPy sparse Matrices.
 
 Note: We are redoing all of our documents, please be patient as we update
@@ -46,6 +46,7 @@ the docs and links
    :caption: Contents:
 
    basics/index
+   nx_cugraph/index
    installation/index
    tutorials/index
    graph_support/index

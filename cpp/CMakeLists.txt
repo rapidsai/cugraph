@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-include(../fetch_rapids.cmake)
+include(../rapids_config.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-cuda)
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 24.02.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -36,30 +36,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
 endif()
-
-# Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
-# cuhornet currently doesn't support
-#
-# >= 90
-set(supported_archs "70" "72" "75" "80" "86" "89" "90")
-foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
-    string(REPLACE "-real" "" arch ${arch})
-    if( arch IN_LIST supported_archs )
-        list(APPEND usable_arch_values ${arch})
-    endif()
-endforeach()
-# Make sure everything but the 'newest' arch
-# is marked as `-real` so we only generate PTX for
-# arch > 86
-list(POP_BACK usable_arch_values latest_arch)
-list(TRANSFORM usable_arch_values APPEND "-real")
-if (usable_arch_values)
-    list(APPEND usable_arch_values ${latest_arch})
-else()
-    list(APPEND usable_arch_values ${latest_arch}-real)
-endif()
-
-set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
@@ -168,7 +144,6 @@ if(USE_CUGRAPH_OPS)
 endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
-include(cmake/thirdparty/get_cuhornet.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
   include(cmake/thirdparty/get_ucp.cmake)
@@ -186,9 +161,9 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/detail/shuffle_vertices.cu
+    src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
-    src/detail/shuffle_vertex_pairs.cu
+    src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
@@ -197,8 +172,9 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_sg.cu
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
-    src/community/detail/mis_sg.cu
-    src/community/detail/mis_mg.cu
+    src/community/edge_triangle_count_sg.cu
+    src/community/detail/maximal_independent_moves_sg.cu
+    src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/structure/remove_self_loops.cu
@@ -222,10 +198,10 @@ set(CUGRAPH_SOURCES
     src/community/ecg_sg.cu
     src/community/ecg_mg.cu
     src/community/legacy/louvain.cu
-    src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
+    src/community/k_truss_sg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/prepare_next_frontier_sg.cu
@@ -295,6 +271,10 @@ set(CUGRAPH_SOURCES
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
+    src/components/mis_sg.cu
+    src/components/mis_mg.cu
+    src/components/vertex_coloring_sg.cu
+    src/components/vertex_coloring_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
@@ -387,7 +367,6 @@ if (USE_CUGRAPH_OPS)
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
-            cugraph::cuHornet
             NCCL::NCCL
     )
 else()
@@ -400,7 +379,6 @@ else()
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
             cuco::cuco
-            cugraph::cuHornet
             NCCL::NCCL
     )
 endif()
@@ -411,6 +389,8 @@ endif()
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/degrees.cu
+        src/c_api/degrees_result.cpp
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
@@ -421,8 +401,10 @@ add_library(cugraph_c
         src/c_api/eigenvector_centrality.cpp
         src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
+        src/c_api/k_truss.cpp
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
+        src/c_api/ecg.cpp
         src/c_api/k_core.cpp
         src/c_api/hierarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
@@ -448,7 +430,6 @@ add_library(cugraph_c
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
-        src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
@@ -583,7 +564,7 @@ find_package(Doxygen 1.8.11)
 if(Doxygen_FOUND)
     add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                       COMMAND doxygen Doxyfile
+                       COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION_MAJOR_MINOR=${RAPIDS_VERSION_MAJOR_MINOR}" doxygen Doxyfile
                        VERBATIM)
 
     add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)

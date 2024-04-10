@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-#include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/extract_transform_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/extract_transform_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/vertex_frontier.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -35,14 +33,13 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <sstream>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -54,9 +51,12 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuco/hash_functions.cuh>
+
 #include <gtest/gtest.h>
 
 #include <random>
+#include <sstream>
 #include <type_traits>
 
 template <typename key_t, typename vertex_t, typename property_t, typename output_payload_t>
@@ -116,6 +116,7 @@ struct e_op_t {
 };
 
 struct Prims_Usecase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -180,15 +181,23 @@ class Tests_MGExtractTransformE
 
     auto mg_graph_view = mg_graph.view();
 
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     // 2. run MG extract_transform_e
 
     const int hash_bin_count = 5;
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     if (cugraph::test::g_perf) {
@@ -270,9 +279,9 @@ class Tests_MGExtractTransformE
 
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+        auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
-        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+        auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
         auto sg_extract_transform_output_buffer =
@@ -400,7 +409,7 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGExtractTransformE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -408,7 +417,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGExtractTransformE_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                         ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
+                                                              Prims_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -420,7 +430,7 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGExtractTransformE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

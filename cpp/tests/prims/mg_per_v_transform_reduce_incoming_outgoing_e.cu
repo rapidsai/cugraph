@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-#include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "result_compare.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -35,14 +34,13 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <sstream>
+
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -52,9 +50,12 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuco/hash_functions.cuh>
+
 #include <gtest/gtest.h>
 
 #include <random>
+#include <sstream>
 
 template <typename vertex_t, typename result_t>
 struct e_op_t {
@@ -69,83 +70,6 @@ struct e_op_t {
     } else {
       return dst_property;
     }
-  }
-};
-
-template <typename T>
-__host__ __device__ bool compare_scalar(T val0, T val1, thrust::optional<T> threshold_ratio)
-{
-  if (threshold_ratio) {
-    return std::abs(val0 - val1) <= (std::max(std::abs(val0), std::abs(val1)) * *threshold_ratio);
-  } else {
-    return val0 == val1;
-  }
-}
-
-template <typename T>
-struct comparator {
-  static constexpr double threshold_ratio{1e-2};
-
-  __host__ __device__ bool operator()(T t0, T t1) const
-  {
-    static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-    if constexpr (std::is_arithmetic_v<T>) {
-      return compare_scalar(
-        t0,
-        t1,
-        std::is_floating_point_v<T> ? thrust::optional<T>{threshold_ratio} : thrust::nullopt);
-    } else {
-      auto val0   = thrust::get<0>(t0);
-      auto val1   = thrust::get<0>(t1);
-      auto passed = compare_scalar(val0,
-                                   val1,
-                                   std::is_floating_point_v<decltype(val0)>
-                                     ? thrust::optional<decltype(val0)>{threshold_ratio}
-                                     : thrust::nullopt);
-      if (!passed) return false;
-
-      if constexpr (thrust::tuple_size<T>::value >= 2) {
-        auto val0   = thrust::get<1>(t0);
-        auto val1   = thrust::get<1>(t1);
-        auto passed = compare_scalar(val0,
-                                     val1,
-                                     std::is_floating_point_v<decltype(val1)>
-                                       ? thrust::optional<decltype(val1)>{threshold_ratio}
-                                       : thrust::nullopt);
-        if (!passed) return false;
-      }
-      if constexpr (thrust::tuple_size<T>::value >= 3) {
-        assert(false);  // should not be reached.
-      }
-      return true;
-    }
-  }
-};
-
-struct result_compare {
-  const raft::handle_t& handle_;
-  result_compare(raft::handle_t const& handle) : handle_(handle) {}
-
-  template <typename... Args>
-  auto operator()(const std::tuple<rmm::device_uvector<Args>...>& t1,
-                  const std::tuple<rmm::device_uvector<Args>...>& t2)
-  {
-    using type = thrust::tuple<Args...>;
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
-  }
-
-  template <typename T>
-  auto operator()(const rmm::device_uvector<T>& t1, const rmm::device_uvector<T>& t2)
-  {
-    return thrust::equal(
-      handle_.get_thrust_policy(), t1.begin(), t1.end(), t2.begin(), comparator<T>());
-  }
-
- private:
-  template <typename T, std::size_t... I>
-  auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
-  {
-    return (... && (result_compare::operator()(std::get<I>(t1), std::get<I>(t2))));
   }
 };
 
@@ -203,8 +127,8 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -214,13 +138,14 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     const int initial_value  = 4;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
 
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *mg_renumber_map, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, ELEMWISE_MIN, ELEMWISE_MAX };
@@ -431,16 +356,19 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
         if (handle_->get_comms().get_rank() == int{0}) {
           auto sg_graph_view = sg_graph.view();
 
-          auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-            *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-            hash_bin_count);
-          auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
-            *handle_, sg_graph_view, sg_vertex_prop);
-          auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
-            *handle_, sg_graph_view, sg_vertex_prop);
-          result_compare comp{*handle_};
+          auto sg_vertex_prop =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
+              *handle_,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+              hash_bin_count);
+          auto sg_src_prop =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
+              *handle_, sg_graph_view, sg_vertex_prop);
+          auto sg_dst_prop =
+            cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
+              *handle_, sg_graph_view, sg_vertex_prop);
+          cugraph::test::vector_result_compare compare{*handle_};
 
           auto global_in_result = cugraph::allocate_dataframe_buffer<result_t>(
             sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -528,8 +456,8 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
             default: FAIL() << "should not be reached.";
           }
 
-          ASSERT_TRUE(comp(mg_aggregate_in_results, global_in_result));
-          ASSERT_TRUE(comp(mg_aggregate_out_results, global_out_result));
+          ASSERT_TRUE(compare(mg_aggregate_in_results, global_in_result));
+          ASSERT_TRUE(compare(mg_aggregate_out_results, global_out_result));
         }
       }
     }

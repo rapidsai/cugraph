@@ -1,7 +1,10 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
+
+# Support invoking test_cpp.sh outside the script directory
+cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
@@ -11,7 +14,7 @@ rapids-dependency-file-generator \
   --file_key test_cpp \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -38,21 +41,11 @@ pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh --subset
 popd
 
-EXITCODE=0
-trap "EXITCODE=1" ERR
-set +e
-
 export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
 
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
-cd "$CONDA_PREFIX"/bin/gtests/libcugraph/
-ctest -j10 --output-on-failure
-
-if [ -d "$CONDA_PREFIX"/bin/gtests/libcugraph_c/ ]; then
-  cd "$CONDA_PREFIX"/bin/gtests/libcugraph_c/
-  ctest -j10 --output-on-failure
-fi
+./ci/run_ctests.sh -j10 && EXITCODE=$? || EXITCODE=$?;
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}

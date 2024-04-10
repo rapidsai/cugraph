@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -9,7 +9,9 @@
  *
  */
 
-#include <utilities/test_utilities.hpp>
+#include "cuda_profiler_api.h"
+#include "gtest/gtest.h"
+#include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -17,17 +19,14 @@
 
 #include <raft/core/handle.hpp>
 
-#include <curand_kernel.h>
-
 #include <rmm/device_uvector.hpp>
-
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
 
 #include <thrust/equal.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>
+
+#include <curand_kernel.h>
 
 __global__ void setup_generator(curandState* state)
 {

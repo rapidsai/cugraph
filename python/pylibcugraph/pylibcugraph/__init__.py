@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,8 +14,6 @@
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
 )
-
-from pylibcugraph import experimental
 
 from pylibcugraph.graphs import SGGraph, MGGraph
 
@@ -96,6 +94,8 @@ from pylibcugraph.jaccard_coefficients import jaccard_coefficients
 from pylibcugraph.overlap_coefficients import overlap_coefficients
 
 from pylibcugraph.sorensen_coefficients import sorensen_coefficients
+
+from pylibcugraph.degrees import in_degrees, out_degrees, degrees
 
 
 from pylibcugraph import exceptions

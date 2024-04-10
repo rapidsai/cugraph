@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,12 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <centrality/betweenness_centrality_reference.hpp>
-#include <centrality/betweenness_centrality_validate.hpp>
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
+#include "centrality/betweenness_centrality_reference.hpp"
+#include "centrality/betweenness_centrality_validate.hpp"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -29,6 +28,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -116,8 +116,11 @@ class Tests_EdgeBetweennessCentrality
 
     if (betweenness_usecase.check_correctness) {
       // Compute reference edge betweenness result
-      auto [h_offsets, h_indices, h_wgt] =
-        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
@@ -133,13 +136,20 @@ class Tests_EdgeBetweennessCentrality
       rmm::device_uvector<vertex_t> d_reference_dst_vertex_ids(0, handle.get_stream());
 
       std::tie(d_reference_src_vertex_ids, d_reference_dst_vertex_ids, std::ignore) =
-        cugraph::test::graph_to_device_coo(handle, graph_view, edge_weight_view);
+        cugraph::test::graph_to_device_coo(
+          handle,
+          graph_view,
+          edge_weight_view,
+          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
       auto [d_cugraph_src_vertex_ids, d_cugraph_dst_vertex_ids, d_cugraph_results] =
         cugraph::test::graph_to_device_coo(
-          handle, graph_view, std::make_optional(d_centralities.view()));
+          handle,
+          graph_view,
+          std::make_optional(d_centralities.view()),
+          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
       cugraph::test::edge_betweenness_centrality_validate(handle,
                                                           d_cugraph_src_vertex_ids,

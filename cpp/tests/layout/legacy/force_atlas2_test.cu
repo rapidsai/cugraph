@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -12,15 +12,15 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <layout/legacy/trust_worthiness.h>
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include "layout/legacy/trust_worthiness.h"
+#include "utilities/base_fixture.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/error.hpp>
+
 #include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>

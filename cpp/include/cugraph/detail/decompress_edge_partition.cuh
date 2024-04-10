@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
@@ -43,7 +44,7 @@ namespace detail {
 int32_t constexpr decompress_edge_partition_block_size = 1024;
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void decompress_to_edgelist_mid_degree(
+__global__ static void decompress_to_edgelist_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,
@@ -73,7 +74,7 @@ __global__ void decompress_to_edgelist_mid_degree(
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-__global__ void decompress_to_edgelist_high_degree(
+__global__ static void decompress_to_edgelist_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   vertex_t major_range_first,
   vertex_t major_range_last,

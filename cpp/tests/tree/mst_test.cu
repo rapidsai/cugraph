@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 // Mst solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include "../src/converters/legacy/COOtoCSR.cuh"
+#include "utilities/base_fixture.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -27,14 +27,13 @@
 #include <raft/core/error.hpp>
 #include <raft/core/handle.hpp>
 
-#include <cuda_profiler_api.h>
-
-#include <cmath>
-
-#include "../src/converters/legacy/COOtoCSR.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
+
+#include <cuda_profiler_api.h>
+
+#include <cmath>
 
 typedef struct Mst_Usecase_t {
   std::string matrix_file;

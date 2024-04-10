@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,24 +88,24 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
     resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
-    
+
     random_state : int , optional
         Random state to use when generating samples. Optional argument,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
-    
+
     n_edgelists : size_t
         Number of edge lists (graphs) to generate
-    
+
     min_scale : size_t
         Scale factor to set the minimum number of vertices in the graph
 
     max_scale : size_t
         Scale factor to set the maximum number of vertices in the graph
-    
+
     edge_factor : size_t
         Average number of edges per vertex to generate
-    
+
     size_distribution : int
         Distribution of the graph sizes, impacts the scale parameter of the
         R-MAT generator.
@@ -115,39 +115,39 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
         Edges distribution for each graph, impacts how R-MAT parameters
         a,b,c,d, are set.
         '0' for POWER_LAW distribution and '1' for UNIFORM distribution
-    
+
     clip_and_flip : bool
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
         (if set to 'true') or not (if set to 'false')
-    
+
     scramble_vertex_ids : bool
         Flag controlling whether to scramble vertex ID bits (if set to `true`)
         or not (if set to `false`); scrambling vertex ID bits breaks
         correlation between vertex ID values and vertex degrees.
-    
+
     include_edge_weights : bool
         Flag controlling whether to generate edges with weights
         (if set to 'true') or not (if set to 'false').
 
     minimum_weight : double
         Minimum weight value to generate (if 'include_edge_weights' is 'true')
-    
+
     maximum_weight : double
         Maximum weight value to generate (if 'include_edge_weights' is 'true')
-    
+
     dtype : string
         The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
         include_weights is true
-    
+
     include_edge_ids : bool
         Flag controlling whether to generate edges with ids
         (if set to 'true') or not (if set to 'false').
-    
+
     include_edge_types : bool
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
-    
+
     min_edge_type_value : int
         Minimum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this parameter is ignored.
@@ -178,12 +178,12 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
 
     cdef cugraph_generator_distribution_t size_distribution_
     cdef cugraph_generator_distribution_t edge_distribution_
-    
+
     if size_distribution == 0:
         size_distribution_ = cugraph_generator_distribution_t.POWER_LAW
     else:
         size_distribution_ = cugraph_generator_distribution_t.UNIFORM
-    
+
     if edge_distribution == 0:
         edge_distribution_ = cugraph_generator_distribution_t.POWER_LAW
     else:
@@ -237,7 +237,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
 
             edge_weights_view_ptr = cugraph_coo_get_edge_weights(result_coo_ptr)
             cupy_edge_weights = copy_to_cupy_array(c_resource_handle_ptr, edge_weights_view_ptr)
-        
+
 
 
         if include_edge_ids:
@@ -245,7 +245,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
                                                 result_coo_ptr,
                                                 multi_gpu,
                                                 &error_ptr)
-            
+
             assert_success(error_code, error_ptr, "generate_edge_ids")
 
             edge_ids_view_ptr = cugraph_coo_get_edge_id(result_coo_ptr)
@@ -258,7 +258,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
                                                     min_edge_type_value,
                                                     max_edge_type_value,
                                                     &error_ptr)
-            
+
             assert_success(error_code, error_ptr, "generate_edge_types")
 
             edge_type_view_ptr = cugraph_coo_get_edge_type(result_coo_ptr)

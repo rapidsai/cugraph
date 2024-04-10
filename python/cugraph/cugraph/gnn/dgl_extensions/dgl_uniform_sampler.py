@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -120,9 +120,9 @@ class DGLUniformSampler:
             return self._get_edgeid_type_d(sampled_df)
         else:
             return (
-                sampled_df[src_n].values,
-                sampled_df[dst_n].values,
-                sampled_df["indices"].values,
+                sampled_df[src_n].astype("float").values,
+                sampled_df[dst_n].astype("float").values,
+                sampled_df["indices"].astype("float").values,
             )
 
     def _get_edgeid_type_d(self, df):
@@ -134,7 +134,11 @@ class DGLUniformSampler:
             for etype, etype_id in self.etype_id_dict.items()
         }
         return {
-            etype: (df[src_n].values, df[dst_n].values, df["indices"].values)
+            etype: (
+                df[src_n].astype("float").values,
+                df[dst_n].astype("float").values,
+                df["indices"].astype("float").values,
+            )
             for etype, df in result_d.items()
         }
 
@@ -146,7 +150,7 @@ class DGLUniformSampler:
 
         for etype_id, (start, stop) in etype_id_range_dict.items():
             range_types = (start <= indices) & (indices < stop)
-            type_ser[range_types] = etype_id
+            type_ser[range_types] = type_ser.dtype.type(etype_id)
 
         return type_ser
 

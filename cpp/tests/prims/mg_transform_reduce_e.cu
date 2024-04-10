@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-#include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/transform_reduce_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
+#include "prims/transform_reduce_e.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "result_compare.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
@@ -33,13 +32,13 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -48,47 +47,11 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
+#include <cuco/hash_functions.cuh>
+
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename T>
-struct result_compare {
-  static constexpr double threshold_ratio{1e-3};
-  constexpr auto operator()(const T& t1, const T& t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
-    }
-    return t1 == t2;
-  }
-};
-
-template <typename... Args>
-struct result_compare<thrust::tuple<Args...>> {
-  static constexpr double threshold_ratio{1e-3};
-
-  using type = thrust::tuple<Args...>;
-  constexpr auto operator()(const type& t1, const type& t2)
-  {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
-  }
-
- private:
-  template <typename T>
-  constexpr bool equal(T t1, T t2)
-  {
-    if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
-    }
-    return t1 == t2;
-  }
-  template <typename T, std::size_t... I>
-  constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
-  {
-    return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
-  }
-};
 
 struct Prims_Usecase {
   bool test_weighted{false};
@@ -144,8 +107,8 @@ class Tests_MGTransformReduceE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -155,12 +118,13 @@ class Tests_MGTransformReduceE
     const int initial_value  = 4;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *mg_renumber_map, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     if (cugraph::test::g_perf) {
@@ -206,14 +170,15 @@ class Tests_MGTransformReduceE
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-          *handle_,
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-          hash_bin_count);
-        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+        auto sg_vertex_prop =
+          cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
+            *handle_,
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
-        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+        auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
         auto expected_result = transform_reduce_e(
@@ -231,7 +196,7 @@ class Tests_MGTransformReduceE
             }
           },
           property_initial_value);
-        result_compare<result_t> compare{};
+        cugraph::test::scalar_result_compare compare{};
         ASSERT_TRUE(compare(expected_result, result));
       }
     }

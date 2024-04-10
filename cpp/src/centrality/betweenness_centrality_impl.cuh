@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,18 @@
  */
 #pragma once
 
-#include <prims/count_if_v.cuh>
-#include <prims/edge_bucket.cuh>
-#include <prims/extract_transform_e.cuh>
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/fill_edge_property.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/transform_e.cuh>
-#include <prims/transform_reduce_v.cuh>
-#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/update_v_frontier.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/count_if_v.cuh"
+#include "prims/edge_bucket.cuh"
+#include "prims/extract_transform_e.cuh"
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/transform_e.cuh"
+#include "prims/transform_reduce_v.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/update_v_frontier.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -34,11 +34,11 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <raft/core/handle.hpp>
+
 #include <thrust/functional.h>
 #include <thrust/optional.h>
 #include <thrust/reduce.h>
-
-#include <raft/core/handle.hpp>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -69,7 +69,7 @@ struct extract_edge_e_op_t {
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
     thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-    weight_t edge_centrality)
+    weight_t edge_centrality) const
   {
     return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
              ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}

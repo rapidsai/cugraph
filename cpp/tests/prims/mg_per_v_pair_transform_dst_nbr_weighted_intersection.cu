@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
-
-#include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_edge_property_device_view.cuh>
+#include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -37,12 +37,12 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
-#include <utilities/thrust_wrapper.hpp>
 
 #include <gtest/gtest.h>
 
@@ -84,6 +84,7 @@ struct intersection_op_t {
 
 struct Prims_Usecase {
   size_t num_vertex_pairs{0};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -109,6 +110,13 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
 
+    constexpr bool store_transposed = false;
+
+    constexpr bool test_weighted    = true;
+    constexpr bool renumber         = true;
+    constexpr bool drop_self_loops  = false;
+    constexpr bool drop_multi_edges = true;
+
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
@@ -117,34 +125,25 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_timer.start("MG Construct graph");
     }
 
-    constexpr bool store_transposed = false;
-    constexpr bool multi_gpu        = true;
-
-    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                               weight_t>>
-      mg_edge_weight{std::nullopt};
-
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
-
-    constexpr bool test_weighted    = true;
-    constexpr bool renumber         = true;
-    constexpr bool drop_self_loops  = false;
-    constexpr bool drop_multi_edges = true;
-
-    std::tie(mg_graph, mg_edge_weight, mg_renumber_map) =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+    auto [mg_graph, mg_edge_weight, mg_renumber_map] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
-
-    auto mg_graph_view       = mg_graph.view();
-    auto mg_edge_weight_view = (*mg_edge_weight).view();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
+    }
+
+    auto mg_graph_view       = mg_graph.view();
+    auto mg_edge_weight_view = (*mg_edge_weight).view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (prims_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
     // 2. run MG per_v_pair_transform_dst_nbr_intersection primitive
@@ -355,15 +354,18 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{10}, true}),
+    ::testing::Values(Prims_Usecase{size_t{10}, false, true},
+                      Prims_Usecase{size_t{10}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
-                         ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024}, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1024}, false, true},
+                      Prims_Usecase{size_t{1024}, true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -373,7 +375,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false}),
+    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false, false},
+                      Prims_Usecase{size_t{1024 * 1024}, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

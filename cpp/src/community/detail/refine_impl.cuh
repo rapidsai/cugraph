@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,24 @@
  */
 #pragma once
 
-#include <community/detail/common_methods.hpp>
-#include <community/mis.hpp>
+#include "common_methods.hpp"
+#include "detail/graph_partition_utils.cuh"
+#include "maximal_independent_moves.hpp"
+#include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
+#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_e.cuh"
+#include "prims/transform_reduce_e_by_src_dst_key.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "utilities/collect_comm.cuh"
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <detail/graph_partition_utils.cuh>
-#include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
-#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <prims/reduce_op.cuh>
-#include <prims/transform_reduce_e.cuh>
-#include <prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <utilities/collect_comm.cuh>
 
 #include <raft/random/rng_device.cuh>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -45,8 +47,6 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-
-#include <cuda/functional>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
@@ -504,10 +504,8 @@ refine_clustering(
     //
     // Decide best/positive move for each vertex
     //
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    raft::random::RngState rng_state(seed);
-    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
 
+    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -662,8 +660,8 @@ refine_clustering(
     // Determine a set of moves using MIS of the decision_graph
     //
 
-    auto vertices_in_mis =
-      maximal_independent_set<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
+    auto vertices_in_mis = maximal_independent_moves<vertex_t, edge_t, multi_gpu>(
+      handle, decision_graph_view, rng_state);
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),

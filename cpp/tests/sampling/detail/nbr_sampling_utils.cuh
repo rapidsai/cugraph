@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,10 @@
 //
 #pragma once
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
@@ -30,8 +29,6 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-
-#include <cuco/hash_functions.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -50,6 +47,8 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <algorithm>
 #include <functional>

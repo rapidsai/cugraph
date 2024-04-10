@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/utilities/graph_traits.hpp>
+#include "c_api/error.hpp"
 
-#include <c_api/error.hpp>
+#include <cugraph/utilities/graph_traits.hpp>
 
 #include <memory>
 
@@ -27,7 +27,7 @@ namespace c_api {
 struct abstract_functor {
   // Move to abstract functor... make operator a void, add cugraph_graph_t * result to functor
   // try that with instantiation questions
-  std::unique_ptr<cugraph_error_t> error_{std::make_unique<cugraph_error_t>("")};
+  std::unique_ptr<cugraph_error_t> error_ = {std::make_unique<cugraph_error_t>("")};
   cugraph_error_code_t error_code_{CUGRAPH_SUCCESS};
 
   void unsupported()

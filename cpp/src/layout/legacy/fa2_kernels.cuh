@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,25 +17,25 @@
 #pragma once
 #define restrict __restrict__
 
-#include <utilities/graph_utils.cuh>
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-__global__ void attraction_kernel(const vertex_t* restrict row,
-                                  const vertex_t* restrict col,
-                                  const weight_t* restrict v,
-                                  const edge_t e,
-                                  const float* restrict x_pos,
-                                  const float* restrict y_pos,
-                                  float* restrict attract_x,
-                                  float* restrict attract_y,
-                                  const int* restrict mass,
-                                  bool outbound_attraction_distribution,
-                                  bool lin_log_mode,
-                                  const float edge_weight_influence,
-                                  const float coef)
+__global__ static void attraction_kernel(const vertex_t* restrict row,
+                                         const vertex_t* restrict col,
+                                         const weight_t* restrict v,
+                                         const edge_t e,
+                                         const float* restrict x_pos,
+                                         const float* restrict y_pos,
+                                         float* restrict attract_x,
+                                         float* restrict attract_y,
+                                         const int* restrict mass,
+                                         bool outbound_attraction_distribution,
+                                         bool lin_log_mode,
+                                         const float edge_weight_influence,
+                                         const float coef)
 {
   vertex_t i, src, dst;
   weight_t weight = 1;
@@ -116,13 +116,13 @@ void apply_attraction(const vertex_t* restrict row,
 }
 
 template <typename vertex_t>
-__global__ void linear_gravity_kernel(const float* restrict x_pos,
-                                      const float* restrict y_pos,
-                                      float* restrict attract_x,
-                                      float* restrict attract_y,
-                                      const int* restrict mass,
-                                      const float gravity,
-                                      const vertex_t n)
+__global__ static void linear_gravity_kernel(const float* restrict x_pos,
+                                             const float* restrict y_pos,
+                                             float* restrict attract_x,
+                                             float* restrict attract_y,
+                                             const int* restrict mass,
+                                             const float gravity,
+                                             const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -136,14 +136,14 @@ __global__ void linear_gravity_kernel(const float* restrict x_pos,
 }
 
 template <typename vertex_t>
-__global__ void strong_gravity_kernel(const float* restrict x_pos,
-                                      const float* restrict y_pos,
-                                      float* restrict attract_x,
-                                      float* restrict attract_y,
-                                      const int* restrict mass,
-                                      const float gravity,
-                                      const float scaling_ratio,
-                                      const vertex_t n)
+__global__ static void strong_gravity_kernel(const float* restrict x_pos,
+                                             const float* restrict y_pos,
+                                             float* restrict attract_x,
+                                             float* restrict attract_y,
+                                             const int* restrict mass,
+                                             const float gravity,
+                                             const float scaling_ratio,
+                                             const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -187,16 +187,16 @@ void apply_gravity(const float* restrict x_pos,
 }
 
 template <typename vertex_t>
-__global__ void local_speed_kernel(const float* restrict repel_x,
-                                   const float* restrict repel_y,
-                                   const float* restrict attract_x,
-                                   const float* restrict attract_y,
-                                   const float* restrict old_dx,
-                                   const float* restrict old_dy,
-                                   const int* restrict mass,
-                                   float* restrict swinging,
-                                   float* restrict traction,
-                                   const vertex_t n)
+__global__ static void local_speed_kernel(const float* restrict repel_x,
+                                          const float* restrict repel_y,
+                                          const float* restrict attract_x,
+                                          const float* restrict attract_y,
+                                          const float* restrict old_dx,
+                                          const float* restrict old_dy,
+                                          const int* restrict mass,
+                                          float* restrict swinging,
+                                          float* restrict traction,
+                                          const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -272,17 +272,17 @@ void adapt_speed(const float jitter_tolerance,
 }
 
 template <typename vertex_t>
-__global__ void update_positions_kernel(float* restrict x_pos,
-                                        float* restrict y_pos,
-                                        const float* restrict repel_x,
-                                        const float* restrict repel_y,
-                                        const float* restrict attract_x,
-                                        const float* restrict attract_y,
-                                        float* restrict old_dx,
-                                        float* restrict old_dy,
-                                        const float* restrict swinging,
-                                        const float speed,
-                                        const vertex_t n)
+__global__ static void update_positions_kernel(float* restrict x_pos,
+                                               float* restrict y_pos,
+                                               const float* restrict repel_x,
+                                               const float* restrict repel_y,
+                                               const float* restrict attract_x,
+                                               const float* restrict attract_y,
+                                               float* restrict old_dx,
+                                               float* restrict old_dy,
+                                               const float* restrict swinging,
+                                               const float speed,
+                                               const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {

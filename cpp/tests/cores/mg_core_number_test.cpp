@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -30,6 +31,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -43,6 +45,7 @@ struct CoreNumber_Usecase {
   size_t k_last{std::numeric_limits<size_t>::max()};  // vertices that belong (k_last + 1)-core will
                                                       // have core numbers of k_last
 
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -90,6 +93,13 @@ class Tests_MGCoreNumber
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (core_number_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. run MG CoreNumber
 
@@ -214,14 +224,23 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     ::testing::Values(
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max()},
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max(), false},
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max()},
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max()},
-      CoreNumber_Usecase{cugraph::k_core_degree_type_t::IN, size_t{2}, size_t{2}},
-      CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT, size_t{1}, size_t{3}},
-      CoreNumber_Usecase{cugraph::k_core_degree_type_t::INOUT, size_t{2}, size_t{4}}),
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::IN, size_t{2}, size_t{2}, false},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT, size_t{1}, size_t{3}, false},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::INOUT, size_t{2}, size_t{4}, false},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max(), true},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), true},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max(), true},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::IN, size_t{2}, size_t{2}, true},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT, size_t{1}, size_t{3}, true},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::INOUT, size_t{2}, size_t{4}, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
@@ -232,11 +251,17 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max()},
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max(), false},
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max()},
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
       CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max()}),
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max(), true},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), true},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max(), true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -247,8 +272,16 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCoreNumber_Rmat,
   ::testing::Combine(
-    ::testing::Values(CoreNumber_Usecase{
-      cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false}),
+    ::testing::Values(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                         size_t{0},
+                                         std::numeric_limits<size_t>::max(),
+                                         false,
+                                         false},
+                      CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                         size_t{0},
+                                         std::numeric_limits<size_t>::max(),
+                                         true,
+                                         false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

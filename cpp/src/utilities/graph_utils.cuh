@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -17,11 +17,10 @@
 
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/device_atomics.cuh>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/execution_policy.h>
@@ -37,6 +36,9 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
+
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 namespace cugraph {
 namespace detail {
@@ -245,34 +247,36 @@ void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor)
 
 // google matrix kernels
 template <typename IndexType, typename ValueType>
-__global__ void degree_coo(const IndexType n,
-                           const IndexType e,
-                           const IndexType* ind,
-                           ValueType* degree)
+__global__ static void degree_coo(const IndexType n,
+                                  const IndexType e,
+                                  const IndexType* ind,
+                                  ValueType* degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
     atomicAdd(&degree[ind[i]], (ValueType)1.0);
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void flag_leafs_kernel(const size_t n, const IndexType* degree, ValueType* bookmark)
+__global__ static void flag_leafs_kernel(const size_t n,
+                                         const IndexType* degree,
+                                         ValueType* bookmark)
 {
   for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     if (degree[i] == 0) bookmark[i] = 1.0;
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void degree_offsets(const IndexType n,
-                               const IndexType e,
-                               const IndexType* ind,
-                               ValueType* degree)
+__global__ static void degree_offsets(const IndexType n,
+                                      const IndexType e,
+                                      const IndexType* ind,
+                                      ValueType* degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     degree[i] += ind[i + 1] - ind[i];
 }
 
 template <typename FromType, typename ToType>
-__global__ void type_convert(FromType* array, int n)
+__global__ static void type_convert(FromType* array, int n)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     ToType val   = array[i];
@@ -282,12 +286,12 @@ __global__ void type_convert(FromType* array, int n)
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void equi_prob3(const IndexType n,
-                           const IndexType e,
-                           const IndexType* csrPtr,
-                           const IndexType* csrInd,
-                           ValueType* val,
-                           IndexType* degree)
+__global__ static void equi_prob3(const IndexType n,
+                                  const IndexType e,
+                                  const IndexType* csrPtr,
+                                  const IndexType* csrInd,
+                                  ValueType* val,
+                                  IndexType* degree)
 {
   int j, row, col;
   for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
@@ -301,12 +305,12 @@ __global__ void equi_prob3(const IndexType n,
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void equi_prob2(const IndexType n,
-                           const IndexType e,
-                           const IndexType* csrPtr,
-                           const IndexType* csrInd,
-                           ValueType* val,
-                           IndexType* degree)
+__global__ static void equi_prob2(const IndexType n,
+                                  const IndexType e,
+                                  const IndexType* csrPtr,
+                                  const IndexType* csrInd,
+                                  ValueType* val,
+                                  IndexType* degree)
 {
   int row = blockIdx.x * blockDim.x + threadIdx.x;
   if (row < n) {
@@ -370,7 +374,8 @@ void HT_matrix_csc_coo(const IndexType n,
 }
 
 template <typename offsets_t, typename index_t>
-__global__ void offsets_to_indices_kernel(const offsets_t* offsets, index_t v, index_t* indices)
+__attribute__((visibility("hidden"))) __global__ void offsets_to_indices_kernel(
+  const offsets_t* offsets, index_t v, index_t* indices)
 {
   auto tid{threadIdx.x};
   auto ctaStart{blockIdx.x};

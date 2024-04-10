@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2017-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
  /*
  * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
- *     insert/find for 8 byte key-value pair size. The plan is to migrate to 
+ *     insert/find for 8 byte key-value pair size. The plan is to migrate to
  *     using the cuco when the feature is supported. At that point this file can be deleted.
  */
 #pragma once
@@ -25,7 +25,6 @@
 #include <hash/helper_functions.cuh>
 #include <hash/managed.cuh>
 
-#include <cudf/detail/nvtx/ranges.hpp>
 #include <cudf/detail/utilities/device_atomics.cuh>
 #include <cudf/hashing/detail/default_hash.cuh>
 #include <cudf/hashing/detail/hash_functions.cuh>
@@ -171,7 +170,6 @@ class concurrent_unordered_map {
                      const Equality& equal            = key_equal(),
                      const allocator_type& allocator  = allocator_type())
   {
-    CUDF_FUNC_RANGE();
     using Self = concurrent_unordered_map<Key, Element, Hasher, Equality, Allocator>;
 
     // Note: need `(*p).destroy` instead of `p->destroy` here

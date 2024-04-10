@@ -3,6 +3,9 @@
 
 set -euo pipefail
 
+# Support invoking test_python.sh outside the script directory
+cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
+
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Generate Python testing dependencies"
@@ -11,7 +14,7 @@ rapids-dependency-file-generator \
   --file_key test_python \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -52,16 +55,14 @@ trap "EXITCODE=1" ERR
 set +e
 
 rapids-logger "pytest pylibcugraph"
-pushd python/pylibcugraph/pylibcugraph
-pytest \
-  --cache-clear \
+./ci/run_pylibcugraph_pytests.sh \
+  --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
-  --cov-report=term \
-  tests
-popd
+  --cov-report=term
+
 
 # Test runs that include tests that use dask require
 # --import-mode=append. Those tests start a LocalCUDACluster that inherits
@@ -74,49 +75,26 @@ popd
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph"
-pushd python/cugraph/cugraph
-DASK_WORKER_DEVICES="0" \
-DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
-DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
-DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
-pytest \
-  -v \
-  --import-mode=append \
-  --benchmark-disable \
-  --cache-clear \
+./ci/run_cugraph_pytests.sh \
+  --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term \
-  -k "not test_property_graph_mg and not test_bulk_sampler_io" \
-  tests
-popd
+  --cov-report=term
+
 
 rapids-logger "pytest cugraph benchmarks (run as tests)"
-pushd benchmarks
-pytest \
-  --capture=no \
-  --verbose \
-  -m tiny \
-  --benchmark-disable \
-  cugraph/pytest-based/bench_algos.py
-popd
+./ci/run_cugraph_benchmark_pytests.sh --verbose
 
 rapids-logger "pytest nx-cugraph"
-pushd python/nx-cugraph/nx_cugraph
-pytest \
-  --capture=no \
+./ci/run_nx_cugraph_pytests.sh \
   --verbose \
-  --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-nx-cugraph.xml" \
   --cov-config=../../.coveragerc \
   --cov=nx_cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/nx-cugraph-coverage.xml" \
-  --cov-report=term \
-  --benchmark-disable \
-  tests
-popd
+  --cov-report=term
 
 rapids-logger "pytest networkx using nx-cugraph backend"
 pushd python/nx-cugraph
@@ -150,27 +128,20 @@ python -m nx_cugraph.scripts.print_table
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
-pushd python/cugraph-service
-pytest \
-  --capture=no \
+./ci/run_cugraph_service_pytests.sh \
   --verbose \
-  --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
   --cov-config=../.coveragerc \
   --cov=cugraph_service_client \
   --cov=cugraph_service_server \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
-  --cov-report=term \
-  --benchmark-disable \
-  -k "not mg" \
-  tests
-popd
+  --cov-report=term
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
+    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
 
     # activate test_cugraph_dgl environment for dgl
     set +u
@@ -188,24 +159,19 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       pylibcugraphops \
       cugraph \
       cugraph-dgl \
-      'dgl>=1.1.0.cu*' \
+      'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
     rapids-print-env
 
     rapids-logger "pytest cugraph_dgl (single GPU)"
-    pushd python/cugraph-dgl/tests
-    pytest \
-      --cache-clear \
-      --ignore=mg \
+    ./ci/run_cugraph_dgl_pytests.sh \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
       --cov-config=../../.coveragerc \
       --cov=cugraph_dgl \
       --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
-      --cov-report=term \
-      .
-    popd
+      --cov-report=term
 
     # Reactivate the test environment back
     set +u
@@ -221,7 +187,7 @@ fi
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
+    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_pyg
 
     # Temporarily allow unbound variables for conda activation.
     set +u
@@ -252,18 +218,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-print-env
 
     rapids-logger "pytest cugraph_pyg (single GPU)"
-    pushd python/cugraph-pyg/cugraph_pyg
     # rmat is not tested because of multi-GPU testing
-    pytest \
-      --cache-clear \
-      --ignore=tests/mg \
+    ./ci/run_cugraph_pyg_pytests.sh \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
       --cov-config=../../.coveragerc \
       --cov=cugraph_pyg \
       --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
-      --cov-report=term \
-      .
-    popd
+      --cov-report=term
 
     # Reactivate the test environment back
     set +u
@@ -296,16 +257,12 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-print-env
 
     rapids-logger "pytest cugraph-equivariant"
-    pushd python/cugraph-equivariant/cugraph_equivariant
-    pytest \
-      --cache-clear \
+    ./ci/run_cugraph_equivariant_pytests.sh \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
       --cov-config=../../.coveragerc \
       --cov=cugraph_equivariant \
       --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
-      --cov-report=term \
-      .
-    popd
+      --cov-report=term
 
     # Reactivate the test environment back
     set +u

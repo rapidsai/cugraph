@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include <prims/kv_store.cuh>
+#include "prims/kv_store.cuh"
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
@@ -106,12 +107,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
 
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-      auto [h_label_offsets, h_edge_offsets] =
-        detail::compute_offset_aligned_edge_chunks(handle,
-                                                   (*label_offsets).data(),
-                                                   num_labels,
-                                                   vertices.size(),
-                                                   approx_edges_to_sort_per_iteration);
+      auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
+        handle, *label_offsets, vertices.size(), approx_edges_to_sort_per_iteration);
       auto num_chunks = h_label_offsets.size() - 1;
 
       for (size_t i = 0; i < num_chunks; ++i) {
@@ -598,10 +595,10 @@ renumber_sampled_edgelist(
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
       (1 << 20) /* tuning parameter */;  // for segmented sort
 
-    auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+    auto [h_label_offsets, h_edge_offsets] = detail::compute_offset_aligned_element_chunks(
       handle,
-      (*renumber_map_label_offsets).data(),
-      static_cast<size_t>((*renumber_map_label_offsets).size() - 1),
+      raft::device_span<size_t const>{(*renumber_map_label_offsets).data(),
+                                      (*renumber_map_label_offsets).size()},
       renumber_map.size(),
       approx_edges_to_sort_per_iteration);
     auto num_chunks = h_label_offsets.size() - 1;

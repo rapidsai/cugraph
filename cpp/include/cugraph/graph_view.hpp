@@ -25,6 +25,7 @@
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <algorithm>
@@ -612,7 +613,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       major_value_range_start_offset);
   }
 
-  // FIXME: deprecated, replaced with copmute_number_of_edges (which works with or without edge
+  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
   // masking)
   edge_t number_of_edges() const
   {
@@ -922,7 +923,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       offsets_, indices_, this->number_of_vertices());
   }
 
-  // FIXME: deprecated, replaced with copmute_number_of_edges (which works with or without edge
+  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
   // masking)
   edge_t number_of_edges() const
   {

@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -14,9 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-set(pylibcugraph_version 24.02.00)
-
-include(../../fetch_rapids.cmake)
+include(../../rapids_config.cmake)
 
 # We always need CUDA for cuML because the raft dependency brings in a
 # header-only cuco dependency that enables CUDA unconditionally.
@@ -25,7 +23,7 @@ rapids_cuda_init_architectures(pylibcugraph-python)
 
 project(
   pylibcugraph-python
-  VERSION ${pylibcugraph_version}
+  VERSION "${RAPIDS_VERSION}"
   LANGUAGES CXX CUDA
 )
 
@@ -43,7 +41,7 @@ endif()
 
 # If the user requested it we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
-  find_package(cugraph ${pylibcugraph_version} REQUIRED)
+  find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()

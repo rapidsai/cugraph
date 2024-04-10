@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -8,16 +8,16 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <cugraph/utilities/high_res_timer.hpp>
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 

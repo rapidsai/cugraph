@@ -242,6 +242,28 @@ def get_highest_degree_node(graph_obj):
     return max(degrees, key=lambda t: t[1])[0]
 
 
+def build_personalization_dict(pagerank_dict):
+    """
+    Returns a dictionary that can be used as the personalization value for a
+    call to nx.pagerank(). The pagerank_dict passed in is used as the initial
+    source of values for each node, and this function simply treats the list of
+    dict values as two halves (halves A and B) and swaps them so (most if not
+    all) nodes/keys are assigned a different value from the dictionary.
+    """
+    num_half = len(pagerank_dict) // 2
+    A_half_items = list(pagerank_dict.items())[:num_half]
+    B_half_items = list(pagerank_dict.items())[num_half:]
+
+    # Support an odd number of items by initializing with B_half_items, which
+    # will always be one bigger if the number of items is odd. This will leave
+    # the one remainder (in the case of an odd number) unchanged.
+    pers_dict = dict(B_half_items)
+    pers_dict.update({A_half_items[i][0]: B_half_items[i][1] for i in range(num_half)})
+    pers_dict.update({B_half_items[i][0]: A_half_items[i][1] for i in range(num_half)})
+
+    return pers_dict
+
+
 ################################################################################
 # Benchmarks
 def bench_from_networkx(benchmark, graph_obj):
@@ -424,6 +446,26 @@ def bench_pagerank(benchmark, graph_obj, backend_wrapper):
     result = benchmark.pedantic(
         target=backend_wrapper(nx.pagerank),
         args=(G,),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is dict
+
+
+def bench_pagerank_personalized(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+
+    # FIXME: This will run for every combination of inputs, even if the
+    # graph/dataset does not change. Ideally this is run once per
+    # graph/dataset.
+    pagerank_dict = nx.pagerank(G)
+    personalization_dict = build_personalization_dict(pagerank_dict)
+
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.pagerank),
+        args=(G,),
+        kwargs={"personalization": personalization_dict},
         rounds=rounds,
         iterations=iterations,
         warmup_rounds=warmup_rounds,
@@ -804,3 +846,73 @@ def bench_weakly_connected_components(benchmark, graph_obj, backend_wrapper):
         warmup_rounds=warmup_rounds,
     )
     assert type(result) is list
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_complete_bipartite_graph(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_connected_components(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_connected(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_node_connected_component(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_number_connected_components(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_isolate(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_isolates(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_number_of_isolates(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_complement(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_reverse(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_arborescence(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_branching(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_forest(benchmark, graph_obj, backend_wrapper):
+    pass
+
+
+@pytest.mark.skip(reason="benchmark not implemented")
+def bench_is_tree(benchmark, graph_obj, backend_wrapper):
+    pass

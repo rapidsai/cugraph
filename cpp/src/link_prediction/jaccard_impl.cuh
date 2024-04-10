@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 #pragma once
 
+#include "link_prediction/similarity_impl.cuh"
+
 #include <cugraph/algorithms.hpp>
-#include <link_prediction/similarity_impl.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -54,6 +55,28 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
                             vertex_pairs,
                             detail::jaccard_functor_t{},
                             do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  jaccard_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  return detail::all_pairs_similarity(handle,
+                                      graph_view,
+                                      edge_weight_view,
+                                      vertices,
+                                      topk,
+                                      detail::jaccard_functor_t{},
+                                      do_expensive_check);
 }
 
 }  // namespace cugraph

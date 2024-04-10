@@ -12,6 +12,7 @@
 # limitations under the License.
 import warnings
 
+import networkx as nx
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_undirected_graph
@@ -25,21 +26,18 @@ from nx_cugraph.utils import (
 
 __all__ = ["louvain_communities"]
 
-
-@not_implemented_for("directed")
-@networkx_algorithm(
-    extra_params={
+# max_level argument was added to NetworkX 3.3
+if nx.__version__[:3] <= "3.2":
+    _max_level_param = {
         "max_level : int, optional": (
             "Upper limit of the number of macro-iterations (max: 500)."
-        ),
-        **_dtype_param,
-    },
-    is_incomplete=True,  # seed not supported; self-loops not supported
-    is_different=True,  # RNG different
-    version_added="23.10",
-    _plc="louvain",
-)
-def louvain_communities(
+        )
+    }
+else:
+    _max_level_param = {}
+
+
+def _louvain_communities_nx32(
     G,
     weight="weight",
     resolution=1,
@@ -47,6 +45,22 @@ def louvain_communities(
     seed=None,
     *,
     max_level=None,
+    dtype=None,
+):
+    """`seed` parameter is currently ignored, and self-loops are not yet supported."""
+    return _louvain_communities(
+        G, weight, resolution, threshold, max_level, seed, dtype=dtype
+    )
+
+
+def _louvain_communities(
+    G,
+    weight="weight",
+    resolution=1,
+    threshold=0.0000001,
+    max_level=None,
+    seed=None,
+    *,
     dtype=None,
 ):
     """`seed` parameter is currently ignored, and self-loops are not yet supported."""
@@ -76,16 +90,54 @@ def louvain_communities(
     return [set(G._nodearray_to_list(ids)) for ids in groups.values()]
 
 
-@louvain_communities._can_run
-def _(
-    G,
-    weight="weight",
-    resolution=1,
-    threshold=0.0000001,
-    seed=None,
-    *,
-    max_level=None,
-    dtype=None,
-):
-    # NetworkX allows both directed and undirected, but cugraph only allows undirected.
-    return not G.is_directed()
+_louvain_decorator = networkx_algorithm(
+    extra_params={
+        **_max_level_param,
+        **_dtype_param,
+    },
+    is_incomplete=True,  # seed not supported; self-loops not supported
+    is_different=True,  # RNG different
+    version_added="23.10",
+    _plc="louvain",
+    name="louvain_communities",
+)
+
+if _max_level_param:  # networkx <= 3.2
+    _louvain_communities_nx32.__name__ = "louvain_communities"
+    louvain_communities = not_implemented_for("directed")(
+        _louvain_decorator(_louvain_communities_nx32)
+    )
+
+    @louvain_communities._can_run
+    def _(
+        G,
+        weight="weight",
+        resolution=1,
+        threshold=0.0000001,
+        seed=None,
+        *,
+        max_level=None,
+        dtype=None,
+    ):
+        # NetworkX allows both directed and undirected, but cugraph only undirected.
+        return not G.is_directed()
+
+else:  # networkx >= 3.3
+    _louvain_communities.__name__ = "louvain_communities"
+    louvain_communities = not_implemented_for("directed")(
+        _louvain_decorator(_louvain_communities)
+    )
+
+    @louvain_communities._can_run
+    def _(
+        G,
+        weight="weight",
+        resolution=1,
+        threshold=0.0000001,
+        max_level=None,
+        seed=None,
+        *,
+        dtype=None,
+    ):
+        # NetworkX allows both directed and undirected, but cugraph only undirected.
+        return not G.is_directed()

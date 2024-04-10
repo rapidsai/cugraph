@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ import gc
 import torch
 import numpy as np
 
-from torch_geometric.nn import CuGraphSAGEConv
+from cugraph_pyg.nn import SAGEConv as CuGraphSAGEConv
 
 import torch.nn as nn
 import torch.nn.functional as F

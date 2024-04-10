@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include <prims/reduce_v.cuh>
-#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_src_dst_property.cuh>
-#include <prims/update_v_frontier.cuh>
-#include <prims/vertex_frontier.cuh>
+#include "prims/reduce_v.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
+#include "prims/update_v_frontier.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -87,8 +87,6 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check)
 {
   // check input arguments.
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input argument: core_number currently supports only undirected graphs.");

@@ -1,7 +1,7 @@
 
 # Getting the WholeGraph Packages
 
-Start by reading the [RAPIDS Instalation guide](https://docs.rapids.ai/install)  
+Start by reading the [RAPIDS Instalation guide](https://docs.rapids.ai/install)
 and checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
 
 

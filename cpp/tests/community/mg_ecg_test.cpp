@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_utilities.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -32,8 +32,9 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sequence.h>
 
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <chrono>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and

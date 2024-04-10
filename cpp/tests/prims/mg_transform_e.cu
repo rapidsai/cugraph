@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-#include "property_generator.cuh"
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/mg_utilities.hpp>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <prims/count_if_e.cuh>
-#include <prims/edge_bucket.cuh>
-#include <prims/fill_edge_property.cuh>
-#include <prims/transform_e.cuh>
+#include "prims/count_if_e.cuh"
+#include "prims/edge_bucket.cuh"
+#include "prims/fill_edge_property.cuh"
+#include "prims/transform_e.cuh"
+#include "utilities/base_fixture.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -34,17 +31,19 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/hash_functions.cuh>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
+
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
+
+#include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
 
@@ -103,8 +102,8 @@ class Tests_MGTransformE
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<vertex_t, bool>::edge_property(*handle_, mg_graph_view, 2);
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
@@ -114,12 +113,13 @@ class Tests_MGTransformE
     const int initial_value  = 4;
 
     auto property_initial_value =
-      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
-    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *mg_renumber_map, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
     cugraph::edge_bucket_t<vertex_t, void, !store_transposed /* src_major */, true, true> edge_list(

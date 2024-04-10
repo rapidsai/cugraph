@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include "c_api/abstract_functor.hpp"
+#include "c_api/graph.hpp"
+#include "c_api/resource_handle.hpp"
+#include "c_api/utils.hpp"
 
-#include <c_api/abstract_functor.hpp>
-#include <c_api/graph.hpp>
-#include <c_api/resource_handle.hpp>
-#include <c_api/utils.hpp>
+#include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -475,6 +475,14 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_random_walk_result_t** result,
                                       cugraph_error_t** error)
 {
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
   cugraph::c_api::node2vec_functor functor(
     handle, graph, start_vertices, max_length, compress_results, p, q);
 
@@ -528,6 +536,14 @@ cugraph_error_code_t cugraph_uniform_random_walks(
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
   uniform_random_walks_functor functor(handle, graph, start_vertices, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -541,6 +557,14 @@ cugraph_error_code_t cugraph_biased_random_walks(
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
   biased_random_walks_functor functor(handle, graph, start_vertices, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -556,6 +580,14 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
   node2vec_random_walks_functor functor(handle, graph, start_vertices, max_length, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
@@ -28,10 +29,22 @@ namespace test {
 template <typename value_buffer_type>
 value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values);
 
+template <typename value_buffer_type>
+std::tuple<value_buffer_type, value_buffer_type> sort(raft::handle_t const& handle,
+                                                      value_buffer_type const& first,
+                                                      value_buffer_type const& second);
+
 template <typename key_buffer_type, typename value_buffer_type>
 std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
                                                            key_buffer_type const& keys,
                                                            value_buffer_type const& values);
+
+template <typename key_buffer_type, typename value_buffer_type>
+std::tuple<key_buffer_type, key_buffer_type, value_buffer_type> sort_by_key(
+  raft::handle_t const& handle,
+  key_buffer_type const& first,
+  key_buffer_type const& second,
+  value_buffer_type const& values);
 
 template <typename vertex_t>
 vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices);

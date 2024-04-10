@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <detail/graph_partition_utils.cuh>
-#include <structure/detail/structure_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
@@ -30,6 +30,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 

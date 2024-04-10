@@ -15,9 +15,10 @@
  */
 #pragma once
 
-#include <prims/detail/optional_dataframe_buffer.hpp>
-#include <prims/kv_store.cuh>
-#include <utilities/error_check_utils.cuh>
+#include "detail/graph_partition_utils.cuh"
+#include "prims/detail/optional_dataframe_buffer.hpp"
+#include "prims/kv_store.cuh"
+#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -31,6 +32,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -48,6 +50,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
+#include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/set_operations.h>
@@ -213,8 +216,7 @@ struct update_rx_major_local_nbrs_t {
         auto mask_first = (*edge_partition_e_mask).value_first();
         if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
           auto input_first =
-            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first()) +
-            edge_offset;
+            thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first());
           copy_if_mask_set(input_first,
                            mask_first,
                            thrust::make_zip_iterator(local_nbrs_for_rx_majors.begin(),
@@ -319,7 +321,8 @@ struct pick_min_degree_t {
   }
 };
 
-template <typename InputKeyIterator0,
+template <bool check_edge_mask,
+          typename InputKeyIterator0,
           typename InputKeyIterator1,
           typename InputValueIterator0,  // should be void* if invalid
           typename InputValueIterator1,  // should be void* if invalid
@@ -356,10 +359,14 @@ __device__ edge_t set_intersection_by_key_with_mask(InputKeyIterator0 input_key_
   auto output_idx = output_start_offset;
   while ((idx0 < (input_start_offset0 + input_size0)) &&
          (idx1 < (input_start_offset1 + input_size1))) {
-    bool valid0 = apply_mask0 ? check_bit_set(idx0) : true;
-    bool valid1 = apply_mask1 ? check_bit_set(idx1) : true;
-    if (!valid0) { ++idx0; }
-    if (!valid1) { ++idx1; }
+    bool valid0 = true;
+    bool valid1 = true;
+    if constexpr (check_edge_mask) {
+      valid0 = apply_mask0 ? check_bit_set(idx0) : true;
+      valid1 = apply_mask1 ? check_bit_set(idx1) : true;
+      if (!valid0) { ++idx0; }
+      if (!valid1) { ++idx1; }
+    }
 
     if (valid0 && valid1) {
       auto key0 = *(input_key_first0 + idx0);
@@ -522,24 +529,42 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
 
-    auto mask_first        = edge_partition_e_mask ? (*edge_partition_e_mask).value_first()
-                                                   : static_cast<uint32_t const*>(nullptr);
-    auto intersection_size = set_intersection_by_key_with_mask(
-      indices0,
-      indices1,
-      edge_property_values0,
-      edge_property_values1,
-      mask_first,
-      nbr_intersection_indices.begin(),
-      nbr_intersection_e_property_values0,
-      nbr_intersection_e_property_values1,
-      local_edge_offset0,
-      local_degree0,
-      (std::is_same_v<FirstElementToIdxMap, void*> && edge_partition_e_mask),
-      local_edge_offset1,
-      local_degree1,
-      (std::is_same_v<SecondElementToIdxMap, void*> && edge_partition_e_mask),
-      nbr_intersection_offsets[i]);
+    edge_t intersection_size{};
+    if (edge_partition_e_mask) {
+      intersection_size =
+        set_intersection_by_key_with_mask<true>(indices0,
+                                                indices1,
+                                                edge_property_values0,
+                                                edge_property_values1,
+                                                (*edge_partition_e_mask).value_first(),
+                                                nbr_intersection_indices.begin(),
+                                                nbr_intersection_e_property_values0,
+                                                nbr_intersection_e_property_values1,
+                                                local_edge_offset0,
+                                                local_degree0,
+                                                std::is_same_v<FirstElementToIdxMap, void*>,
+                                                local_edge_offset1,
+                                                local_degree1,
+                                                std::is_same_v<SecondElementToIdxMap, void*>,
+                                                nbr_intersection_offsets[i]);
+    } else {
+      intersection_size =
+        set_intersection_by_key_with_mask<false>(indices0,
+                                                 indices1,
+                                                 edge_property_values0,
+                                                 edge_property_values1,
+                                                 static_cast<uint32_t const*>(nullptr),
+                                                 nbr_intersection_indices.begin(),
+                                                 nbr_intersection_e_property_values0,
+                                                 nbr_intersection_e_property_values1,
+                                                 local_edge_offset0,
+                                                 local_degree0,
+                                                 false,
+                                                 local_edge_offset1,
+                                                 local_degree1,
+                                                 false,
+                                                 nbr_intersection_offsets[i]);
+    }
 
     thrust::fill(
       thrust::seq,
@@ -714,7 +739,7 @@ nbr_intersection(raft::handle_t const& handle,
   auto edge_mask_view = graph_view.edge_mask_view();
 
   std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> major_to_idx_map_ptr{
-    std::nullopt};
+    std::nullopt};  // idx to major_nbr_offsets
   std::optional<rmm::device_uvector<edge_t>> major_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> major_nbr_indices{std::nullopt};
 
@@ -1041,7 +1066,7 @@ nbr_intersection(raft::handle_t const& handle,
   // 3. Collect neighbor list for minors (for the neighbors within the minor range for this GPU)
 
   std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> minor_to_idx_map_ptr{
-    std::nullopt};
+    std::nullopt};  // idx to minor_nbr_offsets
   std::optional<rmm::device_uvector<size_t>> minor_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> minor_nbr_indices{std::nullopt};
 
@@ -1208,9 +1233,11 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_sizes.size() + 1, handle.get_stream());
         rx_v_pair_nbr_intersection_offsets.set_element_to_zero_async(size_t{0},
                                                                      handle.get_stream());
+        auto size_first = thrust::make_transform_iterator(
+          rx_v_pair_nbr_intersection_sizes.begin(), cugraph::detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               rx_v_pair_nbr_intersection_sizes.begin(),
-                               rx_v_pair_nbr_intersection_sizes.end(),
+                               size_first,
+                               size_first + rx_v_pair_nbr_intersection_sizes.size(),
                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         rx_v_pair_nbr_intersection_indices.resize(
@@ -1320,8 +1347,8 @@ nbr_intersection(raft::handle_t const& handle,
         }
 
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               rx_v_pair_nbr_intersection_sizes.begin(),
-                               rx_v_pair_nbr_intersection_sizes.end(),
+                               size_first,
+                               size_first + rx_v_pair_nbr_intersection_sizes.size(),
                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         std::vector<size_t> h_rx_v_pair_lasts(rx_v_pair_counts.size());

@@ -15,7 +15,7 @@ Core Graph API Documentation
     cugraph_c/index.rst
     cugraph_cpp/index.rst
 
-Graph Nerual Networks API Documentation
+Graph Neural Networks API Documentation
 ---------------------------------------
 
 .. toctree::
@@ -35,5 +35,3 @@ Additional Graph Packages API Documentation
     :caption: Additional Graph Packages API Documentation
 
     service/index.rst
-
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <cugraph/graph_generators.hpp>
+#include "utilities/base_fixture.hpp"
+#include "utilities/check_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 
-#include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include <cugraph/graph_generators.hpp>
 
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>

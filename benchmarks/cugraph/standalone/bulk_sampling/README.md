@@ -16,21 +16,21 @@ Required:
         the samples will be written to a new folder in /home/samples that
         contains information about the sampling run as well as the time
         of the run.
-    
+
     --dataset_root
         The folder where datasets are stored.  Uses the format described
         in the input format section.
-    
+
     --datasets
         Comma-separated list of datasets; can specify ogb or rmat (i.e. ogb_papers100M[2],rmat_22_16).
         For ogb datasets, can provide replication factor using brackets.
         Will attempt to read from dataset_root/<datset_name>.
-    
+
 Optional:
     --fanouts
         Comma-separated list of fanout values (i.e. [10, 25]).
         The default fanout is [10, 25].
-    
+
     --batch_sizes
         Comma-separated list of batch sizes (i.e. 500, 1000).
         Defaults to "512,1024"
@@ -39,7 +39,7 @@ Optional:
         Comma-separated list of seeds per call.  Controls the number of input seed vertices processed
         in a single sampling call.
         Defaults to 524288
-    
+
     --reverse_edges
         Whether to reverse the edges of the input edgelist. Should be set to False for PyG and True for DGL.
         Defaults to False (PyG).
@@ -52,8 +52,8 @@ Optional:
     --random_seed
         Seed for random number generation.
         Defaults to '62'
-    
-    
+
+
 ### Input Format
 The script expects its input data in the following format:
 ```
@@ -152,7 +152,7 @@ Next are standard GNN training arguments such as `FANOUT`, `BATCH_SIZE`, etc.  Y
 the number of training epochs here.  These are followed by the `REPLICATION_FACTOR` argument, which
 can be used to create replications of the dataset for scale testing purposes.
 
-The final two arguments are `FRAMEWORK` which can be either "cuGraphPyG" or "PyG", and `GPUS_PER_NODE`
+The final two arguments are `FRAMEWORK` which can be "cugraph_dgl_csr", "cugraph_pyg" or "pyg", and `GPUS_PER_NODE`
 which must be set to the correct value, even if this is provided by a SLURM argument.  If `GPUS_PER_NODE`
 is not set to the correct number of GPUs, the script will hang indefinitely until it times out.  Mismatched
 GPUs per node is currently unsupported by this script but should be possible in practice.

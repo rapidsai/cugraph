@@ -5,18 +5,21 @@
 exclude: '^thirdparty'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-added-large-files
       - id: debug-statements
+      - id: end-of-file-fixer
       - id: mixed-line-ending
+      - id: trailing-whitespace
   - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
       - id: black
         language_version: python3
-        args: [--target-version=py38]
+        args: [--target-version=py39]
         files: ^(python/.*|benchmarks/.*)$
+        exclude: ^python/nx-cugraph/
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
@@ -43,16 +46,40 @@ repos:
           )
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
-  - repo: local
-    hooks:
-      - id: copyright-check
-        name: copyright-check
-        entry: python ./ci/checks/copyright.py --git-modified-only --update-current-year
-        language: python
-        pass_filenames: false
-        additional_dependencies: [gitpython]
   - repo: https://github.com/rapidsai/dependency-file-generator
     rev: v1.8.0
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]
+  - repo: https://github.com/rapidsai/pre-commit-hooks
+    rev: v0.0.3
+    hooks:
+      - id: verify-copyright
+        files: |
+          (?x)
+              [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
+              CMakeLists[.]txt$|
+              CMakeLists_standalone[.]txt$|
+              [.]flake8[.]cython$|
+              meta[.]yaml$|
+              setup[.]cfg$
+  - repo: local
+    hooks:
+      - id: nx-cugraph-meta-data-update
+        name: nx-cugraph meta-data updater
+        entry: bash -c "PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/_nx_cugraph/__init__.py"
+        files: ^python/nx-cugraph/
+        types: [python]
+        language: python
+        pass_filenames: false
+        additional_dependencies: ["networkx>=3.2"]
+  - repo: local
+    hooks:
+      - id: nx-cugraph-readme-update
+        name: nx-cugraph README updater
+        entry: bash -c "PYTHONPATH=./python/nx-cugraph python ./python/nx-cugraph/scripts/update_readme.py ./python/nx-cugraph/README.md"
+        files: ^python/nx-cugraph/
+        types_or: [python, markdown]
+        language: python
+        pass_filenames: false
+        additional_dependencies: ["networkx>=3.2"]

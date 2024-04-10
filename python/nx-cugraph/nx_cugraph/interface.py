@@ -67,6 +67,7 @@ class BackendInterface:
         no_multigraph = "multigraphs not currently supported"
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
+        sssp_path_different = "sssp may choose a different valid path"
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -77,6 +78,19 @@ class BackendInterface:
             #     "test_strongly_connected.py:"
             #     "TestStronglyConnected.test_condensation_mapping_and_members"
             # ): "Strongly connected groups in different iteration order",
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_unweighted_diamond"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_weighted_diamond"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis.test_petersen_graph"
+            ): sssp_path_different,
+            key(
+                "test_cycles.py:TestMinimumCycleBasis."
+                "test_gh6787_and_edge_attribute_names"
+            ): sssp_path_different,
         }
 
         from packaging.version import parse
@@ -220,9 +234,9 @@ class BackendInterface:
             )
             if sys.version_info[:2] == (3, 9):
                 # This test is sensitive to RNG, which depends on Python version
-                xfail[
-                    key("test_louvain.py:test_threshold")
-                ] = "Louvain does not support seed parameter"
+                xfail[key("test_louvain.py:test_threshold")] = (
+                    "Louvain does not support seed parameter"
+                )
             if nxver.major == 3 and nxver.minor >= 2:
                 xfail.update(
                     {
@@ -255,6 +269,12 @@ class BackendInterface:
                             key(
                                 "test_gml.py:TestGraph.test_special_float_label"
                             ): different_iteration_order,
+                        }
+                    )
+                elif nxver.minor >= 3:
+                    xfail.update(
+                        {
+                            key("test_louvain.py:test_max_level"): louvain_different,
                         }
                     )
 

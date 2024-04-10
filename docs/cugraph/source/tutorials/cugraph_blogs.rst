@@ -3,12 +3,23 @@ cuGraph Blogs and Presentations
 ************************************************
 
 The RAPIDS team blogs at https://medium.com/rapids-ai, and many of
-these blog posts provide deeper dives into features from cuGraph. 
+these blog posts provide deeper dives into features from cuGraph.
 Here, we've selected just a few that are of particular interest to cuGraph users:
 
 
 Blogs & Conferences
 ====================
+2024
+------
+Coming Soon
+
+2023
+------
+  * `Intro to Graph Neural Networks with cuGraph-DGL <https://medium.com/rapids-ai/introduction-to-graph-neural-networks-with-cugraph-dgl-64c632e9cc52>`_
+  * `GTC 2023 Ask the Experts Q&A <https://forums.developer.nvidia.com/c/blogs-events/connect-with-experts/ama-cugraph/652?ncid=em-even-260150-vt33#cid=dev03_em-even_en-us>`_
+  * `Accelerating NetworkX on NVIDIA GPUs for High Performance Graph Analytics <https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for-high-performance-graph-analytics/>`_
+  * `Introduction to Graph Neural Networks with NVIDIA cuGraph-DGL <https://developer.nvidia.com/blog/introduction-to-graph-neural-networks-with-nvidia-cugraph-dgl/>`_
+  * `Supercharge Graph Analytics at Scale with GPU-CPU Fusion for 100x Performance <https://developer.nvidia.com/blog/supercharge-graph-analytics-at-scale-with-gpu-cpu-fusion-for-100x-performance/>`_
 2022
 ------
   * `GTC: State of cuGraph  (video & slides) <https://www.nvidia.com/gtc/session-catalog/?search=cuGraph&tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635793340204001n4p2>`_
@@ -50,6 +61,8 @@ Media
 Academic Papers
 ===============
 
+ * Seunghwa Kang, Chuck Hastings, Joe Eaton, Brad Rees `cuGraph C++ primitives: vertex/edge-centric building blocks for parallel graph computing <https://ieeexplore.ieee.org/abstract/document/10196665>`_
+
  * Alex Fender, Brad Rees, Joe Eaton (2022) `Massive Graph Analytics <https://books.google.com/books?hl=en&lr=&id=QspxEAAAQBAJ&oi=fnd&pg=PT8&dq=book:%22Massive+Graph+Analytics%22&ots=3HAGJ0njKO&sig=8e4v0azmzA6LTQNUNgPw-uTLkoc#v=onepage&q&f=false>`_  Bader, D. (Editor) CRC Press
 
  * S Kang, A. Fender, J. Eaton, B. Rees:`Computing PageRank Scores of Web Crawl Data Using DGX A100 Clusters`. In IEEE HPEC, Sep. 2020
@@ -57,6 +70,8 @@ Academic Papers
  * Hricik, T., Bader, D., & Green, O. (2020, September). `Using RAPIDS AI to accelerate graph data science workflows`. In 2020 IEEE High Performance Extreme Computing Conference (HPEC) (pp. 1-4). IEEE.
 
  * Richardson, B., Rees, B., Drabas, T., Oldridge, E., Bader, D. A., & Allen, R. (2020, August). Accelerating and Expanding End-to-End Data Science Workflows with DL/ML Interoperability Using RAPIDS. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (pp. 3503-3504).
+
+ * A Gondhalekar, P Sathre, W Feng `Hybrid CPU-GPU Implementation of Edge-Connected Jaccard Similarity in Graph Datasets <https://sc23.supercomputing.org/proceedings/tech_poster/poster_files/rpost221s3-file3.pdf>`_
 
 
 Other Blogs

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
+#include "community/egonet_validate.hpp"
+#include "utilities/conversion_utilities.hpp"
+
 #include <cugraph/algorithms.hpp>
-
-#include <community/egonet_validate.hpp>
-#include <utilities/test_utilities.hpp>
-
-#include <gtest/gtest.h>
 
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
@@ -27,6 +25,8 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
+
+#include <gtest/gtest.h>
 
 namespace cugraph {
 namespace test {
