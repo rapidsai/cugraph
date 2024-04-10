@@ -207,11 +207,10 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     --channel "${CPP_CHANNEL}" \
     --channel "${PYTHON_CHANNEL}" \
     --channel conda-forge \
-    --channel nvidia \
     --channel pyg \
-    --channel rapidsai-nightly \
+    --channel nvidia \
     "cugraph-pyg" \
-    "pytorch>=2.0,<2.1" \
+    "pytorch>=2.0" \
     "cuda-version=${CONDA_CUDA_VERSION}"
 
   # Install pyg dependencies (which requires pip)
@@ -254,7 +253,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
+      --channel conda-forge \
       --channel nvidia \
       cugraph-equivariant
     pip install e3nn==0.5.1

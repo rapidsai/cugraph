@@ -22,14 +22,19 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   CONDA_CUDA_VERSION="11.8"
+  DGL_CHANNEL="dglteam/label/cu118"
 else
   CONDA_CUDA_VERSION="12.1"
+  DGL_CHANNEL="dglteam/label/cu121"
 fi
 
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   --channel conda-forge \
+  --channel pyg \
+  --channel nvidia \
+  --channel "${DGL_CHANNEL}" \
   libcugraph \
   pylibcugraph \
   cugraph \
