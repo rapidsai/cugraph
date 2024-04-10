@@ -213,7 +213,7 @@ class Dataset:
 
         return self._edgelist.copy()
 
-    def get_dask_edgelist(self, download=False, overwrite=False):
+    def get_dask_edgelist(self, download=False):
         """
         Return a distributed Edgelist.
 
