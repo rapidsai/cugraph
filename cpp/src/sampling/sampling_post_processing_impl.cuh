@@ -1643,10 +1643,10 @@ renumber_and_compress_sampled_edgelist(
               label_end_offset   = (*seed_vertex_label_offsets)[l_idx + 1];
             }
             if (label_start_offset < label_end_offset) {
-              min_vertices[l_idx * num_hops] = cuda::std::min(min_vertices[l_idx * num_hops],
-                                                              seed_vertices[label_start_offset]);
-              max_vertices[l_idx * num_hops] = cuda::std::max(
-                max_vertices[l_idx * num_hops], seed_vertices[label_end_offset - 1]);
+              min_vertices[l_idx * num_hops] =
+                cuda::std::min(min_vertices[l_idx * num_hops], seed_vertices[label_start_offset]);
+              max_vertices[l_idx * num_hops] =
+                cuda::std::max(max_vertices[l_idx * num_hops], seed_vertices[label_end_offset - 1]);
             }
           });
       }
