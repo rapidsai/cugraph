@@ -155,9 +155,9 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
-      --channel pytorch-nightly \
       --channel dglteam/label/cu118 \
       --channel nvidia \
+      mkl<2024.1.0 \
       libcugraph \
       pylibcugraph \
       pylibcugraphops \
@@ -165,7 +165,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
+      'pytorch-cuda=11.8'
 
     rapids-print-env
 
@@ -206,6 +206,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel nvidia \
       --channel pyg \
       --channel rapidsai-nightly \
+      mkl<2024.1.0 \
       "cugraph-pyg" \
       "pytorch>=2.0,<2.1" \
       "pytorch-cuda=11.8"
