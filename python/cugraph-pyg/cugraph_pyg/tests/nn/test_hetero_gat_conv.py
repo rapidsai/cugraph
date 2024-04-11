@@ -71,9 +71,6 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
                 w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
                 if w_dst[edge_type] is not None:
                     w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
-            # w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
-            # if w_dst[edge_type] is not None:
-            #     w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
 
             conv2.attn_weights[edge_type][: heads * out_channels] = conv1.convs[
                 edge_type

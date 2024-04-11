@@ -17,7 +17,6 @@ from typing import Optional, Tuple, Union
 from cugraph.utilities.utils import import_optional
 import pylibcugraphops.pytorch
 
-# from pylibcugraphops.pytorch import CSC, HeteroCSC
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
