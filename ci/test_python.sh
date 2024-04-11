@@ -214,13 +214,12 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     "cuda-version=${CONDA_CUDA_VERSION}"
 
   # Install pyg dependencies (which requires pip)
-  pip install \
-      pyg_lib \
-      torch_scatter \
-      torch_sparse \
-      torch_cluster \
-      torch_spline_conv \
-    -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
+  # Install from source due to conda-forge pytorch incompatibility
+  pip install --verbose git+https://github.com/pyg-team/pyg-lib.git
+  pip install --verbose torch_scatter
+  pip install --verbose torch_sparse
+  pip install --verbose torch_cluster
+  pip install --verbose torch_spline_conv
 
   rapids-print-env
 
