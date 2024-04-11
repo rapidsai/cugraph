@@ -84,7 +84,6 @@ jobs:
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/test_notebooks.sh"
   docs-build:
-    needs: conda-python-build
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-24.06
     with:

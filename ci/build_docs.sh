@@ -14,6 +14,10 @@ rapids-dependency-file-generator \
 rapids-mamba-retry env create --yes -f env.yaml -n docs
 conda activate docs
 
+rapids-logger "Installing PyTorch wheel"
+PYTORCH_URL="https://download.pytorch.org/whl/cu118"
+rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
+
 rapids-print-env
 
 rapids-logger "Downloading artifacts from previous jobs"
