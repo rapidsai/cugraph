@@ -245,6 +245,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     set -u
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
+  fi
 else
   rapids-logger "skipping cugraph_pyg pytest on CUDA!=11.8"
 fi
