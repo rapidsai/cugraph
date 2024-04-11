@@ -215,6 +215,17 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           options_.prior_sources_behavior_,
           options_.dedupe_sources_,
           do_expensive_check_);
+#if 1  // DEBUG
+      if (edge_label) {
+        std::cout << "options_.renumber_results_ = " << options_.renumber_results_
+                  << " edge_label.has_value()= true, edge_label->size()=" << edge_label->size()
+                  << " label_list=" << label_list_ << " label_list->size_=" << label_list->size_
+                  << std::endl;
+      } else {
+        std::cout << "edge_label.has_value()= false" << options_.renumber_results_ =
+          " << options_.renumber_results_ << " std::endl;
+      }
+#endif
 
       std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
 
