@@ -26,7 +26,7 @@ rapids-mamba-retry install \
   --channel pytorch \
   --channel pyg \
   --channel nvidia \
-  mkl<2024.1.0 \
+  'mkl<2024.1.0' \
   pytorch=2.0.0 \
   pytorch-cuda=11.8 \
   pyg=*=*cu* \

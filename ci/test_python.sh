@@ -157,7 +157,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel pytorch \
       --channel dglteam/label/cu118 \
       --channel nvidia \
-      mkl<2024.1.0 \
+      'mkl<2024.1.0' \
       libcugraph \
       pylibcugraph \
       pylibcugraphops \
