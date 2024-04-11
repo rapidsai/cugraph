@@ -97,10 +97,13 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
 
     num_papers = data[0]["num_nodes_dict"]["paper"]
     train_perc = 0.1
+
     train_nodes = torch.randperm(num_papers)
     train_nodes = train_nodes[: int(train_perc * num_papers)]
+
     train_mask = torch.full((num_papers,), -1, device=device)
     train_mask[train_nodes] = 1
+
     fs.add_data(train_mask, "paper", "train")
 
     cugraph_store = CuGraphStore(fs, G, N)
@@ -143,9 +146,9 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
                 (len(y_true), len(y_true)),
             )
 
-            y_true = F.one_hot(
-                y_true[train_mask].to(torch.int64), num_classes=349
-            ).to(torch.float32)
+            y_true = F.one_hot(y_true[train_mask].to(torch.int64), num_classes=349).to(
+                torch.float32
+            )
 
             y_pred = y_pred[train_mask]
 
