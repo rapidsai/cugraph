@@ -16,7 +16,7 @@ from typing import Optional, Tuple, Union
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_gat_v2_n2n
 
-from .base import BaseConv
+from .base import BaseConv, CSC
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
@@ -172,7 +172,7 @@ class GATv2Conv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        csc: Union[torch_geometric.EdgeIndex, CSC],
         edge_attr: Optional[torch.Tensor] = None,
         deterministic_dgrad: bool = False,
         deterministic_wgrad: bool = False,

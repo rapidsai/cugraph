@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,10 +15,15 @@ import warnings
 from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
-from pylibcugraphops.pytorch import CSC, HeteroCSC
+import pylibcugraphops.pytorch
+
+# from pylibcugraphops.pytorch import CSC, HeteroCSC
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
+
+# A tuple of (row, colptr, num_src_nodes)
+CSC = Tuple[torch.Tensor, torch.Tensor, int]
 
 
 class BaseConv(torch.nn.Module):  # pragma: no cover
@@ -33,10 +38,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         edge_index: torch.Tensor,
         size: Optional[Tuple[int, int]] = None,
         edge_attr: Optional[torch.Tensor] = None,
-    ) -> Union[
-        Tuple[torch.Tensor, torch.Tensor, int],
-        Tuple[Tuple[torch.Tensor, torch.Tensor, int], torch.Tensor],
-    ]:
+    ) -> Union[CSC, Tuple[CSC, torch.Tensor],]:
         r"""Returns a CSC representation of an :obj:`edge_index` tensor to be
         used as input to cugraph-ops conv layers.
 
@@ -71,19 +73,17 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
 
     def get_cugraph(
         self,
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> CSC:
+    ) -> pylibcugraphops.pytorch.CSC:
         r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
 
         Args:
-            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
-                representation of a graph, given as a tuple of
-                :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`to_csc` method to convert an :obj:`edge_index`
-                representation to the desired format.
+            edge_index (EdgeIndex, (torch.Tensor, torch.Tensor, int)): The edge
+                indices, or a tuple of :obj:`(row, colptr, num_src_nodes)` for
+                CSC representation.
             bipartite (bool): If set to :obj:`True`, will create the bipartite
                 structure in cugraph-ops. (default: :obj:`False`)
             max_num_neighbors (int, optional): The maximum number of neighbors
@@ -91,7 +91,12 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
                 the message-flow-graph primitives in cugraph-ops.
                 (default: :obj:`None`)
         """
-        row, colptr, num_src_nodes = csc
+        if isinstance(edge_index, torch_geometric.EdgeIndex):
+            edge_index = edge_index.sort_by("col")[0]
+            num_src_nodes = edge_index.get_sparse_size(0)
+            (colptr, row), _ = edge_index.get_csc()
+        else:
+            row, colptr, num_src_nodes = edge_index
 
         if not row.is_cuda:
             raise RuntimeError(
@@ -102,7 +107,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if max_num_neighbors is None:
             max_num_neighbors = -1
 
-        return CSC(
+        return pylibcugraphops.pytorch.CSC(
             offsets=colptr,
             indices=row,
             num_src_nodes=num_src_nodes,
@@ -112,22 +117,20 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
 
     def get_typed_cugraph(
         self,
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_type: torch.Tensor,
         num_edge_types: Optional[int] = None,
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> HeteroCSC:
+    ) -> pylibcugraphops.pytorch.HeteroCSC:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
         Supports both bipartite and non-bipartite graphs.
 
         Args:
-            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
-                representation of a graph, given as a tuple of
-                :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`to_csc` method to convert an :obj:`edge_index`
-                representation to the desired format.
+            edge_index (EdgeIndex, (torch.Tensor, torch.Tensor, int)): The edge
+                indices, or a tuple of :obj:`(row, colptr, num_src_nodes)` for
+                CSC representation.
             edge_type (torch.Tensor): The edge type.
             num_edge_types (int, optional): The maximum number of edge types.
                 When not given, will be computed on-the-fly, leading to
@@ -145,10 +148,16 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if max_num_neighbors is None:
             max_num_neighbors = -1
 
-        row, colptr, num_src_nodes = csc
+        if isinstance(edge_index, torch_geometric.EdgeIndex):
+            edge_index, perm = edge_index.sort_by("col")
+            edge_type = edge_type[perm]
+            num_src_nodes = edge_index.get_sparse_size(0)
+            (colptr, row), _ = edge_index.get_csc()
+        else:
+            row, colptr, num_src_nodes = edge_index
         edge_type = edge_type.int()
 
-        return HeteroCSC(
+        return pylibcugraphops.pytorch.HeteroCSC(
             offsets=colptr,
             indices=row,
             edge_types=edge_type,

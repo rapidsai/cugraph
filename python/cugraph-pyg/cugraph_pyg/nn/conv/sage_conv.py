@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ from typing import Optional, Tuple, Union
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import agg_concat_n2n
 
-from .base import BaseConv
+from .base import BaseConv, CSC
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -116,7 +116,7 @@ class SAGEConv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        csc: Union[torch_geometric.EdgeIndex, CSC],
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
         bipartite = isinstance(x, Tuple)
