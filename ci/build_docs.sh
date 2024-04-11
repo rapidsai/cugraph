@@ -14,10 +14,6 @@ rapids-dependency-file-generator \
 rapids-mamba-retry env create --yes -f env.yaml -n docs
 conda activate docs
 
-rapids-logger "Installing PyTorch wheel"
-PYTORCH_URL="https://download.pytorch.org/whl/cu118"
-rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
-
 rapids-print-env
 
 rapids-logger "Downloading artifacts from previous jobs"
@@ -27,6 +23,12 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel pytorch \
+  --channel pyg \
+  --channel nvidia \
+  pytorch=2.0.0 \
+  pytorch-cuda=11.8 \
+  pyg=*=*cu* \
   libcugraph \
   pylibcugraph \
   cugraph \
