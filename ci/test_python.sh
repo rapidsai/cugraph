@@ -198,28 +198,32 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
 
   if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     CONDA_CUDA_VERSION="11.8"
+    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
   else
     CONDA_CUDA_VERSION="12.1"
+    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
   fi
 
   # Will automatically install built dependencies of cuGraph-PyG
   rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
     --channel "${PYTHON_CHANNEL}" \
-    --channel conda-forge \
+    --channel pytorch \
     --channel pyg \
     --channel nvidia \
     "cugraph-pyg" \
-    "pytorch>=2.0" \
-    "cuda-version=${CONDA_CUDA_VERSION}"
+    "pytorch=2.1.0" \
+    "pytorch-cuda=${CONDA_CUDA_VERSION}"
 
   # Install pyg dependencies (which requires pip)
-  # Install from source due to conda-forge pytorch incompatibility
-  pip install --verbose git+https://github.com/pyg-team/pyg-lib.git
-  pip install --verbose torch_scatter
-  pip install --verbose torch_sparse
-  pip install --verbose torch_cluster
-  pip install --verbose torch_spline_conv
+
+  pip install \
+      pyg_lib \
+      torch_scatter \
+      torch_sparse \
+      torch_cluster \
+      torch_spline_conv \
+    -f PYG_URL
 
   rapids-print-env
 
