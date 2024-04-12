@@ -25,8 +25,6 @@ else()
       "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}")
 endif()
 
-set(rapids-cmake-repo vyasr/rapids-cmake)
-set(rapids-cmake-branch "fix/cccl_kernel_pointer_hidden")
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
   file(
     DOWNLOAD
