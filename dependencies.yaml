@@ -285,7 +285,6 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - pytorch
   - pyg
   - dglteam/label/cu118
   - conda-forge
