@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -99,6 +100,8 @@ std::tuple<std::vector<size_t>, std::vector<vertex_t>> k_hop_nbrs_reference(
 struct KHopNbrs_Usecase {
   size_t num_start_vertices{0};
   size_t k{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -144,6 +147,13 @@ class Tests_KHopNbrs
 
     auto graph_view = graph.view();
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (k_hop_nbrs_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     std::vector<vertex_t> h_start_vertices(k_hop_nbrs_usecase.num_start_vertices);
     for (size_t i = 0; i < h_start_vertices.size(); ++i) {
       h_start_vertices[i] =
@@ -173,18 +183,17 @@ class Tests_KHopNbrs
     }
 
     if (k_hop_nbrs_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
-      if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
-
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
+      std::vector<edge_t> h_offsets{};
+      std::vector<vertex_t> h_indices{};
+      std::tie(h_offsets, h_indices, std::ignore) =
+        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          graph_view,
+          std::nullopt,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
       auto unrenumbered_start_vertices = std::vector<vertex_t>(h_start_vertices.size());
       if (renumber) {
@@ -266,24 +275,34 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_KHopNbrs_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(KHopNbrs_Usecase{1024, 5},
+    std::make_tuple(KHopNbrs_Usecase{1024, 5, false},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(KHopNbrs_Usecase{1024, 4},
+    std::make_tuple(KHopNbrs_Usecase{1024, 5, true},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(KHopNbrs_Usecase{1024, 4, false},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(KHopNbrs_Usecase{1024, 3},
+    std::make_tuple(KHopNbrs_Usecase{1024, 4, true},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(KHopNbrs_Usecase{1024, 3, false},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(KHopNbrs_Usecase{1024, 2},
+    std::make_tuple(KHopNbrs_Usecase{1024, 3, true},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(KHopNbrs_Usecase{1024, 2, false},
                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(KHopNbrs_Usecase{1024, 1},
+    std::make_tuple(KHopNbrs_Usecase{1024, 2, true},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(KHopNbrs_Usecase{1024, 1, false},
+                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx")),
+    std::make_tuple(KHopNbrs_Usecase{1024, 1, true},
                     cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_KHopNbrs_Rmat,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_tuple(KHopNbrs_Usecase{1024, 2},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    testing::Values(KHopNbrs_Usecase{1024, 2, false}, KHopNbrs_Usecase{1024, 2, true}),
+    testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -292,9 +311,11 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_KHopNbrs_Rmat,
-  ::testing::Values(
-    // disable correctness checks for large graphs
-    std::make_pair(KHopNbrs_Usecase{4, 2, false},
-                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    testing::Values(
+      // disable correctness checks for large graphs
+      KHopNbrs_Usecase{4, 2, false, false},
+      KHopNbrs_Usecase{4, 2, true, false}),
+    testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
