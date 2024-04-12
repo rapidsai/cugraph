@@ -219,11 +219,11 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       if (edge_label) {
         std::cout << "options_.renumber_results_ = " << options_.renumber_results_
                   << " edge_label.has_value()= true, edge_label->size()=" << edge_label->size()
-                  << " label_list=" << label_list_ << " label_list->size_=" << label_list->size_
+                  << " label_list=" << label_list_ << " label_list->size_=" << label_list_->size_
                   << std::endl;
       } else {
-        std::cout << "edge_label.has_value()= false" << options_.renumber_results_ =
-          " << options_.renumber_results_ << " std::endl;
+        std::cout << "edge_label.has_value()= false, options_.renumber_results_="
+                  << options_.renumber_results_ << std::endl;
       }
 #endif
 
