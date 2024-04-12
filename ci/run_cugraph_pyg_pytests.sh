@@ -7,3 +7,9 @@ set -euo pipefail
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../python/cugraph-pyg/cugraph_pyg
 
 pytest --cache-clear --ignore=tests/mg "$@" .
+
+# Test examples
+for e in "$(pwd)"/examples/*.py; do
+  rapids-logger "running example $e"
+  python $e
+done
