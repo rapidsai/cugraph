@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -170,6 +170,13 @@ class CuGraphStorage:
         self._edges_dict = add_node_offset_to_edges_dict(
             _edges_dict, self._ntype_offset_d
         )
+
+        # Persist the dataframes so they can be retrieved later
+        # for a multi-GPU workflow.
+        if not single_gpu:
+            for k in list(self._edges_dict.keys()):
+                self._edges_dict[k] = self._edges_dict[k].persist()
+
         self._etype_id_dict = {
             etype: etype_id for etype_id, etype in enumerate(self.canonical_etypes)
         }
