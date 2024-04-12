@@ -40,6 +40,19 @@ class DistSampleWriter:
         batches_per_partition: int = 256,
         format: str = "parquet",
     ):
+        """
+        Parameters
+        ----------
+        directory: str (required)
+            The directory where samples will be written.  This
+            writer can only write to disk.
+        batches_per_partition: int (optional, default=256)
+            The number of batches to write in a single file.
+        format: str (optional, default='parquet')
+            The file format of the output files containing the
+            sampled minibatches.  Currently, only parquet format
+            is supported.
+        """
         if format != "parquet":
             raise ValueError("Invalid format (currently supported: 'parquet')")
 
@@ -68,6 +81,10 @@ class DistSampleWriter:
             raise ValueError(
                 "Distributed sampling without renumbering is not supported"
             )
+
+        # Quit if there are no batches to write.
+        if len(minibatch_dict["batch_id"]) == 0:
+            return
 
         fanout_length = (len(minibatch_dict["label_hop_offsets"]) - 1) // len(
             minibatch_dict["batch_id"]
@@ -174,6 +191,28 @@ class DistSampler:
         local_seeds_per_call: int = 32768,
         retain_original_seeds: bool = False,  # TODO See #4329, needs C API
     ):
+        """
+        Parameters
+        ----------
+        graph: SGGraph or MGGraph (required)
+            The pylibcugraph graph object that will be sampled.
+        writer: DistSampleWriter (required)
+            The writer responsible for writing samples to disk
+            or, in the future, device or host memory.
+        local_seeds_per_call: int (optional, default=32768)
+            The number of seeds on this rank this sampler will
+            process in a single sampling call.  Batches will
+            get split into multiple sampling calls based on
+            this parameter.  This parameter must
+            be the same across all ranks.  The total number
+            of seeds processed per sampling call is this
+            parameter times the world size.
+        retain_original_seeds: bool (optional, default=False)
+            Whether to retain the original seeds even if they
+            do not appear in the output minibatch.  This will
+            affect the output renumber map and CSR/CSC graph
+            if applicable.
+        """
         self.__graph = graph
         self.__writer = writer
         self.__local_seeds_per_call = local_seeds_per_call
@@ -186,7 +225,6 @@ class DistSampler:
         batch_ids: TensorType,
         random_state: int = 0,
         assume_equal_input_size: bool = False,
-        local_label_list: TensorType = None,
     ) -> Dict[str, TensorType]:
         """
         For a single call group of seeds and associated batch ids, performs
@@ -204,9 +242,6 @@ class DistSampler:
             If True, will assume all ranks have the same number of inputs,
             and will skip the synchronization/gather steps to check for
             and handle uneven inputs.
-        local_label_list: TensorType
-            Optional. The list of batch ids (also called labels) on this rank.
-            If not provided, this will be calculated automatically.
 
         Returns
         -------
@@ -242,7 +277,10 @@ class DistSampler:
 
         if assume_equal_input_size:
             num_batches = len(local_label_list) * world_size
-            label_list = torch.arange(0, num_batches, device="cuda", dtype=torch.int32)
+            label_list = torch.empty((num_batches,), dtype=torch.int32, device="cuda")
+            w = torch.distributed.all_gather_into_tensor(
+                label_list, local_label_list, async_op=True
+            )
 
             label_to_output_comm_rank = torch.concat(
                 [
@@ -261,8 +299,12 @@ class DistSampler:
             )
             torch.distributed.all_gather_into_tensor(num_batches_all_ranks, num_batches)
 
-            label_list = torch.arange(
-                0, num_batches_all_ranks.sum(), device="cuda", dtype=torch.int32
+            label_list = [
+                torch.empty((n,), dtype=torch.int32, device="cuda")
+                for n in num_batches_all_ranks
+            ]
+            w = torch.distributed.all_gather(
+                label_list, local_label_list, async_op=True
             )
 
             label_to_output_comm_rank = torch.concat(
@@ -272,6 +314,9 @@ class DistSampler:
                 ]
             )
 
+        w.wait()
+        if isinstance(label_list, list):
+            label_list = torch.concat(label_list)
         return label_list, label_to_output_comm_rank
 
     def get_start_batch_offset(
@@ -348,37 +393,63 @@ class DistSampler:
         random_state: int
             The random seed to use for sampling.
         """
+        nodes = torch.as_tensor(nodes, device="cuda")
+
         batches_per_call = self._local_seeds_per_call // batch_size
         actual_seeds_per_call = batches_per_call * batch_size
 
+        # Split the input seeds into call groups.  Each call group
+        # corresponds to one sampling call.  A call group contains
+        # many batches.
         num_seeds = len(nodes)
-        nodes_call_groups = torch.split(
-            torch.as_tensor(nodes, device="cuda"), actual_seeds_per_call
-        )
+        nodes_call_groups = torch.split(nodes, actual_seeds_per_call)
 
         local_num_batches = int(ceil(num_seeds / batch_size))
         batch_id_start, input_size_is_equal = self.get_start_batch_offset(
             local_num_batches, assume_equal_input_size=assume_equal_input_size
         )
 
+        # Need to add empties to the list of call groups to handle the case
+        # where not all nodes have the same number of call groups.  This
+        # prevents a hang since we need all ranks to make the same number
+        # of calls.
+        if not input_size_is_equal:
+            num_call_groups = torch.tensor(
+                [len(nodes_call_groups)], device="cuda", dtype=torch.int32
+            )
+            torch.distributed.all_reduce(
+                num_call_groups, op=torch.distributed.ReduceOp.MAX
+            )
+            nodes_call_groups = list(nodes_call_groups) + (
+                [torch.tensor([], dtype=nodes.dtype, device="cuda")]
+                * (int(num_call_groups) - len(nodes_call_groups))
+            )
+
+        # Make a call to sample_batches for each call group
         for i, current_seeds in enumerate(nodes_call_groups):
-            batch_label_list = torch.arange(
+            current_batches = torch.arange(
                 batch_id_start + i * batches_per_call,
                 batch_id_start + (i + 1) * batches_per_call,
                 device="cuda",
                 dtype=torch.int32,
             )
 
-            current_batches = batch_label_list.repeat_interleave(batch_size)[
+            current_batches = current_batches.repeat_interleave(batch_size)[
                 : len(current_seeds)
             ]
+
+            # Handle the case where not all ranks have the same number of call groups,
+            # in which case there will be some empty groups that get submitted on the
+            # ranks with fewer call groups.
+            label_start, label_end = (
+                current_batches[[0, -1]] if len(current_batches) > 0 else (0, -1)
+            )
 
             minibatch_dict = self.sample_batches(
                 seeds=current_seeds,
                 batch_ids=current_batches,
                 random_state=random_state,
                 assume_equal_input_size=input_size_is_equal,
-                local_label_list=batch_label_list,
             )
             self.__writer.write_minibatches(minibatch_dict)
 
@@ -417,6 +488,7 @@ class UniformNeighborSampler(DistSampler):
         writer: DistSampleWriter,
         *,
         local_seeds_per_call: int = 32768,
+        retain_original_seeds: bool = False,
         fanout: List[int] = [-1],
         prior_sources_behavior: str = "exclude",
         deduplicate_sources: bool = True,
@@ -424,7 +496,12 @@ class UniformNeighborSampler(DistSampler):
         compress_per_hop: bool = False,
         with_replacement: bool = False,
     ):
-        super().__init__(graph, writer, local_seeds_per_call=local_seeds_per_call)
+        super().__init__(
+            graph,
+            writer,
+            local_seeds_per_call=local_seeds_per_call,
+            retain_original_seeds=retain_original_seeds,
+        )
         self.__fanout = fanout
         self.__prior_sources_behavior = prior_sources_behavior
         self.__deduplicate_sources = deduplicate_sources
@@ -438,13 +515,13 @@ class UniformNeighborSampler(DistSampler):
         batch_ids: TensorType,
         random_state: int = 0,
         assume_equal_input_size: bool = False,
-        local_label_list: TensorType = None,
     ) -> Dict[str, TensorType]:
         if self.is_multi_gpu:
             rank = torch.distributed.get_rank()
 
-            if local_label_list is None:
-                local_label_list = torch.unique(batch_ids)
+            batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
+            local_label_list = torch.unique(batch_ids)
+
             label_list, label_to_output_comm_rank = self.get_label_list_and_output_rank(
                 local_label_list, assume_equal_input_size=assume_equal_input_size
             )
@@ -455,7 +532,6 @@ class UniformNeighborSampler(DistSampler):
                     "The 'retain_original_seeds` parameter is currently ignored "
                     "since seed retention is not implemented yet."
                 )
-                pass
 
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
                 self._resource_handle,

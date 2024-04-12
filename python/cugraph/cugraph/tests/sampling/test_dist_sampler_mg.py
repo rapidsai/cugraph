@@ -69,6 +69,7 @@ def run_test_dist_sampler_simple(
     seeds_per_rank,
     fanout,
     equal_input_size,
+    seeds_per_call,
 ):
     init_pytorch(rank, world_size)
     cugraph_comms_init(rank, world_size, uid, device=rank)
@@ -77,7 +78,9 @@ def run_test_dist_sampler_simple(
 
     writer = DistSampleWriter(samples_path)
 
-    sampler = UniformNeighborSampler(G, writer, fanout=fanout)
+    sampler = UniformNeighborSampler(
+        G, writer, fanout=fanout, local_seeds_per_call=seeds_per_call
+    )
 
     seeds = cupy.random.randint(0, 34, seeds_per_rank, dtype="int64")
 
@@ -98,10 +101,11 @@ def run_test_dist_sampler_simple(
 @pytest.mark.parametrize("equal_input_size", [True, False])
 @pytest.mark.parametrize("fanout", [[4, 4], [4, 2, 1]])
 @pytest.mark.parametrize("batch_size", [1, 4])
-@pytest.mark.parametrize("seeds_per_rank", [1, 8])
+@pytest.mark.parametrize("seeds_per_rank", [8, 1])
+@pytest.mark.parametrize("seeds_per_call", [4, 8])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
 def test_dist_sampler_simple(
-    scratch_dir, batch_size, seeds_per_rank, fanout, equal_input_size
+    scratch_dir, batch_size, seeds_per_rank, fanout, equal_input_size, seeds_per_call
 ):
     uid = cugraph_comms_create_unique_id()
 
@@ -119,6 +123,7 @@ def test_dist_sampler_simple(
             seeds_per_rank,
             fanout,
             equal_input_size,
+            seeds_per_call,
         ),
         nprocs=world_size,
     )
@@ -151,7 +156,7 @@ def test_dist_sampler_simple(
 
 
 def run_test_dist_sampler_uneven(
-    rank, world_size, uid, samples_path, batch_size, fanout
+    rank, world_size, uid, samples_path, batch_size, fanout, seeds_per_call
 ):
     init_pytorch(rank, world_size)
     cugraph_comms_init(rank, world_size, uid, device=rank)
@@ -160,7 +165,9 @@ def run_test_dist_sampler_uneven(
 
     writer = DistSampleWriter(samples_path)
 
-    sampler = UniformNeighborSampler(G, writer, fanout=fanout)
+    sampler = UniformNeighborSampler(
+        G, writer, fanout=fanout, local_seeds_per_call=seeds_per_call
+    )
 
     num_seeds = 8 + rank
     seeds = cupy.random.randint(0, 34, num_seeds, dtype="int64")
@@ -181,8 +188,9 @@ def run_test_dist_sampler_uneven(
 @pytest.mark.mg
 @pytest.mark.parametrize("fanout", [[4, 4], [4, 2, 1]])
 @pytest.mark.parametrize("batch_size", [1, 4])
+@pytest.mark.parametrize("seeds_per_call", [4, 8, 16])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
-def test_dist_sampler_uneven(scratch_dir, batch_size, fanout):
+def test_dist_sampler_uneven(scratch_dir, batch_size, fanout, seeds_per_call):
     uid = cugraph_comms_create_unique_id()
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_mg_uneven")
@@ -191,7 +199,7 @@ def test_dist_sampler_uneven(scratch_dir, batch_size, fanout):
     world_size = torch.cuda.device_count()
     torch.multiprocessing.spawn(
         run_test_dist_sampler_uneven,
-        args=(world_size, uid, samples_path, batch_size, fanout),
+        args=(world_size, uid, samples_path, batch_size, fanout, seeds_per_call),
         nprocs=world_size,
     )
 
