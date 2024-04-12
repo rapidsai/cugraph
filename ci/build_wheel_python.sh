@@ -22,7 +22,7 @@ libraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rap
 libcugraphops_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libcugraphops_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact cugraph-ops 629 cpp f843746)
 pylibraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="pylibraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 python)
 
-wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}")
+wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}" "/tmp/libcugraph_dist")
 
 # This is the version of the suffix with a preceding hyphen. It's used
 # everywhere except in the final wheel name.
