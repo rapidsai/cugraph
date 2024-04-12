@@ -206,7 +206,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel nvidia \
       --channel pyg \
       --channel rapidsai-nightly \
-      mkl<2024.1.0 \
+      "mkl<2024.1.0" \
       "cugraph-pyg" \
       "pytorch>=2.0,<2.1" \
       "pytorch-cuda=11.8"
