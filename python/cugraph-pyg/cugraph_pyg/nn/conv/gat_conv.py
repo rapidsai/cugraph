@@ -159,7 +159,7 @@ class GATConv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Union[torch_geometric.EdgeIndex, CSC],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_attr: Optional[torch.Tensor] = None,
         max_num_neighbors: Optional[int] = None,
         deterministic_dgrad: bool = False,
@@ -172,11 +172,7 @@ class GATConv(BaseConv):
         Args:
             x (torch.Tensor or tuple): The node features. Can be a tuple of
                 tensors denoting source and destination node features.
-            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
-                representation of a graph, given as a tuple of
-                :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`to_csc` method to convert an :obj:`edge_index`
-                representation to the desired format.
+            edge_index (EdgeIndex or CSC): The edge indices.
             edge_attr: (torch.Tensor, optional) The edge features.
             max_num_neighbors (int, optional): The maximum number of neighbors
                 of a destination node. When enabled, it allows models to use
@@ -198,9 +194,12 @@ class GATConv(BaseConv):
                 the corresponding input type at the very end.
         """
         bipartite = not isinstance(x, torch.Tensor)
-        graph = self.get_cugraph(
-            csc, bipartite=bipartite, max_num_neighbors=max_num_neighbors
+        graph, perm = self.get_cugraph(
+            edge_index=edge_index,
+            bipartite=bipartite,
+            max_num_neighbors=max_num_neighbors,
         )
+
         if deterministic_dgrad:
             graph.add_reverse_graph()
 
@@ -212,6 +211,8 @@ class GATConv(BaseConv):
                 )
             if edge_attr.dim() == 1:
                 edge_attr = edge_attr.view(-1, 1)
+            if perm is not None:
+                edge_attr = edge_attr[perm]
             edge_attr = self.lin_edge(edge_attr)
 
         if bipartite:

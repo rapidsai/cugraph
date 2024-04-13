@@ -172,7 +172,7 @@ class GATv2Conv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Union[torch_geometric.EdgeIndex, CSC],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_attr: Optional[torch.Tensor] = None,
         deterministic_dgrad: bool = False,
         deterministic_wgrad: bool = False,
@@ -182,11 +182,7 @@ class GATv2Conv(BaseConv):
         Args:
             x (torch.Tensor or tuple): The node features. Can be a tuple of
                 tensors denoting source and destination node features.
-            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
-                representation of a graph, given as a tuple of
-                :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`to_csc` method to convert an :obj:`edge_index`
-                representation to the desired format.
+            edge_index (EdgeIndex or CSC): The edge indices.
             edge_attr: (torch.Tensor, optional) The edge features.
             deterministic_dgrad : bool, default=False
                 Optional flag indicating whether the feature gradients
@@ -196,7 +192,7 @@ class GATv2Conv(BaseConv):
                 are computed deterministically using a dedicated workspace buffer.
         """
         bipartite = not isinstance(x, torch.Tensor) or not self.share_weights
-        graph = self.get_cugraph(csc, bipartite=bipartite)
+        graph, perm = self.get_cugraph(edge_index, bipartite=bipartite)
         if deterministic_dgrad:
             graph.add_reverse_graph()
 
@@ -208,6 +204,8 @@ class GATv2Conv(BaseConv):
                 )
             if edge_attr.dim() == 1:
                 edge_attr = edge_attr.view(-1, 1)
+            if perm is not None:
+                edge_attr = edge_attr[perm]
             edge_attr = self.lin_edge(edge_attr)
 
         if bipartite:

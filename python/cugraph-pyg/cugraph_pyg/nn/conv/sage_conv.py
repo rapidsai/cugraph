@@ -116,12 +116,14 @@ class SAGEConv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Union[torch_geometric.EdgeIndex, CSC],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
         bipartite = isinstance(x, Tuple)
-        graph = self.get_cugraph(
-            csc, bipartite=bipartite, max_num_neighbors=max_num_neighbors
+        graph, _ = self.get_cugraph(
+            edge_index=edge_index,
+            bipartite=bipartite,
+            max_num_neighbors=max_num_neighbors,
         )
 
         if self.project:

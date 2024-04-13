@@ -110,13 +110,16 @@ class RGCNConv(BaseConv):  # pragma: no cover
     def forward(
         self,
         x: torch.Tensor,
-        csc: Union[torch_geometric.EdgeIndex, CSC],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_type: torch.Tensor,
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
 
-        graph = self.get_typed_cugraph(
-            csc, edge_type, self.num_relations, max_num_neighbors=max_num_neighbors
+        graph, _ = self.get_typed_cugraph(
+            edge_index,
+            edge_type,
+            self.num_relations,
+            max_num_neighbors=max_num_neighbors,
         )
 
         out = agg_hg_basis_n2n_post(

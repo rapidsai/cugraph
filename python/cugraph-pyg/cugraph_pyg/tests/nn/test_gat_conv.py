@@ -22,6 +22,7 @@ ATOL = 1e-6
 @pytest.mark.skipif(
     package_available("torch_geometric<2.5"), reason="Test requires pyg>=2.5"
 )
+@pytest.mark.parametrize("use_edge_index", [True, False])
 @pytest.mark.parametrize("bias", [True, False])
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
@@ -30,9 +31,18 @@ ATOL = 1e-6
 @pytest.mark.parametrize("use_edge_attr", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
 def test_gat_conv_equality(
-    bias, bipartite, concat, heads, max_num_neighbors, use_edge_attr, graph, request
+    use_edge_index,
+    bias,
+    bipartite,
+    concat,
+    heads,
+    max_num_neighbors,
+    use_edge_attr,
+    graph,
+    request,
 ):
     import torch
+    from torch_geometric import EdgeIndex
     from torch_geometric.nn import GATConv
 
     torch.manual_seed(12345)
@@ -53,13 +63,19 @@ def test_gat_conv_equality(
     if use_edge_attr:
         edge_dim = 3
         edge_attr = torch.rand(edge_index.size(1), edge_dim).cuda()
-        csc, edge_attr_perm = CuGraphGATConv.to_csc(
-            edge_index, size, edge_attr=edge_attr
-        )
     else:
-        edge_dim = None
-        edge_attr = edge_attr_perm = None
-        csc = CuGraphGATConv.to_csc(edge_index, size)
+        edge_dim = edge_attr = None
+
+    if use_edge_index:
+        csc = EdgeIndex(edge_index, sparse_size=size)
+    else:
+        if use_edge_attr:
+            csc, edge_attr_perm = CuGraphGATConv.to_csc(
+                edge_index, size, edge_attr=edge_attr
+            )
+        else:
+            csc = CuGraphGATConv.to_csc(edge_index, size)
+            edge_attr_perm = None
 
     kwargs = dict(bias=bias, concat=concat, edge_dim=edge_dim)
 
@@ -83,7 +99,12 @@ def test_gat_conv_equality(
             conv2.lin_edge.weight.data = conv1.lin_edge.weight.data.detach().clone()
 
     out1 = conv1(x, edge_index, edge_attr=edge_attr)
-    out2 = conv2(x, csc, edge_attr=edge_attr_perm, max_num_neighbors=max_num_neighbors)
+    if use_edge_index:
+        out2 = conv2(x, csc, edge_attr=edge_attr, max_num_neighbors=max_num_neighbors)
+    else:
+        out2 = conv2(
+            x, csc, edge_attr=edge_attr_perm, max_num_neighbors=max_num_neighbors
+        )
     assert torch.allclose(out1, out2, atol=ATOL)
 
     grad_output = torch.rand_like(out1)
