@@ -29,7 +29,7 @@ from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arr
 # PyTorch is NOT optional but this is required for container builds.
 torch = import_optional("torch")
 
-TensorType = Union[torch.Tensor, cupy.ndarray, cudf.Series]
+TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
 
 class DistSampleWriter:
