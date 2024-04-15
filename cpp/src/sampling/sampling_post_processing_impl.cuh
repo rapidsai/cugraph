@@ -168,39 +168,6 @@ void check_input_edges(raft::handle_t const& handle,
                        size_t num_hops,
                        bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS((num_labels >= 1) && (num_labels <= std::numeric_limits<label_index_t>::max()),
-                  "Invalid input arguments: num_labels should be a positive integer and the "
-                  "current implementation assumes that the number of unique labels is no larger "
-                  "than std::numeric_limits<uint32_t>::max().");
-  CUGRAPH_EXPECTS((num_labels == 1) || edgelist_label_offsets.has_value(),
-                  "Invalid input arguments: edgelist_label_offsets.has_value() should be true if "
-                  "num_labels >= 2.");
-  CUGRAPH_EXPECTS(
-    !edgelist_label_offsets.has_value() || ((*edgelist_label_offsets).size() == num_labels + 1),
-    "Invalid input arguments: if edgelist_label_offsets is valid, (*edgelist_label_offsets).size() "
-    "(size of the offset array) should be num_labels + 1.");
-
-  CUGRAPH_EXPECTS(
-    (num_hops >= 1) && (num_hops <= std::numeric_limits<int32_t>::max()),
-    "Invalid input arguments: num_hops should be a positive integer and the current implementation "
-    "assumes that the number of hops is no larger than std::numeric_limits<int32_t>::max().");
-  CUGRAPH_EXPECTS(
-    (num_hops == 1) || edgelist_hops.has_value(),
-    "Invalid input arguments: edgelist_hops.has_value() should be true if num_hops >= 2.");
-
-  CUGRAPH_EXPECTS((!seed_vertices.has_value() && !seed_vertex_label_offsets.has_value()) ||
-                    (seed_vertices.has_value() &&
-                     (edgelist_label_offsets.has_value() == seed_vertex_label_offsets.has_value())),
-                  "Invaild input arguments: if seed_vertices.has_value() is false, "
-                  "seed_vertex_label_offsets.has_value() should be false as well. If "
-                  "seed_vertices.has_value( ) is true, seed_vertex_label_offsets.has_value() "
-                  "should coincide with edgelist_label_offsets.has_value().");
-  CUGRAPH_EXPECTS(
-    !seed_vertex_label_offsets.has_value() ||
-      ((*seed_vertex_label_offsets).size() == num_labels + 1),
-    "Invalid input arguments: if seed_vertex_label_offsets is valid, "
-    "(*seed_vertex_label_offsets).size() (size of the offset array) should be num_labels + 1.");
-
   CUGRAPH_EXPECTS(
     edgelist_majors.size() == edgelist_minors.size(),
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
@@ -219,6 +186,50 @@ void check_input_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(!edgelist_hops.has_value() || (edgelist_majors.size() == (*edgelist_hops).size()),
                   "Invalid input arguments: if edgelist_hops is valid, (*edgelist_hops).size() and "
                   "edgelist_(srcs|dsts).size() should coincide.");
+
+  CUGRAPH_EXPECTS(
+    !edgelist_label_offsets.has_value() || ((*edgelist_label_offsets).size() == num_labels + 1),
+    "Invalid input arguments: if edgelist_label_offsets is valid, (*edgelist_label_offsets).size() "
+    "(size of the offset array) should be num_labels + 1.");
+
+  if (edgelist_majors.size() > 0) {
+    CUGRAPH_EXPECTS((num_labels >= 1) && (num_labels <= std::numeric_limits<label_index_t>::max()),
+                    "Invalid input arguments: num_labels should be a positive integer and the "
+                    "current implementation assumes that the number of unique labels is no larger "
+                    "than std::numeric_limits<uint32_t>::max().");
+    CUGRAPH_EXPECTS((num_labels == 1) || edgelist_label_offsets.has_value(),
+                    "Invalid input arguments: edgelist_label_offsets.has_value() should be true if "
+                    "num_labels >= 2.");
+
+    CUGRAPH_EXPECTS(
+      (num_hops >= 1) && (num_hops <= std::numeric_limits<int32_t>::max()),
+      "Invalid input arguments: num_hops should be a positive integer and the current "
+      "implementation "
+      "assumes that the number of hops is no larger than std::numeric_limits<int32_t>::max().");
+    CUGRAPH_EXPECTS(
+      (num_hops == 1) || edgelist_hops.has_value(),
+      "Invalid input arguments: edgelist_hops.has_value() should be true if num_hops >= 2.");
+  } else {
+    CUGRAPH_EXPECTS(
+      "num_labels == 0",
+      "Invalid input arguments: num_labels should be 0 if the input edge list is empty.");
+    CUGRAPH_EXPECTS(
+      "num_hops == 0",
+      "Invalid input arguments: num_hops should be 0 if the input edge list is empty.");
+  }
+
+  CUGRAPH_EXPECTS((!seed_vertices.has_value() && !seed_vertex_label_offsets.has_value()) ||
+                    (seed_vertices.has_value() &&
+                     (edgelist_label_offsets.has_value() == seed_vertex_label_offsets.has_value())),
+                  "Invaild input arguments: if seed_vertices.has_value() is false, "
+                  "seed_vertex_label_offsets.has_value() should be false as well. If "
+                  "seed_vertices.has_value( ) is true, seed_vertex_label_offsets.has_value() "
+                  "should coincide with edgelist_label_offsets.has_value().");
+  CUGRAPH_EXPECTS(
+    !seed_vertex_label_offsets.has_value() ||
+      ((*seed_vertex_label_offsets).size() == num_labels + 1),
+    "Invalid input arguments: if seed_vertex_label_offsets is valid, "
+    "(*seed_vertex_label_offsets).size() (size of the offset array) should be num_labels + 1.");
 
   if (do_expensive_check) {
     if (edgelist_label_offsets) {
