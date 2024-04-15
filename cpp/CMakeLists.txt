@@ -150,7 +150,8 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
 endif()
 
 if(BUILD_TESTS)
-  include(cmake/thirdparty/get_gtest.cmake)
+  include(${rapids-cmake-dir}/cpm/gtest.cmake)
+  rapids_cpm_gtest(BUILD_STATIC)
 endif()
 
 ################################################################################
