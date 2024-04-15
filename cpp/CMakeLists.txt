@@ -282,8 +282,8 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
-    src/community/matching_sg.cu
-    src/community/matching_mg.cu
+    src/community/approx_weighted_matching_sg.cu
+    src/community/approx_weighted_matching_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu

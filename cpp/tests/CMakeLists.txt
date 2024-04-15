@@ -308,8 +308,8 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
-# - MATCH tests ----------------------------------------------------------------------------------
-ConfigureTest(MATCHING_TEST community/matching_test.cpp)
+# - WEIGHTED MATCHING tests ----------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
 
 ###################################################################################################
 # - Legacy ECG tests -------------------------------------------------------------------------------------
@@ -573,8 +573,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
-    # - MG MATCHING tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_MATCHING_TEST community/mg_matching_test.cpp)
+    # - MG WEIGHTED MATCHING tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
 
     ###############################################################################################
     # - MG ECG tests --------------------------------------------------------------------------
