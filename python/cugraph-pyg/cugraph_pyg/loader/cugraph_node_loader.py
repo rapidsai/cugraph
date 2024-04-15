@@ -300,6 +300,7 @@ class BulkSampleLoader:
                 fname,
             )
 
+            print("reading ", parquet_path)
             raw_sample_data = cudf.read_parquet(parquet_path)
 
             if "map" in raw_sample_data.columns:
