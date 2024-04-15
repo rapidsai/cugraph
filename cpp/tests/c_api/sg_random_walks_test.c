@@ -97,7 +97,7 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   //  are actually part of the graph
 
   size_t unrenumbered_vertex_size = num_vertices;
-  for (size_t i = 0 ; i < num_edges ; ++i) {
+  for (size_t i = 0; i < num_edges; ++i) {
     if (h_src[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_src[i];
     if (h_dst[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_dst[i];
   }
@@ -132,11 +132,10 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
                       "uniform_random_walks found no edge when an edge exists");
         }
       } else {
-        TEST_ASSERT(
-          test_ret_value,
-          M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
-            h_result_wgts[i * max_depth + j],
-          "uniform_random_walks got edge that doesn't exist");
+        TEST_ASSERT(test_ret_value,
+                    M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
+                      h_result_wgts[i * max_depth + j],
+                    "uniform_random_walks got edge that doesn't exist");
       }
     }
   }
@@ -420,7 +419,7 @@ int test_uniform_random_walks_oob()
   size_t num_edges    = 5;
   size_t num_vertices = 6;
   size_t num_starts   = 4;
-  size_t max_depth = 7;
+  size_t max_depth    = 7;
 
   vertex_t src[]   = {1, 2, 4, 7, 3};
   vertex_t dst[]   = {5, 4, 1, 5, 2};
