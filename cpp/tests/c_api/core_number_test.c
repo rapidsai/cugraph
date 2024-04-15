@@ -52,7 +52,8 @@ int generic_core_number_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_core_number(p_handle, p_graph, K_CORE_DEGREE_TYPE_IN, FALSE, &p_result, &ret_error);
+  ret_code =
+    cugraph_core_number(p_handle, p_graph, K_CORE_DEGREE_TYPE_IN, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -95,7 +96,7 @@ int test_core_number()
   vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5, 3, 1, 4, 5, 5, 6};
   vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 3, 1, 6, 5};
   weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   vertex_t h_result[] = {2, 3, 2, 3, 3, 3, 1};
 
   return generic_core_number_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
