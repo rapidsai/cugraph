@@ -38,9 +38,6 @@ rapids-retry python -m pip install \
   ogb \
   pyg_lib \
   torch_scatter \
-  torch_sparse \
-  torch_cluster \
-  torch_spline_conv \
   -f ${PYG_URL}
 
 rapids-logger "pytest cugraph-pyg (single GPU)"

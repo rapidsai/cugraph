@@ -210,23 +210,15 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
       --channel pyg \
       --channel nvidia \
+      --channel conda-forge \
       "cugraph-pyg" \
       "pytorch=2.1.0" \
-      "pytorch-cuda=${CONDA_CUDA_VERSION}"
-
-    # Install pyg dependencies (which requires pip)
-
-    pip install ogb
-    pip install \
-        pyg_lib \
-        torch_scatter \
-        torch_sparse \
-        torch_cluster \
-        torch_spline_conv \
-      -f ${PYG_URL}
+      "cuda-version=${CONDA_CUDA_VERSION}" \
+      "ogb" \
+      "pyg-lib" \
+      "torch-scatter"
 
     rapids-print-env
 
