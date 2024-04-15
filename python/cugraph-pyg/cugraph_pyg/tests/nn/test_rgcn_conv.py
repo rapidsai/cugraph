@@ -60,12 +60,12 @@ def test_rgcn_conv_equality(
 
     with torch.no_grad():
         if root_weight:
-            conv2.weight.data[:-1] = conv1.weight.data
-            conv2.weight.data[-1] = conv1.root.data
+            conv2.weight[:-1].copy_(conv1.weight)
+            conv2.weight[-1].copy_(conv1.root)
         else:
-            conv2.weight.data = conv1.weight.data.detach().clone()
+            conv2.weight.copy_(conv1.weight)
         if num_bases is not None:
-            conv2.comp.data = conv1.comp.data.detach().clone()
+            conv2.comp.copy_(conv1.comp)
 
     out1 = conv1(x, edge_index, edge_type)
     if use_edge_index:

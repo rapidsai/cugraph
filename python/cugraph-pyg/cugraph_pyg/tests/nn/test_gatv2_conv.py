@@ -72,11 +72,11 @@ def test_gatv2_conv_equality(
     conv2 = CuGraphGATv2Conv(in_channels, out_channels, heads, **kwargs).cuda()
 
     with torch.no_grad():
-        conv2.lin_src.weight.data = conv1.lin_l.weight.data.detach().clone()
-        conv2.lin_dst.weight.data = conv1.lin_r.weight.data.detach().clone()
-        conv2.att.data = conv1.att.data.flatten().detach().clone()
+        conv2.lin_src.weight.copy_(conv1.lin_l.weight)
+        conv2.lin_dst.weight.copy_(conv1.lin_r.weight)
+        conv2.att.copy_(conv1.att.flatten())
         if use_edge_attr:
-            conv2.lin_edge.weight.data = conv1.lin_edge.weight.data.detach().clone()
+            conv2.lin_edge.weight.copy_(conv1.lin_edge.weight)
 
     out1 = conv1(x, edge_index, edge_attr=edge_attr)
     if use_edge_index:

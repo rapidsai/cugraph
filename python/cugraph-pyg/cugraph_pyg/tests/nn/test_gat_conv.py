@@ -87,16 +87,16 @@ def test_gat_conv_equality(
     out_dim = heads * out_channels
     with torch.no_grad():
         if bipartite:
-            conv2.lin_src.weight.data = conv1.lin_src.weight.data.detach().clone()
-            conv2.lin_dst.weight.data = conv1.lin_dst.weight.data.detach().clone()
+            conv2.lin_src.weight.copy_(conv1.lin_src.weight)
+            conv2.lin_dst.weight.copy_(conv1.lin_dst.weight)
         else:
-            conv2.lin.weight.data = conv1.lin.weight.data.detach().clone()
+            conv2.lin.weight.copy_(conv1.lin.weight)
 
-        conv2.att.data[:out_dim] = conv1.att_src.data.flatten()
-        conv2.att.data[out_dim : 2 * out_dim] = conv1.att_dst.data.flatten()
+        conv2.att[:out_dim].copy_(conv1.att_src.flatten())
+        conv2.att[out_dim : 2 * out_dim].copy_(conv1.att_dst.flatten())
         if use_edge_attr:
-            conv2.att.data[2 * out_dim :] = conv1.att_edge.data.flatten()
-            conv2.lin_edge.weight.data = conv1.lin_edge.weight.data.detach().clone()
+            conv2.att[2 * out_dim :].copy_(conv1.att_edge.flatten())
+            conv2.lin_edge.weight.copy_(conv1.lin_edge.weight)
 
     out1 = conv1(x, edge_index, edge_attr=edge_attr)
     if use_edge_index:

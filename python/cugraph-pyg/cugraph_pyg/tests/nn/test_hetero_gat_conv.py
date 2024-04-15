@@ -66,18 +66,18 @@ def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
         for edge_type in conv2.edge_types:
             src_t, _, dst_t = edge_type
             if src_t == dst_t:
-                w_src[edge_type][:, :] = conv1.convs[edge_type].lin.weight[:, :]
+                w_src[edge_type].copy_(conv1.convs[edge_type].lin.weight)
             else:
-                w_src[edge_type][:, :] = conv1.convs[edge_type].lin_src.weight[:, :]
+                w_src[edge_type].copy_(conv1.convs[edge_type].lin_src.weight)
                 if w_dst[edge_type] is not None:
-                    w_dst[edge_type][:, :] = conv1.convs[edge_type].lin_dst.weight[:, :]
+                    w_dst[edge_type].copy_(conv1.convs[edge_type].lin_dst.weight)
 
-            conv2.attn_weights[edge_type][: heads * out_channels] = conv1.convs[
-                edge_type
-            ].att_src.data.flatten()
-            conv2.attn_weights[edge_type][heads * out_channels :] = conv1.convs[
-                edge_type
-            ].att_dst.data.flatten()
+            conv2.attn_weights[edge_type][: heads * out_channels].copy_(
+                conv1.convs[edge_type].att_src.flatten()
+            )
+            conv2.attn_weights[edge_type][heads * out_channels :].copy_(
+                conv1.convs[edge_type].att_dst.flatten()
+            )
 
     out1 = conv1(data.x_dict, data.edge_index_dict)
     out2 = conv2(data.x_dict, data.edge_index_dict)

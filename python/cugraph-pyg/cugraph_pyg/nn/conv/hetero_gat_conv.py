@@ -226,7 +226,7 @@ class HeteroGATConv(BaseConv):
             )
 
             if src_type == dst_type:
-                graph = self.get_cugraph(
+                graph, _ = self.get_cugraph(
                     csc,
                     bipartite=False,
                 )
@@ -241,7 +241,7 @@ class HeteroGATConv(BaseConv):
                 )
 
             else:
-                graph = self.get_cugraph(
+                graph, _ = self.get_cugraph(
                     csc,
                     bipartite=True,
                 )

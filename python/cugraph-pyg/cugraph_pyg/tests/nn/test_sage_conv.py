@@ -69,11 +69,11 @@ def test_sage_conv_equality(
 
     in_channels_src = conv2.in_channels_src
     with torch.no_grad():
-        conv2.lin.weight.data[:, :in_channels_src] = conv1.lin_l.weight.data
+        conv2.lin.weight[:, :in_channels_src].copy_(conv1.lin_l.weight)
         if root_weight:
-            conv2.lin.weight.data[:, in_channels_src:] = conv1.lin_r.weight.data
+            conv2.lin.weight[:, in_channels_src:].copy_(conv1.lin_r.weight)
         if bias:
-            conv2.lin.bias.data[:] = conv1.lin_l.bias.data
+            conv2.lin.bias.copy_(conv1.lin_l.bias)
 
     out1 = conv1(x, edge_index)
     out2 = conv2(x, csc, max_num_neighbors=max_num_neighbors)
