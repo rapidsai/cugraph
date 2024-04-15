@@ -26,10 +26,11 @@ from pylibcugraph import SGGraph, ResourceHandle, GraphProperties
 from cugraph.utilities.utils import (
     create_directory_with_overwrite,
     import_optional,
-    MissingModule
+    MissingModule,
 )
 
-torch = import_optional('torch')
+
+torch = import_optional("torch")
 
 
 @pytest.fixture
