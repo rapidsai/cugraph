@@ -23,7 +23,13 @@ from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
 
 from pylibcugraph import SGGraph, ResourceHandle, GraphProperties
 
-from cugraph.utilities.utils import create_directory_with_overwrite
+from cugraph.utilities.utils import (
+    create_directory_with_overwrite,
+    import_optional,
+    MissingModule
+)
+
+torch = import_optional('torch')
 
 
 @pytest.fixture
@@ -44,6 +50,7 @@ def karate_graph():
 @pytest.mark.parametrize("equal_input_size", [True, False])
 @pytest.mark.parametrize("fanout", [[2, 2], [4, 4], [4, 2, 1]])
 @pytest.mark.parametrize("batch_size", [1, 2, 4])
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_dist_sampler_simple(
     scratch_dir, karate_graph, batch_size, fanout, equal_input_size
 ):
