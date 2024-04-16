@@ -20,8 +20,8 @@
 #include <cugraph_c/graph.h>
 
 #include <math.h>
-#include <unistd.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
@@ -34,17 +34,17 @@ data_type_id_t edge_id_tid   = INT32;
 data_type_id_t edge_type_tid = INT32;
 
 int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle,
-                                         vertex_t *h_src,
-                                         vertex_t *h_dst,
-                                         weight_t *h_wgt,
-                                         edge_t *h_edge_ids,
-                                         int32_t *h_edge_types,
+                                         vertex_t* h_src,
+                                         vertex_t* h_dst,
+                                         weight_t* h_wgt,
+                                         edge_t* h_edge_ids,
+                                         int32_t* h_edge_types,
                                          size_t num_vertices,
                                          size_t num_edges,
-                                         vertex_t *h_start,
-                                         int *h_start_labels,
+                                         vertex_t* h_start,
+                                         int* h_start_labels,
                                          size_t num_start_vertices,
-                                         int *fan_out,
+                                         int* fan_out,
                                          size_t fan_out_size,
                                          bool_t with_replacement,
                                          bool_t return_hops,
@@ -81,16 +81,16 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  cugraph_type_erased_device_array_t* d_start           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
+  cugraph_type_erased_device_array_t* d_start                  = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view        = NULL;
   cugraph_type_erased_device_array_t* d_start_labels           = NULL;
   cugraph_type_erased_device_array_view_t* d_start_labels_view = NULL;
-  cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view        = NULL;
 
   if (rank > 0) num_start_vertices = 0;
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_start_vertices, INT32, &d_start, &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_start_vertices, INT32, &d_start, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
 
   d_start_view = cugraph_type_erased_device_array_view(d_start);
@@ -99,8 +99,8 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     handle, d_start_view, (byte_t*)h_start, &ret_error);
 
   if (h_start_labels != NULL) {
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, num_start_vertices, INT32, &d_start_labels, &ret_error);
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_start_vertices, INT32, &d_start_labels, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
 
     d_start_labels_view = cugraph_type_erased_device_array_view(d_start_labels);
@@ -113,11 +113,11 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
-  cugraph_rng_state_t *rng_state;
+  cugraph_rng_state_t* rng_state;
   ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
-  cugraph_sampling_options_t *sampling_options;
+  cugraph_sampling_options_t* sampling_options;
 
   ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
@@ -156,7 +156,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_type_erased_device_array_view_t* result_edge_types;
   cugraph_type_erased_device_array_view_t* result_hops;
   cugraph_type_erased_device_array_view_t* result_offsets = NULL;
-  cugraph_type_erased_device_array_view_t* result_labels = NULL;
+  cugraph_type_erased_device_array_view_t* result_labels  = NULL;
 
   result_srcs       = cugraph_sample_result_get_sources(result);
   result_dsts       = cugraph_sample_result_get_destinations(result);
@@ -169,11 +169,11 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   size_t result_offsets_size = 2;
 
   if (d_start_labels != NULL) {
-    result_offsets    = cugraph_sample_result_get_offsets(result);
-    result_labels     = cugraph_sample_result_get_start_labels(result);
-    result_offsets_size = 1 + cugraph_test_scalar_reduce(handle,
-                                                         cugraph_type_erased_device_array_view_size(result_offsets) - 1);
-
+    result_offsets = cugraph_sample_result_get_offsets(result);
+    result_labels  = cugraph_sample_result_get_start_labels(result);
+    result_offsets_size =
+      1 + cugraph_test_scalar_reduce(
+            handle, cugraph_type_erased_device_array_view_size(result_offsets) - 1);
   }
 
   size_t result_size = cugraph_test_device_gatherv_size(handle, result_srcs);
@@ -185,7 +185,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   int32_t h_result_edge_types[result_size];
   int32_t h_result_hops[result_size];
   size_t h_result_offsets[result_offsets_size];
-  int h_result_labels[result_offsets_size-1];
+  int h_result_labels[result_offsets_size - 1];
 
   if (result_offsets_size == 2) {
     h_result_offsets[0] = 0;
@@ -226,15 +226,16 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     // convert to size
-    for (size_t i = 1 ; i < sz ; ++i) {
-      tmp_result_offsets[i-1] = tmp_result_offsets[i] - tmp_result_offsets[i-1];
+    for (size_t i = 1; i < sz; ++i) {
+      tmp_result_offsets[i - 1] = tmp_result_offsets[i] - tmp_result_offsets[i - 1];
     }
 
-    cugraph_test_host_gatherv_fill(handle, tmp_result_offsets, sz-1, SIZE_T, h_result_offsets + 1);
+    cugraph_test_host_gatherv_fill(
+      handle, tmp_result_offsets, sz - 1, SIZE_T, h_result_offsets + 1);
 
     h_result_offsets[0] = 0;
-    for (size_t i = 1 ; i < result_offsets_size ; ++i) {
-      h_result_offsets[i] += h_result_offsets[i-1];
+    for (size_t i = 1; i < result_offsets_size; ++i) {
+      h_result_offsets[i] += h_result_offsets[i - 1];
     }
   }
 
@@ -256,7 +257,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     else
       M_w[h_src[i]][h_dst[i]] = 1.0;
 
-    if (h_edge_ids != NULL) M_edge_id[h_src[i]][h_dst[i]]   = h_edge_ids[i];
+    if (h_edge_ids != NULL) M_edge_id[h_src[i]][h_dst[i]] = h_edge_ids[i];
     if (h_edge_types != NULL) M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
   }
 
@@ -271,12 +272,14 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
                   "uniform_neighbor_sample got edge that doesn't exist");
     }
 
-    if (h_edge_ids != NULL) TEST_ASSERT(test_ret_value,
-                                        M_edge_id[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_id[i],
-                                        "uniform_neighbor_sample got edge that doesn't exist");
-    if (h_edge_types != NULL) TEST_ASSERT(test_ret_value,
-                                          M_edge_type[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_types[i],
-                                          "uniform_neighbor_sample got edge that doesn't exist");
+    if (h_edge_ids != NULL)
+      TEST_ASSERT(test_ret_value,
+                  M_edge_id[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_id[i],
+                  "uniform_neighbor_sample got edge that doesn't exist");
+    if (h_edge_types != NULL)
+      TEST_ASSERT(test_ret_value,
+                  M_edge_type[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_types[i],
+                  "uniform_neighbor_sample got edge that doesn't exist");
   }
 
   if ((return_hops) && (d_start_labels != NULL) && (result_offsets_size > 0)) {
@@ -286,60 +289,65 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     //
     vertex_t check_v1[result_size];
     vertex_t check_v2[result_size];
-    vertex_t *check_sources = check_v1;
-    vertex_t *check_destinations = check_v2;
+    vertex_t* check_sources      = check_v1;
+    vertex_t* check_destinations = check_v2;
 
     size_t degree[num_vertices];
-    for (size_t i = 0 ; i < num_vertices ; ++i)
+    for (size_t i = 0; i < num_vertices; ++i)
       degree[i] = 0;
 
-    for (size_t i = 0 ; i < num_edges ; ++i) {
+    for (size_t i = 0; i < num_edges; ++i) {
       degree[h_src[i]]++;
     }
 
-    for (size_t label_id = 0 ; label_id < (result_offsets_size - 1) ; ++label_id) {
+    for (size_t label_id = 0; label_id < (result_offsets_size - 1); ++label_id) {
       // Skip any labels we already processed
       bool already_processed = false;
-      for (size_t i = 0 ; (i < label_id) && !already_processed ; ++i)
+      for (size_t i = 0; (i < label_id) && !already_processed; ++i)
         already_processed = (h_result_labels[label_id] == h_result_labels[i]);
 
       if (already_processed) continue;
 
-      size_t   sources_size = 0;
-      size_t   destinations_size = 0;
+      size_t sources_size      = 0;
+      size_t destinations_size = 0;
 
       // Fill sources with the input sources
-      for (size_t i = 0 ; i < num_start_vertices ; ++i) {
+      for (size_t i = 0; i < num_start_vertices; ++i) {
         if (h_start_labels[i] == h_result_labels[label_id]) {
           check_sources[sources_size] = h_start[i];
           ++sources_size;
         }
       }
 
-      for (int hop = 0 ; hop < fan_out_size ; ++hop) {
+      for (int hop = 0; hop < fan_out_size; ++hop) {
         if (prior_sources_behavior == CARRY_OVER) {
           destinations_size = sources_size;
-          for (size_t i = 0 ; i < sources_size ; ++i) {
+          for (size_t i = 0; i < sources_size; ++i) {
             check_destinations[i] = check_sources[i];
           }
         }
 
-        for (size_t current_label_id = label_id ; current_label_id < (result_offsets_size - 1) ; ++current_label_id) {
+        for (size_t current_label_id = label_id; current_label_id < (result_offsets_size - 1);
+             ++current_label_id) {
           if (h_result_labels[current_label_id] == h_result_labels[label_id]) {
-            for (size_t i = h_result_offsets[current_label_id]; (i < h_result_offsets[current_label_id+1]) && (test_ret_value == 0) ; ++i) {
+            for (size_t i = h_result_offsets[current_label_id];
+                 (i < h_result_offsets[current_label_id + 1]) && (test_ret_value == 0);
+                 ++i) {
               if (h_result_hops[i] == hop) {
                 bool found = false;
-                for (size_t j = 0 ; (!found) && (j < sources_size) ; ++j) {
+                for (size_t j = 0; (!found) && (j < sources_size); ++j) {
                   found = (h_result_srcs[i] == check_sources[j]);
                 }
 
-                TEST_ASSERT(test_ret_value, found, "encountered source vertex that was not part of previous frontier");
+                TEST_ASSERT(test_ret_value,
+                            found,
+                            "encountered source vertex that was not part of previous frontier");
               }
 
               if (prior_sources_behavior == CARRY_OVER) {
                 // Make sure destination isn't already in the source list
                 bool found = false;
-                for (size_t j = 0 ; (!found) && (j < destinations_size) ; ++j) {
+                for (size_t j = 0; (!found) && (j < destinations_size); ++j) {
                   found = (h_result_dsts[i] == check_destinations[j]);
                 }
 
@@ -355,19 +363,24 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
           }
         }
 
-        vertex_t *tmp = check_sources;
-        check_sources = check_destinations;
+        vertex_t* tmp      = check_sources;
+        check_sources      = check_destinations;
         check_destinations = tmp;
-        sources_size = destinations_size;
-        destinations_size = 0;
+        sources_size       = destinations_size;
+        destinations_size  = 0;
       }
 
       if (prior_sources_behavior == EXCLUDE) {
         // Make sure vertex v only appears as source in the first hop after it is encountered
-        for (size_t current_label_id = label_id ; current_label_id < (result_offsets_size - 1) ; ++current_label_id) {
+        for (size_t current_label_id = label_id; current_label_id < (result_offsets_size - 1);
+             ++current_label_id) {
           if (h_result_labels[current_label_id] == h_result_labels[label_id]) {
-            for (size_t i = h_result_offsets[current_label_id]; (i < h_result_offsets[current_label_id+1]) && (test_ret_value == 0) ; ++i) {
-              for (size_t j = i + 1 ; (j < h_result_offsets[current_label_id+1]) && (test_ret_value == 0) ; ++j) {
+            for (size_t i = h_result_offsets[current_label_id];
+                 (i < h_result_offsets[current_label_id + 1]) && (test_ret_value == 0);
+                 ++i) {
+              for (size_t j = i + 1;
+                   (j < h_result_offsets[current_label_id + 1]) && (test_ret_value == 0);
+                   ++j) {
                 if (h_result_srcs[i] == h_result_srcs[j]) {
                   TEST_ASSERT(test_ret_value,
                               h_result_hops[i] == h_result_hops[j],
@@ -380,15 +393,20 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
       }
 
       if (dedupe_sources) {
-        // Make sure vertex v only appears as source once for each edge after it appears as destination
-        // Externally test this by verifying that vertex v only appears in <= hop size/degree
-        for (size_t current_label_id = label_id ; current_label_id < (result_offsets_size - 1) ; ++current_label_id) {
+        // Make sure vertex v only appears as source once for each edge after it appears as
+        // destination Externally test this by verifying that vertex v only appears in <= hop
+        // size/degree
+        for (size_t current_label_id = label_id; current_label_id < (result_offsets_size - 1);
+             ++current_label_id) {
           if (h_result_labels[current_label_id] == h_result_labels[label_id]) {
-            for (size_t i = h_result_offsets[current_label_id]; (i < h_result_offsets[current_label_id+1]) && (test_ret_value == 0) ; ++i) {
+            for (size_t i = h_result_offsets[current_label_id];
+                 (i < h_result_offsets[current_label_id + 1]) && (test_ret_value == 0);
+                 ++i) {
               if (h_result_hops[i] > 0) {
                 size_t num_occurrences = 1;
-                for (size_t j = i + 1 ; j < h_result_offsets[current_label_id+1] ; ++j) {
-                  if ((h_result_srcs[j] == h_result_srcs[i]) && (h_result_hops[j] == h_result_hops[i]))
+                for (size_t j = i + 1; j < h_result_offsets[current_label_id + 1]; ++j) {
+                  if ((h_result_srcs[j] == h_result_srcs[i]) &&
+                      (h_result_hops[j] == h_result_hops[i]))
                     num_occurrences++;
                 }
 
@@ -430,23 +448,36 @@ int test_uniform_neighbor_sample(const cugraph_resource_handle_t* handle)
   vertex_t start[] = {2, 2};
   int fan_out[]    = {1, 2};
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
-  bool_t dedupe_sources = FALSE;
+  bool_t dedupe_sources                                   = FALSE;
 
-  return generic_uniform_neighbor_sample_test(handle, src, dst, NULL, idx, NULL, num_vertices, num_edges,
-                                              start, NULL, num_starts,
-                                              fan_out, fan_out_size, with_replacement,
-                                              return_hops, prior_sources_behavior, dedupe_sources);
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
+                                              dst,
+                                              NULL,
+                                              idx,
+                                              NULL,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              NULL,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              with_replacement,
+                                              return_hops,
+                                              prior_sources_behavior,
+                                              dedupe_sources);
 }
 
 int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 12;
-  size_t num_vertices = 5;
-  size_t fan_out_size = 2;
-  size_t num_starts   = 2;
+  size_t num_edges        = 12;
+  size_t num_vertices     = 5;
+  size_t fan_out_size     = 2;
+  size_t num_starts       = 2;
   size_t num_start_labels = 2;
 
   vertex_t src[]   = {0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2};
@@ -467,13 +498,13 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   cugraph_graph_t* graph          = NULL;
   cugraph_sample_result_t* result = NULL;
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
-  bool_t dedupe_sources = FALSE;
-  bool_t renumber_results = FALSE;
-  cugraph_compression_type_t compression = COO;
-  bool_t compress_per_hop = FALSE;
+  bool_t dedupe_sources                                   = FALSE;
+  bool_t renumber_results                                 = FALSE;
+  cugraph_compression_type_t compression                  = COO;
+  bool_t compress_per_hop                                 = FALSE;
 
   cugraph_type_erased_device_array_t* d_start           = NULL;
   cugraph_type_erased_device_array_t* d_label           = NULL;
@@ -515,7 +546,7 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
-  cugraph_sampling_options_t *sampling_options;
+  cugraph_sampling_options_t* sampling_options;
 
   ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
@@ -529,17 +560,17 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
   ret_code = cugraph_uniform_neighbor_sample(handle,
-                                              graph,
-                                              d_start_view,
-                                              d_label_view,
-                                              NULL,
-                                              NULL,
-                                              h_fan_out_view,
-                                              rng_state,
-                                              sampling_options,
-                                              FALSE,
-                                              &result,
-                                              &ret_error);
+                                             graph,
+                                             d_start_view,
+                                             d_label_view,
+                                             NULL,
+                                             NULL,
+                                             h_fan_out_view,
+                                             rng_state,
+                                             sampling_options,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
@@ -557,16 +588,16 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   cugraph_type_erased_device_array_view_t* result_hops;
   cugraph_type_erased_device_array_view_t* result_offsets;
 
-  result_src    = cugraph_sample_result_get_sources(result);
-  result_dst    = cugraph_sample_result_get_destinations(result);
-  result_index  = cugraph_sample_result_get_edge_id(result);
-  result_type   = cugraph_sample_result_get_edge_type(result);
-  result_weight = cugraph_sample_result_get_edge_weight(result);
-  result_labels = cugraph_sample_result_get_start_labels(result);
-  result_hops   = cugraph_sample_result_get_hop(result);
+  result_src     = cugraph_sample_result_get_sources(result);
+  result_dst     = cugraph_sample_result_get_destinations(result);
+  result_index   = cugraph_sample_result_get_edge_id(result);
+  result_type    = cugraph_sample_result_get_edge_type(result);
+  result_weight  = cugraph_sample_result_get_edge_weight(result);
+  result_labels  = cugraph_sample_result_get_start_labels(result);
+  result_hops    = cugraph_sample_result_get_hop(result);
   result_offsets = cugraph_sample_result_get_offsets(result);
 
-  size_t result_size = cugraph_type_erased_device_array_view_size(result_src);
+  size_t result_size  = cugraph_type_erased_device_array_view_size(result_src);
   size_t offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
 
   vertex_t h_srcs[result_size];
@@ -606,18 +637,18 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
     handle, (byte_t*)h_offsets, result_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  for(int k = 0; k < offsets_size-1; k += fan_out_size) {
-    for(int h = 0; h < fan_out_size; ++h) {
-      int hop_start = h_offsets[k+h];
-      int hop_end = h_offsets[k+h+1];
-      for(int i = hop_start; i < hop_end; ++i) {
+  for (int k = 0; k < offsets_size - 1; k += fan_out_size) {
+    for (int h = 0; h < fan_out_size; ++h) {
+      int hop_start = h_offsets[k + h];
+      int hop_end   = h_offsets[k + h + 1];
+      for (int i = hop_start; i < hop_end; ++i) {
         h_hop[i] = h;
       }
     }
   }
 
-  for(int k = 0; k < num_start_labels+1; ++k) {
-    h_offsets[k] = h_offsets[k*fan_out_size];
+  for (int k = 0; k < num_start_labels + 1; ++k) {
+    h_offsets[k] = h_offsets[k * fan_out_size];
   }
   offsets_size = num_start_labels + 1;
 
@@ -652,58 +683,66 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
 
 int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges = 156;
+  size_t num_edges    = 156;
   size_t num_vertices = 34;
   size_t fan_out_size = 2;
   size_t num_starts   = 4;
   size_t num_labels   = 3;
 
-  vertex_t src[] = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2,
-                    3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12,
-                    13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32,
-                    33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27,
-                    31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
-                    1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6,
-                    8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22,
-                    23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29,
-                    29, 30, 30, 31, 31, 32};
-  vertex_t dst[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,3,3,4,4,5,5,5,6,8,8,8,9,13,14,14,15,15,18,18,19,20,20,22,22,23,23,23,23,23,24,24,24,25,26,26,27,28,28,29,29,30,30,31,31,32,1,2,3,4,5,6,7,8,10,11,12,13,17,19,21,31,2,3,7,13,17,19,21,30,3,7,8,9,13,27,28,32,7,12,13,6,10,6,10,16,16,30,32,33,33,33,32,33,32,33,32,33,33,32,33,32,33,25,27,29,32,33,25,27,31,31,29,33,33,31,33,32,33,32,33,32,33,33};
-  weight_t wgt[] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+  vertex_t src[] = {1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 2,  3,  7,  13,
+                    17, 19, 21, 30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10, 6,  10, 16,
+                    16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29,
+                    32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0,  0,
+                    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,
+                    1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,  5,  5,  5,  6,  8,
+                    8,  8,  9,  13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23,
+                    24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
+  vertex_t dst[] = {0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+                    1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,  5,  5,  5,
+                    6,  8,  8,  8,  9,  13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23,
+                    23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1,  2,
+                    3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 2,  3,  7,  13, 17, 19,
+                    21, 30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10, 6,  10, 16, 16, 30,
+                    32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33,
+                    25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
+  weight_t wgt[] = {
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                          10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                          20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                          30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                          40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-                          50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-                          60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
-                          70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-                          80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
-                          90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-                          100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
-                          110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-                          120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
-                          130, 131, 132, 133, 134, 135, 136, 137, 138, 139,
-                          140, 141, 142, 143, 144, 145, 146, 147, 148, 149,
-                          150, 151, 152, 153, 154, 155};
+  edge_t edge_ids[] = {
+    0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,  15,  16,  17,
+    18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,
+    36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51,  52,  53,
+    54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,
+    72,  73,  74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+    90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104, 105, 106, 107,
+    108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+    126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+    144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155};
 
-  vertex_t start[]     = {0, 1, 2, 5};
-  int32_t  start_labels[] = { 0, 0, 1, 2 };
-  int32_t  label_list[] = { 0, 1, 2 };
-  int32_t  label_to_output_comm_rank[] = { 0, 0, 1 };
-  int fan_out[]        = {2, 3};
+  vertex_t start[]                    = {0, 1, 2, 5};
+  int32_t start_labels[]              = {0, 0, 1, 2};
+  int32_t label_list[]                = {0, 1, 2};
+  int32_t label_to_output_comm_rank[] = {0, 0, 1};
+  int fan_out[]                       = {2, 3};
 
-  size_t expected_size[] = { 3, 2, 1, 1, 1, 1, 1, 1 };
+  size_t expected_size[] = {3, 2, 1, 1, 1, 1, 1, 1};
 
-
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
-  bool_t dedupe_sources = TRUE;
-  bool_t renumber_results = FALSE;
-  cugraph_compression_type_t compression = COO;
-  bool_t compress_per_hop = FALSE;
+  bool_t dedupe_sources                                   = TRUE;
+  bool_t renumber_results                                 = FALSE;
+  cugraph_compression_type_t compression                  = COO;
+  bool_t compress_per_hop                                 = FALSE;
 
   // Create graph
   int test_ret_value              = 0;
@@ -712,35 +751,24 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
   cugraph_graph_t* graph          = NULL;
   cugraph_sample_result_t* result = NULL;
 
-  ret_code = create_mg_test_graph_with_properties(handle,
-                                                  src,
-                                                  dst,
-                                                  edge_ids,
-                                                  NULL,
-                                                  wgt,
-                                                  num_edges,
-                                                  FALSE,
-                                                  TRUE,
-                                                  &graph,
-                                                  &ret_error);
+  ret_code = create_mg_test_graph_with_properties(
+    handle, src, dst, edge_ids, NULL, wgt, num_edges, FALSE, TRUE, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  cugraph_type_erased_device_array_t* d_start           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
-  cugraph_type_erased_device_array_t* d_start_labels           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_labels_view = NULL;
-  cugraph_type_erased_device_array_t* d_label_list           = NULL;
-  cugraph_type_erased_device_array_view_t* d_label_list_view = NULL;
+  cugraph_type_erased_device_array_t* d_start                               = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view                     = NULL;
+  cugraph_type_erased_device_array_t* d_start_labels                        = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_labels_view              = NULL;
+  cugraph_type_erased_device_array_t* d_label_list                          = NULL;
+  cugraph_type_erased_device_array_view_t* d_label_list_view                = NULL;
   cugraph_type_erased_device_array_t* d_label_to_output_comm_rank           = NULL;
   cugraph_type_erased_device_array_view_t* d_label_to_output_comm_rank_view = NULL;
-  cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view                     = NULL;
 
   int rank = cugraph_resource_handle_get_rank(handle);
 
-  if (rank > 0) {
-    num_starts = 0;
-  }
+  if (rank > 0) { num_starts = 0; }
 
   cugraph_rng_state_t* rng_state;
   ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
@@ -778,16 +806,20 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label_list copy_from_host failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_labels, INT32, &d_label_to_output_comm_rank, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_label_to_output_comm_rank create failed.");
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_labels, INT32, &d_label_to_output_comm_rank, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_label_to_output_comm_rank create failed.");
 
-  d_label_to_output_comm_rank_view = cugraph_type_erased_device_array_view(d_label_to_output_comm_rank);
+  d_label_to_output_comm_rank_view =
+    cugraph_type_erased_device_array_view(d_label_to_output_comm_rank);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_label_to_output_comm_rank_view, (byte_t*)label_to_output_comm_rank, &ret_error);
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label_to_output_comm_rank copy_from_host failed.");
+  TEST_ASSERT(test_ret_value,
+              ret_code == CUGRAPH_SUCCESS,
+              "label_to_output_comm_rank copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
@@ -804,17 +836,17 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
   ret_code = cugraph_uniform_neighbor_sample(handle,
-                                              graph,
-                                              d_start_view,
-                                              d_start_labels_view,
-                                              d_label_list_view,
-                                              d_label_to_output_comm_rank_view,
-                                              h_fan_out_view,
-                                              rng_state,
-                                              sampling_options,
-                                              FALSE,
-                                              &result,
-                                              &ret_error);
+                                             graph,
+                                             d_start_view,
+                                             d_start_labels_view,
+                                             d_label_list_view,
+                                             d_label_to_output_comm_rank_view,
+                                             h_fan_out_view,
+                                             rng_state,
+                                             sampling_options,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
@@ -823,21 +855,21 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
-  cugraph_type_erased_device_array_view_t* result_srcs = NULL;
-  cugraph_type_erased_device_array_view_t* result_dsts = NULL;
+  cugraph_type_erased_device_array_view_t* result_srcs    = NULL;
+  cugraph_type_erased_device_array_view_t* result_dsts    = NULL;
   cugraph_type_erased_device_array_view_t* result_edge_id = NULL;
   cugraph_type_erased_device_array_view_t* result_weights = NULL;
-  cugraph_type_erased_device_array_view_t* result_hops = NULL;
+  cugraph_type_erased_device_array_view_t* result_hops    = NULL;
   cugraph_type_erased_device_array_view_t* result_offsets = NULL;
 
-  result_srcs       = cugraph_sample_result_get_sources(result);
-  result_dsts       = cugraph_sample_result_get_destinations(result);
-  result_edge_id    = cugraph_sample_result_get_edge_id(result);
-  result_weights    = cugraph_sample_result_get_edge_weight(result);
-  result_hops       = cugraph_sample_result_get_hop(result);
-  result_offsets    = cugraph_sample_result_get_offsets(result);
+  result_srcs    = cugraph_sample_result_get_sources(result);
+  result_dsts    = cugraph_sample_result_get_destinations(result);
+  result_edge_id = cugraph_sample_result_get_edge_id(result);
+  result_weights = cugraph_sample_result_get_edge_weight(result);
+  result_hops    = cugraph_sample_result_get_hop(result);
+  result_offsets = cugraph_sample_result_get_offsets(result);
 
-  size_t result_size = cugraph_type_erased_device_array_view_size(result_srcs);
+  size_t result_size         = cugraph_type_erased_device_array_view_size(result_srcs);
   size_t result_offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
 
   vertex_t h_srcs[result_size];
@@ -879,13 +911,13 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
   for (int i = 0; i < num_vertices; ++i)
     for (int j = 0; j < num_vertices; ++j) {
-      M_w[i][j]         = 0.0;
-      M_edge_id[i][j]   = -1;
+      M_w[i][j]       = 0.0;
+      M_edge_id[i][j] = -1;
     }
 
   for (int i = 0; i < num_edges; ++i) {
-    M_w[src[i]][dst[i]]         = wgt[i];
-    M_edge_id[src[i]][dst[i]]   = edge_ids[i];
+    M_w[src[i]][dst[i]]       = wgt[i];
+    M_edge_id[src[i]][dst[i]] = edge_ids[i];
   }
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
@@ -897,10 +929,8 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
-  TEST_ASSERT(test_ret_value,
-              result_offsets_size == expected_size[rank],
-              "incorrect number of results");
-
+  TEST_ASSERT(
+    test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
 
   cugraph_sample_result_free(result);
 #endif
@@ -911,57 +941,66 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
 int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges = 156;
+  size_t num_edges    = 156;
   size_t num_vertices = 34;
   size_t fan_out_size = 2;
   size_t num_starts   = 4;
   size_t num_labels   = 3;
 
-  vertex_t src[] = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2,
-                    3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12,
-                    13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32,
-                    33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27,
-                    31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
-                    1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6,
-                    8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22,
-                    23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29,
-                    29, 30, 30, 31, 31, 32};
-  vertex_t dst[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,3,3,4,4,5,5,5,6,8,8,8,9,13,14,14,15,15,18,18,19,20,20,22,22,23,23,23,23,23,24,24,24,25,26,26,27,28,28,29,29,30,30,31,31,32,1,2,3,4,5,6,7,8,10,11,12,13,17,19,21,31,2,3,7,13,17,19,21,30,3,7,8,9,13,27,28,32,7,12,13,6,10,6,10,16,16,30,32,33,33,33,32,33,32,33,32,33,33,32,33,32,33,25,27,29,32,33,25,27,31,31,29,33,33,31,33,32,33,32,33,32,33,33};
-  weight_t wgt[] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+  vertex_t src[] = {1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 2,  3,  7,  13,
+                    17, 19, 21, 30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10, 6,  10, 16,
+                    16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29,
+                    32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0,  0,
+                    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,
+                    1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,  5,  5,  5,  6,  8,
+                    8,  8,  9,  13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23,
+                    24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
+  vertex_t dst[] = {0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+                    1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,  5,  5,  5,
+                    6,  8,  8,  8,  9,  13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23,
+                    23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1,  2,
+                    3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 2,  3,  7,  13, 17, 19,
+                    21, 30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10, 6,  10, 16, 16, 30,
+                    32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33,
+                    25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
+  weight_t wgt[] = {
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                          10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                          20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                          30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                          40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-                          50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-                          60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
-                          70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-                          80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
-                          90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-                          100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
-                          110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-                          120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
-                          130, 131, 132, 133, 134, 135, 136, 137, 138, 139,
-                          140, 141, 142, 143, 144, 145, 146, 147, 148, 149,
-                          150, 151, 152, 153, 154, 155};
+  edge_t edge_ids[] = {
+    0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,  15,  16,  17,
+    18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,
+    36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51,  52,  53,
+    54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,
+    72,  73,  74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+    90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104, 105, 106, 107,
+    108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+    126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+    144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155};
 
-  vertex_t start[]     = {0, 1, 2, 5};
-  int32_t  start_labels[] = { 0, 0, 1, 2 };
-  int32_t  label_list[] = { 0, 1, 2 };
-  int32_t  label_to_output_comm_rank[] = { 0, 0, 1 };
-  int fan_out[]        = {2, 3};
+  vertex_t start[]                    = {0, 1, 2, 5};
+  int32_t start_labels[]              = {0, 0, 1, 2};
+  int32_t label_list[]                = {0, 1, 2};
+  int32_t label_to_output_comm_rank[] = {0, 0, 1};
+  int fan_out[]                       = {2, 3};
 
-  size_t expected_size[] = { 3, 2, 1, 1, 1, 1, 1, 1 };
+  size_t expected_size[] = {3, 2, 1, 1, 1, 1, 1, 1};
 
-    bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
-  bool_t dedupe_sources = TRUE;
-  bool_t renumber_results = FALSE;
-  cugraph_compression_type_t compression = COO;
-  bool_t compress_per_hop = FALSE;
+  bool_t dedupe_sources                                   = TRUE;
+  bool_t renumber_results                                 = FALSE;
+  cugraph_compression_type_t compression                  = COO;
+  bool_t compress_per_hop                                 = FALSE;
 
   // Create graph
   int test_ret_value              = 0;
@@ -970,35 +1009,24 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
   cugraph_graph_t* graph          = NULL;
   cugraph_sample_result_t* result = NULL;
 
-  ret_code = create_mg_test_graph_with_properties(handle,
-                                                  src,
-                                                  dst,
-                                                  edge_ids,
-                                                  NULL,
-                                                  wgt,
-                                                  num_edges,
-                                                  FALSE,
-                                                  TRUE,
-                                                  &graph,
-                                                  &ret_error);
+  ret_code = create_mg_test_graph_with_properties(
+    handle, src, dst, edge_ids, NULL, wgt, num_edges, FALSE, TRUE, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  cugraph_type_erased_device_array_t* d_start           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
-  cugraph_type_erased_device_array_t* d_start_labels           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_labels_view = NULL;
-  cugraph_type_erased_device_array_t* d_label_list           = NULL;
-  cugraph_type_erased_device_array_view_t* d_label_list_view = NULL;
+  cugraph_type_erased_device_array_t* d_start                               = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view                     = NULL;
+  cugraph_type_erased_device_array_t* d_start_labels                        = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_labels_view              = NULL;
+  cugraph_type_erased_device_array_t* d_label_list                          = NULL;
+  cugraph_type_erased_device_array_view_t* d_label_list_view                = NULL;
   cugraph_type_erased_device_array_t* d_label_to_output_comm_rank           = NULL;
   cugraph_type_erased_device_array_view_t* d_label_to_output_comm_rank_view = NULL;
-  cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view                     = NULL;
 
   int rank = cugraph_resource_handle_get_rank(handle);
 
-  if (rank > 0) {
-    num_starts = 0;
-  }
+  if (rank > 0) { num_starts = 0; }
 
   cugraph_rng_state_t* rng_state;
   ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
@@ -1036,16 +1064,20 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label_list copy_from_host failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_labels, INT32, &d_label_to_output_comm_rank, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_label_to_output_comm_rank create failed.");
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_labels, INT32, &d_label_to_output_comm_rank, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_label_to_output_comm_rank create failed.");
 
-  d_label_to_output_comm_rank_view = cugraph_type_erased_device_array_view(d_label_to_output_comm_rank);
+  d_label_to_output_comm_rank_view =
+    cugraph_type_erased_device_array_view(d_label_to_output_comm_rank);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_label_to_output_comm_rank_view, (byte_t*)label_to_output_comm_rank, &ret_error);
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label_to_output_comm_rank copy_from_host failed.");
+  TEST_ASSERT(test_ret_value,
+              ret_code == CUGRAPH_SUCCESS,
+              "label_to_output_comm_rank copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
@@ -1062,17 +1094,17 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
   ret_code = cugraph_uniform_neighbor_sample(handle,
-                                              graph,
-                                              d_start_view,
-                                              d_start_labels_view,
-                                              d_label_list_view,
-                                              d_label_to_output_comm_rank_view,
-                                              h_fan_out_view,
-                                              rng_state,
-                                              sampling_options,
-                                              FALSE,
-                                              &result,
-                                              &ret_error);
+                                             graph,
+                                             d_start_view,
+                                             d_start_labels_view,
+                                             d_label_list_view,
+                                             d_label_to_output_comm_rank_view,
+                                             h_fan_out_view,
+                                             rng_state,
+                                             sampling_options,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
@@ -1081,21 +1113,21 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
-  cugraph_type_erased_device_array_view_t* result_srcs = NULL;
-  cugraph_type_erased_device_array_view_t* result_dsts = NULL;
+  cugraph_type_erased_device_array_view_t* result_srcs    = NULL;
+  cugraph_type_erased_device_array_view_t* result_dsts    = NULL;
   cugraph_type_erased_device_array_view_t* result_edge_id = NULL;
   cugraph_type_erased_device_array_view_t* result_weights = NULL;
-  cugraph_type_erased_device_array_view_t* result_hops = NULL;
+  cugraph_type_erased_device_array_view_t* result_hops    = NULL;
   cugraph_type_erased_device_array_view_t* result_offsets = NULL;
 
-  result_srcs       = cugraph_sample_result_get_sources(result);
-  result_dsts       = cugraph_sample_result_get_destinations(result);
-  result_edge_id    = cugraph_sample_result_get_edge_id(result);
-  result_weights    = cugraph_sample_result_get_edge_weight(result);
-  result_hops       = cugraph_sample_result_get_hop(result);
-  result_offsets    = cugraph_sample_result_get_offsets(result);
+  result_srcs    = cugraph_sample_result_get_sources(result);
+  result_dsts    = cugraph_sample_result_get_destinations(result);
+  result_edge_id = cugraph_sample_result_get_edge_id(result);
+  result_weights = cugraph_sample_result_get_edge_weight(result);
+  result_hops    = cugraph_sample_result_get_hop(result);
+  result_offsets = cugraph_sample_result_get_offsets(result);
 
-  size_t result_size = cugraph_type_erased_device_array_view_size(result_srcs);
+  size_t result_size         = cugraph_type_erased_device_array_view_size(result_srcs);
   size_t result_offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
 
   vertex_t h_srcs[result_size];
@@ -1125,11 +1157,11 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
     handle, (byte_t*)h_result_offsets, result_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  for(int k = 0; k < result_offsets_size-1; k += fan_out_size) {
-    for(int h = 0; h < fan_out_size; ++h) {
-      int hop_start = h_result_offsets[k+h];
-      int hop_end = h_result_offsets[k+h+1];
-      for(int i = hop_start; i < hop_end; ++i) {
+  for (int k = 0; k < result_offsets_size - 1; k += fan_out_size) {
+    for (int h = 0; h < fan_out_size; ++h) {
+      int hop_start = h_result_offsets[k + h];
+      int hop_end   = h_result_offsets[k + h + 1];
+      for (int i = hop_start; i < hop_end; ++i) {
         h_hops[i] = h;
       }
     }
@@ -1137,8 +1169,8 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   size_t num_local_labels = (result_offsets_size - 1) / fan_out_size;
 
-  for(int k = 0; k < num_local_labels+1; ++k) {
-    h_result_offsets[k] = h_result_offsets[k*fan_out_size];
+  for (int k = 0; k < num_local_labels + 1; ++k) {
+    h_result_offsets[k] = h_result_offsets[k * fan_out_size];
   }
   result_offsets_size = num_local_labels + 1;
 
@@ -1150,13 +1182,13 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   for (int i = 0; i < num_vertices; ++i)
     for (int j = 0; j < num_vertices; ++j) {
-      M_w[i][j]         = 0.0;
-      M_edge_id[i][j]   = -1;
+      M_w[i][j]       = 0.0;
+      M_edge_id[i][j] = -1;
     }
 
   for (int i = 0; i < num_edges; ++i) {
-    M_w[src[i]][dst[i]]         = wgt[i];
-    M_edge_id[src[i]][dst[i]]   = edge_ids[i];
+    M_w[src[i]][dst[i]]       = wgt[i];
+    M_edge_id[src[i]][dst[i]] = edge_ids[i];
   }
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
@@ -1168,15 +1200,13 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
-  TEST_ASSERT(test_ret_value,
-              result_offsets_size == expected_size[rank],
-              "incorrect number of results");
+  TEST_ASSERT(
+    test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
 
-  for (int i = 0 ; i < (result_offsets_size - 1) && (test_ret_value == 0) ; ++i) {
-    for (int j = h_result_offsets[i] ; j < (h_result_offsets[i+1] - 1) && (test_ret_value == 0) ; ++j) {
-      TEST_ASSERT(test_ret_value,
-                  h_hops[j] <= h_hops[j+1],
-                  "Results not sorted by hop id");
+  for (int i = 0; i < (result_offsets_size - 1) && (test_ret_value == 0); ++i) {
+    for (int j = h_result_offsets[i]; j < (h_result_offsets[i + 1] - 1) && (test_ret_value == 0);
+         ++j) {
+      TEST_ASSERT(test_ret_value, h_hops[j] <= h_hops[j + 1], "Results not sorted by hop id");
     }
   }
 
@@ -1206,22 +1236,35 @@ int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t*
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
   int32_t edge_types[] = {8, 7, 6, 5, 4, 3, 2, 1, 0};
   vertex_t start[]     = {2, 3};
-  int start_labels[] = { 6, 12 };
+  int start_labels[]   = {6, 12};
   int fan_out[]        = {-1, -1, -1};
 
-  int test_ret_value              = 0;
-  cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
-  cugraph_error_t* ret_error      = NULL;
+  int test_ret_value            = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
-  bool_t dedupe_sources = TRUE;
+  bool_t dedupe_sources                                   = TRUE;
 
-  return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
-                                              start, start_labels, num_starts,
-                                              fan_out, fan_out_size, with_replacement,
-                                              return_hops, prior_sources_behavior, dedupe_sources);
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
+                                              dst,
+                                              weight,
+                                              edge_ids,
+                                              edge_types,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              start_labels,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              with_replacement,
+                                              return_hops,
+                                              prior_sources_behavior,
+                                              dedupe_sources);
 }
 
 int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t* handle)
@@ -1243,22 +1286,35 @@ int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t*
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
   int32_t edge_types[] = {8, 7, 6, 5, 4, 3, 2, 1, 0};
   vertex_t start[]     = {2, 3};
-  int start_labels[] = { 6, 12 };
+  int start_labels[]   = {6, 12};
   int fan_out[]        = {-1, -1, -1};
 
-  int test_ret_value              = 0;
-  cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
-  cugraph_error_t* ret_error      = NULL;
+  int test_ret_value            = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = EXCLUDE;
-  bool_t dedupe_sources = FALSE;
+  bool_t dedupe_sources                                   = FALSE;
 
-  return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
-                                              start, start_labels, num_starts,
-                                              fan_out, fan_out_size, with_replacement,
-                                              return_hops, prior_sources_behavior, dedupe_sources);
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
+                                              dst,
+                                              weight,
+                                              edge_ids,
+                                              edge_types,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              start_labels,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              with_replacement,
+                                              return_hops,
+                                              prior_sources_behavior,
+                                              dedupe_sources);
 }
 
 int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handle_t* handle)
@@ -1280,22 +1336,35 @@ int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handl
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
   int32_t edge_types[] = {8, 7, 6, 5, 4, 3, 2, 1, 0};
   vertex_t start[]     = {2, 3};
-  int start_labels[] = { 6, 12 };
+  int start_labels[]   = {6, 12};
   int fan_out[]        = {-1, -1, -1};
 
-  int test_ret_value              = 0;
-  cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
-  cugraph_error_t* ret_error      = NULL;
+  int test_ret_value            = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
-  bool_t dedupe_sources = FALSE;
+  bool_t dedupe_sources                                   = FALSE;
 
-  return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
-                                              start, start_labels, num_starts,
-                                              fan_out, fan_out_size, with_replacement,
-                                              return_hops, prior_sources_behavior, dedupe_sources);
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
+                                              dst,
+                                              weight,
+                                              edge_ids,
+                                              edge_types,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              start_labels,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              with_replacement,
+                                              return_hops,
+                                              prior_sources_behavior,
+                                              dedupe_sources);
 }
 
 /******************************************************************************/
@@ -1308,11 +1377,11 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
-  //result |= RUN_MG_TEST(test_uniform_neighbor_sample_alex_bug, handle);
+  // result |= RUN_MG_TEST(test_uniform_neighbor_sample_alex_bug, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_sample_sort_by_hop, handle);
-  //result |= RUN_MG_TEST(test_uniform_neighbor_sample_dedupe_sources, handle);
-  //result |= RUN_MG_TEST(test_uniform_neighbor_sample_unique_sources, handle);
-  //result |= RUN_MG_TEST(test_uniform_neighbor_sample_carry_over_sources, handle);
+  // result |= RUN_MG_TEST(test_uniform_neighbor_sample_dedupe_sources, handle);
+  // result |= RUN_MG_TEST(test_uniform_neighbor_sample_unique_sources, handle);
+  // result |= RUN_MG_TEST(test_uniform_neighbor_sample_carry_over_sources, handle);
 
   cugraph_free_resource_handle(handle);
   free_mg_raft_handle(raft_handle);

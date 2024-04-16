@@ -80,13 +80,15 @@ int generic_scc_test(vertex_t* h_src,
     component_check[i] = num_vertices;
   }
 
-  for (vertex_t i = 0 ; i < num_vertices; ++i) {
+  for (vertex_t i = 0; i < num_vertices; ++i) {
     if (component_check[h_result[i]] == num_vertices)
       component_check[h_result[i]] = h_components[i];
   }
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value, h_components[i] == component_check[h_result[i]], "component results don't match");
+    TEST_ASSERT(test_ret_value,
+                h_components[i] == component_check[h_result[i]],
+                "component results don't match");
   }
 
   cugraph_type_erased_device_array_view_free(components);
