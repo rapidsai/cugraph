@@ -49,6 +49,6 @@ python -m pytest \
 # Test examples
 for e in "$(pwd)"/examples/*.py; do
   rapids-logger "running example $e"
-  python $e
+  (yes || true) | python $e
 done
 popd
