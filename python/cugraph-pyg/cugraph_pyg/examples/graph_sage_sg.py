@@ -97,10 +97,13 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
 
     num_papers = data[0]["num_nodes_dict"]["paper"]
     train_perc = 0.1
+
     train_nodes = torch.randperm(num_papers)
     train_nodes = train_nodes[: int(train_perc * num_papers)]
+
     train_mask = torch.full((num_papers,), -1, device=device)
     train_mask[train_nodes] = 1
+
     fs.add_data(train_mask, "paper", "train")
 
     cugraph_store = CuGraphStore(fs, G, N)
@@ -128,47 +131,46 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
         # barrier() cannot do this since the number of ops per rank is
         # different.  It essentially acts like barrier would if the
         # number of ops per rank was the same.
-        for epoch in range(num_epochs):
-            for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
-                num_batches += 1
-                if iter_i % 20 == 0:
-                    print(f"iteration {iter_i}")
+        for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
+            num_batches += 1
+            if iter_i % 20 == 0:
+                print(f"iteration {iter_i}")
 
-                # train
-                train_mask = hetero_data.train_dict["paper"]
-                y_true = hetero_data.y_dict["paper"]
+            # train
+            train_mask = hetero_data.train_dict["paper"]
+            y_true = hetero_data.y_dict["paper"]
 
-                y_pred = model(
-                    hetero_data.x_dict["paper"].to(device).to(torch.float32),
-                    hetero_data.edge_index_dict[("paper", "cites", "paper")].to(device),
-                    (len(y_true), len(y_true)),
-                )
-
-                y_true = F.one_hot(
-                    y_true[train_mask].to(torch.int64), num_classes=349
-                ).to(torch.float32)
-
-                y_pred = y_pred[train_mask]
-
-                loss = F.cross_entropy(y_pred, y_true)
-
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                total_loss += loss.item()
-
-                del y_true
-                del y_pred
-                del loss
-                del hetero_data
-                gc.collect()
-
-            end_time_train = time.perf_counter_ns()
-            print(
-                f"epoch {epoch} time: "
-                f"{(end_time_train - start_time_train) / 1e9:3.4f} s"
+            y_pred = model(
+                hetero_data.x_dict["paper"].to(device).to(torch.float32),
+                hetero_data.edge_index_dict[("paper", "cites", "paper")].to(device),
+                (len(y_true), len(y_true)),
             )
-            print(f"loss after epoch {epoch}: {total_loss / num_batches}")
+
+            y_true = F.one_hot(y_true[train_mask].to(torch.int64), num_classes=349).to(
+                torch.float32
+            )
+
+            y_pred = y_pred[train_mask]
+
+            loss = F.cross_entropy(y_pred, y_true)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+            del y_true
+            del y_pred
+            del loss
+            del hetero_data
+            gc.collect()
+
+        end_time_train = time.perf_counter_ns()
+        print(
+            f"epoch {epoch} time: "
+            f"{(end_time_train - start_time_train) / 1e9:3.4f} s"
+        )
+        print(f"loss after epoch {epoch}: {total_loss / num_batches}")
 
 
 def parse_args():
