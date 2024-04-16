@@ -50,7 +50,7 @@ jobs:
   conda-cpp-tests:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.06
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@use-new-runners
     with:
       build_type: pull-request
   conda-cpp-checks:
