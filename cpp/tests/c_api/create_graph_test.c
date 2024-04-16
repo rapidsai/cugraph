@@ -145,13 +145,13 @@ int test_create_sg_graph_csr()
   vertex_t h_start[]   = {0, 1, 2, 3, 4, 5};
   weight_t h_wgt[]     = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  bool_t with_replacement = FALSE;
-  bool_t return_hops = TRUE;
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
   cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
-  bool_t dedupe_sources = FALSE;
-  bool_t renumber_results = FALSE;
-  cugraph_compression_type_t compression = COO;
-  bool_t compress_per_hop = FALSE;
+  bool_t dedupe_sources                                   = FALSE;
+  bool_t renumber_results                                 = FALSE;
+  cugraph_compression_type_t compression                  = COO;
+  bool_t compress_per_hop                                 = FALSE;
 
   cugraph_resource_handle_t* handle = NULL;
   cugraph_graph_t* graph            = NULL;
@@ -245,11 +245,11 @@ int test_create_sg_graph_csr()
   ret_code     = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_view, (byte_t*)h_start, &ret_error);
 
-  cugraph_rng_state_t *rng_state;
+  cugraph_rng_state_t* rng_state;
   ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
-  cugraph_sampling_options_t *sampling_options;
+  cugraph_sampling_options_t* sampling_options;
 
   ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
@@ -262,8 +262,18 @@ int test_create_sg_graph_csr()
   cugraph_sampling_set_compression_type(sampling_options, compression);
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
-  ret_code = cugraph_uniform_neighbor_sample(
-                                              handle, graph, d_start_view, NULL, NULL, NULL, h_fan_out_view, rng_state, sampling_options, FALSE, &result, &ret_error);
+  ret_code = cugraph_uniform_neighbor_sample(handle,
+                                             graph,
+                                             d_start_view,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             h_fan_out_view,
+                                             rng_state,
+                                             sampling_options,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
@@ -400,7 +410,9 @@ int test_create_sg_graph_symmetric_error()
                                      TRUE,
                                      &graph,
                                      &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "graph creation succeeded but should have failed.");
+  TEST_ASSERT(test_ret_value,
+              ret_code != CUGRAPH_SUCCESS,
+              "graph creation succeeded but should have failed.");
 
   if (ret_code == CUGRAPH_SUCCESS) cugraph_graph_free(graph);
 
@@ -427,17 +439,17 @@ int test_create_sg_graph_with_isolated_vertices()
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 8;
-  size_t num_vertices = 7;
-  double alpha = 0.95;
-  double epsilon = 0.0001;
+  size_t num_edges      = 8;
+  size_t num_vertices   = 7;
+  double alpha          = 0.95;
+  double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
-  vertex_t h_vertices[] = { 0, 1, 2, 3, 4, 5, 6 };
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
+  vertex_t h_vertices[] = {0, 1, 2, 3, 4, 5, 6};
+  vertex_t h_src[]      = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]      = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[]   = {0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337};
 
   cugraph_resource_handle_t* handle = NULL;
   cugraph_graph_t* graph            = NULL;
@@ -462,8 +474,8 @@ int test_create_sg_graph_with_isolated_vertices()
   cugraph_type_erased_device_array_view_t* dst_view;
   cugraph_type_erased_device_array_view_t* wgt_view;
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_vertices, vertex_tid, &vertices, &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_vertices, vertex_tid, &vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -480,9 +492,9 @@ int test_create_sg_graph_with_isolated_vertices()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
   vertices_view = cugraph_type_erased_device_array_view(vertices);
-  src_view = cugraph_type_erased_device_array_view(src);
-  dst_view = cugraph_type_erased_device_array_view(dst);
-  wgt_view = cugraph_type_erased_device_array_view(wgt);
+  src_view      = cugraph_type_erased_device_array_view(src);
+  dst_view      = cugraph_type_erased_device_array_view(dst);
+  wgt_view      = cugraph_type_erased_device_array_view(wgt);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, vertices_view, (byte_t*)h_vertices, &ret_error);
@@ -538,8 +550,8 @@ int test_create_sg_graph_with_isolated_vertices()
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  result_vertices  = cugraph_centrality_result_get_vertices(result);
-  pageranks = cugraph_centrality_result_get_values(result);
+  result_vertices = cugraph_centrality_result_get_vertices(result);
+  pageranks       = cugraph_centrality_result_get_values(result);
 
   vertex_t h_result_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];
@@ -586,10 +598,10 @@ int test_create_sg_graph_csr_with_isolated()
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 8;
-  size_t num_vertices = 7;
-  double alpha = 0.95;
-  double epsilon = 0.0001;
+  size_t num_edges      = 8;
+  size_t num_vertices   = 7;
+  double alpha          = 0.95;
+  double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
   /*
@@ -600,7 +612,7 @@ int test_create_sg_graph_csr_with_isolated()
   vertex_t h_indices[] = {1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_start[]   = {0, 1, 2, 3, 4, 5};
   weight_t h_wgt[]     = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
+  weight_t h_result[]  = {0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337};
 
   cugraph_resource_handle_t* handle = NULL;
   cugraph_graph_t* graph            = NULL;
@@ -687,8 +699,8 @@ int test_create_sg_graph_csr_with_isolated()
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  result_vertices  = cugraph_centrality_result_get_vertices(result);
-  pageranks = cugraph_centrality_result_get_values(result);
+  result_vertices = cugraph_centrality_result_get_vertices(result);
+  pageranks       = cugraph_centrality_result_get_values(result);
 
   vertex_t h_result_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];
@@ -732,32 +744,26 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 66;
-  size_t num_vertices = 7;
-  double alpha = 0.95;
-  double epsilon = 0.0001;
+  size_t num_edges      = 66;
+  size_t num_vertices   = 7;
+  double alpha          = 0.95;
+  double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
-  vertex_t h_vertices[] = { 0, 1, 2, 3, 4, 5, 6 };
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
-                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
-                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
-                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
-                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
-                      0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
-                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
-                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
-                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
-                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
-                      1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
-                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
-                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
-                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
-                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
-                      0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f};
-  weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
+  vertex_t h_vertices[] = {0, 1, 2, 3, 4, 5, 6};
+  vertex_t h_src[]      = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                           0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5,
+                           0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
+  vertex_t h_dst[]      = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5, 1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                           1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5, 1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5,
+                           1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5, 1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
+  weight_t h_wgt[]      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                           0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                           0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                           0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                           0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f,
+                           0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.7f};
+  weight_t h_result[]   = {0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337};
 
   cugraph_resource_handle_t* handle = NULL;
   cugraph_graph_t* graph            = NULL;
@@ -782,8 +788,8 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
   cugraph_type_erased_device_array_view_t* dst_view;
   cugraph_type_erased_device_array_view_t* wgt_view;
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_vertices, vertex_tid, &vertices, &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_vertices, vertex_tid, &vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -800,9 +806,9 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
   vertices_view = cugraph_type_erased_device_array_view(vertices);
-  src_view = cugraph_type_erased_device_array_view(src);
-  dst_view = cugraph_type_erased_device_array_view(dst);
-  wgt_view = cugraph_type_erased_device_array_view(wgt);
+  src_view      = cugraph_type_erased_device_array_view(src);
+  dst_view      = cugraph_type_erased_device_array_view(dst);
+  wgt_view      = cugraph_type_erased_device_array_view(wgt);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, vertices_view, (byte_t*)h_vertices, &ret_error);
@@ -858,8 +864,8 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  result_vertices  = cugraph_centrality_result_get_vertices(result);
-  pageranks = cugraph_centrality_result_get_values(result);
+  result_vertices = cugraph_centrality_result_get_vertices(result);
+  pageranks       = cugraph_centrality_result_get_values(result);
 
   vertex_t h_result_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];

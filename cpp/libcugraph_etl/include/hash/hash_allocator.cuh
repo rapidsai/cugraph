@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2017-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 #ifndef HASH_ALLOCATOR_CUH
 #define HASH_ALLOCATOR_CUH
 
-#include <new>
-
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/device/device_memory_resource.hpp>
 #include <rmm/mr/device/managed_memory_resource.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
+
+#include <new>
 
 template <class T>
 struct managed_allocator {

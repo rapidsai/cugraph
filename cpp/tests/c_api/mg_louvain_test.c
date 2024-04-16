@@ -51,8 +51,8 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_louvain(p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_louvain(
+    p_handle, p_graph, max_level, threshold, resolution, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_louvain failed.");
@@ -117,8 +117,17 @@ int test_louvain(const cugraph_resource_handle_t* handle)
   vertex_t h_result[] = {1, 0, 1, 0, 0, 0};
 
   // Louvain wants store_transposed = FALSE
-  return generic_louvain_test(
-    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, max_level, threshold, resolution, FALSE);
+  return generic_louvain_test(handle,
+                              h_src,
+                              h_dst,
+                              h_wgt,
+                              h_result,
+                              num_vertices,
+                              num_edges,
+                              max_level,
+                              threshold,
+                              resolution,
+                              FALSE);
 }
 
 /******************************************************************************/
