@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph_etl/functions.hpp>
-
 #include <cugraph/utilities/error.hpp>
+#include <cugraph_etl/functions.hpp>
 
 #include <cudf/column/column_factories.hpp>
 #include <cudf/column/column_view.hpp>
@@ -26,15 +25,14 @@
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/host/new_delete_resource.hpp>
 
-#include <hash/concurrent_unordered_map.cuh>
-
 #include <cub/device/device_radix_sort.cuh>
+#include <thrust/pair.h>
+#include <thrust/sort.h>
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <thrust/pair.h>
-#include <thrust/sort.h>
+#include <hash/concurrent_unordered_map.cuh>
 
 #include <tuple>
 
@@ -271,12 +269,12 @@ __device__ __inline__ int32_t validate_ht_col_insert(volatile int32_t* ptr_col)
 }
 
 __global__ static void concat_and_create_histogram(int8_t* col_1,
-                                            int32_t* offset_1,
-                                            int8_t* col_2,
-                                            int32_t* offset_2,
-                                            size_type num_rows,
-                                            cudf_map_type hash_map,
-                                            accum_type* sysmem_insert_counter)
+                                                   int32_t* offset_1,
+                                                   int8_t* col_2,
+                                                   int32_t* offset_2,
+                                                   size_type num_rows,
+                                                   cudf_map_type hash_map,
+                                                   accum_type* sysmem_insert_counter)
 {
   extern __shared__ int8_t smem_[];
   int32_t* smem_col_1_offsets = reinterpret_cast<int32_t*>(smem_);
@@ -350,16 +348,16 @@ __global__ static void concat_and_create_histogram(int8_t* col_1,
 }
 
 __global__ static void concat_and_create_histogram_2(int8_t* col_1,
-                                              int32_t* offset_1,
-                                              int8_t* col_2,
-                                              int32_t* offset_2,
-                                              int8_t* match_col_1,
-                                              int32_t* match_offset_1,
-                                              int8_t* match_col_2,
-                                              int32_t* match_offset_2,
-                                              size_type num_rows,
-                                              cudf_map_type hash_map,
-                                              accum_type* sysmem_insert_counter)
+                                                     int32_t* offset_1,
+                                                     int8_t* col_2,
+                                                     int32_t* offset_2,
+                                                     int8_t* match_col_1,
+                                                     int32_t* match_offset_1,
+                                                     int8_t* match_col_2,
+                                                     int32_t* match_offset_2,
+                                                     size_type num_rows,
+                                                     cudf_map_type hash_map,
+                                                     accum_type* sysmem_insert_counter)
 {
   extern __shared__ int8_t smem_[];
   int32_t* smem_col_1_offsets = reinterpret_cast<int32_t*>(smem_);
@@ -453,12 +451,12 @@ __global__ static void concat_and_create_histogram_2(int8_t* col_1,
 
 template <typename T>
 __global__ static void set_src_vertex_idx(int8_t* col_1,
-                                   int32_t* offset_1,
-                                   int8_t* col_2,
-                                   int32_t* offset_2,
-                                   size_type num_rows,
-                                   cudf_map_type lookup_table,
-                                   T* out_vertex_mapping)
+                                          int32_t* offset_1,
+                                          int8_t* col_2,
+                                          int32_t* offset_2,
+                                          size_type num_rows,
+                                          cudf_map_type lookup_table,
+                                          T* out_vertex_mapping)
 {
   extern __shared__ int8_t smem_[];
   int32_t* smem_col_1_offsets = reinterpret_cast<int32_t*>(smem_);
@@ -510,16 +508,16 @@ __global__ static void set_src_vertex_idx(int8_t* col_1,
 
 template <typename T>
 __global__ static void set_dst_vertex_idx(int8_t* col_1,
-                                   int32_t* offset_1,
-                                   int8_t* col_2,
-                                   int32_t* offset_2,
-                                   int8_t* match_col_1,
-                                   int32_t* match_offset_1,
-                                   int8_t* match_col_2,
-                                   int32_t* match_offset_2,
-                                   size_type num_rows,
-                                   cudf_map_type lookup_table,
-                                   T* out_vertex_mapping)
+                                          int32_t* offset_1,
+                                          int8_t* col_2,
+                                          int32_t* offset_2,
+                                          int8_t* match_col_1,
+                                          int32_t* match_offset_1,
+                                          int8_t* match_col_2,
+                                          int32_t* match_offset_2,
+                                          size_type num_rows,
+                                          cudf_map_type lookup_table,
+                                          T* out_vertex_mapping)
 {
   extern __shared__ int8_t smem_[];
   int32_t* smem_col_1_offsets = reinterpret_cast<int32_t*>(smem_);
@@ -586,9 +584,9 @@ __global__ static void set_dst_vertex_idx(int8_t* col_1,
 }
 
 __global__ static void create_mapping_histogram(uint32_t* hash_value,
-                                         str_hash_value* payload,
-                                         cudf_map_type hash_map,
-                                         accum_type count)
+                                                str_hash_value* payload,
+                                                cudf_map_type hash_map,
+                                                accum_type count)
 {
   accum_type idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -596,10 +594,10 @@ __global__ static void create_mapping_histogram(uint32_t* hash_value,
 }
 
 __global__ static void assign_histogram_idx(cudf_map_type cuda_map_obj,
-                                     size_t slot_count,
-                                     str_hash_value* key,
-                                     uint32_t* value,
-                                     size_type* counter)
+                                            size_t slot_count,
+                                            str_hash_value* key,
+                                            uint32_t* value,
+                                            size_type* counter)
 {
   if (threadIdx.x == 0 && blockIdx.x == 0) { counter[0] = 0; }
   __threadfence();
@@ -631,12 +629,12 @@ __global__ static void set_vertex_indices(str_hash_value* ht_value_payload, accu
 }
 
 __global__ static void set_output_col_offsets(str_hash_value* row_col_pair,
-                                       int32_t* out_col1_offset,
-                                       int32_t* out_col2_offset,
-                                       int dst_pair_match,
-                                       int32_t* in_col1_offset,
-                                       int32_t* in_col2_offset,
-                                       accum_type total_elements)
+                                              int32_t* out_col1_offset,
+                                              int32_t* out_col2_offset,
+                                              int dst_pair_match,
+                                              int32_t* in_col1_offset,
+                                              int32_t* in_col2_offset,
+                                              accum_type total_elements)
 {
   int32_t start_idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -654,11 +652,11 @@ __global__ static void set_output_col_offsets(str_hash_value* row_col_pair,
 }
 
 __global__ static void offset_buffer_size_comp(int32_t* out_col1_length,
-                                        int32_t* out_col2_length,
-                                        int32_t* out_col1_offsets,
-                                        int32_t* out_col2_offsets,
-                                        accum_type total_elem,
-                                        accum_type* out_sum)
+                                               int32_t* out_col2_length,
+                                               int32_t* out_col1_offsets,
+                                               int32_t* out_col2_offsets,
+                                               accum_type total_elem,
+                                               accum_type* out_sum)
 {
   int32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -674,19 +672,19 @@ __global__ static void offset_buffer_size_comp(int32_t* out_col1_length,
 }
 
 __global__ static void select_unrenumber_string(str_hash_value* idx_to_col_row,
-                                         int32_t total_elements,
-                                         int8_t* src_col1,
-                                         int8_t* src_col2,
-                                         int32_t* src_col1_offsets,
-                                         int32_t* src_col2_offsets,
-                                         int8_t* dst_col1,
-                                         int8_t* dst_col2,
-                                         int32_t* dst_col1_offsets,
-                                         int32_t* dst_col2_offsets,
-                                         int8_t* col1_out,
-                                         int8_t* col2_out,
-                                         int32_t* col1_out_offsets,
-                                         int32_t* col2_out_offsets)
+                                                int32_t total_elements,
+                                                int8_t* src_col1,
+                                                int8_t* src_col2,
+                                                int32_t* src_col1_offsets,
+                                                int32_t* src_col2_offsets,
+                                                int8_t* dst_col1,
+                                                int8_t* dst_col2,
+                                                int32_t* dst_col1_offsets,
+                                                int32_t* dst_col2_offsets,
+                                                int8_t* col1_out,
+                                                int8_t* col2_out,
+                                                int32_t* col1_out_offsets,
+                                                int32_t* col2_out_offsets)
 {
   size_type start_idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -791,8 +789,8 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto mr = rmm::mr::new_delete_resource();
-    size_t hist_size = sizeof(accum_type) * 32;
+    auto mr                         = rmm::mr::new_delete_resource();
+    size_t hist_size                = sizeof(accum_type) * 32;
     accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
     *hist_insert_counter            = 0;
 
@@ -957,19 +955,17 @@ struct renumber_functor {
 
     std::vector<std::unique_ptr<cudf::column>> renumber_table_vectors;
 
-    auto offset_col_1 =
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
-                                     key_value_count + 1,
-                                     std::move(out_col1_offsets.release()),
-                                     rmm::device_buffer{},
-                                     0);
+    auto offset_col_1 = std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                                       key_value_count + 1,
+                                                       std::move(out_col1_offsets.release()),
+                                                       rmm::device_buffer{},
+                                                       0);
 
-    auto str_col_1 =
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
-                                     hist_insert_counter[0],
-                                     std::move(unrenumber_col1_chars),
-                                     rmm::device_buffer{},
-                                     0);
+    auto str_col_1          = std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
+                                                    hist_insert_counter[0],
+                                                    std::move(unrenumber_col1_chars),
+                                                    rmm::device_buffer{},
+                                                    0);
     auto str_col_1_contents = str_col_1->release();
 
     renumber_table_vectors.push_back(
@@ -979,19 +975,17 @@ struct renumber_functor {
                                 0,
                                 std::move(*str_col_1_contents.null_mask)));
 
-    auto offset_col_2 =
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
-                                     key_value_count + 1,
-                                     std::move(out_col2_offsets.release()),
-                                     rmm::device_buffer{},
-                                     0);
+    auto offset_col_2 = std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                                       key_value_count + 1,
+                                                       std::move(out_col2_offsets.release()),
+                                                       rmm::device_buffer{},
+                                                       0);
 
-    auto str_col_2 =
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
-                                     hist_insert_counter[1],
-                                     std::move(unrenumber_col2_chars),
-                                     rmm::device_buffer{},
-                                     0);
+    auto str_col_2          = std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
+                                                    hist_insert_counter[1],
+                                                    std::move(unrenumber_col2_chars),
+                                                    rmm::device_buffer{},
+                                                    0);
     auto str_col_2_contents = str_col_2->release();
 
     renumber_table_vectors.push_back(

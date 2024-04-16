@@ -25,25 +25,33 @@ python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 
 if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
-  rapids-logger "Installing PyTorch and PyG dependencies"
   PYTORCH_URL="https://download.pytorch.org/whl/cu118"
-  rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
-  rapids-retry python -m pip install torch-geometric==2.4.0
-  rapids-retry python -m pip install \
-    pyg_lib \
-    torch_scatter \
-    torch_sparse \
-    torch_cluster \
-    torch_spline_conv \
-    -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
-
-  rapids-logger "pytest cugraph-pyg (single GPU)"
-  pushd python/cugraph-pyg/cugraph_pyg
-  python -m pytest \
-    --cache-clear \
-    --ignore=tests/mg \
-    tests
-  popd
+  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
 else
-  rapids-logger "skipping cugraph-pyg wheel test on CUDA!=11.8"
+  PYTORCH_URL="https://download.pytorch.org/whl/cu121"
+  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
 fi
+rapids-logger "Installing PyTorch and PyG dependencies"
+rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
+rapids-retry python -m pip install torch-geometric==2.4.0
+rapids-retry python -m pip install \
+  ogb \
+  pyg_lib \
+  torch_scatter \
+  torch_sparse \
+  torch_cluster \
+  torch_spline_conv \
+  -f ${PYG_URL}
+
+rapids-logger "pytest cugraph-pyg (single GPU)"
+pushd python/cugraph-pyg/cugraph_pyg
+python -m pytest \
+  --cache-clear \
+  --ignore=tests/mg \
+  tests
+# Test examples
+for e in "$(pwd)"/examples/*.py; do
+  rapids-logger "running example $e"
+  (yes || true) | python $e
+done
+popd

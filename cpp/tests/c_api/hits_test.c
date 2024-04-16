@@ -53,8 +53,16 @@ int generic_hits_test(vertex_t* h_src,
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, renumber, FALSE, &p_graph, &ret_error);
+  ret_code = create_test_graph(p_handle,
+                               h_src,
+                               h_dst,
+                               h_wgt,
+                               num_edges,
+                               store_transposed,
+                               renumber,
+                               FALSE,
+                               &p_graph,
+                               &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
