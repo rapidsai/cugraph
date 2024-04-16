@@ -362,14 +362,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       }
     }
 
-#if 1
-    std::cout << "level = " << dendrogram->num_levels() << std::endl;
-    raft::print_device_vector("  louvain output",
-                              dendrogram->current_level_begin(),
-                              louvain_assignment_for_vertices.size(),
-                              std::cout);
-#endif
-
 #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
@@ -436,10 +428,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   up_down);
     }
 
-#if 0
-    raft::print_device_vector("  after refinement output", refined_leiden_partition.data(), refined_leiden_partition.size(), std::cout);
-#endif
-
     // Clear buffer and contract the graph
 
     cluster_keys.resize(0, handle.get_stream());
@@ -473,89 +461,27 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                         refined_leiden_partition.data(),
                         true);
 
-        std::cout << "after coarsen_graph" << std::endl;
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(0),
-                         thrust::make_counting_iterator(1),
-                         [nm               = numbering_map->begin(),
-                          size             = numbering_map->size(),
-                          old_louvain      = dendrogram->current_level_begin(),
-                          old_louvain_size = dendrogram->current_level_size(),
-                          old_leiden       = refined_leiden_partition.data(),
-                          l2l_map_first    = leiden_to_louvain_map.first.data(),
-                          l2l_map_second   = leiden_to_louvain_map.second.begin(),
-                          l2l_map_size     = leiden_to_louvain_map.first.size()] __device__(auto) {
-#if 0
-                           printf("l2l\n");
-                           for (size_t i = 0 ; i < l2l_map_size ; ++i) {
-                             printf("  %lu: (%d, %d)\n", i, (int) l2l_map_first[i], (int) l2l_map_second[i]);
-                           }
-#endif
-                           printf("old louvain/leiden\n");
-                           for (size_t i = 0; i < old_louvain_size; ++i) {
-                             // if (old_louvain[i] == 2410)
-                             if (old_louvain[i] == 1833)
-                               printf(
-                                 "  %lu: (%d, %d)\n", i, (int)old_louvain[i], (int)old_leiden[i]);
-                           }
-                         });
-
         current_graph_view = coarse_graph.view();
 
         current_edge_weight_view =
           std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
             (*coarsen_graph_edge_weight).view());
 
-#if 0
-        // numbering_map contains leiden cluster ids of aggregated nodes
-        // After call to relabel, numbering_map will louvain cluster ids
-        // of the aggregated nodes
-        relabel<vertex_t, multi_gpu>(
-          handle,
-          std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
-                          static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
-          leiden_to_louvain_map.first.size(),
-          (*numbering_map).data(),
-          (*numbering_map).size(),
-          false);
+        // FIXME: reconsider what's put into dendrogram->current_level_begin()
+        // at what point in the code. I'm just going to overwrite it here,
+        // so perhaps it should be in different structures until now
 
-        // louvain assignment of aggregated graph which is necessary to flatten dendrogram
-        dendrogram->add_level(current_graph_view.local_vertex_partition_range_first(),
-                              current_graph_view.local_vertex_partition_range_size(),
-                              handle.get_stream());
-
-        raft::copy(dendrogram->current_level_begin(),
-                   (*numbering_map).begin(),
-                   (*numbering_map).size(),
-                   handle.get_stream());
-
-        louvain_of_refined_graph.resize(current_graph_view.local_vertex_partition_range_size(),
-                                        handle.get_stream());
-
-        raft::copy(louvain_of_refined_graph.begin(),
-                   (*numbering_map).begin(),
-                   (*numbering_map).size(),
-                   handle.get_stream());
-#else
-        // FIXME: reconsider what's put into dendrogram->current_level_begin(), since
-        // I'm just going to overwrite it here...
-
-        // New approach, mimic Louvain
-        //  We'll store the Leiden results in the dendrogram
+        // New approach, mimic Louvain, we'll store the Leiden results in the dendrogram
         raft::copy(dendrogram->current_level_begin(),
                    refined_leiden_partition.data(),
                    refined_leiden_partition.size(),
                    handle.get_stream());
 
-        // if (dendrogram->num_levels() == 1) raft::print_device_vector("  dendrogram before
-        // relabel", dendrogram->current_level_begin() + 409, 4, std::cout);
-        if (dendrogram->num_levels() == 1)
-          raft::print_device_vector(
-            "  dendrogram before relabel", dendrogram->current_level_begin() + 1832, 4, std::cout);
-
         louvain_of_refined_graph.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
 
+        // Temporarily use louvain_of_refined_graph to be a numeric sequence to renumber the
+        // dendrogram.
         detail::sequence_fill(handle.get_stream(),
                               louvain_of_refined_graph.data(),
                               louvain_of_refined_graph.size(),
@@ -570,23 +496,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           dendrogram->current_level_size(),
           false);
 
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(0),
-                         thrust::make_counting_iterator(1),
-                         [d    = dendrogram->current_level_begin(),
-                          orig = refined_leiden_partition.data(),
-                          size = dendrogram->current_level_size()] __device__(auto) {
-                           for (size_t i = 0; i < size; ++i) {
-                             if (d[i] < 0)
-                               printf(" %lu: %d, orig = %d\n", i, (int)d[i], (int)orig[i]);
-                           }
-                         });
-
-        // if (dendrogram->num_levels() == 1) raft::print_device_vector("  dendrogram after
-        // relabel", dendrogram->current_level_begin() + 409, 4, std::cout);
-        if (dendrogram->num_levels() == 1)
-          raft::print_device_vector(
-            "  dendrogram after relabel", dendrogram->current_level_begin() + 1832, 4, std::cout);
+        raft::copy(louvain_of_refined_graph.begin(),
+                   numbering_map->data(),
+                   numbering_map->size(),
+                   handle.get_stream());
 
         relabel<vertex_t, multi_gpu>(
           handle,
@@ -596,51 +509,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           louvain_of_refined_graph.data(),
           louvain_of_refined_graph.size(),
           false);
-
-        //
-        // TODO:  This isn't quite right.
-        //
-        //    louvain_of_refined_data is filled with values [0,n) with the new ids
-        //    leiden_to_louvain_map.first is filled with subset of values [0,n) with old ids
-        //      (old graph, so more vertices, n is bigger).
-        //    leiden_to_louvain_map.second is also filled from that bigger set
-        //
-        //    Can I just renumber these?  I think I would need
-        //
-        //  kkkk
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(0),
-                         thrust::make_counting_iterator(1),
-                         [d       = louvain_of_refined_graph.data(),
-                          first   = leiden_to_louvain_map.first.begin(),
-                          second  = leiden_to_louvain_map.second.begin(),
-                          f_size  = leiden_to_louvain_map.first.size(),
-                          nm      = numbering_map->data(),
-                          nm_size = numbering_map->size(),
-                          size    = louvain_of_refined_graph.size()] __device__(auto) {
-                           printf("NUMBER MAP:\n");
-                           for (size_t i = 0; i < nm_size; ++i) {
-                             printf(" %lu: %d\n", i, (int)nm[i]);
-                           }
-
-                           printf("MAP:\n");
-                           for (size_t i = 0; i < f_size; ++i) {
-                             printf(" %lu: (%d -> %d)\n", i, (int)first[i], (int)second[i]);
-                           }
-
-                           printf("Bad values:\n");
-                           for (size_t i = 0; i < size; ++i) {
-                             if (d[i] < 0) printf(" %lu: %d\n", i, (int)d[i]);
-                           }
-                         });
-
-#endif
       }
-    } else {
-      raft::print_device_vector("final dendrogram level",
-                                dendrogram->current_level_begin(),
-                                dendrogram->current_level_size(),
-                                std::cout);
     }
 
     copied_louvain_partition.resize(0, handle.get_stream());
@@ -655,14 +524,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
 #ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
-#endif
-
-#if 0
-  for (size_t i = 0 ; i < dendrogram->num_levels() ; ++i) {
-    char tmp[128];
-    snprintf(tmp, 128, "dendrogram level = %lu", i);
-    raft::print_device_vector(tmp, dendrogram->get_level_ptr_nocheck(i), dendrogram->get_level_size_nocheck(i), std::cout);
-  }
 #endif
 
   return std::make_pair(std::move(dendrogram), best_modularity);
@@ -719,32 +580,6 @@ void flatten_leiden_dendrogram(raft::handle_t const& handle,
                                Dendrogram<vertex_t> const& dendrogram,
                                vertex_t* clustering)
 {
-#if 0
-  leiden_partition_at_level<vertex_t, multi_gpu>(
-    handle, dendrogram, clustering, dendrogram.num_levels());
-
-#if 0
-  raft::print_device_vector("clustering before relabel", clustering, graph_view.number_of_vertices(), std::cout);
-  thrust::for_each(handle.get_thrust_policy(),
-                   thrust::make_counting_iterator(0),
-                   thrust::make_counting_iterator(1),
-                   [clustering, dend = dendrogram.get_level_ptr_nocheck(0)] __device__(auto) {
-                     printf("  clustering[410] = %d, dend[410] = %d\n", (int) clustering[410], (int) dend[410]);
-                   });
-#endif
-
-  rmm::device_uvector<vertex_t> unique_cluster_ids(graph_view.local_vertex_partition_range_size(),
-                                                   handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               clustering,
-               clustering + graph_view.local_vertex_partition_range_size(),
-               unique_cluster_ids.begin());
-
-  remove_duplicates<vertex_t, multi_gpu>(handle, unique_cluster_ids);
-
-  relabel_cluster_ids<vertex_t, multi_gpu>(
-    handle, unique_cluster_ids, clustering, graph_view.local_vertex_partition_range_size());
-#else
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
   detail::sequence_fill(handle.get_stream(),
@@ -754,7 +589,6 @@ void flatten_leiden_dendrogram(raft::handle_t const& handle,
 
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
-#endif
 }
 
 }  // namespace detail
@@ -809,10 +643,6 @@ std::pair<size_t, weight_t> leiden(
     detail::leiden(handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_leiden_dendrogram(handle, graph_view, *dendrogram, clustering);
-
-#if 0
-  raft::print_device_vector("clustering", clustering, graph_view.number_of_vertices(), std::cout);
-#endif
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
