@@ -304,7 +304,6 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - pytorch
   - pyg
   - dglteam/label/cu118
   - conda-forge
@@ -374,8 +373,6 @@ dependencies:
         packages:
           - c-compiler
           - cxx-compiler
-          - gmock>=1.13.0
-          - gtest>=1.13.0
           - libcudf==24.6.*
           - libcugraphops==24.6.*
           - libraft-headers==24.6.*
