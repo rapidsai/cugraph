@@ -262,12 +262,6 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       auto threshold_magnitude =
         2e-6;  // skip comparison for low hits vertices (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-        if (std::abs(lhs - rhs) >
-            std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude)) {  // DEBUG
-          std::cout << "lhs=" << lhs << " rhs=" << rhs << " abs(lhs - rhs)=" << std::abs(lhs - rhs)
-                    << " threshold_ratio=" << threshold_ratio
-                    << " threshold_magnitude=" << threshold_magnitude << std::endl;
-        }
         return std::abs(lhs - rhs) <=
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
       };
