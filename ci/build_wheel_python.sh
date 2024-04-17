@@ -10,14 +10,25 @@ version=$(rapids-generate-version)
 git_commit=$(git rev-parse HEAD)
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
-RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp /tmp/libcugraph_dist
+CPP_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp /tmp/libcugraph_dist)
 
-librmm_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="librmm_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact rmm 1529 cpp)
-libraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 cpp)
-libcugraphops_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="libcugraphops_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact cugraph-ops 629 cpp c8c3bce)
-pylibraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="pylibraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 python)
+librmm_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact rmm 1529 cpp)
+libraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 cpp 0435e6b)
+libcugraphops_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact cugraph-ops 629 cpp c8c3bce)
+pylibraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 python)
 
-wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}" "/tmp/libcugraph_dist")
+PYTHON_WHEELHOUSE="${PWD}/dist/"
+PYTHON_PURE_WHEELHOUSE="${PWD}/pure_dist/"
+PYTHON_AUDITED_WHEELHOUSE="${PWD}/final_dist/"
+
+wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}" "${CPP_WHEELHOUSE}" "${PYTHON_WHEELHOUSE}" "${PYTHON_PURE_WHEELHOUSE}")
+mkdir -p "${PYTHON_AUDITED_WHEELHOUSE}"
+
+FIND_LINKS=""
+# Iterate over the array
+for wheelhouse in "${WHEELHOUSES[@]}"; do
+    FIND_LINKS+="--find-links ${wheelhouse} "
+done
 
 # This is the version of the suffix with a preceding hyphen. It's used
 # everywhere except in the final wheel name.
@@ -36,6 +47,8 @@ fi
 
 build_wheel () {
     local package_name="${1}"
+    local current_wheelhouse="${2}"
+
     local underscore_package_name=$(echo "${package_name}" | tr "-" "_")
     local version_package_name="$underscore_package_name"
     if [[ "${version_package_name}" = "nx_cugraph" ]]; then
@@ -62,36 +75,17 @@ build_wheel () {
         sed -i "s/cupy-cuda11x/cupy-cuda12x/g" ${pyproject_file}
     fi
 
-    pushd "${package_dir}"
-
-    local find_links=""
-    # Iterate over the array
-    for wheelhouse in "${wheelhouses[@]}"; do
-        find_links+="--find-links ${wheelhouse} "
-    done
-
-    python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check ${find_links}
-
-    # pure-python packages should be marked as pure, and not have auditwheel run on them.
-    if [[ ${package_name} == "nx-cugraph" ]] || \
-    [[ ${package_name} == "cugraph-dgl" ]] || \
-    [[ ${package_name} == "cugraph-pyg" ]] || \
-    [[ ${package_name} == "cugraph-equivariant" ]]; then
-        RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-upload-wheels-to-s3 python dist
-    else
-        mkdir -p final_dist
-        python -m auditwheel repair -w final_dist --exclude libcugraph.so --exclude libcugraph_c.so --exclude libraft.so --exclude libcugraph-ops++.so dist/*
-        RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 python final_dist
-    fi
-
-    # Append ${PWD}/final_dist to the list of wheelhouses for the next package
-    wheelhouses+=("${PWD}/final_dist")
-    popd
+    python -m pip wheel "${package_dir}" -w ${current_wheelhouse} -vvv --no-deps --disable-pip-version-check ${FIND_LINKS}
 }
 
-build_wheel pylibcugraph
-build_wheel cugraph
-build_wheel nx-cugraph
-build_wheel cugraph-dgl
-build_wheel cugraph-pyg
-build_wheel cugraph-equivariant
+build_wheel pylibcugraph "${PYTHON_WHEELHOUSE}"
+build_wheel cugraph "${PYTHON_WHEELHOUSE}"
+build_wheel nx-cugraph "${PYTHON_PURE_WHEELHOUSE}"
+build_wheel cugraph-dgl "${PYTHON_PURE_WHEELHOUSE}"
+build_wheel cugraph-pyg "${PYTHON_PURE_WHEELHOUSE}"
+build_wheel cugraph-equivariant "${PYTHON_PURE_WHEELHOUSE}"
+
+RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-upload-wheels-to-s3 python ${PYTHON_PURE_WHEELHOUSE}
+
+python -m auditwheel repair -w "${PYTHON_AUDITED_WHEELHOUSE}" --exclude libcugraph.so --exclude libcugraph_c.so --exclude libraft.so --exclude libcugraph-ops++.so ${PYTHON_WHEELHOUSE}/*
+RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 python ${PYTHON_AUDITED_WHEELHOUSE}
