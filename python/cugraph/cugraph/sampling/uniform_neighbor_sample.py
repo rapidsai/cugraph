@@ -71,6 +71,7 @@ def uniform_neighbor_sample(
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
+    retain_seeds: bool = False,
     use_legacy_names: bool = True,  # deprecated
     compress_per_hop: bool = False,
     compression: str = "COO",
@@ -141,6 +142,10 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
+
+    retain_seeds: bool, optional (default=False)
+        If True, will retain the original seeds (original source vertices)
+        in the output even if they do not have outgoing neighbors.
 
     use_legacy_names: bool, optional (default=True)
         Whether to use the legacy column names (sources, destinations).
@@ -349,6 +354,7 @@ def uniform_neighbor_sample(
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
+        retain_seeds=retain_seeds,
         compression=compression,
         compress_per_hop=compress_per_hop,
         return_dict=True,
