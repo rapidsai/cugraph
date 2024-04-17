@@ -356,7 +356,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     auto edge_partition_src_value_input =
       edge_partition_src_input_device_view_t(edge_src_value_input, i);
-    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
+    [[maybe_unused]] auto edge_partition_e_value_input =
+      edge_partition_e_input_device_view_t(edge_value_input, i);
 
     std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
@@ -452,7 +453,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       rmm::device_uvector<vertex_t> unreduced_majors(max_chunk_size, handle.get_stream());
       rmm::device_uvector<vertex_t> unreduced_minor_keys(unreduced_majors.size(),
                                                          handle.get_stream());
-      auto unreduced_key_aggregated_edge_values =
+      [[maybe_unused]] auto unreduced_key_aggregated_edge_values =
         detail::allocate_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           unreduced_majors.size(), handle.get_stream());
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
@@ -761,7 +762,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
-      auto rx_key_aggregated_edge_values =
+      [[maybe_unused]] auto rx_key_aggregated_edge_values =
         detail::allocate_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           0, handle.get_stream());
       auto mem_frugal_flag =

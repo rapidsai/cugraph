@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
- /*
+/*
  * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
  *     insert/find for 8 byte key-value pair size. The plan is to migrate to
  *     using the cuco when the feature is supported. At that point this file can be deleted.
  */
 #pragma once
-
-#include <hash/hash_allocator.cuh>
-#include <hash/helper_functions.cuh>
-#include <hash/managed.cuh>
 
 #include <cudf/detail/utilities/device_atomics.cuh>
 #include <cudf/hashing/detail/default_hash.cuh>
@@ -33,6 +29,10 @@
 #include <rmm/cuda_stream_view.hpp>
 
 #include <thrust/pair.h>
+
+#include <hash/hash_allocator.cuh>
+#include <hash/helper_functions.cuh>
+#include <hash/managed.cuh>
 
 #include <iostream>
 #include <iterator>
@@ -437,10 +437,10 @@ class concurrent_unordered_map {
       m_hashtbl_values = m_allocator.allocate(m_capacity, stream);
     }
     RAFT_CUDA_TRY(cudaMemcpyAsync(m_hashtbl_values,
-                             other.m_hashtbl_values,
-                             m_capacity * sizeof(value_type),
-                             cudaMemcpyDefault,
-                             stream.value()));
+                                  other.m_hashtbl_values,
+                                  m_capacity * sizeof(value_type),
+                                  cudaMemcpyDefault,
+                                  stream.value()));
   }
 
   void clear_async(rmm::cuda_stream_view stream = rmm::cuda_stream_default)
@@ -484,12 +484,12 @@ class concurrent_unordered_map {
     delete this;
   }
 
-  concurrent_unordered_map()                                = delete;
-  concurrent_unordered_map(concurrent_unordered_map const&) = default;
-  concurrent_unordered_map(concurrent_unordered_map&&)      = default;
+  concurrent_unordered_map()                                           = delete;
+  concurrent_unordered_map(concurrent_unordered_map const&)            = default;
+  concurrent_unordered_map(concurrent_unordered_map&&)                 = default;
   concurrent_unordered_map& operator=(concurrent_unordered_map const&) = default;
-  concurrent_unordered_map& operator=(concurrent_unordered_map&&) = default;
-  ~concurrent_unordered_map()                                     = default;
+  concurrent_unordered_map& operator=(concurrent_unordered_map&&)      = default;
+  ~concurrent_unordered_map()                                          = default;
 
  private:
   hasher m_hf;

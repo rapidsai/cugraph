@@ -53,7 +53,7 @@ Note: This conda installation only applies to Linux and Python versions 3.9/3.10
 cuGraph, and all of RAPIDS, is available via pip.
 
 ```
-pip install cugraph-cu12 --extra-index-url=https://pypi.ngc.nvidia.com
+pip install cugraph-cu12 --extra-index-url=https://pypi.nvidia.com
 ```
 
 Replace `-cu12` with `-cu11` for packages supporting CUDA 11.
