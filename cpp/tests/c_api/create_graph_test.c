@@ -263,7 +263,7 @@ int test_create_sg_graph_csr()
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
   ret_code = cugraph_uniform_neighbor_sample(
-                                              handle, graph, d_start_view, NULL, NULL, NULL, h_fan_out_view, rng_state, sampling_options, FALSE, &result, &ret_error);
+                                              handle, graph, d_start_view, NULL, NULL, NULL, NULL, h_fan_out_view, rng_state, sampling_options, FALSE, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
