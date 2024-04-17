@@ -21,7 +21,7 @@ PYTHON_WHEELHOUSE="${PWD}/dist/"
 PYTHON_PURE_WHEELHOUSE="${PWD}/pure_dist/"
 PYTHON_AUDITED_WHEELHOUSE="${PWD}/final_dist/"
 
-wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}" "${CPP_WHEELHOUSE}" "${PYTHON_WHEELHOUSE}" "${PYTHON_PURE_WHEELHOUSE}")
+WHEELHOUSES=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_wheelhouse}" "${pylibraft_wheelhouse}" "${CPP_WHEELHOUSE}" "${PYTHON_WHEELHOUSE}" "${PYTHON_PURE_WHEELHOUSE}")
 mkdir -p "${PYTHON_AUDITED_WHEELHOUSE}"
 
 FIND_LINKS=""
