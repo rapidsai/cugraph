@@ -326,7 +326,7 @@ class key_cuco_store_t {
       rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
     cuco_store_ =
       std::make_unique<cuco_set_type>(cuco_size,
-                                      cuco::sentinel::empty_key<key_t>{invalid_key},
+                                      cuco::empty_key<key_t>{invalid_key},
                                       thrust::equal_to<key_t>{},
                                       cuco::linear_probing<1,  // CG size
                                                            cuco::murmurhash3_32<key_t>>{},
