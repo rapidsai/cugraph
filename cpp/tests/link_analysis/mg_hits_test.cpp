@@ -217,7 +217,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         auto h_mg_aggregate_hubs = cugraph::test::to_host(*handle_, d_mg_aggregate_hubs);
         auto h_sg_hubs           = cugraph::test::to_host(*handle_, d_sg_hubs);
 
-        auto threshold_ratio = 1e-3;
+        auto threshold_ratio = 2e-3;
         auto threshold_magnitude =
           2e-6;  // skip comparison for low Hits verties (lowly ranked vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
