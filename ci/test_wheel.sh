@@ -3,11 +3,6 @@
 
 set -eoxu pipefail
 
-if [[ ! -d "/tmp/gha-tools" ]]; then
-    git clone https://github.com/msarahan/gha-tools.git -b get-pr-wheel-artifact /tmp/gha-tools
-fi
-export PATH="/tmp/gha-tools/tools:${PATH}"
-
 # TODO: Enable dask query planning (by default) once some bugs are fixed.
 # xref: https://github.com/rapidsai/cudf/issues/15027
 export DASK_DATAFRAME__QUERY_PLANNING=False

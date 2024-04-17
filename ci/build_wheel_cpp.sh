@@ -6,11 +6,6 @@ set -euo pipefail
 package_name="libcugraph"
 package_dir="python/libcugraph"
 
-if [[ ! -d "/tmp/gha-tools" ]]; then
-    git clone https://github.com/msarahan/gha-tools.git -b get-pr-wheel-artifact /tmp/gha-tools
-fi
-export PATH="/tmp/gha-tools/tools:${PATH}"
-
 source rapids-configure-sccache
 source rapids-date-string
 
