@@ -51,27 +51,52 @@ int generic_spectral_test(vertex_t* h_src,
   cugraph_graph_t* graph              = NULL;
   cugraph_clustering_result_t* result = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
   data_type_id_t edge_id_tid   = INT32;
   data_type_id_t edge_type_tid = INT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_spectral_modularity_maximization(handle, graph, num_clusters, num_eigenvectors,
-                                             evs_tolerance, evs_max_iterations, k_means_tolerance,
-                                             k_means_max_iterations, FALSE, &result, &ret_error);
+  ret_code = cugraph_spectral_modularity_maximization(handle,
+                                                      graph,
+                                                      num_clusters,
+                                                      num_eigenvectors,
+                                                      evs_tolerance,
+                                                      evs_max_iterations,
+                                                      k_means_tolerance,
+                                                      k_means_max_iterations,
+                                                      FALSE,
+                                                      &result,
+                                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_spectral_modularity_maximization failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS,
+                     "cugraph_spectral_modularity_maximization failed.");
 
   if (test_ret_value == 0) {
     cugraph_type_erased_device_array_view_t* vertices;
@@ -83,7 +108,8 @@ int generic_spectral_test(vertex_t* h_src,
     vertices = cugraph_clustering_result_get_vertices(result);
     clusters = cugraph_clustering_result_get_clusters(result);
 
-    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
+    ret_code = cugraph_analyze_clustering_modularity(
+      handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     vertex_t h_vertices[num_vertices];
@@ -106,13 +132,11 @@ int generic_spectral_test(vertex_t* h_src,
                 nearlyEqual(modularity, expected_modularity, 0.001),
                 "modularity doesn't match");
 
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(edge_cut, expected_edge_cut, 0.001),
-                "edge_cut doesn't match");
+    TEST_ASSERT(
+      test_ret_value, nearlyEqual(edge_cut, expected_edge_cut, 0.001), "edge_cut doesn't match");
 
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(ratio_cut, expected_ratio_cut, 0.001),
-                "ratio_cut doesn't match");
+    TEST_ASSERT(
+      test_ret_value, nearlyEqual(ratio_cut, expected_ratio_cut, 0.001), "ratio_cut doesn't match");
 
     cugraph_clustering_result_free(result);
   }
@@ -146,9 +170,9 @@ int generic_balanced_cut_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
   data_type_id_t edge_id_tid   = INT32;
   data_type_id_t edge_type_tid = INT32;
 
@@ -159,18 +183,43 @@ int generic_balanced_cut_test(vertex_t* h_src,
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_balanced_cut_clustering(handle, graph, num_clusters, num_eigenvectors,
-                                    evs_tolerance, evs_max_iterations, k_means_tolerance,
-                                    k_means_max_iterations, FALSE, &result, &ret_error);
+  ret_code = cugraph_balanced_cut_clustering(handle,
+                                             graph,
+                                             num_clusters,
+                                             num_eigenvectors,
+                                             evs_tolerance,
+                                             evs_max_iterations,
+                                             k_means_tolerance,
+                                             k_means_max_iterations,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_spectral_modularity_maximization failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS,
+                     "cugraph_spectral_modularity_maximization failed.");
 
   if (test_ret_value == 0) {
     cugraph_type_erased_device_array_view_t* vertices;
@@ -182,13 +231,16 @@ int generic_balanced_cut_test(vertex_t* h_src,
     vertices = cugraph_clustering_result_get_vertices(result);
     clusters = cugraph_clustering_result_get_clusters(result);
 
-    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
+    ret_code = cugraph_analyze_clustering_modularity(
+      handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-    ret_code = cugraph_analyze_clustering_edge_cut(handle, graph, num_clusters, vertices, clusters, &edge_cut, &ret_error);
+    ret_code = cugraph_analyze_clustering_edge_cut(
+      handle, graph, num_clusters, vertices, clusters, &edge_cut, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-    ret_code = cugraph_analyze_clustering_ratio_cut(handle, graph, num_clusters, vertices, clusters, &ratio_cut, &ret_error);
+    ret_code = cugraph_analyze_clustering_ratio_cut(
+      handle, graph, num_clusters, vertices, clusters, &ratio_cut, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     vertex_t h_vertices[num_vertices];
@@ -211,13 +263,11 @@ int generic_balanced_cut_test(vertex_t* h_src,
                 nearlyEqual(modularity, expected_modularity, 0.001),
                 "modularity doesn't match");
 
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(edge_cut, expected_edge_cut, 0.001),
-                "edge_cut doesn't match");
+    TEST_ASSERT(
+      test_ret_value, nearlyEqual(edge_cut, expected_edge_cut, 0.001), "edge_cut doesn't match");
 
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(ratio_cut, expected_ratio_cut, 0.001),
-                "ratio_cut doesn't match");
+    TEST_ASSERT(
+      test_ret_value, nearlyEqual(ratio_cut, expected_ratio_cut, 0.001), "ratio_cut doesn't match");
 
     cugraph_clustering_result_free(result);
   }
@@ -240,13 +290,14 @@ int test_spectral()
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
 
-  vertex_t h_src[] = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
-  vertex_t h_dst[] = { 1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4 };
-  weight_t h_wgt[] = { 0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f };
-  vertex_t h_result[]          = { 0, 0, 0, 1, 1, 1 };
+  vertex_t h_src[] = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
+  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
   weight_t expected_modularity = 0.136578;
-  weight_t expected_edge_cut = 0;
-  weight_t expected_ratio_cut = 0;
+  weight_t expected_edge_cut   = 0;
+  weight_t expected_ratio_cut  = 0;
 
   // spectral clustering wants store_transposed = FALSE
   return generic_spectral_test(h_src,
@@ -278,13 +329,14 @@ int test_balanced_cut_unequal_weight()
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
 
-  vertex_t h_src[] = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
-  vertex_t h_dst[] = { 1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4 };
-  weight_t h_wgt[] = { 0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f };
-  vertex_t h_result[]          = { 0, 0, 1, 0, 0, 0 };
+  vertex_t h_src[] = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
+  vertex_t h_result[]          = {0, 0, 1, 0, 0, 0};
   weight_t expected_modularity = -0.02963;
-  weight_t expected_edge_cut = 3.7;
-  weight_t expected_ratio_cut = 4.44;
+  weight_t expected_edge_cut   = 3.7;
+  weight_t expected_ratio_cut  = 4.44;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -316,13 +368,13 @@ int test_balanced_cut_equal_weight()
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
 
-  vertex_t h_src[] = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
-  vertex_t h_dst[] = { 1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4 };
-  weight_t h_wgt[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  vertex_t h_result[]          = { 1, 1, 1, 0, 0, 0 };
+  vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
+  weight_t h_wgt[]             = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
   weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut = 1;
-  weight_t expected_ratio_cut = 0.666667;
+  weight_t expected_edge_cut   = 1;
+  weight_t expected_ratio_cut  = 0.666667;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -354,12 +406,12 @@ int test_balanced_cut_no_weight()
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
 
-  vertex_t h_src[] = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
-  vertex_t h_dst[] = { 1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4 };
-  vertex_t h_result[]          = { 1, 1, 1, 0, 0, 0 };
+  vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
+  vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
+  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
   weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut = 1;
-  weight_t expected_ratio_cut = 0.666667;
+  weight_t expected_edge_cut   = 1;
+  weight_t expected_ratio_cut  = 0.666667;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
