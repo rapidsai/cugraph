@@ -28,6 +28,8 @@ wheelhouses=("${librmm_wheelhouse}" "${libraft_wheelhouse}" "${libcugraphops_whe
 # everywhere except in the final wheel name.
 PACKAGE_CUDA_SUFFIX="-${RAPIDS_PY_CUDA_SUFFIX}"
 
+echo "${version}" > VERSION
+
 # For nightlies we want to ensure that we're pulling in alphas as well. The
 # easiest way to do so is to augment the spec with a constraint containing a
 # min alpha version that doesn't affect the version bounds but does allow usage
@@ -39,7 +41,6 @@ fi
 
 build_wheel () {
     local package_name="${1}"
-    local package_dir="${2}"
     local underscore_package_name=$(echo "${package_name}" | tr "-" "_")
     local version_package_name="$underscore_package_name"
     if [[ "${version_package_name}" = "nx_cugraph" ]]; then
@@ -51,14 +52,13 @@ build_wheel () {
     local version_file="${package_dir}/${version_package_name}/_version.py"
 
     sed -i "s/name = \"${package_name}\"/name = \"${package_name}${PACKAGE_CUDA_SUFFIX}\"/g" ${pyproject_file}
-    echo "${version}" > VERSION
     sed -i "/^__git_commit__ / s/= .*/= \"${git_commit}\"/g" ${version_file}
 
     for dep in rmm cudf cugraph libcugraph raft-dask pylibcugraph pylibcugraphops pylibraft ucx-py; do
         sed -r -i "s/${dep}==(.*)\"/${dep}${PACKAGE_CUDA_SUFFIX}==\1${alpha_spec}\"/g" ${pyproject_file}
     done
 
-    # dask-cuda & rapids-dask-dependency doesn't get a suffix, but it does get an alpha spec.
+    # dask-cuda & rapids-dask-dependency don't get a suffix, but they do get an alpha spec.
     for dep in dask-cuda rapids-dask-dependency; do
         sed -r -i "s/${dep}==(.*)\"/${dep}==\1${alpha_spec}\"/g" ${pyproject_file}
     done
@@ -94,9 +94,9 @@ build_wheel () {
     popd
 }
 
-build_wheel pylibcugraph python/pylibcugraph
-build_wheel cugraph python/cugraph
-build_wheel nx-cugraph python/nx-cugraph
-build_wheel cugraph-dgl python/cugraph-dgl
-build_wheel cugraph-pyg python/cugraph-pyg
-build_wheel cugraph-equivariant python/cugraph-equivariant
+build_wheel pylibcugraph
+build_wheel cugraph
+build_wheel nx-cugraph
+build_wheel cugraph-dgl
+build_wheel cugraph-pyg
+build_wheel cugraph-equivariant
