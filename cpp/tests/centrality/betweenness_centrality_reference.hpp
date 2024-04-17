@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <optional>
 #include <queue>
 #include <stack>
 #include <vector>
