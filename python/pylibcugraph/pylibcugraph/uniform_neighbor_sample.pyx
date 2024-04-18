@@ -221,6 +221,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     assert_CAI_type(batch_id_list, "batch_id_list", True)
     assert_CAI_type(label_list, "label_list", True)
     assert_CAI_type(label_to_output_comm_rank, "label_to_output_comm_rank", True)
+    assert_CAI_type(label_offsets, "label_offsets", True)
     assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
