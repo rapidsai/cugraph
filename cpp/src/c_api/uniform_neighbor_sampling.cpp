@@ -29,8 +29,6 @@
 
 #include <raft/core/handle.hpp>
 
-#include <iostream>
-
 namespace cugraph {
 namespace c_api {
 
@@ -157,6 +155,10 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
+      raft::copy(start_vertices.data(),
+            start_vertices_->as_type<vertex_t>(),
+            start_vertices.size(),
+            handle_.get_stream());
 
       std::optional<rmm::device_uvector<label_t>> start_vertex_labels{std::nullopt};
 
@@ -252,7 +254,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       if (options_.renumber_results_) {
         if (options_.compression_type_ == cugraph_compression_type_t::COO) {
           // COO
-          std::cout << "retain seeds? " << options_.retain_seeds_ << std::endl;
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());

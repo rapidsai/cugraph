@@ -377,6 +377,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
     if batch_id_list is not None:
         cugraph_type_erased_device_array_view_free(batch_id_ptr)
+    if label_offsets is not None:
+        cugraph_type_erased_device_array_view_free(label_offsets_ptr)
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()
