@@ -657,18 +657,18 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
   ret_code = cugraph_uniform_neighbor_sample(handle,
-                                              graph,
-                                              d_start_view,
-                                              d_start_labels_view,
-                                              NULL,
-                                              NULL,
-                                              NULL,
-                                              h_fan_out_view,
-                                              rng_state,
-                                              sampling_options,
-                                              FALSE,
-                                              &result,
-                                              &ret_error);
+                                             graph,
+                                             d_start_view,
+                                             d_start_labels_view,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             h_fan_out_view,
+                                             rng_state,
+                                             sampling_options,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(

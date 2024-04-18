@@ -72,7 +72,7 @@ def uniform_neighbor_sample(
     deduplicate_sources: bool = False,
     renumber: bool = False,
     retain_seeds: bool = False,
-    label_offsets: Sequence=None,
+    label_offsets: Sequence = None,
     use_legacy_names: bool = True,  # deprecated
     compress_per_hop: bool = False,
     compression: str = "COO",

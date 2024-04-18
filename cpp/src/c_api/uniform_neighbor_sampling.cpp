@@ -158,9 +158,9 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
       raft::copy(start_vertices.data(),
-            start_vertices_->as_type<vertex_t>(),
-            start_vertices.size(),
-            handle_.get_stream());
+                 start_vertices_->as_type<vertex_t>(),
+                 start_vertices.size(),
+                 handle_.get_stream());
 
       std::optional<rmm::device_uvector<label_t>> start_vertex_labels{std::nullopt};
 
