@@ -43,9 +43,9 @@ int generic_k_core_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
   data_type_id_t edge_id_tid   = INT32;
   data_type_id_t edge_type_tid = INT32;
 
@@ -57,7 +57,24 @@ int generic_k_core_test(vertex_t* h_src,
   resource_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, resource_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(resource_handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, TRUE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(resource_handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -100,7 +117,7 @@ int generic_k_core_test(vertex_t* h_src,
 
   if (weights != NULL) {
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-                                                                  resource_handle, (byte_t*)h_weights, weights, &ret_error);
+      resource_handle, (byte_t*)h_weights, weights, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
   }
 
@@ -117,9 +134,10 @@ int generic_k_core_test(vertex_t* h_src,
     M[h_result_src[i]][h_result_dst[i]] = (h_result_wgt != NULL) ? h_result_wgt[i] : 1.0;
 
   for (int i = 0; (i < number_of_result_edges) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value,
-                M[h_src_vertices[i]][h_dst_vertices[i]] == (h_result_wgt != NULL) ? h_weights[i] : 1.0,
-                "edge does not match");
+    TEST_ASSERT(
+      test_ret_value,
+      M[h_src_vertices[i]][h_dst_vertices[i]] == (h_result_wgt != NULL) ? h_weights[i] : 1.0,
+      "edge does not match");
   }
 
   cugraph_k_core_result_free(k_core_result);
@@ -141,7 +159,7 @@ int test_k_core()
   vertex_t h_src[]        = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5, 3, 1, 4, 5, 5, 6};
   vertex_t h_dst[]        = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 3, 1, 6, 5};
   weight_t h_wgt[]        = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+                             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   vertex_t h_result_src[] = {1, 1, 3, 4, 3, 4, 3, 4, 5, 5, 1, 5};
   vertex_t h_result_dst[] = {3, 4, 5, 5, 1, 3, 4, 1, 3, 4, 5, 1};
   weight_t h_result_wgt[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
