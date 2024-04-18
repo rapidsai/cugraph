@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -167,7 +167,6 @@ def _call_plc_uniform_neighbor_sample(
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
-    retain_seeds=False,
     use_legacy_names=True,
     include_hop_column=True,
     compress_per_hop=False,
@@ -201,7 +200,6 @@ def _call_plc_uniform_neighbor_sample(
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
-        retain_seeds=retain_seeds,
         compression=compression,
         compress_per_hop=compress_per_hop,
         return_dict=True,
@@ -243,7 +241,6 @@ def _mg_call_plc_uniform_neighbor_sample(
     prior_sources_behavior=None,
     deduplicate_sources=False,
     renumber=False,
-    retain_seeds=False,
     use_legacy_names=True,
     include_hop_column=True,
     compress_per_hop=False,
@@ -279,7 +276,6 @@ def _mg_call_plc_uniform_neighbor_sample(
             prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
             renumber=renumber,
-            retain_seeds=retain_seeds,
             use_legacy_names=use_legacy_names,  # remove in 23.12
             include_hop_column=include_hop_column,  # remove in 23.12
             compress_per_hop=compress_per_hop,
@@ -363,7 +359,6 @@ def uniform_neighbor_sample(
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     renumber: bool = False,
-    retain_seeds: bool = False,
     use_legacy_names=True,  # deprecated
     compress_per_hop=False,
     compression="COO",
@@ -444,10 +439,6 @@ def uniform_neighbor_sample(
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
-
-    retain_seeds: bool, optional (default=False)
-        If True, will retain the original seeds (original source vertices)
-        in the output even if they do not have outgoing neighbors.
 
     use_legacy_names: bool, optional (default=True)
         Whether to use the legacy column names (sources, destinations).
@@ -679,7 +670,6 @@ def uniform_neighbor_sample(
         "prior_sources_behavior": prior_sources_behavior,
         "deduplicate_sources": deduplicate_sources,
         "renumber": renumber,
-        "retain_seeds": retain_seeds,
         "use_legacy_names": use_legacy_names,
         "include_hop_column": include_hop_column,
         "compress_per_hop": compress_per_hop,
