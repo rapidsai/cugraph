@@ -823,8 +823,8 @@ class kv_cuco_store_t {
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store_ =
         std::make_unique<cuco_map_type>(cuco_size,
-                                        cuco::sentinel::empty_key<key_t>{invalid_key},
-                                        cuco::sentinel::empty_value<value_t>{invalid_value},
+                                        cuco::empty_key<key_t>{invalid_key},
+                                        cuco::empty_value<value_t>{invalid_value},
                                         thrust::equal_to<key_t>{},
                                         cuco::linear_probing<1,  // CG size
                                                              cuco::murmurhash3_32<key_t>>{},
@@ -835,8 +835,8 @@ class kv_cuco_store_t {
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
         cuco_size,
-        cuco::sentinel::empty_key<key_t>{invalid_key},
-        cuco::sentinel::empty_value<size_t>{std::numeric_limits<size_t>::max()},
+        cuco::empty_key<key_t>{invalid_key},
+        cuco::empty_value<size_t>{std::numeric_limits<size_t>::max()},
         thrust::equal_to<key_t>{},
         cuco::linear_probing<1,  // CG size
                              cuco::murmurhash3_32<key_t>>{},

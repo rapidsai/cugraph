@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,19 +126,19 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
                              cugraph_error_t** ret_error);
 
 size_t cugraph_test_device_gatherv_size(const cugraph_resource_handle_t* handle,
-                                        const cugraph_type_erased_device_array_view_t *array);
+                                        const cugraph_type_erased_device_array_view_t* array);
 
 int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                     const cugraph_type_erased_device_array_view_t *array,
-                                     void *fill_array);
+                                     const cugraph_type_erased_device_array_view_t* array,
+                                     void* fill_array);
 
 size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* handle, size_t value);
 
 int cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                   void *input,
+                                   void* input,
                                    size_t input_size,
                                    cugraph_data_type_id_t input_type,
-                                   void *output);
+                                   void* output);
 
 #ifdef __cplusplus
 }

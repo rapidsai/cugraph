@@ -39,11 +39,6 @@ repos:
     rev: v16.0.6
     hooks:
       - id: clang-format
-        exclude: |
-          (?x)^(
-            cpp/libcugraph_etl|
-            cpp/tests/c_api
-          )
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: https://github.com/rapidsai/dependency-file-generator
