@@ -2366,6 +2366,33 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+/*
+ * @brief Find edge source and destination using edge id
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_id_t Type of edge id.  Needs to be an integral type
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_id_view View object holding edge ids
+ * @return A tuple of device vector containing edge source and destination for the edge ids
+ * in @p edge_ids_to_lookup. If an edge id in @p edge_ids_to_lookup is not found, the corresponding
+ * entries in the device vectors of the returned tuple will contain invalid_vertex_id.
+ */
+
+template <typename vertex_t,
+          typename edge_t,
+          typename edge_id_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_edge_ids(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_id_t const*>> edge_id_view,
+  raft::device_span<edge_id_t const> edge_ids_to_lookup);
+
 }  // namespace cugraph
 
 /**

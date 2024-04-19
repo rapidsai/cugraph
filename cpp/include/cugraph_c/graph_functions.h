@@ -202,6 +202,14 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
+cugraph_error_code_t cugraph_lookup_src_dst_from_edge_id(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
+  bool_t do_expensive_check,
+  cugraph_vertex_pairs_t** result,
+  cugraph_error_t** error);
+
 // FIXME: Rename the return type
 /**
  * @brief      Gather edgelist

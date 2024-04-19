@@ -164,6 +164,7 @@ endif()
 
 set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices.cu
+    src/utilities/lookup_edge_ids.cu
     src/detail/permute_range.cu
     src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
@@ -402,6 +403,7 @@ add_library(cugraph_c
         src/c_api/random.cpp
         src/c_api/similarity.cpp
         src/c_api/leiden.cpp
+        src/c_api/lookup_edge_ids.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
