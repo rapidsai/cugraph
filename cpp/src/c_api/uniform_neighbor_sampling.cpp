@@ -29,8 +29,6 @@
 
 #include <raft/core/handle.hpp>
 
-#include <iostream>
-
 namespace cugraph {
 namespace c_api {
 
