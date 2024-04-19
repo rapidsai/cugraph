@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -81,6 +82,8 @@ void bfs_reference(edge_t const* offsets,
 
 struct BFS_Usecase {
   size_t source{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -123,6 +126,13 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
     auto graph_view = graph.view();
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (bfs_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
                 static_cast<vertex_t>(bfs_usecase.source) < graph_view.number_of_vertices())
       << "Invalid starting source.";
@@ -154,18 +164,17 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     if (bfs_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
-      if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
-
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
+      std::vector<edge_t> h_offsets{};
+      std::vector<vertex_t> h_indices{};
+      std::tie(h_offsets, h_indices, std::ignore) =
+        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          graph_view,
+          std::nullopt,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
       auto unrenumbered_source = static_cast<vertex_t>(bfs_usecase.source);
       if (renumber) {
@@ -173,14 +182,14 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
         unrenumbered_source        = h_renumber_map_labels[bfs_usecase.source];
       }
 
-      std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
-      std::vector<vertex_t> h_reference_predecessors(unrenumbered_graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_distances(graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_predecessors(graph_view.number_of_vertices());
 
       bfs_reference(h_offsets.data(),
                     h_indices.data(),
                     h_reference_distances.data(),
                     h_reference_predecessors.data(),
-                    unrenumbered_graph_view.number_of_vertices(),
+                    graph_view.number_of_vertices(),
                     unrenumbered_source,
                     std::numeric_limits<vertex_t>::max());
 
@@ -270,12 +279,23 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BFS_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(BFS_Usecase{100}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(BFS_Usecase{1000}, cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(BFS_Usecase{1000},
+    std::make_tuple(BFS_Usecase{0, false}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(BFS_Usecase{0, true}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(BFS_Usecase{0, false},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(BFS_Usecase{0, true},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(BFS_Usecase{100, false},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{100, true},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{1000, false},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(BFS_Usecase{1000, true},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(BFS_Usecase{1000, false},
+                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx")),
+    std::make_tuple(BFS_Usecase{1000, true},
                     cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -283,7 +303,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BFS_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(BFS_Usecase{0},
+    std::make_tuple(BFS_Usecase{0, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(BFS_Usecase{0, true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -295,7 +317,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BFS_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_pair(BFS_Usecase{0, false},
-                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(BFS_Usecase{0, false, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(BFS_Usecase{0, true, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
