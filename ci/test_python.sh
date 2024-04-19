@@ -142,105 +142,95 @@ rapids-logger "pytest cugraph-service (single GPU)"
   --cov-report=term
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    # we are only testing in a single cuda version
-    # because of pytorch and rapids compatibilty problems
-    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
-
-    # activate test_cugraph_dgl environment for dgl
-    set +u
-    conda activate test_cugraph_dgl
-    set -u
-    rapids-mamba-retry install \
-      --channel "${CPP_CHANNEL}" \
-      --channel "${PYTHON_CHANNEL}" \
-      --channel conda-forge \
-      --channel dglteam/label/cu118 \
-      --channel nvidia \
-      libcugraph \
-      pylibcugraph \
-      pylibcugraphops \
-      cugraph \
-      cugraph-dgl \
-      'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0' \
-      'cuda-version=11.8'
-
-    rapids-print-env
-
-    rapids-logger "pytest cugraph_dgl (single GPU)"
-    ./ci/run_cugraph_dgl_pytests.sh \
-      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
-      --cov-config=../../.coveragerc \
-      --cov=cugraph_dgl \
-      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
-      --cov-report=term
-
-    # Reactivate the test environment back
-    set +u
-    conda deactivate
-    conda activate test
-    set -u
-  else
-    rapids-logger "skipping cugraph_dgl pytest on ARM64"
-  fi
+  CONDA_CUDA_VERSION="11.8"
+  DGL_CONDA_CHANNEL="dglteam/label/cu118"
 else
-  rapids-logger "skipping cugraph_dgl pytest on CUDA!=11.8"
+  CONDA_CUDA_VERSION="12.1"
+  DGL_CONDA_CHANNEL="dglteam/label/cu121"
 fi
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_pyg
+if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+  rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
 
-    # Temporarily allow unbound variables for conda activation.
-    set +u
-    conda activate test_cugraph_pyg
-    set -u
+  # activate test_cugraph_dgl environment for dgl
+  set +u
+  conda activate test_cugraph_dgl
+  set -u
+  rapids-mamba-retry install \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${PYTHON_CHANNEL}" \
+    --channel conda-forge \
+    --channel "${DGL_CONDA_CHANNEL}" \
+    --channel nvidia \
+    libcugraph \
+    pylibcugraph \
+    pylibcugraphops \
+    cugraph \
+    cugraph-dgl \
+    'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
+    'pytorch>=2.0' \
+    "cuda-version=${CONDA_CUDA_VERSION}" \
+    "ogb"
 
-    # TODO re-enable logic once CUDA 12 is testable
-    #if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-    CONDA_CUDA_VERSION="11.8"
-    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
-    #else
-    #  CONDA_CUDA_VERSION="12.1"
-    #  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
-    #fi
+  rapids-print-env
 
-    # Will automatically install built dependencies of cuGraph-PyG
-    rapids-mamba-retry install \
-      --channel "${CPP_CHANNEL}" \
-      --channel "${PYTHON_CHANNEL}" \
-      --channel conda-forge \
-      --channel pyg \
-      --channel nvidia \
-      "cugraph-pyg" \
-      "pytorch" \
-      "cuda-version=${CONDA_CUDA_VERSION}" \
-      "ogb" \
-      "pyg-lib" \
-      "torch-scatter"
+  rapids-logger "pytest cugraph_dgl (single GPU)"
+  ./ci/run_cugraph_dgl_pytests.sh \
+    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+    --cov-config=../../.coveragerc \
+    --cov=cugraph_dgl \
+    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+    --cov-report=term
 
-    rapids-print-env
-
-    rapids-logger "pytest cugraph_pyg (single GPU)"
-    # rmat is not tested because of multi-GPU testing
-    ./ci/run_cugraph_pyg_pytests.sh \
-      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
-      --cov-config=../../.coveragerc \
-      --cov=cugraph_pyg \
-      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
-      --cov-report=term
-
-    # Reactivate the test environment back
-    set +u
-    conda deactivate
-    conda activate test
-    set -u
-  else
-    rapids-logger "skipping cugraph_pyg pytest on ARM64"
-  fi
+  # Reactivate the test environment back
+  set +u
+  conda deactivate
+  conda activate test
+  set -u
 else
-  rapids-logger "skipping cugraph_pyg pytest on CUDA!=11.8"
+  rapids-logger "skipping cugraph_dgl pytest on ARM64"
+fi
+
+if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+  rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_pyg
+
+  # Temporarily allow unbound variables for conda activation.
+  set +u
+  conda activate test_cugraph_pyg
+  set -u
+
+  # Will automatically install built dependencies of cuGraph-PyG
+  rapids-mamba-retry install \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${PYTHON_CHANNEL}" \
+    --channel conda-forge \
+    --channel pyg \
+    --channel nvidia \
+    "cugraph-pyg" \
+    "pytorch" \
+    "cuda-version=${CONDA_CUDA_VERSION}" \
+    "ogb" \
+    "pyg-lib" \
+    "torch-scatter"
+
+  rapids-print-env
+
+  rapids-logger "pytest cugraph_pyg (single GPU)"
+  # rmat is not tested because of multi-GPU testing
+  ./ci/run_cugraph_pyg_pytests.sh \
+    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
+    --cov-config=../../.coveragerc \
+    --cov=cugraph_pyg \
+    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
+    --cov-report=term
+
+  # Reactivate the test environment back
+  set +u
+  conda deactivate
+  conda activate test
+  set -u
+else
+  rapids-logger "skipping cugraph_pyg pytest on ARM64"
 fi
 
 # test cugraph-equivariant
