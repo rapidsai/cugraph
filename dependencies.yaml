@@ -481,6 +481,7 @@ dependencies:
         packages:
           - *numba
           - *numpy
+          - *tensordict
       - output_types: [pyproject]
         packages:
           - *cugraph
@@ -566,6 +567,7 @@ dependencies:
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - pyg>=2.4.0
+          - tensordict>=0.1.2
 
   depends_on_rmm:
     common:
