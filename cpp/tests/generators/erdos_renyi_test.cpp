@@ -61,10 +61,6 @@ void er_test(size_t num_vertices, float p)
   std::tie(d_src_v, d_dst_v) =
     cugraph::generate_erdos_renyi_graph_edgelist_gnp<vertex_t>(handle, num_vertices, p, 0);
 
-  std::cout << "num_vertices = " << num_vertices << ", p = " << p << std::endl;
-  raft::print_device_vector("  d_src_v", d_src_v.data(), d_src_v.size(), std::cout);
-  raft::print_device_vector("  d_dst_v", d_dst_v.data(), d_dst_v.size(), std::cout);
-
   handle.sync_stream();
 
   auto h_src_v = cugraph::test::to_host(handle, d_src_v);
@@ -93,8 +89,8 @@ TEST_F(GenerateErdosRenyiTest, ERTest)
   er_test<int32_t>(size_t{10}, float{0.1});
   er_test<int32_t>(size_t{10}, float{0.5});
   er_test<int32_t>(size_t{20}, float{0.1});
-  //  er_test<int32_t>(size_t{50}, float{0.1});
-  // er_test<int32_t>(size_t{10000}, float{0.1});
+  er_test<int32_t>(size_t{50}, float{0.1});
+  er_test<int32_t>(size_t{10000}, float{0.1});
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
