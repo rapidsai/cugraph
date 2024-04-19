@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10,13 +10,17 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governin_from_mtxg permissions and
+ * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -24,20 +28,16 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
+#include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
-#include <raft/util/cudart_utils.hpp>
 
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <map>
 #include <random>
-#include <tuple>
-#include <type_traits>
-#include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void check_coarsened_graph_results(edge_t const* org_offsets,
@@ -231,170 +231,240 @@ struct CoarsenGraph_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_CoarsenGraph
+class Tests_MGCoarsenGraph
   : public ::testing::TestWithParam<std::tuple<CoarsenGraph_Usecase, input_usecase_t>> {
  public:
-  Tests_CoarsenGraph() {}
+  Tests_MGCoarsenGraph() {}
 
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(
-    std::tuple<CoarsenGraph_Usecase const&, input_usecase_t const&> const& param)
+  void run_current_test(CoarsenGraph_Usecase const& coarsen_graph_usecase,
+                        input_usecase_t const& input_usecase)
   {
-    constexpr bool renumber                     = true;
-    auto [coarsen_graph_usecase, input_usecase] = param;
-
-    raft::handle_t handle{};
     HighResTimer hr_timer{};
 
+    // 1. create MG graph
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Construct graph");
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [graph, edge_weights, d_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, input_usecase, coarsen_graph_usecase.test_weighted, renumber);
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
+        *handle_, input_usecase, coarsen_graph_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
 
-    auto graph_view = graph.view();
-    auto edge_weight_view =
-      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (coarsen_graph_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
-      graph_view.attach_edge_mask((*edge_mask).view());
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    if (graph_view.number_of_vertices() == 0) { return; }
+    if (mg_graph_view.number_of_vertices() == 0) { return; }
 
-    std::vector<vertex_t> h_labels(graph_view.number_of_vertices());
-    auto num_labels = std::max(
-      static_cast<vertex_t>(h_labels.size() * coarsen_graph_usecase.coarsen_ratio), vertex_t{1});
+    // 2. run MG coarsen_graph
+
+    std::vector<vertex_t> h_mg_labels(mg_graph_view.local_vertex_partition_range_size());
+    auto num_labels = std::max(static_cast<vertex_t>(mg_graph_view.number_of_vertices() *
+                                                     coarsen_graph_usecase.coarsen_ratio),
+                               vertex_t{1});
 
     std::default_random_engine generator{};
     std::uniform_int_distribution<vertex_t> distribution{0, num_labels - 1};
 
-    std::for_each(h_labels.begin(), h_labels.end(), [&distribution, &generator](auto& label) {
+    std::for_each(h_mg_labels.begin(), h_mg_labels.end(), [&distribution, &generator](auto& label) {
       label = distribution(generator);
     });
 
-    rmm::device_uvector<vertex_t> d_labels(h_labels.size(), handle.get_stream());
-    raft::update_device(d_labels.data(), h_labels.data(), h_labels.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> d_mg_labels(h_mg_labels.size(), handle_->get_stream());
+    raft::update_device(
+      d_mg_labels.data(), h_mg_labels.data(), h_mg_labels.size(), handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Graph coarsening");
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Graph coarsening");
     }
 
-    auto [coarse_graph, coarse_edge_weights, coarse_vertices_to_labels] =
-      cugraph::coarsen_graph(handle, graph_view, edge_weight_view, d_labels.begin(), true);
+    auto [mg_coarse_graph, mg_coarse_edge_weights, mg_coarse_vertices_to_labels] =
+      cugraph::coarsen_graph(
+        *handle_, mg_graph_view, mg_edge_weight_view, d_mg_labels.begin(), true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
 
+    auto mg_coarse_graph_view = mg_coarse_graph.view();
+    auto mg_coarse_edge_weight_view =
+      mg_coarse_edge_weights ? std::make_optional((*mg_coarse_edge_weights).view()) : std::nullopt;
+
+    // 3. copmare SG & MG results
+
     if (coarsen_graph_usecase.check_correctness) {
-      auto [h_org_offsets, h_org_indices, h_org_weights] =
-        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, graph_view, edge_weight_view, std::nullopt);
+      // 3-1. aggregate MG results
 
-      auto coarse_graph_view = coarse_graph.view();
-      auto coarse_edge_weight_view =
-        coarse_edge_weights ? std::make_optional((*coarse_edge_weights).view()) : std::nullopt;
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                 weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        false);
 
-      auto [h_coarse_offsets, h_coarse_indices, h_coarse_weights] =
-        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, coarse_graph_view, coarse_edge_weight_view, std::nullopt);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_coarse_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                 weight_t>>
+        sg_coarse_edge_weights{std::nullopt};
+      std::tie(sg_coarse_graph, sg_coarse_edge_weights, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_coarse_graph_view,
+          mg_coarse_edge_weight_view,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          false);
 
-      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, *coarse_vertices_to_labels);
+      rmm::device_uvector<vertex_t> d_sg_labels(0, handle_->get_stream());
+      std::tie(std::ignore, d_sg_labels) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t, vertex_t>(
+          *handle_,
+          std::nullopt,
+          mg_graph_view.local_vertex_partition_range(),
+          std::nullopt,
+          std::nullopt,
+          raft::device_span<vertex_t const>(d_mg_labels.data(), d_mg_labels.size()));
 
-      check_coarsened_graph_results(
-        h_org_offsets.data(),
-        h_org_indices.data(),
-        h_org_weights ? std::optional<weight_t const*>{(*h_org_weights).data()} : std::nullopt,
-        h_labels.data(),
-        h_coarse_offsets.data(),
-        h_coarse_indices.data(),
-        h_coarse_weights ? std::optional<weight_t const*>{(*h_coarse_weights).data()}
-                         : std::nullopt,
-        h_coarse_vertices_to_labels.data(),
-        graph_view.number_of_vertices(),
-        coarse_graph_view.number_of_vertices());
+      rmm::device_uvector<vertex_t> sg_coarse_vertices_to_labels(0, handle_->get_stream());
+      std::tie(std::ignore, sg_coarse_vertices_to_labels) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t, vertex_t>(
+          *handle_,
+          std::nullopt,
+          mg_coarse_graph_view.local_vertex_partition_range(),
+          std::nullopt,
+          std::nullopt,
+          raft::device_span<vertex_t const>((*mg_coarse_vertices_to_labels).data(),
+                                            (*mg_coarse_vertices_to_labels).size()));
+
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+        auto sg_coarse_graph_view       = sg_coarse_graph.view();
+        auto sg_coarse_edge_weight_view = sg_coarse_edge_weights
+                                            ? std::make_optional((*sg_coarse_edge_weights).view())
+                                            : std::nullopt;
+
+        auto [h_org_offsets, h_org_indices, h_org_weights] =
+          cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, store_transposed, false>(
+            *handle_, sg_graph_view, sg_edge_weight_view, std::nullopt);
+
+        auto [h_coarse_offsets, h_coarse_indices, h_coarse_weights] =
+          cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, store_transposed, false>(
+            *handle_, sg_coarse_graph_view, sg_coarse_edge_weight_view, std::nullopt);
+
+        auto h_sg_labels = cugraph::test::to_host(*handle_, d_sg_labels);
+
+        auto h_coarse_vertices_to_labels =
+          cugraph::test::to_host(*handle_, sg_coarse_vertices_to_labels);
+
+        check_coarsened_graph_results(
+          h_org_offsets.data(),
+          h_org_indices.data(),
+          h_org_weights ? std::optional<weight_t const*>{(*h_org_weights).data()} : std::nullopt,
+          h_sg_labels.data(),
+          h_coarse_offsets.data(),
+          h_coarse_indices.data(),
+          h_coarse_weights ? std::optional<weight_t const*>{(*h_coarse_weights).data()}
+                           : std::nullopt,
+          h_coarse_vertices_to_labels.data(),
+          sg_graph_view.number_of_vertices(),
+          sg_coarse_graph_view.number_of_vertices());
+      }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_CoarsenGraph_File = Tests_CoarsenGraph<cugraph::test::File_Usecase>;
-using Tests_CoarsenGraph_Rmat = Tests_CoarsenGraph<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGCoarsenGraph<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_CoarsenGraph_File, CheckInt32Int32FloatTransposeFalse)
+using Tests_MGCoarsenGraph_File = Tests_MGCoarsenGraph<cugraph::test::File_Usecase>;
+using Tests_MGCoarsenGraph_Rmat = Tests_MGCoarsenGraph<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGCoarsenGraph_File, CheckInt32Int32FloatTransposeFalse)
 {
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MGCoarsenGraph_Rmat, CheckInt32Int32FloatTransposeFalse)
+{
+  auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_CoarsenGraph_File, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MGCoarsenGraph_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
-  run_current_test<int32_t, int32_t, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int32FloatTransposeFalse)
-{
-  run_current_test<int32_t, int32_t, float, false>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
-{
-  run_current_test<int32_t, int32_t, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeFalse)
-{
+  auto param = GetParam();
   run_current_test<int32_t, int64_t, float, false>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeTrue)
+TEST_P(Tests_MGCoarsenGraph_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
-  run_current_test<int32_t, int64_t, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt64Int64FloatTransposeFalse)
-{
+  auto param = GetParam();
   run_current_test<int64_t, int64_t, float, false>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt64Int64FloatTransposeTrue)
+TEST_P(Tests_MGCoarsenGraph_File, CheckInt32Int32FloatTransposeTrue)
 {
-  run_current_test<int64_t, int64_t, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MGCoarsenGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_CoarsenGraph_File,
+  file_tests,
+  Tests_MGCoarsenGraph_File,
   ::testing::Combine(
-    // enable correctness check
+    // enable correctness checks
     ::testing::Values(CoarsenGraph_Usecase{0.2, false, false},
                       CoarsenGraph_Usecase{0.2, false, true},
                       CoarsenGraph_Usecase{0.2, true, false},
@@ -403,10 +473,9 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_CoarsenGraph_Rmat,
+  rmat_small_tests,
+  Tests_MGCoarsenGraph_Rmat,
   ::testing::Combine(
-    // enable correctness checks
     ::testing::Values(CoarsenGraph_Usecase{0.2, false, false},
                       CoarsenGraph_Usecase{0.2, false, true},
                       CoarsenGraph_Usecase{0.2, true, false},
@@ -415,27 +484,13 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_CoarsenGraph_File,
-  ::testing::Combine(::testing::Values(CoarsenGraph_Usecase{0.2, false, false, false},
-                                       CoarsenGraph_Usecase{0.2, false, true, false},
-                                       CoarsenGraph_Usecase{0.2, true, false, false},
-                                       CoarsenGraph_Usecase{0.2, true, true, false}),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
                           --gtest_filter to select only the rmat_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_CoarsenGraph_Rmat,
+  Tests_MGCoarsenGraph_Rmat,
   ::testing::Combine(
-    // disable correctness checks for large graphs
     ::testing::Values(CoarsenGraph_Usecase{0.2, false, false, false},
                       CoarsenGraph_Usecase{0.2, false, true, false},
                       CoarsenGraph_Usecase{0.2, true, false, false},
@@ -443,4 +498,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false),
                       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()
