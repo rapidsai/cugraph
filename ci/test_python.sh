@@ -234,41 +234,38 @@ else
 fi
 
 # test cugraph-equivariant
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-    # Reuse cugraph-dgl's test env for cugraph-equivariant
-    set +u
-    conda activate test_cugraph_dgl
-    set -u
-    rapids-mamba-retry install \
-      --channel "${CPP_CHANNEL}" \
-      --channel "${PYTHON_CHANNEL}" \
-      --channel conda-forge \
-      --channel nvidia \
-      cugraph-equivariant
-    pip install e3nn==0.5.1
+if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+  # Reuse cugraph-dgl's test env for cugraph-equivariant
+  set +u
+  conda activate test_cugraph_dgl
+  set -u
+  rapids-mamba-retry install \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${PYTHON_CHANNEL}" \
+    --channel conda-forge \
+    --channel nvidia \
+    cugraph-equivariant
+  pip install e3nn==0.5.1
 
-    rapids-print-env
+  rapids-print-env
 
-    rapids-logger "pytest cugraph-equivariant"
-    ./ci/run_cugraph_equivariant_pytests.sh \
-      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
-      --cov-config=../../.coveragerc \
-      --cov=cugraph_equivariant \
-      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
-      --cov-report=term
+  rapids-logger "pytest cugraph-equivariant"
+  ./ci/run_cugraph_equivariant_pytests.sh \
+    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-equivariant.xml" \
+    --cov-config=../../.coveragerc \
+    --cov=cugraph_equivariant \
+    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-equivariant-coverage.xml" \
+    --cov-report=term
 
-    # Reactivate the test environment back
-    set +u
-    conda deactivate
-    conda activate test
-    set -u
-  else
-    rapids-logger "skipping cugraph-equivariant pytest on ARM64"
-  fi
+  # Reactivate the test environment back
+  set +u
+  conda deactivate
+  conda activate test
+  set -u
 else
-  rapids-logger "skipping cugraph-equivariant pytest on CUDA!=11.8"
+  rapids-logger "skipping cugraph-equivariant pytest on ARM64"
 fi
+
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
