@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -43,6 +44,8 @@
 struct ExtractBfsPaths_Usecase {
   size_t source{0};
   size_t num_paths_to_check{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -86,6 +89,13 @@ class Tests_ExtractBfsPaths
     }
 
     auto graph_view = graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (extract_bfs_paths_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     ASSERT_TRUE(static_cast<vertex_t>(extract_bfs_paths_usecase.source) >= 0 &&
                 static_cast<vertex_t>(extract_bfs_paths_usecase.source) <
@@ -224,11 +234,17 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_ExtractBfsPaths_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(ExtractBfsPaths_Usecase{0, 10},
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 10, false},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(ExtractBfsPaths_Usecase{0, 100},
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 10, true},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 100, false},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(ExtractBfsPaths_Usecase{0, 100},
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 100, true},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 100, false},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 100, true},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -236,7 +252,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_ExtractBfsPaths_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(ExtractBfsPaths_Usecase{0, 20},
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 20, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(ExtractBfsPaths_Usecase{0, 20, true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -248,7 +266,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_ExtractBfsPaths_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_pair(ExtractBfsPaths_Usecase{0, 1000, false},
+    std::make_pair(ExtractBfsPaths_Usecase{0, 1000, false, false},
+                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_pair(ExtractBfsPaths_Usecase{0, 1000, true, false},
                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
