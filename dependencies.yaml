@@ -285,8 +285,6 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - pyg
-  - dglteam/label/cu118
   - conda-forge
   - nvidia
 dependencies:
