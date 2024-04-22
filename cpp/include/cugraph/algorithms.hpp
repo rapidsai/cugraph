@@ -2382,16 +2382,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
  * entries in the device vectors of the returned tuple will contain invalid_vertex_id.
  */
 
-template <typename vertex_t,
-          typename edge_t,
-          typename edge_id_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, edge_id_t const*>> edge_id_view,
-  raft::device_span<edge_id_t const> edge_ids_to_lookup);
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+  lookup_edge_ids(
+    raft::handle_t const& handle,
+    cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+    raft::device_span<edge_t const> edge_ids_to_lookup);
 
 }  // namespace cugraph
 

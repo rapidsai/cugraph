@@ -40,23 +40,32 @@ namespace detail {
 /**
  * @brief This function prints vertex and edge partitions.
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename edge_id_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_edge_ids_impl(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, edge_id_t const*>> edge_id_view,
-  raft::device_span<edge_id_t const> edge_ids_to_lookup)
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+  lookup_edge_ids_impl(
+    raft::handle_t const& handle,
+    cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+    raft::device_span<edge_t const> edge_ids_to_lookup)
 {
   auto const comm_rank = multi_gpu ? handle.get_comms().get_rank() : 0;
   bool has_edge_id     = false;
   if (edge_id_view.has_value()) { has_edge_id = true; }
 
-  rmm::device_uvector<vertex_t> srcs(edge_ids_to_lookup.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> dsts(edge_ids_to_lookup.size(), handle.get_stream());
+  rmm::device_uvector<edge_t> sorted_edge_ids_to_lookup(edge_ids_to_lookup.size(),
+                                                        handle.get_stream());
+
+  raft::copy(sorted_edge_ids_to_lookup.begin(),
+             edge_ids_to_lookup.begin(),
+             edge_ids_to_lookup.size(),
+             handle.get_stream());
+
+  thrust::sort(
+    handle.get_thrust_policy(), sorted_edge_ids_to_lookup.begin(), sorted_edge_ids_to_lookup.end());
+
+  rmm::device_uvector<vertex_t> srcs(sorted_edge_ids_to_lookup.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> dsts(sorted_edge_ids_to_lookup.size(), handle.get_stream());
 
   auto constexpr invalid_partner = cugraph::invalid_vertex_id<vertex_t>::value;
   thrust::fill(handle.get_thrust_policy(), srcs.begin(), srcs.end(), invalid_partner);
@@ -85,14 +94,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
     auto major_hypersparse_first = edge_partition_view.major_hypersparse_first();
     auto dcs_nzd_vertices        = edge_partition_view.dcs_nzd_vertices();
 
-    raft::device_span<edge_id_t const> ids_of_edges_stored_in_this_edge_partition{};
+    raft::device_span<edge_t const> ids_of_edges_stored_in_this_edge_partition{};
 
     if (has_edge_id) {
       auto value_firsts = edge_id_view->value_firsts();
       auto edge_counts  = edge_id_view->edge_counts();
 
       ids_of_edges_stored_in_this_edge_partition =
-        raft::device_span<edge_id_t const>(value_firsts[ep_idx], edge_counts[ep_idx]);
+        raft::device_span<edge_t const>(value_firsts[ep_idx], edge_counts[ep_idx]);
     }
 
     thrust::for_each(
@@ -109,7 +118,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
        indices,
        major_range_first,
        has_edge_id,
-       edge_ids_to_lookup,
+       sorted_edge_ids_to_lookup =
+         raft::device_span<edge_t const>{sorted_edge_ids_to_lookup.begin(),
+                                         sorted_edge_ids_to_lookup.size()},
        stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin()] __device__(auto i) {
         auto v                               = major_range_first + i;
         auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
@@ -126,19 +137,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
            indices,
            has_edge_id,
            stored_edge_ids,
-           edge_ids_to_lookup] __device__(auto pos) {
+           sorted_edge_ids_to_lookup] __device__(auto pos) {
             if (has_edge_id) {
               auto found = thrust::binary_search(thrust::seq,
-                                                 edge_ids_to_lookup.begin(),
-                                                 edge_ids_to_lookup.end(),
+                                                 sorted_edge_ids_to_lookup.begin(),
+                                                 sorted_edge_ids_to_lookup.end(),
                                                  stored_edge_ids[pos]);
               if (found) {
-                auto ptr                               = thrust::lower_bound(thrust::seq,
-                                               edge_ids_to_lookup.begin(),
-                                               edge_ids_to_lookup.end(),
+                auto ptr                                      = thrust::lower_bound(thrust::seq,
+                                               sorted_edge_ids_to_lookup.begin(),
+                                               sorted_edge_ids_to_lookup.end(),
                                                stored_edge_ids[pos]);
-                srcs[ptr - edge_ids_to_lookup.begin()] = v;
-                dsts[ptr - edge_ids_to_lookup.begin()] = indices[pos];
+                srcs[ptr - sorted_edge_ids_to_lookup.begin()] = v;
+                dsts[ptr - sorted_edge_ids_to_lookup.begin()] = indices[pos];
 
                 printf(
                   "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
@@ -176,7 +187,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
          indices,
          major_range_first,
          has_edge_id,
-         edge_ids_to_lookup,
+         sorted_edge_ids_to_lookup =
+           raft::device_span<edge_t const>{sorted_edge_ids_to_lookup.begin(),
+                                           sorted_edge_ids_to_lookup.size()},
          stored_edge_ids         = ids_of_edges_stored_in_this_edge_partition.begin(),
          dcs_nzd_vertices        = (*dcs_nzd_vertices),
          major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
@@ -196,19 +209,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
              indices,
              has_edge_id,
              stored_edge_ids,
-             edge_ids_to_lookup] __device__(auto pos) {
+             sorted_edge_ids_to_lookup] __device__(auto pos) {
               if (has_edge_id) {
                 auto found = thrust::binary_search(thrust::seq,
-                                                   edge_ids_to_lookup.begin(),
-                                                   edge_ids_to_lookup.end(),
+                                                   sorted_edge_ids_to_lookup.begin(),
+                                                   sorted_edge_ids_to_lookup.end(),
                                                    stored_edge_ids[pos]);
                 if (found) {
-                  auto ptr                               = thrust::lower_bound(thrust::seq,
-                                                 edge_ids_to_lookup.begin(),
-                                                 edge_ids_to_lookup.end(),
+                  auto ptr                                      = thrust::lower_bound(thrust::seq,
+                                                 sorted_edge_ids_to_lookup.begin(),
+                                                 sorted_edge_ids_to_lookup.end(),
                                                  stored_edge_ids[pos]);
-                  srcs[ptr - edge_ids_to_lookup.begin()] = v;
-                  dsts[ptr - edge_ids_to_lookup.begin()] = indices[pos];
+                  srcs[ptr - sorted_edge_ids_to_lookup.begin()] = v;
+                  dsts[ptr - sorted_edge_ids_to_lookup.begin()] = indices[pos];
                 }
                 printf(
                   "\n[comm_rank = %d local edge partition id = %d]  edge: source = %d "
@@ -249,59 +262,69 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_
     }
   }
 
-  return std::make_tuple(std::move(srcs), std::move(dsts));
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(
+    "rid ", sorted_edge_ids_to_lookup.begin(), sorted_edge_ids_to_lookup.size(), std::cout);
+  raft::print_device_vector("rsrcs ", srcs.begin(), srcs.size(), std::cout);
+  raft::print_device_vector("rdsts ", dsts.begin(), dsts.size(), std::cout);
+
+  return std::make_tuple(std::move(sorted_edge_ids_to_lookup), std::move(srcs), std::move(dsts));
 }
 
 }  // namespace detail
 
-template <typename vertex_t,
-          typename edge_t,
-          typename edge_id_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, edge_id_t const*>> edge_id_view,
-  raft::device_span<edge_id_t const> edge_ids_to_lookup)
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+  lookup_edge_ids(
+    raft::handle_t const& handle,
+    cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+    raft::device_span<edge_t const> edge_ids_to_lookup)
 {
   return detail::lookup_edge_ids_impl(handle, graph_view, edge_id_view, edge_ids_to_lookup);
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
-  raft::device_span<int32_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+                  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
+                  raft::device_span<int32_t const> edge_ids_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  raft::device_span<int64_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                  raft::device_span<int64_t const> edge_ids_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  raft::device_span<int64_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                  raft::device_span<int64_t const> edge_ids_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
-  raft::device_span<int32_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
+                  raft::device_span<int32_t const> edge_ids_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  raft::device_span<int64_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                  raft::device_span<int64_t const> edge_ids_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> lookup_edge_ids(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  raft::device_span<int64_t const> edge_ids_to_lookup);
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+  lookup_edge_ids(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                  raft::device_span<int64_t const> edge_ids_to_lookup);
 
 }  // namespace cugraph

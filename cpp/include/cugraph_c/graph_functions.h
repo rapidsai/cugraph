@@ -202,14 +202,6 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
-cugraph_error_code_t cugraph_lookup_src_dst_from_edge_id(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
-  bool_t do_expensive_check,
-  cugraph_vertex_pairs_t** result,
-  cugraph_error_t** error);
-
 // FIXME: Rename the return type
 /**
  * @brief      Gather edgelist
@@ -348,6 +340,61 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
  * @param [in]    degrees_result   Opaque pointer to degree result
  */
 void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
+
+/**
+ * @brief       Opaque edge id lookup result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_edge_ids_lookup_result_t;
+
+/**
+ * @brief      Lookup edge id
+ *
+ * Read edge source and destination from edge ids
+ *
+ * @param [in]  handle              Handle for accessing resources.
+ * @param [in]  graph               Pointer to graph
+ * @param [in]  edge_ids_to_lookup  Device array of edge ids we want to lookup
+ * @param [in]  do_expensive_check  A flag to run expensive checks for input arguments (if set to
+ * true)
+ * @param [out] result              Opaque pointer to edge id lookup result
+ * @param [out] error               Pointer to an error object storing details of any error.  Will
+ *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_lookup_src_dst_from_edge_id(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
+  bool_t do_expensive_check,
+  cugraph_edge_ids_lookup_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief       Get vertex pair from edge id lookup result
+ *
+ * @param [in]     result   The result from edge id lookup
+ * @return vertex pairs
+ */
+cugraph_vertex_pairs_t* cugraph_edge_ids_lookup_result_get_vertex_pairs(
+  cugraph_edge_ids_lookup_result_t* result);
+
+/**
+ * @brief       Get sorted edge_ids array from edge id lookup result
+ *
+ * @param [in]     result   The result from edge id lookup
+ * @return type erased array of sorted edge_ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edge_ids_lookup_result_get_edge_ids(
+  cugraph_edge_ids_lookup_result_t* result);
+
+/**
+ * @brief     Free edge id lookup result
+ *
+ * @param [in]    result    The result of edge id lookup
+ */
+void cugraph_edge_ids_lookup_result_free(cugraph_edge_ids_lookup_result_t* result);
 
 #ifdef __cplusplus
 }

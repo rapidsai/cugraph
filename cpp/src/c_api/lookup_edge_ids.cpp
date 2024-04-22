@@ -36,13 +36,24 @@
 
 #include <optional>
 
+namespace cugraph {
+namespace c_api {
+
+struct cugraph_edge_ids_lookup_result_t {
+  cugraph_type_erased_device_array_t* edge_ids_;
+  cugraph_vertex_pairs_t* vertex_pairs_;
+};
+
+}  // namespace c_api
+}  // namespace cugraph
+
 namespace {
 struct edge_ids_lookup_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_to_lookup_{};
   bool do_expensive_check_;
-  cugraph::c_api::cugraph_vertex_pairs_t* result_{};
+  cugraph::c_api::cugraph_edge_ids_lookup_result_t* result_{};
 
   edge_ids_lookup_functor(::cugraph_resource_handle_t const* handle,
                           ::cugraph_graph_t* graph,
@@ -89,28 +100,55 @@ struct edge_ids_lookup_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      auto [d_srcs, d_dsts] = cugraph::lookup_edge_ids(
+      auto [d_edge_ids, d_srcs, d_dsts] = cugraph::lookup_edge_ids(
         handle_,
         graph_view,
         (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
         raft::device_span<edge_t const>{edge_ids_to_lookup_->as_type<edge_t const>(),
                                         edge_ids_to_lookup_->size_});
 
-      result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(d_srcs, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(d_dsts, graph_->vertex_type_)};
+      result_ = new cugraph::c_api::cugraph_edge_ids_lookup_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(d_edge_ids, graph_->edge_type_),
+        new cugraph::c_api::cugraph_vertex_pairs_t{
+          new cugraph::c_api::cugraph_type_erased_device_array_t(d_srcs, graph_->vertex_type_),
+          new cugraph::c_api::cugraph_type_erased_device_array_t(d_dsts, graph_->vertex_type_)}};
     }
   }
 };
 
 }  // namespace
 
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_edge_ids_lookup_result_get_edge_ids(
+  cugraph_edge_ids_lookup_result_t* result)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_edge_ids_lookup_result_t const*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->edge_ids_->view());
+}
+
+extern "C" cugraph_vertex_pairs_t* cugraph_edge_ids_lookup_result_get_vertex_pairs(
+  cugraph_edge_ids_lookup_result_t* result)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_edge_ids_lookup_result_t*>(result);
+  return reinterpret_cast<cugraph_vertex_pairs_t*>(internal_pointer->vertex_pairs_);
+}
+
+extern "C" void cugraph_edge_ids_lookup_result_free(cugraph_edge_ids_lookup_result_t* result)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_edge_ids_lookup_result_t*>(result);
+  delete internal_pointer->edge_ids_;
+  delete internal_pointer;
+}
+
 extern "C" cugraph_error_code_t cugraph_lookup_src_dst_from_edge_id(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
   bool_t do_expensive_check,
-  cugraph_vertex_pairs_t** result,
+  cugraph_edge_ids_lookup_result_t** result,
   cugraph_error_t** error)
 {
   edge_ids_lookup_functor functor(handle, graph, edge_ids_to_lookup, do_expensive_check);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include "c_test_utils.h" /* RUN_TEST */
 
 #include <cugraph_c/algorithms.h>
+#include <cugraph_c/array.h>
 #include <cugraph_c/graph.h>
 
 #include <math.h>
@@ -24,14 +25,17 @@
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 
-int generic_leiden_test(vertex_t* h_src,
-                        vertex_t* h_dst,
-                        edge_t* h_ids,
-                        size_t num_vertices,
-                        size_t num_edges,
-                        edge_t* edge_ids_to_lookup,
-                        size_t num_edge_ids_to_lookup,
-                        bool_t store_transposed)
+int test_edge_ids_lookup(vertex_t* h_src,
+                         vertex_t* h_dst,
+                         edge_t* h_ids,
+                         size_t num_vertices,
+                         size_t num_edges,
+                         edge_t* edge_ids_to_lookup,
+                         size_t num_edge_ids_to_lookup,
+                         bool_t store_transposed,
+                         edge_t* expected_edge_ids,
+                         vertex_t* expected_srcs,
+                         vertex_t* expected_dsts)
 {
   int test_ret_value = 0;
 
@@ -40,8 +44,8 @@ int generic_leiden_test(vertex_t* h_src,
 
   cugraph_resource_handle_t* p_handle = NULL;
 
-  cugraph_graph_t* p_graph         = NULL;
-  cugraph_vertex_pairs_t* p_result = NULL;
+  cugraph_graph_t* p_graph                   = NULL;
+  cugraph_edge_ids_lookup_result_t* p_result = NULL;
 
   data_type_id_t vertex_tid    = INT32;
   data_type_id_t edge_tid      = INT32;
@@ -93,33 +97,52 @@ int generic_leiden_test(vertex_t* h_src,
     p_handle, p_graph, d_edge_ids_to_lookup_view, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  //
-
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_lookup_src_dst_from_edge_id failed.");
 
   if (test_ret_value == 0) {
-    cugraph_type_erased_device_array_view_t* srcs;
-    cugraph_type_erased_device_array_view_t* dsts;
+    cugraph_type_erased_device_array_view_t* egdge_ids =
+      cugraph_edge_ids_lookup_result_get_edge_ids(p_result);
+    // vertex_pairs = cugraph_similarity_result_get_vertex_pairs(p_result);
 
-    srcs = cugraph_vertex_pairs_get_first(p_result);
-    dsts = cugraph_vertex_pairs_get_second(p_result);
+    cugraph_vertex_pairs_t* vertex_pairs =
+      cugraph_edge_ids_lookup_result_get_vertex_pairs(p_result);
 
-    vertex_t h_srcs[num_edge_ids_to_lookup];
-    vertex_t h_dsts[num_edge_ids_to_lookup];
+    cugraph_type_erased_device_array_view_t* srcs = cugraph_vertex_pairs_get_first(vertex_pairs);
+    cugraph_type_erased_device_array_view_t* dsts = cugraph_vertex_pairs_get_second(vertex_pairs);
+
+    vertex_t h_result_srcs[num_edge_ids_to_lookup];
+    vertex_t h_result_dsts[num_edge_ids_to_lookup];
+    edge_t h_result_edge_ids[num_edge_ids_to_lookup];
 
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-      p_handle, (byte_t*)h_srcs, srcs, &ret_error);
+      p_handle, (byte_t*)h_result_srcs, srcs, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-      p_handle, (byte_t*)h_dsts, dsts, &ret_error);
+      p_handle, (byte_t*)h_result_dsts, dsts, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      p_handle, (byte_t*)h_result_edge_ids, egdge_ids, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; i < num_edge_ids_to_lookup; i++) {
-      printf("=> %d:  %d   %d\n", edge_ids_to_lookup[i], h_srcs[i], h_dsts[i]);
+      vertex_t src = (h_result_srcs[i] < h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
+      vertex_t dst = (h_result_srcs[i] >= h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
+      TEST_ASSERT(
+        test_ret_value, src == expected_srcs[i], "expected sources don't match with returned ones");
+
+      TEST_ASSERT(test_ret_value,
+                  dst == expected_dsts[i],
+                  "expected destinations don't match with returned ones");
+
+      TEST_ASSERT(test_ret_value,
+                  h_result_edge_ids[i] == expected_edge_ids[i],
+                  "expected edge_ids don't match with returned ones");
     }
 
-    cugraph_vertex_pairs_free(p_result);
+    cugraph_vertex_pairs_free(vertex_pairs);
+    cugraph_edge_ids_lookup_result_free(p_result);
   }
 
   cugraph_sg_graph_free(p_graph);
@@ -129,26 +152,64 @@ int generic_leiden_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_leiden()
+int test_with_unsorted_edgeids()
 {
   size_t num_edges    = 8;
   size_t num_vertices = 5;
 
-  vertex_t h_src[]              = {0, 1, 1, 2, 1, 3, 4, 0};
-  vertex_t h_dst[]              = {1, 3, 4, 0, 0, 1, 1, 2};
-  edge_t h_ids[]                = {10, 13, 14, 20, 10, 13, 14, 20};
-  edge_t edge_ids_to_lookup[]   = {10, 12, 14};
+  vertex_t h_srcs[] = {0, 1, 1, 2, 1, 3, 4, 0};
+  vertex_t h_dsts[] = {1, 3, 4, 0, 0, 1, 1, 2};
+  edge_t h_ids[]    = {10, 13, 14, 20, 10, 13, 14, 20};
+
+  edge_t edge_ids_to_lookup[] = {14, 10, 12};
+
+  // expected results
+  vertex_t expected_edge_ids[]  = {10, 12, 14};
+  vertex_t expected_srcs[]      = {0, -1, 1};
+  vertex_t expected_dsts[]      = {1, -1, 4};
   size_t num_edge_ids_to_lookup = 3;
 
-  // Louvain wants store_transposed = FALSE
-  return generic_leiden_test(h_src,
-                             h_dst,
-                             h_ids,
-                             num_vertices,
-                             num_edges,
-                             edge_ids_to_lookup,
-                             num_edge_ids_to_lookup,
-                             FALSE);
+  return test_edge_ids_lookup(h_srcs,
+                              h_dsts,
+                              h_ids,
+                              num_vertices,
+                              num_edges,
+                              edge_ids_to_lookup,
+                              num_edge_ids_to_lookup,
+                              FALSE,
+                              expected_edge_ids,
+                              expected_srcs,
+                              expected_dsts);
+}
+
+int test_with_sorted_edgeids()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 5;
+
+  vertex_t h_srcs[] = {0, 1, 1, 2, 1, 3, 4, 0};
+  vertex_t h_dsts[] = {1, 3, 4, 0, 0, 1, 1, 2};
+  edge_t h_ids[]    = {10, 13, 14, 20, 10, 13, 14, 20};
+
+  edge_t edge_ids_to_lookup[] = {10, 12, 14};
+
+  // expected results
+  vertex_t expected_edge_ids[]  = {10, 12, 14};
+  vertex_t expected_srcs[]      = {0, -1, 1};
+  vertex_t expected_dsts[]      = {1, -1, 4};
+  size_t num_edge_ids_to_lookup = 3;
+
+  return test_edge_ids_lookup(h_srcs,
+                              h_dsts,
+                              h_ids,
+                              num_vertices,
+                              num_edges,
+                              edge_ids_to_lookup,
+                              num_edge_ids_to_lookup,
+                              FALSE,
+                              expected_edge_ids,
+                              expected_srcs,
+                              expected_dsts);
 }
 
 /******************************************************************************/
@@ -156,6 +217,7 @@ int test_leiden()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_leiden);
+  result |= RUN_TEST(test_with_sorted_edgeids);
+  result |= RUN_TEST(test_with_unsorted_edgeids);
   return result;
 }
