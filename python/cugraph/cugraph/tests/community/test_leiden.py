@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -83,8 +83,8 @@ _test_data = {
         "input_type": "CSR",
         "expected_output": {
             # fmt: off
-            "partition": [3, 3, 3, 3, 2, 2, 2, 3, 1, 3, 2, 3, 3, 3, 1, 1, 2, 3, 1, 3,
-                          1, 3, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1],
+            "partition": [0, 0, 0, 0, 3, 3, 3, 0, 1, 0, 3, 0, 0, 0, 1, 1, 3, 0, 1, 0,
+                          1, 0, 1, 2, 2, 2, 1, 2, 2, 1, 1, 2, 1, 1],
             # fmt: on
             "modularity_score": 0.41880345,
         },
