@@ -21,6 +21,8 @@
 
 #include <thrust/pair.h>
 
+#include <cassert>
+
 constexpr int64_t DEFAULT_HASH_TABLE_OCCUPANCY = 50;
 
 /**
