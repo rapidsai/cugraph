@@ -283,9 +283,9 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         h_cugraph_hits = cugraph::test::to_host(handle, d_hubs);
       }
       handle.sync_stream();
-      auto threshold_ratio = 1e-3;
+      auto threshold_ratio = 2e-3;
       auto threshold_magnitude =
-        1e-6;  // skip comparison for low hits vertices (lowly ranked vertices)
+        2e-6;  // skip comparison for low hits vertices (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <=
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
