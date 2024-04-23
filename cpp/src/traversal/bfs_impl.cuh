@@ -301,8 +301,6 @@ void bfs(raft::handle_t const& handle,
          vertex_t depth_limit,
          bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (predecessors != nullptr) {
     detail::bfs(handle,
                 graph_view,
