@@ -21,9 +21,6 @@
  */
 #pragma once
 
-#include "helper_functions.cuh"
-#include "managed.cuh"
-
 #include <cudf/hashing/detail/default_hash.cuh>
 #include <raft/util/cuda_rt_essentials.hpp>
 
@@ -32,6 +29,8 @@
 
 #include <cuda/atomic>
 #include <thrust/pair.h>
+
+#include <hash/helper_functions.cuh>
 
 #include <functional>
 #include <iostream>
