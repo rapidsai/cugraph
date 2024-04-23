@@ -31,6 +31,7 @@
 #include <thrust/pair.h>
 
 #include <hash/helper_functions.cuh>
+#include <hash/managed.cuh>
 
 #include <functional>
 #include <iostream>
@@ -117,9 +118,9 @@ union pair_packer<pair_type, std::enable_if_t<is_packable<pair_type>()>> {
  */
 template <typename Key,
           typename Element,
-          typename Hasher   = cudf::hashing::detail::default_hash<Key>,
-          typename Equality = equal_to<Key>,
-          typename          = rmm::mr::polymorphic_allocator<thrust::pair<Key, Element>>>
+          typename Hasher    = cudf::hashing::detail::default_hash<Key>,
+          typename Equality  = equal_to<Key>,
+          typename Allocator = rmm::mr::polymorphic_allocator<thrust::pair<Key, Element>>>
 class concurrent_unordered_map {
  public:
   using size_type      = size_t;
