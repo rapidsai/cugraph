@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/*
+ * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
+ *     insert/find for 8 byte key-value pair size. The plan is to migrate to
+ *     using the cuco when the feature is supported. At that point this file can be deleted.
+ */
 #pragma once
 
 #include "helper_functions.cuh"
@@ -113,9 +118,9 @@ union pair_packer<pair_type, std::enable_if_t<is_packable<pair_type>()>> {
  */
 template <typename Key,
           typename Element,
-          typename Hasher    = cudf::hashing::detail::default_hash<Key>,
-          typename Equality  = equal_to<Key>,
-          typename Allocator = rmm::mr::polymorphic_allocator<thrust::pair<Key, Element>>>
+          typename Hasher   = cudf::hashing::detail::default_hash<Key>,
+          typename Equality = equal_to<Key>,
+          typename          = rmm::mr::polymorphic_allocator<thrust::pair<Key, Element>>>
 class concurrent_unordered_map {
  public:
   using size_type      = size_t;
