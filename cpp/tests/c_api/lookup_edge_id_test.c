@@ -127,8 +127,10 @@ int test_edge_ids_lookup(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; i < num_edge_ids_to_lookup; i++) {
+      printf("\n%d: %d  %d\n", h_result_edge_ids[i], h_result_srcs[i], h_result_dsts[i]);
       vertex_t src = (h_result_srcs[i] < h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
       vertex_t dst = (h_result_srcs[i] >= h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
+      printf("\n%d: %d  %d\n", h_result_edge_ids[i], src, dst);
       TEST_ASSERT(
         test_ret_value, src == expected_srcs[i], "expected sources don't match with returned ones");
 
@@ -184,19 +186,20 @@ int test_with_unsorted_edgeids()
 
 int test_with_sorted_edgeids()
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 10;
   size_t num_vertices = 5;
 
-  vertex_t h_srcs[] = {0, 1, 1, 2, 1, 3, 4, 0};
-  vertex_t h_dsts[] = {1, 3, 4, 0, 0, 1, 1, 2};
-  edge_t h_ids[]    = {10, 13, 14, 20, 10, 13, 14, 20};
+  vertex_t h_srcs[] = {7, 1, 1, 2, 1, 8, 3, 4, 0, 0};
+  vertex_t h_dsts[] = {8, 3, 4, 0, 0, 7, 1, 1, 2, 1};
 
-  edge_t edge_ids_to_lookup[] = {10, 12, 14};
+  edge_t h_ids[] = {78, 13, 14, 20, 10, 78, 13, 14, 20, 10};
+
+  edge_t edge_ids_to_lookup[] = {10, 12, 78};
 
   // expected results
-  vertex_t expected_edge_ids[]  = {10, 12, 14};
-  vertex_t expected_srcs[]      = {0, -1, 1};
-  vertex_t expected_dsts[]      = {1, -1, 4};
+  vertex_t expected_edge_ids[]  = {10, 12, 78};
+  vertex_t expected_srcs[]      = {0, -1, 7};
+  vertex_t expected_dsts[]      = {1, -1, 8};
   size_t num_edge_ids_to_lookup = 3;
 
   return test_edge_ids_lookup(h_srcs,

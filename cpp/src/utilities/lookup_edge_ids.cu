@@ -71,6 +71,14 @@ std::
   thrust::fill(handle.get_thrust_policy(), output_srcs.begin(), output_srcs.end(), invalid_partner);
   thrust::fill(handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_partner);
 
+  rmm::device_uvector<edge_t> matched_edge_indices(sorted_edge_ids_to_lookup.size(),
+                                                   handle.get_stream());
+
+  thrust::fill(handle.get_thrust_policy(),
+               matched_edge_indices.begin(),
+               matched_edge_indices.end(),
+               cugraph::invalid_vertex_id<edge_t>::value);
+
   //
   // Read sources and destinations associated with ege ids
   //
@@ -102,99 +110,130 @@ std::
 
     thrust::for_each(
       handle.get_thrust_policy(),
-      thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(
-        (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) -
-        major_range_first),
-      [output_srcs = output_srcs.begin(),
-       output_dsts = output_dsts.begin(),
-       offsets,
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(size_t{ids_of_edges_stored_in_this_edge_partition.size()}),
+      [has_edge_id,
        indices,
-       major_range_first,
-       has_edge_id,
+       stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin(),
        sorted_edge_ids_to_lookup =
          raft::device_span<edge_t const>{sorted_edge_ids_to_lookup.begin(),
                                          sorted_edge_ids_to_lookup.size()},
-       stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin()] __device__(auto i) {
-        auto v                               = major_range_first + i;
-        auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
 
-        thrust::for_each(thrust::seq,
-                         thrust::make_counting_iterator(edge_t{offsets[i]}),
-                         thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
-                         [v,
-                          output_srcs,
-                          output_dsts,
-                          indices,
-                          has_edge_id,
-                          stored_edge_ids,
-                          sorted_edge_ids_to_lookup] __device__(auto pos) {
-                           if (has_edge_id) {
-                             auto found = thrust::binary_search(thrust::seq,
-                                                                sorted_edge_ids_to_lookup.begin(),
-                                                                sorted_edge_ids_to_lookup.end(),
-                                                                stored_edge_ids[pos]);
-                             if (found) {
-                               auto ptr = thrust::lower_bound(thrust::seq,
-                                                              sorted_edge_ids_to_lookup.begin(),
-                                                              sorted_edge_ids_to_lookup.end(),
-                                                              stored_edge_ids[pos]);
-                               output_srcs[ptr - sorted_edge_ids_to_lookup.begin()] = v;
-                               output_dsts[ptr - sorted_edge_ids_to_lookup.begin()] = indices[pos];
-                             }
-                           }
-                         });
+       matched_edge_indices = matched_edge_indices.begin()] __device__(auto edge_idx) {
+        if (has_edge_id) {
+          auto ptr = thrust::lower_bound(thrust::seq,
+                                         sorted_edge_ids_to_lookup.begin(),
+                                         sorted_edge_ids_to_lookup.end(),
+                                         stored_edge_ids[edge_idx]);
+          if (*ptr == stored_edge_ids[edge_idx]) {
+            matched_edge_indices[ptr - sorted_edge_ids_to_lookup.begin()] = edge_idx;
+
+            auto w_at = static_cast<std::ptrdiff_t>(ptr - sorted_edge_ids_to_lookup.begin());
+            printf("\neidx = %d dst = %d at = %d\n",
+                   static_cast<int>(edge_idx),
+                   static_cast<int>(indices[edge_idx]),
+                   static_cast<int>(w_at));
+          }
+        }
       });
 
-    if (major_hypersparse_first.has_value()) {
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(vertex_t{0}),
-        thrust::make_counting_iterator(static_cast<vertex_t>((*dcs_nzd_vertices).size())),
-        [output_srcs = output_srcs.begin(),
-         output_dsts = output_dsts.begin(),
-         offsets,
-         indices,
-         major_range_first,
-         has_edge_id,
-         sorted_edge_ids_to_lookup =
-           raft::device_span<edge_t const>{sorted_edge_ids_to_lookup.begin(),
-                                           sorted_edge_ids_to_lookup.size()},
-         stored_edge_ids         = ids_of_edges_stored_in_this_edge_partition.begin(),
-         dcs_nzd_vertices        = (*dcs_nzd_vertices),
-         major_hypersparse_first = (*major_hypersparse_first)] __device__(auto i) {
-          auto v                               = dcs_nzd_vertices[i];
-          auto major_idx                       = (major_hypersparse_first - major_range_first) + i;
-          auto deg_of_v_in_this_edge_partition = offsets[major_idx + 1] - offsets[major_idx];
+    auto last_in_non_hypersparse =
+      (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) - major_range_first;
+    rmm::device_uvector<vertex_t> uppers(matched_edge_indices.size(), handle.get_stream());
 
-          thrust::for_each(thrust::seq,
-                           thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
-                           thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
-                           [output_srcs,
-                            output_dsts,
-                            v,
-                            indices,
-                            has_edge_id,
-                            stored_edge_ids,
-                            sorted_edge_ids_to_lookup] __device__(auto pos) {
-                             if (has_edge_id) {
-                               auto found = thrust::binary_search(thrust::seq,
-                                                                  sorted_edge_ids_to_lookup.begin(),
-                                                                  sorted_edge_ids_to_lookup.end(),
-                                                                  stored_edge_ids[pos]);
-                               if (found) {
-                                 auto ptr = thrust::lower_bound(thrust::seq,
-                                                                sorted_edge_ids_to_lookup.begin(),
-                                                                sorted_edge_ids_to_lookup.end(),
-                                                                stored_edge_ids[pos]);
-                                 output_srcs[ptr - sorted_edge_ids_to_lookup.begin()] = v;
-                                 output_dsts[ptr - sorted_edge_ids_to_lookup.begin()] =
-                                   indices[pos];
-                               }
-                             }
-                           });
-        });
+    thrust::fill(handle.get_thrust_policy(),
+                 uppers.begin(),
+                 uppers.end(),
+                 cugraph::invalid_vertex_id<vertex_t>::value);
+
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        offsets.begin(),
+                        offsets.end(),
+                        matched_edge_indices.begin(),
+                        matched_edge_indices.end(),
+                        uppers.begin());
+
+#if 1
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+    auto title = std::string("offsets_")
+                   .append(std::to_string(comm_rank))
+                   .append("_")
+                   .append(std::to_string(ep_idx));
+
+    raft::print_device_vector(title.c_str(), offsets.begin(), offsets.size(), std::cout);
+
+    title = std::string("matched_")
+              .append(std::to_string(comm_rank))
+              .append("_")
+              .append(std::to_string(ep_idx));
+
+    raft::print_device_vector(
+      title.c_str(), matched_edge_indices.begin(), matched_edge_indices.size(), std::cout);
+
+    title = std::string("uppers_")
+              .append(std::to_string(comm_rank))
+              .append("_")
+              .append(std::to_string(ep_idx));
+
+    raft::print_device_vector(title.c_str(), uppers.begin(), uppers.size(), std::cout);
+
+#endif
+
+    bool is_hypersparse = major_hypersparse_first.has_value();
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(uppers.begin(), matched_edge_indices.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(uppers.end(), matched_edge_indices.end())),
+      thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())),
+      [major_range_first,
+       indices,
+       stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin(),
+       invalid_id      = cugraph::invalid_vertex_id<vertex_t>::value,
+       is_hypersparse,
+       major_hypersparse_first = (*major_hypersparse_first),
+       dcs_nzd_vertices        = (*dcs_nzd_vertices)] __device__(auto upper_and_eidx) {
+        vertex_t idx_in_offsets = thrust::get<0>(upper_and_eidx) - 1;
+        auto eidx               = thrust::get<1>(upper_and_eidx);
+        vertex_t major;
+
+        if (is_hypersparse && (idx_in_offsets >= (major_hypersparse_first - major_range_first))) {
+          major = dcs_nzd_vertices[idx_in_offsets];
+        } else {
+          major = idx_in_offsets;
+        }
+        if (eidx >= 0) {
+          printf("> %d (%d) : %d %d\n",
+                 static_cast<int>(stored_edge_ids[eidx]),
+                 static_cast<int>(eidx),
+                 static_cast<int>(major),
+                 static_cast<int>(indices[eidx]));
+
+          return thrust::make_tuple(major, indices[eidx]);
+
+        } else {
+          return thrust::make_tuple(invalid_id, invalid_id);
+        }
+      });
+
+#if 1
+    // Edge property values
+    if (edge_id_view) {
+      auto value_firsts = edge_id_view->value_firsts();
+      auto edge_counts  = edge_id_view->edge_counts();
+
+      assert(number_of_edges_in_edge_partition == edge_counts[ep_idx]);
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto edge_ids_title = std::string("edge_ids_")
+                              .append(std::to_string(comm_rank))
+                              .append("_")
+                              .append(std::to_string(ep_idx));
+      raft::print_device_vector(
+        edge_ids_title.c_str(), value_firsts[ep_idx], number_of_edges_in_edge_partition, std::cout);
     }
+#endif
   }
 
   return std::make_tuple(
