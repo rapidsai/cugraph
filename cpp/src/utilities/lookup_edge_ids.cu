@@ -107,12 +107,74 @@ std::
       ids_of_edges_stored_in_this_edge_partition =
         raft::device_span<edge_t const>(value_firsts[ep_idx], edge_counts[ep_idx]);
     }
+    /*
 
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(vertex_t{0}),
+                     thrust::make_counting_iterator(
+                       (major_hypersparse_first ? (*major_hypersparse_first) : major_range_last) -
+                       major_range_first),
+                     [comm_rank,
+                      ep_idx,
+                      offsets,
+                      indices,
+                      major_range_first,
+                      has_edge_id,
+                      sorted_edge_ids_to_lookup =
+                        raft::device_span<edge_t const>{sorted_edge_ids_to_lookup.begin(),
+                                                        sorted_edge_ids_to_lookup.size()},
+                      stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin(),
+                      output_srcs     = output_srcs.begin(),
+                      output_dsts     = output_dsts.begin()] __device__(auto i) {
+                       auto v                               = major_range_first + i;
+                       auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
+
+                       thrust::for_each(
+                         thrust::seq,
+                         thrust::make_counting_iterator(edge_t{offsets[i]}),
+                         thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
+                         [v,
+                          comm_rank,
+                          ep_idx,
+                          indices,
+                          has_edge_id,
+                          stored_edge_ids,
+                          sorted_edge_ids_to_lookup,
+                          output_srcs,
+                          output_dsts] __device__(auto pos) {
+                           if (has_edge_id) {
+                             //  auto found = thrust::binary_search(thrust::seq,
+                             // sorted_edge_ids_to_lookup.begin(),
+                             //                                     sorted_edge_ids_to_lookup.end(),
+                             //                                     stored_edge_ids[pos]);
+                             //  if (found) {
+                             auto ptr = thrust::lower_bound(thrust::seq,
+                                                            sorted_edge_ids_to_lookup.begin(),
+                                                            sorted_edge_ids_to_lookup.end(),
+                                                            stored_edge_ids[pos]);
+                             if (*ptr == stored_edge_ids[pos]) {
+                               printf("\n* [%d %d]  %d (%d) : %d %d\n",
+                                      static_cast<int>(comm_rank),
+                                      static_cast<int>(ep_idx),
+                                      static_cast<int>(stored_edge_ids[pos]),
+                                      static_cast<int>(pos),
+                                      static_cast<int>(v),
+                                      static_cast<int>(indices[pos]));
+
+                               output_srcs[ptr - sorted_edge_ids_to_lookup.begin()] = v;
+                               output_dsts[ptr - sorted_edge_ids_to_lookup.begin()] = indices[pos];
+                             }
+                           }
+                         });
+                     });
+*/
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(size_t{ids_of_edges_stored_in_this_edge_partition.size()}),
       [has_edge_id,
+       ep_idx,
+       comm_rank,
        indices,
        stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin(),
        sorted_edge_ids_to_lookup =
@@ -129,7 +191,9 @@ std::
             matched_edge_indices[ptr - sorted_edge_ids_to_lookup.begin()] = edge_idx;
 
             auto w_at = static_cast<std::ptrdiff_t>(ptr - sorted_edge_ids_to_lookup.begin());
-            printf("\neidx = %d dst = %d at = %d\n",
+            printf("\n (%d %d) eidx = %d dst = %d at = %d\n",
+                   static_cast<int>(comm_rank),
+                   static_cast<int>(ep_idx),
                    static_cast<int>(edge_idx),
                    static_cast<int>(indices[edge_idx]),
                    static_cast<int>(w_at));
@@ -187,7 +251,9 @@ std::
       thrust::make_zip_iterator(thrust::make_tuple(uppers.begin(), matched_edge_indices.begin())),
       thrust::make_zip_iterator(thrust::make_tuple(uppers.end(), matched_edge_indices.end())),
       thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())),
-      [major_range_first,
+      [comm_rank,
+       ep_idx,
+       major_range_first,
        indices,
        stored_edge_ids = ids_of_edges_stored_in_this_edge_partition.begin(),
        invalid_id      = cugraph::invalid_vertex_id<vertex_t>::value,
@@ -201,10 +267,12 @@ std::
         if (is_hypersparse && (idx_in_offsets >= (major_hypersparse_first - major_range_first))) {
           major = dcs_nzd_vertices[idx_in_offsets];
         } else {
-          major = idx_in_offsets;
+          major = idx_in_offsets + major_range_first;
         }
         if (eidx >= 0) {
-          printf("> %d (%d) : %d %d\n",
+          printf("> [%d %d]  %d (%d) : %d %d\n",
+                 static_cast<int>(comm_rank),
+                 static_cast<int>(ep_idx),
                  static_cast<int>(stored_edge_ids[eidx]),
                  static_cast<int>(eidx),
                  static_cast<int>(major),
@@ -226,7 +294,7 @@ std::
       assert(number_of_edges_in_edge_partition == edge_counts[ep_idx]);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto edge_ids_title = std::string("edge_ids_")
+      auto edge_ids_title = std::string("es_")
                               .append(std::to_string(comm_rank))
                               .append("_")
                               .append(std::to_string(ep_idx));
@@ -234,6 +302,10 @@ std::
         edge_ids_title.c_str(), value_firsts[ep_idx], number_of_edges_in_edge_partition, std::cout);
     }
 #endif
+    thrust::fill(handle.get_thrust_policy(),
+                 matched_edge_indices.begin(),
+                 matched_edge_indices.end(),
+                 cugraph::invalid_vertex_id<edge_t>::value);
   }
 
   return std::make_tuple(
