@@ -123,9 +123,9 @@ int test_bfs_exceptions()
   size_t depth_limit  = 1;
   size_t num_seeds    = 1;
 
-  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t src[]  = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]  = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t wgt[]  = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   int64_t seeds[] = {0};
 
   int test_ret_value = 0;

@@ -150,8 +150,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
-      --channel pytorch-nightly \
+      --channel conda-forge \
       --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
@@ -161,7 +160,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
+      'cuda-version=11.8'
 
     rapids-print-env
 
@@ -194,26 +193,36 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test_cugraph_pyg
     set -u
 
+    # TODO re-enable logic once CUDA 12 is testable
+    #if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+    CONDA_CUDA_VERSION="11.8"
+    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
+    #else
+    #  CONDA_CUDA_VERSION="12.1"
+    #  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
+    #fi
+
     # Will automatically install built dependencies of cuGraph-PyG
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
-      --channel nvidia \
       --channel pyg \
-      --channel rapidsai-nightly \
+      --channel nvidia \
       "cugraph-pyg" \
-      "pytorch>=2.0,<2.1" \
-      "pytorch-cuda=11.8"
+      "pytorch=2.1.0" \
+      "pytorch-cuda=${CONDA_CUDA_VERSION}"
 
     # Install pyg dependencies (which requires pip)
+
+    pip install ogb
     pip install \
         pyg_lib \
         torch_scatter \
         torch_sparse \
         torch_cluster \
         torch_spline_conv \
-      -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
+      -f ${PYG_URL}
 
     rapids-print-env
 
@@ -231,12 +240,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda deactivate
     conda activate test
     set -u
-
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi
 else
-  rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
+  rapids-logger "skipping cugraph_pyg pytest on CUDA!=11.8"
 fi
 
 # test cugraph-equivariant
@@ -249,7 +257,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
+      --channel conda-forge \
       --channel nvidia \
       cugraph-equivariant
     pip install e3nn==0.5.1

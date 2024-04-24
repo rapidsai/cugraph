@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -95,6 +96,8 @@ void katz_centrality_reference(edge_t const* offsets,
 
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -138,6 +141,13 @@ class Tests_KatzCentrality
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (katz_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     auto degrees   = graph_view.compute_in_degrees(handle);
     auto h_degrees = cugraph::test::to_host(handle, degrees);
     auto max_it    = std::max_element(h_degrees.begin(), h_degrees.end());
@@ -173,35 +183,17 @@ class Tests_KatzCentrality
     }
 
     if (katz_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, true, false> unrenumbered_graph(handle);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
-        unrenumbered_edge_weights{std::nullopt};
-      if (renumber) {
-        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, katz_usecase.test_weighted, false);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
-      auto unrenumbered_edge_weight_view =
-        renumber
-          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
-                                       : std::nullopt)
-          : edge_weight_view;
+      auto [h_offsets, h_indices, h_weights] =
+        cugraph::test::graph_to_host_csc<vertex_t, edge_t, weight_t, true, false>(
+          handle,
+          graph_view,
+          edge_weight_view,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
-      auto h_weights = cugraph::test::to_host(
-        handle,
-        unrenumbered_edge_weight_view ? std::make_optional(raft::device_span<weight_t const>(
-                                          (*unrenumbered_edge_weight_view).value_firsts()[0],
-                                          (*unrenumbered_edge_weight_view).edge_counts()[0]))
-                                      : std::nullopt);
-
-      std::vector<result_t> h_reference_katz_centralities(
-        unrenumbered_graph_view.number_of_vertices());
+      std::vector<result_t> h_reference_katz_centralities(graph_view.number_of_vertices());
 
       katz_centrality_reference(
         h_offsets.data(),
@@ -209,7 +201,7 @@ class Tests_KatzCentrality
         h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         static_cast<result_t*>(nullptr),
         h_reference_katz_centralities.data(),
-        unrenumbered_graph_view.number_of_vertices(),
+        graph_view.number_of_vertices(),
         alpha,
         beta,
         epsilon,
@@ -284,7 +276,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_KatzCentrality_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(KatzCentrality_Usecase{false, false},
+                      KatzCentrality_Usecase{false, true},
+                      KatzCentrality_Usecase{true, false},
+                      KatzCentrality_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -293,8 +288,10 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KatzCentrality_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(KatzCentrality_Usecase{false},
-                                                              KatzCentrality_Usecase{true}),
+                         ::testing::Combine(::testing::Values(KatzCentrality_Usecase{false, false},
+                                                              KatzCentrality_Usecase{false, true},
+                                                              KatzCentrality_Usecase{true, false},
+                                                              KatzCentrality_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -307,7 +304,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_KatzCentrality_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
+    ::testing::Values(KatzCentrality_Usecase{false, false, false},
+                      KatzCentrality_Usecase{false, true, false},
+                      KatzCentrality_Usecase{true, false, false},
+                      KatzCentrality_Usecase{true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

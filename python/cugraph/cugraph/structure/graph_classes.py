@@ -285,8 +285,7 @@ class Graph:
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
-        edgelist. Undirected Graphs are not currently supported.
-        By default, renumbering is enabled to map the source and destination
+        edgelist. By default, renumbering is enabled to map the source and destination
         vertices into an index in the range [0, V) where V is the number
         of vertices.  If the input vertices are a single column of integers
         in the range [0, V), renumbering can be disabled and the original
