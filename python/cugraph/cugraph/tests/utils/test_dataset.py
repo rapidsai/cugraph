@@ -194,7 +194,7 @@ def test_reader_dask(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
 
     assert E is not None
-    assert isinstance(E, dask_cudf.core.DataFrame)
+    assert isinstance(E, dask_cudf.DataFrame)
     dataset.unload()
 
 
