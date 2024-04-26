@@ -34,8 +34,9 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct update_edges_p_r_q_r_num_triangles {
-  size_t num_edges{};  // rename to num_edges
+  size_t num_edges{};
   const edge_t edge_first_or_second{};
+  size_t chunk_start{};
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<edge_t> num_triangles{};
@@ -49,26 +50,26 @@ struct update_edges_p_r_q_r_num_triangles {
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
     if (edge_first_or_second == 0) {
       auto p_r_pair =
-        thrust::make_tuple(thrust::get<0>(*(edge_first + idx)), intersection_indices[i]);
+        thrust::make_tuple(thrust::get<0>(*(edge_first + chunk_start + idx)), intersection_indices[i]);
 
       // Find its position in 'edges'
       auto itr_p_r_p_q =
         thrust::lower_bound(thrust::seq,
                             edge_first,
-                            edge_first + num_edges,  // pass the number of vertex pairs
+                            edge_first + num_edges,
                             p_r_pair);
 
       assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
     } else {
       auto p_r_pair =
-        thrust::make_tuple(thrust::get<1>(*(edge_first + idx)), intersection_indices[i]);
+        thrust::make_tuple(thrust::get<1>(*(edge_first + chunk_start + idx)), intersection_indices[i]);
 
       // Find its position in 'edges'
       auto itr_p_r_p_q =
         thrust::lower_bound(thrust::seq,
                             edge_first,
-                            edge_first + num_edges,  // pass the number of vertex pairs
+                            edge_first + num_edges,
                             p_r_pair);
       assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
@@ -89,52 +90,78 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
 
   thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
 
-  // FIXME: Perform 'nbr_intersection' in chunks to reduce peak memory.
-  auto [intersection_offsets, intersection_indices] =
-    detail::nbr_intersection(handle,
-                             graph_view,
-                             cugraph::edge_dummy_property_t{}.view(),
-                             edge_first,
-                             edge_first + edgelist_srcs.size(),
-                             std::array<bool, 2>{true, true},
-                             false /*FIXME: pass 'do_expensive_check' as argument*/);
+  auto approx_edges_to_intersect_per_iteration =
+    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
 
+  auto num_chunks = ((edgelist_srcs.size() % approx_edges_to_intersect_per_iteration) == 0) ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
+
+  size_t prev_chunk_size = 0;
+  auto num_edges = edgelist_srcs.size();
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
 
-  // Update the number of triangles of each (p, q) edges by looking at their intersection
-  // size
-  thrust::adjacent_difference(handle.get_thrust_policy(),
-                              intersection_offsets.begin() + 1,
-                              intersection_offsets.end(),
-                              num_triangles.begin());
+  // Need to ensure that the vector has its values initialized to 0 before incrementing
+  thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
-  // Given intersection offsets and indices that are used to update the number of
-  // triangles of (p, q) edges where `r`s are the intersection indices, update
-  // the number of triangles of the pairs (p, r) and (q, r).
+  for (size_t i = 0; i < num_chunks; ++i) {
 
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator<edge_t>(0),
-    thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-    update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
-      edgelist_srcs.size(),
-      0,
-      raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-      raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-      raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
-      edge_first});
+    auto chunk_size = std::min(approx_edges_to_intersect_per_iteration, num_edges);
+    num_edges -= chunk_size;
 
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator<edge_t>(0),
-    thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-    update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
-      edgelist_srcs.size(),
-      1,
-      raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-      raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
-      raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
-      edge_first});
+    // Perform 'nbr_intersection' in chunks to reduce peak memory.
+    auto [intersection_offsets, intersection_indices] =
+      detail::nbr_intersection(handle,
+                              graph_view,
+                              cugraph::edge_dummy_property_t{}.view(),
+                              edge_first + prev_chunk_size,
+                              edge_first + prev_chunk_size + chunk_size,
+                              std::array<bool, 2>{true, true},
+                              false /*FIXME: pass 'do_expensive_check' as argument*/);
+
+    // Update the number of triangles of each (p, q) edges by looking at their intersection
+    // size
+    thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator<edge_t>(0),
+        thrust::make_counting_iterator<edge_t>(chunk_size),
+        [chunk_start = prev_chunk_size,
+         num_triangles =
+           raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
+         intersection_offsets = raft::device_span<size_t const>(
+           intersection_offsets.data(), intersection_offsets.size())] __device__(auto i) {
+          num_triangles[chunk_start + i] += (intersection_offsets[i + 1] - intersection_offsets[i]);
+        });
+
+    // Given intersection offsets and indices that are used to update the number of
+    // triangles of (p, q) edges where `r`s are the intersection indices, update
+    // the number of triangles of the pairs (p, r) and (q, r).
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator<edge_t>(0),
+      thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
+      update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
+        edgelist_srcs.size(),
+        0,
+        prev_chunk_size,
+        raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
+        raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
+        raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
+        edge_first});
+
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator<edge_t>(0),
+      thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
+      update_edges_p_r_q_r_num_triangles<vertex_t, edge_t, decltype(edge_first)>{
+        edgelist_srcs.size(),
+        1,
+        prev_chunk_size,
+        raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
+        raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()),
+        raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
+        edge_first});
+ 
+    prev_chunk_size += chunk_size;
+  }
 
   return num_triangles;
 }
