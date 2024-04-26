@@ -19,7 +19,7 @@ from math import ceil
 
 from pandas import isna
 
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Dict
 
 
 def create_df_from_disjoint_series(series_list: List[cudf.Series]):
@@ -30,6 +30,13 @@ def create_df_from_disjoint_series(series_list: List[cudf.Series]):
         df[s.name] = s
 
     return df
+
+
+def create_df_from_disjoint_arrays(array_dict: Dict[str, cupy.array]):
+    for k in list(array_dict.keys()):
+        array_dict[k] = cudf.Series(array_dict[k], name=k)
+
+    return create_df_from_disjoint_series(list(array_dict.values()))
 
 
 def _write_samples_to_parquet_csr(

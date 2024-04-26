@@ -43,9 +43,9 @@ int generic_egonet_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
   data_type_id_t edge_id_tid   = INT32;
   data_type_id_t edge_type_tid = INT32;
 
@@ -58,7 +58,24 @@ int generic_egonet_test(vertex_t* h_src,
   resource_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, resource_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_sg_test_graph(resource_handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(resource_handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -127,15 +144,17 @@ int generic_egonet_test(vertex_t* h_src,
     weight_t M[num_vertices][num_vertices];
 
     for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
-      for (int r = 0 ; r < num_vertices ; ++r)
-        for (int c = 0 ; c < num_vertices ; ++c)
+      for (int r = 0; r < num_vertices; ++r)
+        for (int c = 0; c < num_vertices; ++c)
           M[r][c] = 0;
 
-      for (size_t e = h_expected_offsets[i] ; e < h_expected_offsets[i+1] ; ++e)
+      for (size_t e = h_expected_offsets[i]; e < h_expected_offsets[i + 1]; ++e)
         M[h_expected_src[e]][h_expected_dst[e]] = 1;
 
-      for (size_t e = h_result_offsets[i] ; (e < h_result_offsets[i+1]) && (test_ret_value == 0) ; ++e) {
-        TEST_ASSERT(test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
+      for (size_t e = h_result_offsets[i]; (e < h_result_offsets[i + 1]) && (test_ret_value == 0);
+           ++e) {
+        TEST_ASSERT(
+          test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
       }
     }
 

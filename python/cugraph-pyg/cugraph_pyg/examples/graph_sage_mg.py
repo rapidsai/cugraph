@@ -17,6 +17,7 @@ from ogb.nodeproppred import NodePropPredDataset
 import time
 import argparse
 import gc
+import warnings
 
 import torch
 import numpy as np
@@ -405,7 +406,8 @@ def parse_args():
         "--dask_scheduler_file",
         type=str,
         help="The path to the dask scheduler file",
-        required=True,
+        required=False,
+        default=None,
     )
 
     return parser.parse_args()
@@ -413,19 +415,24 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.dask_scheduler_file is None:
+        warnings.warn(
+            "You must provide the dask scheduler file " "to run this example.  Exiting."
+        )
 
-    torch_devices = [int(d) for d in args.torch_devices.split(",")]
+    else:
+        torch_devices = [int(d) for d in args.torch_devices.split(",")]
 
-    train_args = (
-        torch_devices,
-        args.torch_manager_ip,
-        args.torch_manager_port,
-        args.dask_scheduler_file,
-        args.num_epochs,
-        args.features_on_gpu,
-    )
+        train_args = (
+            torch_devices,
+            args.torch_manager_ip,
+            args.torch_manager_port,
+            args.dask_scheduler_file,
+            args.num_epochs,
+            args.features_on_gpu,
+        )
 
-    tmp.spawn(train, args=train_args, nprocs=len(torch_devices))
+        tmp.spawn(train, args=train_args, nprocs=len(torch_devices))
 
 
 if __name__ == "__main__":

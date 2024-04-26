@@ -69,8 +69,8 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
   size_t num_seeds_to_use = num_seeds;
   if (rank != 0) { num_seeds_to_use = 0; }
 
-  ret_code =
-    cugraph_type_erased_device_array_create(resource_handle, num_seeds_to_use, INT32, &seeds, &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    resource_handle, num_seeds_to_use, INT32, &seeds, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "seeds create failed.");
 
   seeds_view = cugraph_type_erased_device_array_view(seeds);
@@ -122,7 +122,10 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
       resource_handle, (byte_t*)h_result_offsets, offsets, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-    printf("rank = %d, num_result_offsets = %lu, num_seeds = %lu\n", rank, num_result_offsets, num_seeds);
+    printf("rank = %d, num_result_offsets = %lu, num_seeds = %lu\n",
+           rank,
+           num_result_offsets,
+           num_seeds);
 
     TEST_ASSERT(
       test_ret_value, (num_seeds + 1) == num_result_offsets, "number of offsets doesn't match");
