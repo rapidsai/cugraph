@@ -295,9 +295,13 @@ class simpleDistributedGraphImpl:
             # Multi column dask_cudf dataframe
             input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
 
+        def _assign(x, y, names):
+            for name in names:
+                x[name] = y[name]
+            return x
+
         if value_col is not None:
-            for vc in value_col_names:
-                input_ddf[vc] = value_col[vc]
+            input_ddf = input_ddf.map_partitions(_assign, value_col, value_col_names)
 
         self.input_df = input_ddf
 
