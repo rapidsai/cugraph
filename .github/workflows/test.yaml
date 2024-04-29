@@ -16,7 +16,7 @@ on:
 jobs:
   conda-cpp-checks:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -26,7 +26,7 @@ jobs:
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-cpp-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -34,7 +34,7 @@ jobs:
       sha: ${{ inputs.sha }}
   conda-python-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -42,7 +42,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -51,7 +51,7 @@ jobs:
       script: ci/test_wheel_pylibcugraph.sh
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -60,7 +60,7 @@ jobs:
       script: ci/test_wheel_cugraph.sh
   wheel-tests-nx-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -69,7 +69,7 @@ jobs:
       script: ci/test_wheel_nx-cugraph.sh
   wheel-tests-cugraph-dgl:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -79,7 +79,7 @@ jobs:
       matrix_filter: map(select(.ARCH == "amd64"))
   wheel-tests-cugraph-pyg:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -89,7 +89,7 @@ jobs:
       matrix_filter: map(select(.ARCH == "amd64"))
   wheel-tests-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.04
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.06
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
