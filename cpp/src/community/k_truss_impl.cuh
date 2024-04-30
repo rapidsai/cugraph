@@ -534,7 +534,7 @@ k_truss(raft::handle_t const& handle,
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
         : std::nullopt;
-  
+
     rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                              handle.get_stream());
     core_number(
