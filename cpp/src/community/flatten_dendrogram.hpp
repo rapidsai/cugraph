@@ -60,31 +60,4 @@ void partition_at_level(raft::handle_t const& handle,
     });
 }
 
-template <typename vertex_t, bool multi_gpu>
-void leiden_partition_at_level(raft::handle_t const& handle,
-                               Dendrogram<vertex_t> const& dendrogram,
-                               vertex_t* d_partition,
-                               size_t level)
-{
-  vertex_t local_num_verts = dendrogram.get_level_size_nocheck(0);
-  raft::copy(
-    d_partition, dendrogram.get_level_ptr_nocheck(0), local_num_verts, handle.get_stream());
-
-  rmm::device_uvector<vertex_t> local_vertex_ids_v(local_num_verts, handle.get_stream());
-
-  std::for_each(
-    thrust::make_counting_iterator<size_t>(0),
-    thrust::make_counting_iterator<size_t>((level - 1) / 2),
-    [&handle, &dendrogram, &local_vertex_ids_v, &d_partition, local_num_verts](size_t l) {
-      cugraph::relabel<vertex_t, multi_gpu>(
-        handle,
-        std::tuple<vertex_t const*, vertex_t const*>(dendrogram.get_level_ptr_nocheck(2 * l + 1),
-                                                     dendrogram.get_level_ptr_nocheck(2 * l + 2)),
-        dendrogram.get_level_size_nocheck(2 * l + 1),
-        d_partition,
-        local_num_verts,
-        false);
-    });
-}
-
 }  // namespace cugraph

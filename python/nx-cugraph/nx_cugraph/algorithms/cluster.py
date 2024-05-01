@@ -56,6 +56,13 @@ def triangles(G, nodes=None):
     return G._nodearrays_to_dict(node_ids, triangles)
 
 
+@triangles._should_run
+def _(G, nodes=None):
+    if nodes is None or nodes not in G:
+        return True
+    return "Fast algorithm when computing for a single node; not worth converting."
+
+
 @not_implemented_for("directed")
 @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="triangle_count")
 def clustering(G, nodes=None, weight=None):
@@ -84,6 +91,13 @@ def clustering(G, nodes=None, weight=None):
 @clustering._can_run
 def _(G, nodes=None, weight=None):
     return weight is None and not G.is_directed()
+
+
+@clustering._should_run
+def _(G, nodes=None, weight=None):
+    if nodes is None or nodes not in G:
+        return True
+    return "Fast algorithm when computing for a single node; not worth converting."
 
 
 @not_implemented_for("directed")

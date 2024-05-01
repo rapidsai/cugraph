@@ -178,7 +178,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       }
 
       //
-      // Need to renumber personalization_vertices
+      // Need to renumber start_vertices
       //
       cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -188,8 +188,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
-
-      bool has_labels = start_vertex_labels_ != nullptr;
 
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
         cugraph::uniform_neighbor_sample(
@@ -261,19 +259,21 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
-            cugraph::renumber_and_sort_sampled_edgelist(
+            cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
               handle_,
               std::move(src),
               std::move(dst),
-              wgt ? std::move(wgt) : std::nullopt,
-              edge_id ? std::move(edge_id) : std::nullopt,
-              edge_type ? std::move(edge_type) : std::nullopt,
-              hop ? std::make_optional(std::make_tuple(std::move(*hop), fan_out_->size_))
-                  : std::nullopt,
-              offsets ? std::make_optional(std::make_tuple(
-                          raft::device_span<size_t const>{offsets->data(), offsets->size()},
-                          edge_label->size()))
+              std::move(wgt),
+              std::move(edge_id),
+              std::move(edge_type),
+              std::move(hop),
+              std::nullopt,
+              std::nullopt,
+              offsets ? std::make_optional(
+                          raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
+              edge_label ? edge_label->size() : size_t{1},
+              hop ? fan_out_->size_ : size_t{1},
               src_is_major,
               do_expensive_check_);
 
@@ -296,19 +296,21 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
-            cugraph::renumber_and_compress_sampled_edgelist(
+            cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
               handle_,
               std::move(src),
               std::move(dst),
-              wgt ? std::move(wgt) : std::nullopt,
-              edge_id ? std::move(edge_id) : std::nullopt,
-              edge_type ? std::move(edge_type) : std::nullopt,
-              hop ? std::make_optional(std::make_tuple(std::move(*hop), fan_out_->size_))
-                  : std::nullopt,
-              offsets ? std::make_optional(std::make_tuple(
-                          raft::device_span<size_t const>{offsets->data(), offsets->size()},
-                          edge_label->size()))
+              std::move(wgt),
+              std::move(edge_id),
+              std::move(edge_type),
+              std::move(hop),
+              std::nullopt,
+              std::nullopt,
+              offsets ? std::make_optional(
+                          raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
+              edge_label ? edge_label->size() : size_t{1},
+              hop ? fan_out_->size_ : size_t{1},
               src_is_major,
               options_.compress_per_hop_,
               doubly_compress,
@@ -327,21 +329,21 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         }
 
         std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
-          cugraph::sort_sampled_edgelist(
-            handle_,
-            std::move(src),
-            std::move(dst),
-            wgt ? std::move(wgt) : std::nullopt,
-            edge_id ? std::move(edge_id) : std::nullopt,
-            edge_type ? std::move(edge_type) : std::nullopt,
-            hop ? std::make_optional(std::make_tuple(std::move(*hop), fan_out_->size_))
-                : std::nullopt,
-            offsets ? std::make_optional(std::make_tuple(
-                        raft::device_span<size_t const>{offsets->data(), offsets->size()},
-                        edge_label->size()))
-                    : std::nullopt,
-            src_is_major,
-            do_expensive_check_);
+          cugraph::sort_sampled_edgelist(handle_,
+                                         std::move(src),
+                                         std::move(dst),
+                                         std::move(wgt),
+                                         std::move(edge_id),
+                                         std::move(edge_type),
+                                         std::move(hop),
+                                         offsets
+                                           ? std::make_optional(raft::device_span<size_t const>{
+                                               offsets->data(), offsets->size()})
+                                           : std::nullopt,
+                                         edge_label ? edge_label->size() : size_t{1},
+                                         hop ? fan_out_->size_ : size_t{1},
+                                         src_is_major,
+                                         do_expensive_check_);
 
         majors.emplace(std::move(src));
         minors = std::move(dst);
