@@ -29,6 +29,7 @@
 #include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
+#include <rmm/resource_ref.hpp>
 
 #include <gtest/gtest.h>
 
@@ -52,14 +53,14 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::mr::device_memory_resource* _mr{rmm::mr::get_current_device_resource()};
+  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource()};
 
  public:
   /**
    * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
    *from this fixture
    **/
-  rmm::mr::device_memory_resource* mr() { return _mr; }
+  rmm::device_async_resource_ref mr() { return _mr; }
 };
 
 /// MR factory functions
