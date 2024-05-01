@@ -17,6 +17,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/iterator/iterator_traits.h>
 #include <thrust/tuple.h>
 
 #include <array>
@@ -30,7 +31,7 @@ template <typename TupleType, size_t I, size_t N>
 struct is_thrust_tuple_of_arithemetic_impl {
   constexpr bool evaluate() const
   {
-    if (!std::is_arithmetic<typename thrust::tuple_element<I, TupleType>::type>::value) {
+    if (!std::is_arithmetic_v<typename thrust::tuple_element<I, TupleType>::type>) {
       return false;
     } else {
       return is_thrust_tuple_of_arithemetic_impl<TupleType, I + 1, N>().evaluate();
@@ -123,19 +124,19 @@ struct is_arithmetic_vector : std::false_type {};
 
 template <template <typename> typename Vector, typename T>
 struct is_arithmetic_vector<Vector<T>, Vector>
-  : std::integral_constant<bool, std::is_arithmetic<T>::value> {};
+  : std::integral_constant<bool, std::is_arithmetic_v<T>> {};
 
 template <typename T>
 struct is_std_tuple_of_arithmetic_vectors : std::false_type {};
 
 template <typename... Ts>
 struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>> {
-  static constexpr bool value = (... && std::is_arithmetic<Ts>::value);
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
 };
 
 template <typename T>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic
-  : std::integral_constant<bool, std::is_arithmetic<T>::value> {};
+  : std::integral_constant<bool, std::is_arithmetic_v<T>> {};
 
 template <typename... Ts>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
@@ -196,8 +197,8 @@ auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
 }
 
 template <typename Iterator,
-          typename std::enable_if_t<std::is_arithmetic<
-            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+          typename std::enable_if_t<
+            std::is_arithmetic_v<typename std::iterator_traits<Iterator>::value_type>>* = nullptr>
 auto to_thrust_iterator_tuple(Iterator iter)
 {
   return thrust::make_tuple(iter);
@@ -211,6 +212,53 @@ auto to_thrust_iterator_tuple(Iterator iter)
   return iter.get_iterator_tuple();
 }
 
+template <typename T, size_t I, typename std::enable_if_t<std::is_arithmetic_v<T>>* = nullptr>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_get_or_identity(T val)
+{
+  return val;
+}
+
+template <typename T,
+          size_t I,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_get_or_identity(T val)
+{
+  return thrust::get<I>(val);
+}
+
+template <typename Iterator,
+          size_t I,
+          typename std::enable_if_t<std::is_arithmetic_v<
+            typename thrust::iterator_traits<Iterator>::value_type>>* = nullptr>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_get_or_identity(Iterator val)
+{
+  return val;
+}
+
+template <typename Iterator,
+          size_t I,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
+            typename thrust::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_get_or_identity(Iterator val)
+{
+  return thrust::get<I>(val.get_iterator_tuple());
+}
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
 template <typename... TupleTypes>
