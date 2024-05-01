@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_view.hpp>
 
 #include <type_traits>
 
