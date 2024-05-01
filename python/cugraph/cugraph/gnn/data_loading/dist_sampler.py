@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import os
+import re
 import warnings
 from math import ceil
 
@@ -20,7 +21,8 @@ import numpy as np
 import cupy
 import cudf
 
-from typing import Union, List, Dict, Tuple
+from typing import Union, List, Dict, Tuple, Iterator
+
 from cugraph.utilities import import_optional
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
@@ -31,6 +33,43 @@ torch = import_optional("torch")
 
 TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
+
+class DistSampleReader:
+    def __init__(self, directory:str, *, format: str = "parquet", rank:int = 0):
+        self.__format = format
+        self.__directory = directory
+
+        if format != "parquet":
+            raise ValueError("Invalid format (currently supported: 'parquet')")
+        
+        files = os.listdir(directory)
+        ex = re.compile(r'batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet')
+        filematch = [ex.match(f) for f in files]
+        filematch = [f for f in filematch if f]
+        filematch = [f for f in filematch if int(f[1]) == rank]
+        filematch = sorted(filematch, key=lambda f: int(f[2]), reverse=True)
+        
+        self.__files = filematch
+    
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        if len(self.__files) > 0:
+            f = self.__files.pop()
+            fname = f[0]
+            start_inclusive = int(f[2])
+            end_inclusive = int(f[4])
+
+            df = cudf.read_parquet(os.path.join(self.__directory, fname))
+            tensors = {}
+            for col in list(df.columns):
+                tensors[col] = torch.as_tensor(df[col].dropna(), device='cuda')
+                df.drop(col, axis=1, inplace=True)
+            
+            return tensors, start_inclusive, end_inclusive
+
+        raise StopIteration
 
 class DistSampleWriter:
     def __init__(
@@ -71,6 +110,14 @@ class DistSampleWriter:
     @property
     def _batches_per_partition(self):
         return self.__batches_per_partition
+    
+    def get_reader(self, rank: int) -> Iterator[Tuple[Dict['torch.Tensor'], int, int]]:
+        """
+        Returns an iterator over sampled data.
+        """
+
+        # currently only disk reading is supported
+        return DistSampleReader(self._directory, format=self._format, rank=rank)
 
     def __write_minibatches_coo(self, minibatch_dict):
         has_edge_ids = minibatch_dict["edge_id"] is not None
@@ -166,9 +213,102 @@ class DistSampleWriter:
             )
 
     def __write_minibatches_csr(self, minibatch_dict):
-        raise NotImplementedError(
-            "CSR format currently not supported for distributed sampling"
+        has_edge_ids = minibatch_dict["edge_id"] is not None
+        has_edge_types = minibatch_dict["edge_type"] is not None
+        has_weights = minibatch_dict["weight"] is not None
+
+        if minibatch_dict["renumber_map"] is None:
+            raise ValueError(
+                "Distributed sampling without renumbering is not supported"
+            )
+
+        # Quit if there are no batches to write.
+        if len(minibatch_dict["batch_id"]) == 0:
+            return
+
+        fanout_length = (len(minibatch_dict["label_hop_offsets"]) - 1) // len(
+            minibatch_dict["batch_id"]
         )
+        rank_batch_offset = minibatch_dict["batch_id"][0]
+
+        for p in range(
+            0, int(ceil(len(minibatch_dict["batch_id"]) / self.__batches_per_partition))
+        ):
+            partition_start = p * (self.__batches_per_partition)
+            partition_end = (p + 1) * (self.__batches_per_partition)
+
+            label_hop_offsets_array_p = minibatch_dict["label_hop_offsets"][
+                partition_start * fanout_length : partition_end * fanout_length + 1
+            ]
+
+            batch_id_array_p = minibatch_dict["batch_id"][partition_start:partition_end]
+            start_batch_id = batch_id_array_p[0] - rank_batch_offset
+
+            # major offsets and minors
+            major_offsets_start_incl, major_offsets_end_incl = label_hop_offsets_array_p[[0, -1]]
+
+            start_ix,end_ix = minibatch_dict['major_offsets'][[major_offsets_start_incl, major_offsets_end_incl]]
+
+            major_offsets_array_p = minibatch_dict["major_offsets"][major_offsets_start_incl : major_offsets_end_incl + 1]
+
+            minors_array_p = minibatch_dict["minors"][start_ix:end_ix]
+            edge_id_array_p = (
+                minibatch_dict["edge_id"][start_ix:end_ix]
+                if has_edge_ids
+                else cupy.array([], dtype="int64")
+            )
+            edge_type_array_p = (
+                minibatch_dict["edge_type"][start_ix:end_ix]
+                if has_edge_types
+                else cupy.array([], dtype="int32")
+            )
+            weight_array_p = (
+                minibatch_dict["weight"][start_ix:end_ix]
+                if has_weights
+                else cupy.array([], dtype="float32")
+            )
+
+            # create the renumber map offsets
+            renumber_map_offsets_array_p = minibatch_dict["renumber_map_offsets"][
+                partition_start : partition_end + 1
+            ]
+
+            renumber_map_start_ix, renumber_map_end_ix = renumber_map_offsets_array_p[
+                [0, -1]
+            ]
+
+            renumber_map_array_p = minibatch_dict["renumber_map"][
+                renumber_map_start_ix:renumber_map_end_ix
+            ]
+
+            results_dataframe_p = create_df_from_disjoint_arrays(
+                {
+                    "major_offsets": major_offsets_array_p,
+                    "minors": minors_array_p,
+                    "map": renumber_map_array_p,
+                    "label_hop_offsets": label_hop_offsets_array_p,
+                    "weight": weight_array_p,
+                    "edge_id": edge_id_array_p,
+                    "edge_type": edge_type_array_p,
+                    "renumber_map_offsets": renumber_map_offsets_array_p,
+                }
+            )
+
+            end_batch_id = start_batch_id + len(batch_id_array_p) - 1
+            rank = minibatch_dict["rank"] if "rank" in minibatch_dict else 0
+
+            full_output_path = os.path.join(
+                self.__directory,
+                f"batch={rank:05d}.{start_batch_id:08d}-"
+                f"{rank:05d}.{end_batch_id:08d}.parquet",
+            )
+
+            results_dataframe_p.to_parquet(
+                full_output_path,
+                compression=None,
+                index=False,
+                force_nullable_schema=True,
+            )
 
     def write_minibatches(self, minibatch_dict):
         if (minibatch_dict["majors"] is not None) and (
@@ -218,6 +358,13 @@ class DistSampler:
         self.__local_seeds_per_call = local_seeds_per_call
         self.__handle = None
         self.__retain_original_seeds = retain_original_seeds
+
+    def get_reader(self) -> Iterator[Tuple[Dict['torch.Tensor'], int, int]]:
+        """
+        Returns an iterator over sampled data.
+        """
+        rank = torch.distributed.get_rank() if self.is_multi_gpu else 0
+        return self.__writer.get_reader(rank)
 
     def sample_batches(
         self,
@@ -437,13 +584,6 @@ class DistSampler:
             current_batches = current_batches.repeat_interleave(batch_size)[
                 : len(current_seeds)
             ]
-
-            # Handle the case where not all ranks have the same number of call groups,
-            # in which case there will be some empty groups that get submitted on the
-            # ranks with fewer call groups.
-            label_start, label_end = (
-                current_batches[[0, -1]] if len(current_batches) > 0 else (0, -1)
-            )
 
             minibatch_dict = self.sample_batches(
                 seeds=current_seeds,

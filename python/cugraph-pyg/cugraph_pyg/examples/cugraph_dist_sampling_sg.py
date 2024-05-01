@@ -55,6 +55,8 @@ def sample(edgelist, directory):
         G,
         sample_writer,
         fanout=[5, 5],
+        compression="CSR",
+        retain_original_seeds=True,
     )
 
     sampler.sample_from_nodes(seeds, batch_size=16, random_state=62)
@@ -65,7 +67,7 @@ def main():
     el = dataset[0][0]["edge_index"].astype("int64")
 
     with tempfile.TemporaryDirectory() as directory:
-        sample(el, directory)
+        sample(el, "/home/nfs/abarghi/deleteme/")
 
         print("Printing samples...")
         for file in os.listdir(directory):

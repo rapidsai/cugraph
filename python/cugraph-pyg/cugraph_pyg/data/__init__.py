@@ -11,4 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph_pyg.data.cugraph_store import CuGraphStore
+import warnings
+
+from cugraph_pyg.data.dask_graph_store import DaskGraphStore
+from cugraph_pyg.data.graph_store import GraphStore
+
+def CuGraphStore(*args, **kwargs):
+    warnings.warn(
+        "CuGraphStore has been renamed to DaskGraphStore"
+    )
+    return DaskGraphStore(*args, **kwargs)

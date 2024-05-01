@@ -11,6 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph_pyg.loader.cugraph_node_loader import CuGraphNeighborLoader
+import warnings
+
+from cugraph_pyg.loader.node_loader import NodeLoader
+
+from cugraph_pyg.loader.cugraph_node_loader import DaskNeighborLoader
 
 from cugraph_pyg.loader.cugraph_node_loader import BulkSampleLoader
+
+def CuGraphNeighborLoader(*args, **kwargs):
+    warnings.warn(
+        "CuGraphNeighborLoader has been renamed to DaskNeighborLoader"
+    )
+    return DaskNeighborLoader(*args, **kwargs)
