@@ -11,13 +11,79 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Iterator, Union, Dict
+from typing import Optional, Iterator, Union, Dict, Tuple
 
 from cugraph.utilities.utils import import_optional
-from cugraph.gnn import DistSampler, DistSamplerReader
+from cugraph.gnn import DistSampler, DistSampleReader
 
 torch = import_optional("torch")
 torch_geometric = import_optional('torch_geometric')
+
+class SampleIterator:
+    def __init__(self, data: Tuple['torch_geometric.data.FeatureStore', 'torch_geometric.data.GraphStore'], output_iter:Iterator[Union['torch_geometric.sampler.HeteroSamplerOutput', 'torch_geometric.sampler.SamplerOutput']]):
+        self.__feature_store, self.__graph_store = data
+        self.__output_iter = output_iter
+
+    def __next__(self):
+        next_sample = next(self.__output_iter)
+        if isinstance(next_sample, 'torch_geometric.sampler.SamplerOutput'):
+            sz = next_sample.edge.numel()
+            if sz == next_sample.col.numel():
+                col = next_sample.col
+            else:
+                col = torch_geometric.edge_index.ptr2index(next_sample.col, next_sample.edge.numel())
+            
+            data = torch_geometric.data.utils.filter_custom_store(
+                self.__feature_store,
+                self.__graph_store,
+                next_sample.node,
+                next_sample.row,
+                col,
+                next_sample.edge,
+                None,
+            )
+
+            if 'n_id' not in data:
+                data.n_id = next_sample.node
+            if next_sample.edge is not None and 'e_id' not in data:
+                edge = next_sample.edge.to(torch.long)
+                perm = self.node_sampler.edge_permutation
+                data.e_id = perm[edge] if perm is not None else edge
+
+            data.batch = next_sample.batch
+            data.num_sampled_nodes = next_sample.num_sampled_nodes
+            data.num_sampled_edges = next_sample.num_sampled_edges
+
+            data.input_id = next_sample.metadata[0]
+            data.seed_time = next_sample.metadata[1]
+            data.batch_size = next_sample.metadata[0].size(0)
+
+        elif isinstance(next_sample, 'torch_geometric.sampler.HeteroSamplerOutput'):
+            col = {}
+            for edge_type, col_idx in next_sample.col:
+                sz = next_sample.edge[edge_type].numel()
+                if sz == col_idx.numel():
+                    col[edge_type] = col_idx
+                else:
+                    col[edge_type] = torch_geometric.edge_index.ptr2index(col_idx, sz)
+                
+            data = torch_geometric.data.utils.filter_custom_hetero_store(
+                self.__feature_store,
+                self.__graph_store,
+                next_sample.node,
+                next_sample.row,
+                col,
+                next_sample.edge,
+                None,
+            )
+        else:
+            raise ValueError("Invalid output type")
+
+
+    def __iter__(self):
+        return self
+        
+
 
 class SampleReader:
     def __init__(self, base_reader: DistSampleReader):
@@ -119,8 +185,9 @@ class HomogeneousSampleReader(SampleReader):
             return self.__decode_coo(raw_sample_data, index)
 
 class BaseSampler:
-    def __init__(self, sampler: DistSampler):
+    def __init__(self, sampler: DistSampler, data: Tuple['torch_geometric.data.FeatureStore', 'torch_geometric.data.GraphStore']):
         self.__sampler = sampler
+        self.__feature_store, self.__graph_store = data
 
     def sample_from_nodes(self, index: 'torch_geometric.sampler.NodeSamplerInput', **kwargs) -> Iterator[Union['torch_geometric.sampler.HeteroSamplerOutput', 'torch_geometric.sampler.SamplerOutput']]:
         self.__sampler.sample_from_nodes(
@@ -128,9 +195,16 @@ class BaseSampler:
             **kwargs
         )
 
-        return SampleReader(
-            self.__sampler.get_reader()
-        )
+        edge_attrs = self.__graph_store.get_all_edge_attrs()
+        if len(edge_attrs) == 1 and edge_attrs[0].edge_type[0] == edge_attrs[0].edge_type[2]:
+            return HomogeneousSampleReader(
+                self.__sampler.get_reader()
+            )
+        else:
+            # TODO implement heterogeneous sampling
+            raise NotImplementedError(
+                "Sampling heterogeneous graphs is currently unsupported in the non-dask API"
+            )
 
     def sample_from_edges(self, index: 'torch_geometric.sampler.EdgeSamplerInput', neg_sampling: Optional['torch_geometric.sampler.NegativeSampling'], **kwargs) -> Iterator[Union['torch_geometric.sampler.HeteroSamplerOutput', 'torch_geometric.sampler.SamplerOutput']]:
         raise NotImplementedError("Edge sampling is currently unimplemented.")

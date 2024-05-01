@@ -55,7 +55,7 @@ class NodeLoader:
                     This argument currently has no effect.
                 custom_cls: HeteroData
                     This argument currently has no effect.  This loader will
-                    always return a HeteroData object.
+                    always return a Data or HeteroData object.
                 input_id: OptTensor
                     See torch_geometric.loader.NodeLoader.
 
@@ -99,4 +99,6 @@ class NodeLoader:
             
     
     def __iter__(self):
-        return self.__node_sampler.sample_from_nodes(self.__input_data)
+        return cugraph_pyg.sampling.SampleIterator(
+            self.__node_sampler.sample_from_nodes(self.__input_data)
+        )
