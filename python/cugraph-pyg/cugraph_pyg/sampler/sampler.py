@@ -113,7 +113,7 @@ class HomogeneousSampleReader(SampleReader):
     def __init__(self, base_reader: DistSampleReader):
         super().__init__(base_reader)
 
-    def __decode_csc(self, raw_sample_data: Dict['torch.Tensor'], index: int):
+    def __decode_csc(self, raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
         fanout_length = len(raw_sample_data['label_hop_offsets']) - 1 // (len(raw_sample_data['renumber_map_offsets']) - 1)
         
         major_offsets_start_incl = raw_sample_data['label_hop_offsets'][index * fanout_length]
@@ -150,7 +150,7 @@ class HomogeneousSampleReader(SampleReader):
             num_sampled_edges=num_sampled_edges.cpu(),
         )
 
-    def __decode_coo(raw_sample_data: Dict['torch.Tensor'], index: int):
+    def __decode_coo(raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
         fanout_length = len(raw_sample_data['label_hop_offsets']) - 1 // (len(raw_sample_data['renumber_map_offsets']) - 1)
         
         major_minor_start = raw_sample_data['label_hop_offsets'][index * fanout_length]
@@ -178,7 +178,7 @@ class HomogeneousSampleReader(SampleReader):
             num_sampled_edges=num_sampled_edges,
         )
 
-    def _decode(self, raw_sample_data: Dict['torch.Tensor'], index: int):
+    def _decode(self, raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
         if 'major_offsets' in raw_sample_data:
             return self.__decode_csc(raw_sample_data, index)
         else:

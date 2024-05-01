@@ -37,7 +37,7 @@ class TensorDictFeatureStore(object if isinstance(torch_geometric, MissingModule
     def _put_tensor(self, tensor:'torch_geometric.typing.FeatureTensorType', attr: 'torch_geometric.data.feature_store.TensorAttr') ->bool:
         if attr.group_name in self.__features:
             td = self.__features[attr.group_name]
-            batch_size = td.batch_size
+            batch_size = td.batch_size[0]
 
             if attr.is_set('index'):
                 if attr.attr_name in td.keys():
@@ -67,7 +67,7 @@ class TensorDictFeatureStore(object if isinstance(torch_geometric, MissingModule
         if attr.group_name not in self.__features:
             return None
     
-        if attr.attr_name not in self.__features[attr.group_name]:
+        if attr.attr_name not in self.__features[attr.group_name].keys():
             return None
     
         tensor = self.__features[attr.group_name][attr.attr_name]

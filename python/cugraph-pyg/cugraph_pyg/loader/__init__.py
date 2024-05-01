@@ -14,10 +14,11 @@
 import warnings
 
 from cugraph_pyg.loader.node_loader import NodeLoader
+from cugraph_pyg.loader.neighbor_loader import NeighborLoader
 
-from cugraph_pyg.loader.cugraph_node_loader import DaskNeighborLoader
+from cugraph_pyg.loader.dask_node_loader import DaskNeighborLoader
 
-from cugraph_pyg.loader.cugraph_node_loader import BulkSampleLoader
+from cugraph_pyg.loader.dask_node_loader import BulkSampleLoader
 
 def CuGraphNeighborLoader(*args, **kwargs):
     warnings.warn(

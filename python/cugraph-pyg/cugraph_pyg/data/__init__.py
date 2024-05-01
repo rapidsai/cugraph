@@ -15,6 +15,7 @@ import warnings
 
 from cugraph_pyg.data.dask_graph_store import DaskGraphStore
 from cugraph_pyg.data.graph_store import GraphStore
+from cugraph_pyg.data.feature_store import TensorDictFeatureStore
 
 def CuGraphStore(*args, **kwargs):
     warnings.warn(

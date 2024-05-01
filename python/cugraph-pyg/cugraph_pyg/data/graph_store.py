@@ -46,8 +46,10 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
         self.__handle = None
         self.__is_multi_gpu = is_multi_gpu
 
+        super().__init__()
+
     def _put_edge_index(self, edge_index:'torch_geometric.typing.EdgeTensorType', edge_attr:'torch_geometric.data.EdgeAttr') ->bool:
-        if edge_attr.layout != 'coo':
+        if edge_attr.layout != torch_geometric.data.graph_store.EdgeLayout.COO:
             raise ValueError("Only COO format supported")
 
         if isinstance(edge_index, (cupy.ndarray, cudf.Series)):
@@ -59,7 +61,7 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
         elif isinstance(edge_index, cudf.Series):
             edge_index = torch.as_tensor(edge_index.values, device='cuda')
         
-        self.__edge_indices[edge_attr.edge_type] = torch.stack(edge_index)
+        self.__edge_indices[edge_attr.edge_type] = torch.stack([edge_index[0], edge_index[1]])
         self.__sizes[edge_attr.edge_type] = edge_attr.size
 
         # invalidate the graph
@@ -144,6 +146,10 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
                 )
         
         return self.__graph
+
+    def __get_vertex_offset(vertex_type: str):
+        # write this
+        pass
 
     def __get_edgelist(self):
         """

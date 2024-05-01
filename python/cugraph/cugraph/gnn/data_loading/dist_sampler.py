@@ -111,7 +111,7 @@ class DistSampleWriter:
     def _batches_per_partition(self):
         return self.__batches_per_partition
     
-    def get_reader(self, rank: int) -> Iterator[Tuple[Dict['torch.Tensor'], int, int]]:
+    def get_reader(self, rank: int) -> Iterator[Tuple[Dict[str, 'torch.Tensor'], int, int]]:
         """
         Returns an iterator over sampled data.
         """
@@ -359,7 +359,7 @@ class DistSampler:
         self.__handle = None
         self.__retain_original_seeds = retain_original_seeds
 
-    def get_reader(self) -> Iterator[Tuple[Dict['torch.Tensor'], int, int]]:
+    def get_reader(self) -> Iterator[Tuple[Dict[str, 'torch.Tensor'], int, int]]:
         """
         Returns an iterator over sampled data.
         """

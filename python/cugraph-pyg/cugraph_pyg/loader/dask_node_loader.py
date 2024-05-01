@@ -490,7 +490,7 @@ class BulkSampleLoader:
 class DaskNeighborLoader:
     def __init__(
         self,
-        data: Union[CuGraphStore, Tuple[DaskGraphStore, DaskGraphStore]],
+        data: Union[DaskGraphStore, Tuple[DaskGraphStore, DaskGraphStore]],
         input_nodes: Union[InputNodes, int] = None,
         batch_size: int = None,
         **kwargs,

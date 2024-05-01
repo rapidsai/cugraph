@@ -21,6 +21,7 @@ from cugraph_pyg.loader import NodeLoader
 from cugraph_pyg.sampler import BaseSampler
 
 from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
+from cugraph.utilities.utils import import_optional
 
 torch_geometric = import_optional('torch_geometric')
 
