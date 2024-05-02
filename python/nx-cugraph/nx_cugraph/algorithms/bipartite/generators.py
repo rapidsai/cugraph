@@ -48,13 +48,17 @@ def complete_bipartite_graph(n1, n2, create_using=None):
         nodes.extend(range(n2) if nodes2 is None else nodes2)
         if len(set(nodes)) != len(nodes):
             raise nx.NetworkXError("Inputs n1 and n2 must contain distinct nodes")
+    if nx.__version__[:3] <= "3.3":
+        name = f"complete_bipartite_graph({orig_n1}, {orig_n2})"
+    else:
+        name = f"complete_bipartite_graph({n1}, {n2})"
     G = graph_class.from_coo(
         n1 + n2,
         src_indices,
         dst_indices,
         node_values={"bipartite": bipartite},
         id_to_key=nodes,
-        name=f"complete_bipartite_graph({orig_n1}, {orig_n2})",
+        name=name,
     )
     if inplace:
         return create_using._become(G)
