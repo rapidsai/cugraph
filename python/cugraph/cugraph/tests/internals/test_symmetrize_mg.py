@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -252,6 +252,8 @@ def test_mg_symmetrize_df(dask_client, read_datasets):
     dst_col_name = read_datasets["dst_col_name"]
     val_col_name = read_datasets["val_col_name"]
 
-    sym_ddf = cugraph.symmetrize_ddf(ddf, src_col_name, dst_col_name, val_col_name)
+    sym_ddf = cugraph.symmetrize_ddf(
+        ddf, src_col_name, dst_col_name, val_col_name, multi=True
+    )
 
     compare(ddf, sym_ddf, src_col_name, dst_col_name, val_col_name)
