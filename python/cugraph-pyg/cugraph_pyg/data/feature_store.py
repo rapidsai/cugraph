@@ -86,7 +86,7 @@ class TensorDictFeatureStore(object if isinstance(torch_geometric, MissingModule
     def _get_tensor_size(self, attr: 'torch_geometric.data.feature_store.TensorAttr') -> Tuple:
         return self._get_tensor(attr).size()
 
-    def get_all_tensor_attr(self) -> List['torch_geometric.data.feature_store.TensorAttr']:
+    def get_all_tensor_attrs(self) -> List['torch_geometric.data.feature_store.TensorAttr']:
         attrs = []
         for group_name, td in self.__features.items():
             for attr_name in td.keys():

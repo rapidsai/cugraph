@@ -21,7 +21,7 @@ import pylibcugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Dict
 
 
 # Have to use import_optional even though these are required
@@ -43,6 +43,7 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
         self.__edge_indices = tensordict.TensorDict({}, batch_size=(2,))
         self.__sizes = {}
         self.__graph = None
+        self.__vertex_offsets = None
         self.__handle = None
         self.__is_multi_gpu = is_multi_gpu
 
@@ -66,6 +67,7 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
 
         # invalidate the graph
         self.__graph = None
+        self.__vertex_offsets = None
         return True
 
     def _get_edge_index(self, edge_attr:'torch_geometric.data.EdgeAttr')->Optional['torch_geometric.typing.EdgeTensorType']:
@@ -128,28 +130,51 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
             edgelist_dict = self.__get_edgelist()
             if self.is_multi_gpu:
                 self.__graph = pylibcugraph.MGGraph(
-                    self._handle,
+                    self._resource_handle,
                     graph_properties,
-                    [edgelist_dict['src']],
-                    [edgelist_dict['dst']],
-                    edge_id_array=edgelist_dict['eid'],
-                    edge_type_array=edgelist_dict['etp'],
+                    [cupy.asarray(edgelist_dict['src'])],
+                    [cupy.asarray(edgelist_dict['dst'])],
+                    edge_id_array=cupy.asarray(edgelist_dict['eid']),
+                    edge_type_array=cupy.asarray(edgelist_dict['etp']),
                 )
             else:
                 self.__graph = pylibcugraph.SGGraph(
-                    self._handle,
+                    self._resource_handle,
                     graph_properties,
-                    edgelist_dict['src'],
-                    edgelist_dict['dst'],
-                    edge_id_array=edgelist_dict['eid'],
-                    edge_type_array=edgelist_dict['etp'],
+                    cupy.asarray(edgelist_dict['src']),
+                    cupy.asarray(edgelist_dict['dst']),
+                    edge_id_array=cupy.asarray(edgelist_dict['eid']),
+                    edge_type_array=cupy.asarray(edgelist_dict['etp']),
                 )
         
         return self.__graph
 
-    def __get_vertex_offset(vertex_type: str):
-        # write this
-        pass
+    @property
+    def _vertex_offsets(self) -> Dict[str, int]:
+        if self.__vertex_offsets is None:
+            num_vertices = {}
+            for edge_attr in self.get_all_edge_attrs():
+                if edge_attr.size is not None:
+                    num_vertices[edge_attr.edge_type[0]] = max(num_vertices[edge_attr.edge_type[0]], edge_attr.size[0]) if edge_attr.edge_type[0] in num_vertices else edge_attr.size[0]
+                    num_vertices[edge_attr.edge_type[2]] = max(num_vertices[edge_attr.edge_type[2]], edge_attr.size[1]) if edge_attr.edge_type[2] in num_vertices else edge_attr.size[1]
+                else:
+                    if edge_attr.edge_type[0] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[0]] = self.__edge_indices[edge_attr.edge_type][0].max() + 1
+                    if edge_attr.edge_type[2] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[1]] = self.__edge_indices[edge_attr.edge_type][1].max() + 1
+            
+            ordered_keys = sorted(list(num_vertices.keys()))
+            self.__vertex_offsets = {}
+            offset = 0
+            for vtype in ordered_keys:
+                self.__vertex_offsets[vtype] = offset
+                offset += num_vertices[vtype]
+
+        return dict(self.__vertex_offsets)
+
+    @property
+    def is_homogeneous(self) -> bool:
+        return len(self._vertex_offsets) == 1
 
     def __get_edgelist(self):
         """
@@ -173,14 +198,14 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
         # and (paper 1) -> (author 0)
         edge_index = torch.concat([
             torch.stack([
-                self.__edge_indices[dst_type,rel_type,src_type][0] + self.__get_vertex_offset(dst_type),
-                self.__edge_indices[dst_type,rel_type,src_type][1] + self.__get_vertex_offset(src_type),
+                self.__edge_indices[dst_type,rel_type,src_type][0] + self._vertex_offsets[dst_type],
+                self.__edge_indices[dst_type,rel_type,src_type][1] + self._vertex_offsets[src_type],
             ]) for (dst_type,rel_type,src_type) in sorted_keys
         ], axis=1).cuda()
 
-        edge_type_array = torch.arange(len(sorted_keys), dtype='int32').repeat_interleave(torch.tensor([
+        edge_type_array = torch.arange(len(sorted_keys), dtype=torch.int32, device='cuda').repeat_interleave(torch.tensor([
             self.__edge_indices[et].shape[1] for et in sorted_keys
-        ])).cuda()
+        ], device='cuda', dtype=torch.int32))
 
         edge_id_array = torch.concat([
             torch.arange(self.__edge_indices[et].shape[1], dtype=torch.int64, device='cuda')

@@ -49,6 +49,7 @@ class NeighborLoader(NodeLoader):
         filter_per_worker: Optional[bool] = None,
         neighbor_sampler: Optional['torch_geometric.sampler.NeighborSampler'] = None,
         directed: bool = True,  # Deprecated.
+        batch_size: int =16,
         directory:str=None,
         batches_per_partition=256,
         format:str='parquet',
@@ -102,6 +103,9 @@ class NeighborLoader(NodeLoader):
             directed: bool (optional, default=True)
                 Deprecated.
                 See torch_geometric.loader.NeighborLoader.
+            batch_size: int (optional, default=16)
+                The number of input nodes per output minibatch.
+                See torch.utils.dataloader.
             directory: str (optional, default=None)
                 The directory where samples will be temporarily stored.
                 It is recommend that this be set by the user, usually
@@ -132,6 +136,8 @@ class NeighborLoader(NodeLoader):
                 Other keyword arguments passed to the superclass.
             """
 
+            subgraph_type = torch_geometric.sampler.base.SubgraphType(subgraph_type)
+
             if not directed:
                 subgraph_type = torch_geometric.sampler.base.SubgraphType.induced
                 warnings.warn(
@@ -152,8 +158,7 @@ class NeighborLoader(NodeLoader):
                 raise ValueError("Biased sampling is currently unsupported")
             if is_sorted:
                 warnings.warn("The 'is_sorted' argument is ignored by cuGraph.")
-
-            if not isinstance(data, Tuple[cugraph_pyg.data.FeatureStore, cugraph_pyg.data.GraphStore]):
+            if not isinstance(data, (list, tuple)) or not isinstance(data[1], cugraph_pyg.data.GraphStore):
                 # Will eventually automatically convert these objects to cuGraph objects.
                 raise NotImplementedError("Currently can't accept non-cugraph graphs")
 
@@ -181,8 +186,11 @@ class NeighborLoader(NodeLoader):
                     compress_per_hop=False,
                     with_replacement=replace,
                     local_seeds_per_call=local_seeds_per_call,
-                )
+                ),
+                (feature_store, graph_store),
+                batch_size=batch_size
             )
+            # TODO add heterogeneous support and pass graph_store._vertex_offsets
 
             super().__init__(
                 (feature_store, graph_store),

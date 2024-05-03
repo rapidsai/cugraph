@@ -60,7 +60,7 @@ class NodeLoader:
                     See torch_geometric.loader.NodeLoader.
 
             """
-            if not isinstance(data, Tuple[cugraph_pyg.data.FeatureStore, cugraph_pyg.data.GraphStore]):
+            if not isinstance(data, (list, tuple)) or not isinstance(data[1], cugraph_pyg.data.GraphStore):
                 # Will eventually automatically convert these objects to cuGraph objects.
                 raise NotImplementedError("Currently can't accept non-cugraph graphs")
             
@@ -95,10 +95,13 @@ class NodeLoader:
                 input_type=input_type,
             )
 
+            self.__data = data
+
             self.__node_sampler = node_sampler
             
     
     def __iter__(self):
-        return cugraph_pyg.sampling.SampleIterator(
+        return cugraph_pyg.sampler.SampleIterator(
+            self.__data,
             self.__node_sampler.sample_from_nodes(self.__input_data)
         )

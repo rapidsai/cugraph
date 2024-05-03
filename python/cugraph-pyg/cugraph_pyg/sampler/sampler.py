@@ -26,14 +26,14 @@ class SampleIterator:
 
     def __next__(self):
         next_sample = next(self.__output_iter)
-        if isinstance(next_sample, 'torch_geometric.sampler.SamplerOutput'):
+        if isinstance(next_sample, torch_geometric.sampler.SamplerOutput):
             sz = next_sample.edge.numel()
             if sz == next_sample.col.numel():
                 col = next_sample.col
             else:
                 col = torch_geometric.edge_index.ptr2index(next_sample.col, next_sample.edge.numel())
             
-            data = torch_geometric.data.utils.filter_custom_store(
+            data = torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
                 next_sample.node,
@@ -47,18 +47,17 @@ class SampleIterator:
                 data.n_id = next_sample.node
             if next_sample.edge is not None and 'e_id' not in data:
                 edge = next_sample.edge.to(torch.long)
-                perm = self.node_sampler.edge_permutation
-                data.e_id = perm[edge] if perm is not None else edge
+                data.e_id = edge
 
             data.batch = next_sample.batch
             data.num_sampled_nodes = next_sample.num_sampled_nodes
             data.num_sampled_edges = next_sample.num_sampled_edges
 
-            data.input_id = next_sample.metadata[0]
-            data.seed_time = next_sample.metadata[1]
-            data.batch_size = next_sample.metadata[0].size(0)
+            data.input_id = data.batch
+            data.seed_time = None
+            data.batch_size = data.input_id.size(0)
 
-        elif isinstance(next_sample, 'torch_geometric.sampler.HeteroSamplerOutput'):
+        elif isinstance(next_sample, torch_geometric.sampler.HeteroSamplerOutput):
             col = {}
             for edge_type, col_idx in next_sample.col:
                 sz = next_sample.edge[edge_type].numel()
@@ -67,7 +66,7 @@ class SampleIterator:
                 else:
                     col[edge_type] = torch_geometric.edge_index.ptr2index(col_idx, sz)
                 
-            data = torch_geometric.data.utils.filter_custom_hetero_store(
+            data = torch_geometric.loader.utils.filter_custom_hetero_store(
                 self.__feature_store,
                 self.__graph_store,
                 next_sample.node,
@@ -76,9 +75,25 @@ class SampleIterator:
                 next_sample.edge,
                 None,
             )
+
+            for key, node in next_sample.node.items():
+                if 'n_id' not in data[key]:
+                    data[key].n_id = node
+
+            for key, edge in (next_sample.edge or {}).items():
+                if edge is not None and 'e_id' not in data[key]:
+                    edge = edge.to(torch.long)
+                    data[key].e_id = edge
+
+            data.set_value_dict('batch', next_sample.batch)
+            data.set_value_dict('num_sampled_nodes', next_sample.num_sampled_nodes)
+            data.set_value_dict('num_sampled_edges', next_sample.num_sampled_edges)
+
+            # TODO figure out how to set input_id for heterogeneous output
         else:
             raise ValueError("Invalid output type")
-
+        
+        return data
 
     def __iter__(self):
         return self
@@ -104,7 +119,10 @@ class SampleReader:
             self.__num_samples_remaining = end_inclusive - start_inclusive + 1
             self.__index = 0
             
-        return self._decode(self.__raw_sample_data, self.__index)
+        out = self._decode(self.__raw_sample_data, self.__index)
+        self.__index += 1
+        self.__num_samples_remaining -= 1
+        return out
 
     def __iter__(self):
         return self
@@ -114,7 +132,7 @@ class HomogeneousSampleReader(SampleReader):
         super().__init__(base_reader)
 
     def __decode_csc(self, raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
-        fanout_length = len(raw_sample_data['label_hop_offsets']) - 1 // (len(raw_sample_data['renumber_map_offsets']) - 1)
+        fanout_length = (len(raw_sample_data['label_hop_offsets']) - 1) // (len(raw_sample_data['renumber_map_offsets']) - 1)
         
         major_offsets_start_incl = raw_sample_data['label_hop_offsets'][index * fanout_length]
         major_offsets_end_incl = raw_sample_data['label_hop_offsets'][(index + 1) * fanout_length]
@@ -133,15 +151,16 @@ class HomogeneousSampleReader(SampleReader):
         current_label_hop_offsets -= current_label_hop_offsets[0].clone()
 
         num_sampled_edges = major_offsets[current_label_hop_offsets].diff()
-        num_sampled_nodes = torch.concat(
-            [
-                current_label_hop_offsets.diff(),
-                (renumber_map.shape[0] - current_label_hop_offsets[-1]).reshape((1,)),
-            ]
-        )
+        
+        print('lho:', current_label_hop_offsets)
+        num_sampled_nodes = current_label_hop_offsets.diff()
+        num_sampled_nodes = torch.concat([
+            num_sampled_nodes.clone(),
+            (renumber_map.shape[0] - num_sampled_nodes.sum()).reshape((1,)),
+        ])
 
         return torch_geometric.sampler.SamplerOutput(
-            node=renumber_map,
+            node=renumber_map.cpu(),
             row=minors,
             col=major_offsets,
             edge=edge_id,
@@ -169,7 +188,7 @@ class HomogeneousSampleReader(SampleReader):
         num_sampled_edges = raw_sample_data['label_hop_offsets'][index * fanout_length : (index + 1) * fanout_length + 1].diff().cpu()
 
         return torch_geometric.sampler.SamplerOutput(
-            node=renumber_map,
+            node=renumber_map.cpu(),
             row=minors,
             col=majors,
             edge=edge_id,
@@ -185,13 +204,15 @@ class HomogeneousSampleReader(SampleReader):
             return self.__decode_coo(raw_sample_data, index)
 
 class BaseSampler:
-    def __init__(self, sampler: DistSampler, data: Tuple['torch_geometric.data.FeatureStore', 'torch_geometric.data.GraphStore']):
+    def __init__(self, sampler: DistSampler, data: Tuple['torch_geometric.data.FeatureStore', 'torch_geometric.data.GraphStore'], batch_size:int=16):
         self.__sampler = sampler
         self.__feature_store, self.__graph_store = data
+        self.__batch_size = batch_size
 
     def sample_from_nodes(self, index: 'torch_geometric.sampler.NodeSamplerInput', **kwargs) -> Iterator[Union['torch_geometric.sampler.HeteroSamplerOutput', 'torch_geometric.sampler.SamplerOutput']]:
         self.__sampler.sample_from_nodes(
             index.node,
+            batch_size=self.__batch_size,
             **kwargs
         )
 

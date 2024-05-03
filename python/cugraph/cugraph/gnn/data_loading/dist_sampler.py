@@ -64,7 +64,9 @@ class DistSampleReader:
             df = cudf.read_parquet(os.path.join(self.__directory, fname))
             tensors = {}
             for col in list(df.columns):
-                tensors[col] = torch.as_tensor(df[col].dropna(), device='cuda')
+                s = df[col].dropna()
+                if len(s) > 0:
+                    tensors[col] = torch.as_tensor(s, device='cuda')
                 df.drop(col, axis=1, inplace=True)
             
             return tensors, start_inclusive, end_inclusive
@@ -242,7 +244,7 @@ class DistSampleWriter:
             ]
 
             batch_id_array_p = minibatch_dict["batch_id"][partition_start:partition_end]
-            start_batch_id = batch_id_array_p[0] - rank_batch_offset
+            start_batch_id = batch_id_array_p[0]
 
             # major offsets and minors
             major_offsets_start_incl, major_offsets_end_incl = label_hop_offsets_array_p[[0, -1]]
@@ -329,7 +331,7 @@ class DistSampler:
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
         writer: DistSampleWriter,
         local_seeds_per_call: int = 32768,
-        retain_original_seeds: bool = False,  # TODO See #4329, needs C API
+        retain_original_seeds: bool = False, 
     ):
         """
         Parameters
@@ -666,12 +668,13 @@ class UniformNeighborSampler(DistSampler):
                 local_label_list, assume_equal_input_size=assume_equal_input_size
             )
 
-            # TODO add calculation of seed vertex label offsets
             if self._retain_original_seeds:
-                warnings.warn(
-                    "The 'retain_original_seeds` parameter is currently ignored "
-                    "since seed retention is not implemented yet."
-                )
+                label_offsets = torch.concat([
+                    torch.searchsorted(batch_ids, local_label_list),
+                    torch.tensor([batch_ids.shape[0]], device='cuda', dtype=torch.int64)
+                ])
+            else:
+                label_offsets = None
 
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
                 self._resource_handle,
@@ -691,10 +694,22 @@ class UniformNeighborSampler(DistSampler):
                 renumber=True,
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
+                retain_seeds=self._retain_original_seeds,
+                label_offsets=cupy.asarray(label_offsets),
                 return_dict=True,
             )
             sampling_results_dict["rank"] = rank
         else:
+            if self._retain_original_seeds:
+                batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
+                local_label_list = torch.unique(batch_ids)
+                label_offsets = torch.concat([
+                    torch.searchsorted(batch_ids, local_label_list),
+                    torch.tensor([batch_ids.shape[0]], device='cuda', dtype=torch.int64)
+                ])
+            else:
+                label_offsets = None
+
             sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
                 self._resource_handle,
                 self._graph,
@@ -711,6 +726,8 @@ class UniformNeighborSampler(DistSampler):
                 renumber=True,
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
+                retain_seeds = self._retain_original_seeds,
+                label_offsets = cupy.asarray(label_offsets),
                 return_dict=True,
             )
 
