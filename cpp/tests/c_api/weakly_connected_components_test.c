@@ -78,14 +78,16 @@ int generic_wcc_test(vertex_t* h_src,
     component_check[i] = num_vertices;
   }
 
-  for (vertex_t i = 0 ; i < num_vertices; ++i) {
+  for (vertex_t i = 0; i < num_vertices; ++i) {
     if (component_check[h_result[h_vertices[i]]] == num_vertices) {
       component_check[h_result[h_vertices[i]]] = h_components[i];
     }
   }
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value, h_components[i] == component_check[h_result[h_vertices[i]]], "component results don't match");
+    TEST_ASSERT(test_ret_value,
+                h_components[i] == component_check[h_result[h_vertices[i]]],
+                "component results don't match");
   }
 
   cugraph_type_erased_device_array_view_free(components);
@@ -104,12 +106,12 @@ int test_weakly_connected_components()
   size_t num_vertices = 12;
 
   vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10,
-                      1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+                         1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
   vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11,
-                      0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
+                         0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
   weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
 
   // WCC wants store_transposed = FALSE
@@ -122,12 +124,12 @@ int test_weakly_connected_components_transpose()
   size_t num_vertices = 12;
 
   vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10,
-                      1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+                         1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
   vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11,
-                      0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
+                         0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
   weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
 
   // WCC wants store_transposed = FALSE

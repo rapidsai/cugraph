@@ -1,6 +1,4 @@
-#=============================================================================
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
-#
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,13 +10,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#=============================================================================
 
-function(find_and_configure_gtest)
-
-    include(${rapids-cmake-dir}/cpm/gtest.cmake)
-    rapids_cpm_gtest()
-
-endfunction()
-
-find_and_configure_gtest()
+from .cugraph_nccl_comms import (
+    cugraph_comms_init,
+    cugraph_comms_shutdown,
+    cugraph_comms_create_unique_id,
+    cugraph_comms_get_raft_handle,
+)

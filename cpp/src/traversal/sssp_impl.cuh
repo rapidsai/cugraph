@@ -279,8 +279,6 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff,
           bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (predecessors != nullptr) {
     detail::sssp(handle,
                  graph_view,

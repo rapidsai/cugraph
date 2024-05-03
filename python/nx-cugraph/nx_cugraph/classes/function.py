@@ -43,3 +43,8 @@ def number_of_selfloops(G):
     G = _to_graph(G)
     is_selfloop = G.src_indices == G.dst_indices
     return int(cp.count_nonzero(is_selfloop))
+
+
+@number_of_selfloops._should_run
+def _(G):
+    return "Fast algorithm; not worth converting."

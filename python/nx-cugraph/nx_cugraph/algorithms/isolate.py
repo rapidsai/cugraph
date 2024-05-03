@@ -37,6 +37,11 @@ def is_isolate(G, n):
     )
 
 
+@is_isolate._should_run
+def _(G, n):
+    return "Fast algorithm; not worth converting."
+
+
 def _mark_isolates(G, symmetrize=None) -> cp.ndarray[bool]:
     """Return a boolean mask array indicating indices of isolated nodes."""
     mark_isolates = cp.ones(len(G), bool)

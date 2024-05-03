@@ -153,12 +153,15 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
                                  typename EdgePartitionEdgeValueInputWrapper::value_type,
                                  EdgeOp>::type;
 
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto const warp_id      = threadIdx.x / raft::warp_size();
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
-                                                edge_partition.major_range_first());
-  auto idx                = static_cast<size_t>(tid);
+  auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
+  auto const warp_id = threadIdx.x / raft::warp_size();
+  auto const lane_id = tid % raft::warp_size();
+  [[maybe_unused]] vertex_t major_start_offset{};  // relevant only when hypersparse is true
+  if constexpr (hypersparse) {
+    major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                             edge_partition.major_range_first());
+  }
+  auto idx = static_cast<size_t>(tid);
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
