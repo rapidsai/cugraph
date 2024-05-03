@@ -150,7 +150,7 @@ else
 fi
 
 if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-  rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_dgl
+  rapids-mamba-retry env create --yes -n test_cugraph_dgl rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
 
   # activate test_cugraph_dgl environment for dgl
   set +u
@@ -168,8 +168,6 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     cugraph \
     cugraph-dgl \
     'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-    'pytorch>=2.0' \
-    "cuda-version=${CONDA_CUDA_VERSION}" \
     "ogb"
 
   rapids-print-env
@@ -192,7 +190,7 @@ else
 fi
 
 if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-  rapids-mamba-retry env create --yes -f env.yaml -n test_cugraph_pyg
+  rapids-mamba-retry env create --yes -n test_cugraph_pyg rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
 
   # Temporarily allow unbound variables for conda activation.
   set +u
@@ -207,8 +205,6 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     --channel pyg \
     --channel nvidia \
     "cugraph-pyg" \
-    "pytorch" \
-    "cuda-version=${CONDA_CUDA_VERSION}" \
     "ogb" \
     "pyg-lib" \
     "torch-scatter"
