@@ -2007,7 +2007,6 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
-//template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu> // FIXME: is store_transposed
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<edge_t> edge_triangle_count(
@@ -2015,7 +2014,6 @@ rmm::device_uvector<edge_t> edge_triangle_count(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> edgelist_srcs,
   raft::device_span<vertex_t> edgelist_dsts);
-
 
 /*
  * @brief Compute K-Truss.

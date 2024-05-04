@@ -45,7 +45,8 @@ struct EdgeTriangleCount_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_EdgeTriangleCount : public ::testing::TestWithParam<std::tuple<EdgeTriangleCount_Usecase, input_usecase_t>> {
+class Tests_EdgeTriangleCount
+  : public ::testing::TestWithParam<std::tuple<EdgeTriangleCount_Usecase, input_usecase_t>> {
  public:
   Tests_EdgeTriangleCount() {}
 
@@ -69,57 +70,57 @@ class Tests_EdgeTriangleCount : public ::testing::TestWithParam<std::tuple<EdgeT
     }
   };
 
-
   template <typename vertex_t, typename edge_t>
-  std::vector<edge_t>
-  edge_triangle_count_reference(std::vector<vertex_t> h_srcs,
-                    std::vector<vertex_t> h_dsts)
+  std::vector<edge_t> edge_triangle_count_reference(std::vector<vertex_t> h_srcs,
+                                                    std::vector<vertex_t> h_dsts)
   {
     std::vector<vertex_t> edge_triangle_counts(h_srcs.size());
     std::uninitialized_fill(edge_triangle_counts.begin(), edge_triangle_counts.end(), 0);
-  
-    for (int i = 0; i < h_srcs.size(); ++i) { // edge centric implementation
+
+    for (int i = 0; i < h_srcs.size(); ++i) {  // edge centric implementation
       // for each edge, find the intersection
-      auto src = h_srcs[i];
-      auto dst = h_dsts[i];
+      auto src          = h_srcs[i];
+      auto dst          = h_dsts[i];
       auto it_src_start = std::lower_bound(h_srcs.begin(), h_srcs.end(), src);
-      auto src_start = std::distance(h_srcs.begin(), it_src_start);
-      
-      auto src_end = src_start + std::distance(it_src_start, std::upper_bound(it_src_start, h_srcs.end(), src));
+      auto src_start    = std::distance(h_srcs.begin(), it_src_start);
+
+      auto src_end =
+        src_start + std::distance(it_src_start, std::upper_bound(it_src_start, h_srcs.end(), src));
 
       auto it_dst_start = std::lower_bound(h_srcs.begin(), h_srcs.end(), dst);
-      auto dst_start = std::distance(h_srcs.begin(), it_dst_start);
-      auto dst_end = dst_start + std::distance(it_dst_start, std::upper_bound(it_dst_start, h_srcs.end(), dst));
+      auto dst_start    = std::distance(h_srcs.begin(), it_dst_start);
+      auto dst_end =
+        dst_start + std::distance(it_dst_start, std::upper_bound(it_dst_start, h_srcs.end(), dst));
 
-      std::set<vertex_t> nbr_intersection; 
+      std::set<vertex_t> nbr_intersection;
       std::set_intersection(h_dsts.begin() + src_start,
                             h_dsts.begin() + src_end,
                             h_dsts.begin() + dst_start,
                             h_dsts.begin() + dst_end,
-                            std::inserter(nbr_intersection, nbr_intersection.end())
-                            );
+                            std::inserter(nbr_intersection, nbr_intersection.end()));
       // Find the supporting edges
-      for(auto v: nbr_intersection){
-        auto it_edge = std::lower_bound(h_dsts.begin() + src_start, h_dsts.begin() + src_end, v);
+      for (auto v : nbr_intersection) {
+        auto it_edge  = std::lower_bound(h_dsts.begin() + src_start, h_dsts.begin() + src_end, v);
         auto idx_edge = std::distance(h_dsts.begin(), it_edge);
         edge_triangle_counts[idx_edge] += 1;
 
-        it_edge = std::lower_bound(h_dsts.begin() + dst_start, h_dsts.begin() + dst_end, v);
+        it_edge  = std::lower_bound(h_dsts.begin() + dst_start, h_dsts.begin() + dst_end, v);
         idx_edge = std::distance(h_dsts.begin(), it_edge);
       }
     }
 
-    std::transform(edge_triangle_counts.begin(), edge_triangle_counts.end(), edge_triangle_counts.begin(), [](auto count) {
-    return count * 3;
-  });
+    std::transform(edge_triangle_counts.begin(),
+                   edge_triangle_counts.end(),
+                   edge_triangle_counts.begin(),
+                   [](auto count) { return count * 3; });
     return std::move(edge_triangle_counts);
   }
 
-
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(std::tuple<EdgeTriangleCount_Usecase const&, input_usecase_t const&> const& param)
+  void run_current_test(
+    std::tuple<EdgeTriangleCount_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber               = false;
+    constexpr bool renumber                           = false;
     auto [edge_triangle_count_usecase, input_usecase] = param;
     raft::handle_t handle{};
     HighResTimer hr_timer{};
@@ -143,15 +144,16 @@ class Tests_EdgeTriangleCount : public ::testing::TestWithParam<std::tuple<EdgeT
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-      std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
+    std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
-      handle,
-      graph_view,
-      edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-      std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt});
-    
+    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) =
+      cugraph::decompress_to_edgelist(
+        handle,
+        graph_view,
+        edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+
     auto d_edge_triangle_counts = cugraph::edge_triangle_count<vertex_t, edge_t, false>(
       handle,
       graph_view,
@@ -182,16 +184,13 @@ class Tests_EdgeTriangleCount : public ::testing::TestWithParam<std::tuple<EdgeT
       auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(handle, d_edge_triangle_counts);
 
       auto h_reference_edge_triangle_counts =
-        edge_triangle_count_reference<vertex_t, edge_t>(
-          h_srcs, h_dsts);
-      
+        edge_triangle_count_reference<vertex_t, edge_t>(h_srcs, h_dsts);
+
       for (size_t i = 0; i < h_srcs.size(); ++i) {
         ASSERT_EQ(h_cugraph_edge_triangle_counts[i], h_reference_edge_triangle_counts[i])
           << "Edge triangle count values do not match with the reference values.";
       }
     }
-    
-  
   }
 };
 
@@ -219,25 +218,24 @@ TEST_P(Tests_EdgeTriangleCount_Rmat, CheckInt64Int64Float)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_EdgeTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(EdgeTriangleCount_Usecase{false, true},
-                      EdgeTriangleCount_Usecase{true, true}
-                      ),
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_EdgeTriangleCount_Rmat,
-                         // enable correctness checks
-                         ::testing::Combine(::testing::Values(EdgeTriangleCount_Usecase{false, true},
-                                                              EdgeTriangleCount_Usecase{true, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_EdgeTriangleCount_Rmat,
+  // enable correctness checks
+  ::testing::Combine(
+    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
+                      EdgeTriangleCount_Usecase{true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
