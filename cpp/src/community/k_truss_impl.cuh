@@ -39,14 +39,6 @@
 
 namespace cugraph {
 
-// FIXME : This will be deleted once edge_triangle_count becomes public
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<edge_t> edge_triangle_count(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> edgelist_srcs,
-  raft::device_span<vertex_t> edgelist_dsts);
-
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
   size_t num_valid_edges{};
@@ -680,7 +672,8 @@ k_truss(raft::handle_t const& handle,
       edge_weight_view,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
-    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false, false>(
+
+    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false>(
       handle,
       cur_graph_view,
       raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),

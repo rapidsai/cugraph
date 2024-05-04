@@ -84,13 +84,12 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
 
   thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
 
-  auto approx_edges_to_intersect_per_iteration =
+  size_t approx_edges_to_intersect_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
-  auto num_chunks = ((edgelist_srcs.size() % approx_edges_to_intersect_per_iteration) == 0)
-                      ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration)
-                      : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
-
+  auto num_chunks        = ((edgelist_srcs.size() % approx_edges_to_intersect_per_iteration) == 0)
+                             ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration)
+                             : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
   size_t prev_chunk_size = 0;
   auto num_edges         = edgelist_srcs.size();
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
@@ -101,7 +100,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
   for (size_t i = 0; i < num_chunks; ++i) {
     auto chunk_size = std::min(approx_edges_to_intersect_per_iteration, num_edges);
     num_edges -= chunk_size;
-
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
       detail::nbr_intersection(handle,
@@ -162,10 +160,10 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<edge_t> edge_triangle_count(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> edgelist_srcs,
   raft::device_span<vertex_t> edgelist_dsts)
 {
