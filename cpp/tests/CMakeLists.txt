@@ -483,8 +483,9 @@ ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 
 ###################################################################################################
-# - Triangle Count tests --------------------------------------------------------------------------
-ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
+# - Edge Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
+
 
 ###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
