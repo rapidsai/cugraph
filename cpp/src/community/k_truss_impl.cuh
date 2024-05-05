@@ -673,9 +673,7 @@ k_truss(raft::handle_t const& handle,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false>(
-      handle,
-      cur_graph_view);
+    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false>(handle, cur_graph_view);
 
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());

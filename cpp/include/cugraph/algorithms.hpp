@@ -2007,11 +2007,9 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
-
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<edge_t> edge_triangle_count(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
 
 /*
  * @brief Compute K-Truss.

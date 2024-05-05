@@ -152,11 +152,10 @@ class Tests_EdgeTriangleCount
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt}); // FIXME: No longer needed
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
-    auto d_edge_triangle_counts = cugraph::edge_triangle_count<vertex_t, edge_t, false>(
-      handle,
-      graph_view);
+    auto d_edge_triangle_counts =
+      cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
