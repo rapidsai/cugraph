@@ -76,10 +76,18 @@ struct update_edges_p_r_q_r_num_triangles {
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_impl(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> edgelist_srcs,
-  raft::device_span<vertex_t> edgelist_dsts)
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view)
 {
+  using weight_t = float;
+  rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) = decompress_to_edgelist(
+    handle,
+    graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
   thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
@@ -162,12 +170,9 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<edge_t> edge_triangle_count(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> edgelist_srcs,
-  raft::device_span<vertex_t> edgelist_dsts)
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
 {
-  return detail::edge_triangle_count_impl(handle, graph_view, edgelist_srcs, edgelist_dsts);
+  return detail::edge_triangle_count_impl(handle, graph_view);
 }
 
 }  // namespace cugraph

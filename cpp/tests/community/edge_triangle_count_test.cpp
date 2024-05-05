@@ -152,13 +152,10 @@ class Tests_EdgeTriangleCount
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
-    auto d_edge_triangle_counts = cugraph::edge_triangle_count<vertex_t, edge_t, false>(
-      handle,
-      graph_view,
-      raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
-      raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+    auto d_edge_triangle_counts =
+      cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -248,6 +245,6 @@ INSTANTIATE_TEST_SUITE_P(
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
     ::testing::Values(EdgeTriangleCount_Usecase{false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(18, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
