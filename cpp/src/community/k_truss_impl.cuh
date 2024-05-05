@@ -675,9 +675,7 @@ k_truss(raft::handle_t const& handle,
 
     auto num_triangles = edge_triangle_count<vertex_t, edge_t, false>(
       handle,
-      cur_graph_view,
-      raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
-      raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+      cur_graph_view);
 
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
