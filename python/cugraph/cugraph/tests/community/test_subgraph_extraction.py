@@ -116,7 +116,7 @@ def test_subgraph_extraction_Graph_nx(graph_file):
     nx_sub = nx.subgraph(G, verts)
 
     cu_verts = cudf.Series(verts)
-    cu_sub = cugraph.induced_subgraph(G, cu_verts)
+    cu_sub = cugraph.induced_subgraph(G, cu_verts)[0]
 
     for (u, v) in cu_sub.edges():
         assert nx_sub.has_edge(u, v)
