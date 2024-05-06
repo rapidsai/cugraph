@@ -150,7 +150,7 @@ else
 fi
 
 if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-  rapids-mamba-retry env create --yes -n test_cugraph_dgl rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
+  rapids-mamba-retry create --yes -n test_cugraph_dgl rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
 
   # activate test_cugraph_dgl environment for dgl
   set +u
