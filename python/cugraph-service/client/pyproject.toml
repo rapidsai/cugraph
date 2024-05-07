@@ -46,7 +46,7 @@ include = [
 ]
 
 [tool.rapids-build-backend]
-build-backend = "scikit_build_core.build"
+build-backend = "setuptools.build_meta"
 requires = []
 commit-file = "cugraph_service_client/GIT_COMMIT"
 dependencies-file = "../../../dependencies.yaml"
