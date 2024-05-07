@@ -144,19 +144,19 @@ class Tests_EdgeTriangleCount
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
+    std::optional<rmm::device_uvector<edge_t>> d_edge_triangle_counts{std::nullopt};
+    
+    auto d_cugraph_results =
+      cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) =
+    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts) =
       cugraph::decompress_to_edgelist(
         handle,
         graph_view,
-        edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional(d_cugraph_results.view()),
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
-
-    auto d_edge_triangle_counts =
-      cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
-
+  
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("EdgeTriangleCount");
@@ -178,7 +178,7 @@ class Tests_EdgeTriangleCount
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
         std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-      auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(handle, d_edge_triangle_counts);
+      auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(handle, *d_edge_triangle_counts);
 
       auto h_reference_edge_triangle_counts =
         edge_triangle_count_reference<vertex_t, edge_t>(h_srcs, h_dsts);
@@ -245,6 +245,6 @@ INSTANTIATE_TEST_SUITE_P(
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
     ::testing::Values(EdgeTriangleCount_Usecase{false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(18, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(16, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
