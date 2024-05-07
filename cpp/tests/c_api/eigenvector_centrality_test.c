@@ -114,9 +114,9 @@ int test_eigenvector_centrality_3971()
   size_t num_edges    = 4;
   size_t num_vertices = 3;
 
-  vertex_t h_src[] = {0, 1, 1, 2};
-  vertex_t h_dst[] = {1, 0, 2, 1};
-  weight_t h_wgt[] = {1.0f, 1.0f, 1.0f, 1.0f};
+  vertex_t h_src[]    = {0, 1, 1, 2};
+  vertex_t h_dst[]    = {1, 0, 2, 1};
+  weight_t h_wgt[]    = {1.0f, 1.0f, 1.0f, 1.0f};
   weight_t h_result[] = {0.5, 0.707107, 0.5};
 
   double epsilon        = 1e-6;

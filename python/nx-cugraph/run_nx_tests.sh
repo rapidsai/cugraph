@@ -24,7 +24,7 @@
 # Warning: cugraph has a .coveragerc file in the <repo root>/python directory,
 # so be mindful of its contents and the CWD when running.
 # FIXME: should something be added to detect/prevent the above?
-
+set -e
 NETWORKX_GRAPH_CONVERT=cugraph \
 NETWORKX_TEST_BACKEND=cugraph \
 NETWORKX_FALLBACK_TO_NX=True \

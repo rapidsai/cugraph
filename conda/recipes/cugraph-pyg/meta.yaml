@@ -20,7 +20,7 @@ build:
 
 requirements:
   build:
-    - sysroot_{{ target_platform }} {{ sysroot_version }}
+    - {{ stdlib("c") }}
   host:
     - cython >=3.0.0
     - python

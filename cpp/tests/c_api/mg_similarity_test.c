@@ -163,9 +163,10 @@ int test_weighted_jaccard(const cugraph_resource_handle_t* handle)
   size_t num_vertices = 7;
   size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
-  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
-  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
   vertex_t h_first[]  = {0, 0, 1};
   vertex_t h_second[] = {1, 2, 3};
@@ -220,9 +221,10 @@ int test_weighted_sorensen(const cugraph_resource_handle_t* handle)
   size_t num_vertices = 7;
   size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
-  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
-  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
   vertex_t h_first[]  = {0, 0, 1};
   vertex_t h_second[] = {1, 2, 3};
@@ -277,9 +279,10 @@ int test_weighted_overlap(const cugraph_resource_handle_t* handle)
   size_t num_vertices = 7;
   size_t num_pairs    = 3;
 
-  vertex_t h_src[]    = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
-  vertex_t h_dst[]    = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
-  weight_t h_wgt[]    = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
   vertex_t h_first[]  = {0, 0, 1};
   vertex_t h_second[] = {1, 2, 3};
