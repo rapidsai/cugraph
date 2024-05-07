@@ -42,7 +42,7 @@ repos:
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.8.0
+    rev: v1.13.4
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]

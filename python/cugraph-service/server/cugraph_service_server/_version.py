@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,4 +26,12 @@ __version__ = (
     .read_text()
     .strip()
 )
-__git_commit__ = ""
+try:
+    __git_commit__ = (
+        importlib.resources.files("cugraph_service_server")
+        .joinpath("GIT_COMMIT")
+        .read_text()
+        .strip()
+    )
+except FileNotFoundError:
+    __git_commit__ = ""

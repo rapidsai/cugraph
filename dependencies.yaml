@@ -70,12 +70,19 @@ files:
     extras:
       table: build-system
     includes:
-      - common_build
       - python_build_wheel
+      - python_build_cythonize
+  py_rapids_build_cugraph:
+    output: pyproject
+    pyproject_dir: python/cugraph
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes:
+      - common_build
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
-      - python_build_cythonize
   py_run_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -104,11 +111,18 @@ files:
     extras:
       table: build-system
     includes:
-      - common_build
       - python_build_wheel
+      - python_build_cythonize
+  py_rapids_build_pylibcugraph:
+    output: pyproject
+    pyproject_dir: python/pylibcugraph
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes:
+      - common_build
       - depends_on_rmm
       - depends_on_pylibraft
-      - python_build_cythonize
   py_run_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -424,6 +438,9 @@ dependencies:
               - python>=3.9,<3.12
   python_build_wheel:
     common:
+      - output_types: [pyproject] # TODO: Enable requirements once packages are available
+        packages:
+          - rapids-build-backend
       - output_types: [conda, pyproject, requirements]
         packages:
           - setuptools>=61.0.0
@@ -582,11 +599,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - rmm-cu12==24.6.*
+              - rmm-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - rmm-cu11==24.6.*
-          - {matrix: null, packages: [*rmm_conda]}
+              - rmm-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_cudf:
     common:
@@ -603,11 +620,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - cudf-cu12==24.6.*
+              - cudf-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - cudf-cu11==24.6.*
-          - {matrix: null, packages: [*cudf_conda]}
+              - cudf-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_dask_cudf:
     common:
@@ -624,11 +641,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - dask-cudf-cu12==24.6.*
+              - dask-cudf-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - dask-cudf-cu11==24.6.*
-          - {matrix: null, packages: [*dask_cudf_conda]}
+              - dask-cudf-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_pylibraft:
     common:
@@ -645,11 +662,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - pylibraft-cu12==24.6.*
+              - pylibraft-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - pylibraft-cu11==24.6.*
-          - {matrix: null, packages: [*pylibraft_conda]}
+              - pylibraft-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_raft_dask:
     common:
@@ -666,11 +683,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - raft-dask-cu12==24.6.*
+              - raft-dask-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - raft-dask-cu11==24.6.*
-          - {matrix: null, packages: [*raft_dask_conda]}
+              - raft-dask-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_pylibcugraph:
     common:
@@ -687,11 +704,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - pylibcugraph-cu12==24.6.*
+              - pylibcugraph-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - pylibcugraph-cu11==24.6.*
-          - {matrix: null, packages: [*pylibcugraph_conda]}
+              - pylibcugraph-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_pylibcugraphops:
     common:
@@ -708,11 +725,11 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - pylibcugraphops-cu12==24.6.*
+              - pylibcugraphops-cu12==24.6.*,>=0.0.0a0
           - matrix: {cuda: "11.*"}
             packages:
-              - pylibcugraphops-cu11==24.6.*
-          - {matrix: null, packages: [*pylibcugraphops_conda]}
+              - pylibcugraphops-cu11==24.6.*,>=0.0.0a0
+          - {matrix: null, packages: null}
 
   depends_on_cupy:
     common:
@@ -728,4 +745,4 @@ dependencies:
           - matrix: {cuda: "11.*"}
             packages: &cupy_packages_cu11
               - cupy-cuda11x>=12.0.0
-          - {matrix: null, packages: *cupy_packages_cu11}
+          - {matrix: null, packages: null}

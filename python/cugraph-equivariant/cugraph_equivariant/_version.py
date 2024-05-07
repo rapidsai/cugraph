@@ -24,4 +24,12 @@ __version__ = (
     .read_text()
     .strip()
 )
-__git_commit__ = ""
+try:
+    __git_commit__ = (
+        importlib.resources.files("cugraph_equivariant")
+        .joinpath("GIT_COMMIT")
+        .read_text()
+        .strip()
+    )
+except FileNotFoundError:
+    __git_commit__ = ""
