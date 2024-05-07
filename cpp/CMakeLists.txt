@@ -165,6 +165,7 @@ endif()
 set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices.cu
     src/utilities/lookup_edge_ids.cu
+    src/utilities/lookup_utils.cu
     src/detail/permute_range.cu
     src/utilities/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
