@@ -26,6 +26,11 @@ def degree_centrality(G):
     return G._nodearray_to_dict(centrality)
 
 
+@degree_centrality._should_run
+def _(G):
+    return "Fast algorithm; not worth converting."
+
+
 @not_implemented_for("undirected")
 @networkx_algorithm(version_added="23.12")
 def in_degree_centrality(G):
@@ -37,6 +42,11 @@ def in_degree_centrality(G):
     return G._nodearray_to_dict(centrality)
 
 
+@in_degree_centrality._should_run
+def _(G):
+    return "Fast algorithm; not worth converting."
+
+
 @not_implemented_for("undirected")
 @networkx_algorithm(version_added="23.12")
 def out_degree_centrality(G):
@@ -46,3 +56,8 @@ def out_degree_centrality(G):
     deg = G._out_degrees_array()
     centrality = deg * (1 / (len(G) - 1))
     return G._nodearray_to_dict(centrality)
+
+
+@out_degree_centrality._should_run
+def _(G):
+    return "Fast algorithm; not worth converting."

@@ -166,10 +166,6 @@ _info = {
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
         "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
-        "k_truss": (
-            "Currently raises `NotImplementedError` for graphs with more than one connected\n"
-            "component when k >= 3. We expect to fix this soon."
-        ),
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
