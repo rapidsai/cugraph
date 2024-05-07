@@ -132,7 +132,7 @@ class HomogeneousSampleReader(SampleReader):
         super().__init__(base_reader)
 
     def __decode_csc(self, raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
-        fanout_length = (len(raw_sample_data['label_hop_offsets']) - 1) // (len(raw_sample_data['renumber_map_offsets']) - 1)
+        fanout_length = (raw_sample_data['label_hop_offsets'].numel() - 1) // (raw_sample_data['renumber_map_offsets'].numel() - 1)
         
         major_offsets_start_incl = raw_sample_data['label_hop_offsets'][index * fanout_length]
         major_offsets_end_incl = raw_sample_data['label_hop_offsets'][(index + 1) * fanout_length]
@@ -141,6 +141,8 @@ class HomogeneousSampleReader(SampleReader):
         minors = raw_sample_data['minors'][major_offsets[0] : major_offsets[-1]]
         edge_id = raw_sample_data['edge_id'][major_offsets[0] : major_offsets[-1]]
         # don't retrieve edge type for a homogeneous graph
+
+        major_offsets -= major_offsets[0].clone()
 
         renumber_map_start = raw_sample_data['renumber_map_offsets'][index]
         renumber_map_end = raw_sample_data['renumber_map_offsets'][index + 1]
@@ -152,11 +154,15 @@ class HomogeneousSampleReader(SampleReader):
 
         num_sampled_edges = major_offsets[current_label_hop_offsets].diff()
         
-        print('lho:', current_label_hop_offsets)
-        num_sampled_nodes = current_label_hop_offsets.diff()
+        num_sampled_nodes_hops = torch.tensor([
+            minors[:num_sampled_edges[:i].sum()].max() + 1
+            for i in range(1, fanout_length + 1)
+        ], device='cpu')
+        
+        num_seeds = torch.searchsorted(major_offsets, num_sampled_edges[0]).reshape((1,)).cpu()
         num_sampled_nodes = torch.concat([
-            num_sampled_nodes.clone(),
-            (renumber_map.shape[0] - num_sampled_nodes.sum()).reshape((1,)),
+            num_seeds,
+            num_sampled_nodes_hops.diff(prepend=num_seeds)
         ])
 
         return torch_geometric.sampler.SamplerOutput(
@@ -164,16 +170,20 @@ class HomogeneousSampleReader(SampleReader):
             row=minors,
             col=major_offsets,
             edge=edge_id,
-            batch=renumber_map[:num_sampled_nodes[0]],
+            batch=renumber_map[:num_seeds],
             num_sampled_nodes=num_sampled_nodes.cpu(),
             num_sampled_edges=num_sampled_edges.cpu(),
         )
 
-    def __decode_coo(raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
-        fanout_length = len(raw_sample_data['label_hop_offsets']) - 1 // (len(raw_sample_data['renumber_map_offsets']) - 1)
+    def __decode_coo(self, raw_sample_data: Dict[str, 'torch.Tensor'], index: int):
+        fanout_length = (raw_sample_data['label_hop_offsets'].numel() - 1) // (raw_sample_data['renumber_map_offsets'].numel() - 1)
         
         major_minor_start = raw_sample_data['label_hop_offsets'][index * fanout_length]
-        major_minor_end = raw_sample_data['label_hop_offsets'][(index + 1) * fanout_length]
+        ix_end = (index + 1) * fanout_length
+        if ix_end == raw_sample_data['label_hop_offsets'].numel():
+            major_minor_end = raw_sample_data['majors'].numel()
+        else:
+            major_minor_end = raw_sample_data['label_hop_offsets'][ix_end]
 
         majors = raw_sample_data['majors'][major_minor_start:major_minor_end]
         minors = raw_sample_data['minors'][major_minor_start:major_minor_end]
@@ -186,14 +196,25 @@ class HomogeneousSampleReader(SampleReader):
         renumber_map = raw_sample_data['map'][renumber_map_start:renumber_map_end]
 
         num_sampled_edges = raw_sample_data['label_hop_offsets'][index * fanout_length : (index + 1) * fanout_length + 1].diff().cpu()
+        
+        num_seeds = (majors[:num_sampled_edges[0]].max() + 1).reshape((1,)).cpu()
+        num_sampled_nodes_hops = torch.tensor([
+            minors[:num_sampled_edges[:i].sum()].max() + 1
+            for i in range(1, fanout_length + 1)
+        ], device='cpu')
+        
+        num_sampled_nodes = torch.concat([
+            num_seeds,
+            num_sampled_nodes_hops.diff(prepend=num_seeds)
+        ])
 
         return torch_geometric.sampler.SamplerOutput(
             node=renumber_map.cpu(),
             row=minors,
             col=majors,
             edge=edge_id,
-            batch=None,
-            num_sampled_nodes=None,
+            batch=renumber_map[:num_seeds],
+            num_sampled_nodes=num_sampled_nodes,
             num_sampled_edges=num_sampled_edges,
         )
 

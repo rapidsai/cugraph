@@ -53,7 +53,8 @@ class NeighborLoader(NodeLoader):
         directory:str=None,
         batches_per_partition=256,
         format:str='parquet',
-        local_seeds_per_call: int=32768,
+        compression:Optional[str]=None,
+        local_seeds_per_call: Optional[int]=None,
         **kwargs,):
             """
             data: Data, HeteroData, or Tuple[FeatureStore, GraphStore]
@@ -125,12 +126,16 @@ class NeighborLoader(NodeLoader):
                 If writing samples to disk, they will be written in this
                 file format.
                 See cugraph.gnn.DistSampleWriter.
-            local_seeds_per_call: int (optional, default=32768)
+            compression: str (optional, default=None)
+                The compression type to use if writing samples to disk.
+                If not provided, it is automatically chosen.
+            local_seeds_per_call: int (optional, default=None)
                 The number of seeds to process within a single sampling call.
                 Manually tuning this parameter is not recommended but reducing
                 it may conserve GPU memory.  The total number of seeds processed
                 per sampling call is equal to the sum of this parameter across
-                all workers.
+                all workers.  If not provided, it will be automatically
+                calculated.
                 See cugraph.gnn.DistSampler.
             **kwargs
                 Other keyword arguments passed to the superclass.
@@ -167,6 +172,11 @@ class NeighborLoader(NodeLoader):
                 self._tempdir = tempfile.TemporaryDirectory()
                 directory = self._tempdir.name
 
+            if compression is None:
+                compression = "CSR"
+            elif compression not in ["CSR", "COO"]:
+                raise ValueError("Invalid value for compression (expected 'CSR' or 'COO')")
+
             writer = DistSampleWriter(
                 directory=directory,
                 batches_per_partition=batches_per_partition,
@@ -182,7 +192,7 @@ class NeighborLoader(NodeLoader):
                     fanout=num_neighbors,
                     prior_sources_behavior='exclude',
                     deduplicate_sources=True,
-                    compression="CSR",
+                    compression=compression,
                     compress_per_hop=False,
                     with_replacement=replace,
                     local_seeds_per_call=local_seeds_per_call,

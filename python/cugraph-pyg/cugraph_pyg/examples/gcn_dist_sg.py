@@ -15,7 +15,7 @@ from rmm.allocators.torch import rmm_torch_allocator
 # Must change allocators immediately upon import
 # or else other imports will cause memory to be
 # allocated and prevent changing the allocator
-rmm.reinitialize(devices=[0], pool_allocator=False, managed_memory=True)
+rmm.reinitialize(devices=[0], pool_allocator=True, managed_memory=True)
 cupy.cuda.set_allocator(rmm_cupy_allocator)
 torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
 
@@ -114,15 +114,6 @@ with tempfile.TemporaryDirectory(dir=args.tempdir_root) as samples_dir:
             batch_size = batch.batch_size
             out = model(batch.x, batch.edge_index)[:batch_size]
             y = batch.y[:batch_size].view(-1).to(torch.long)
-
-            print('y shape:', y.shape)
-            print('y:', y)
-            print('ymin:', y.min())
-            print('ymax:', y.max())
-
-            print('batch:', batch)
-            print(batch.num_sampled_nodes)
-            print(batch.num_sampled_edges)
 
             loss = F.cross_entropy(out, y)
             loss.backward()

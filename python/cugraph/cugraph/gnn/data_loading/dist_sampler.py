@@ -15,13 +15,14 @@ import os
 import re
 import warnings
 from math import ceil
+from functools import reduce
 
 import pylibcugraph
 import numpy as np
 import cupy
 import cudf
 
-from typing import Union, List, Dict, Tuple, Iterator
+from typing import Union, List, Dict, Tuple, Iterator, Optional
 
 from cugraph.utilities import import_optional
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
@@ -330,7 +331,7 @@ class DistSampler:
         self,
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
         writer: DistSampleWriter,
-        local_seeds_per_call: int = 32768,
+        local_seeds_per_call: int,
         retain_original_seeds: bool = False, 
     ):
         """
@@ -341,14 +342,16 @@ class DistSampler:
         writer: DistSampleWriter (required)
             The writer responsible for writing samples to disk
             or, in the future, device or host memory.
-        local_seeds_per_call: int (optional, default=32768)
+        local_seeds_per_call: int
             The number of seeds on this rank this sampler will
             process in a single sampling call.  Batches will
             get split into multiple sampling calls based on
             this parameter.  This parameter must
             be the same across all ranks.  The total number
             of seeds processed per sampling call is this
-            parameter times the world size.
+            parameter times the world size. Subclasses should
+            generally calculate the appropriate number of
+            seeds.
         retain_original_seeds: bool (optional, default=False)
             Whether to retain the original seeds even if they
             do not appear in the output minibatch.  This will
@@ -360,6 +363,7 @@ class DistSampler:
         self.__local_seeds_per_call = local_seeds_per_call
         self.__handle = None
         self.__retain_original_seeds = retain_original_seeds
+
 
     def get_reader(self) -> Iterator[Tuple[Dict[str, 'torch.Tensor'], int, int]]:
         """
@@ -624,12 +628,20 @@ class DistSampler:
 
 
 class UniformNeighborSampler(DistSampler):
+    # Number of vertices in the output minibatch, based
+    # on benchmarking.
+    BASE_VERTICES_PER_BYTE = 0.1107662486009992
+
+    # Default number of seeds if the output minibatch
+    # size can't be estimated.
+    UNKNOWN_VERTICES_DEFAULT = 32768
+
     def __init__(
         self,
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
         writer: DistSampleWriter,
         *,
-        local_seeds_per_call: int = 32768,
+        local_seeds_per_call: Optional[int] = None,
         retain_original_seeds: bool = False,
         fanout: List[int] = [-1],
         prior_sources_behavior: str = "exclude",
@@ -638,18 +650,33 @@ class UniformNeighborSampler(DistSampler):
         compress_per_hop: bool = False,
         with_replacement: bool = False,
     ):
-        super().__init__(
-            graph,
-            writer,
-            local_seeds_per_call=local_seeds_per_call,
-            retain_original_seeds=retain_original_seeds,
-        )
         self.__fanout = fanout
         self.__prior_sources_behavior = prior_sources_behavior
         self.__deduplicate_sources = deduplicate_sources
         self.__compress_per_hop = compress_per_hop
         self.__compression = compression
         self.__with_replacement = with_replacement
+
+        super().__init__(
+            graph,
+            writer,
+            local_seeds_per_call=self.__calc_local_seeds_per_call(local_seeds_per_call),
+            retain_original_seeds=retain_original_seeds,
+        )
+
+    def __calc_local_seeds_per_call(self, local_seeds_per_call: Optional[int]=None):
+        if local_seeds_per_call is None:
+            if len([x for x in self.__fanout if x <= 0]) > 0:
+                return UniformNeighborSampler.UNKNOWN_VERTICES_DEFAULT
+            
+            total_memory = torch.cuda.get_device_properties(0).total_memory
+            fanout_prod = reduce(lambda x, y : x * y, self.__fanout)
+            return int(
+                UniformNeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod           
+            )
+        
+        return local_seeds_per_call
+
 
     def sample_batches(
         self,
