@@ -145,7 +145,7 @@ class Tests_EdgeTriangleCount
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<edge_t>> d_edge_triangle_counts{std::nullopt};
-    
+
     auto d_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
@@ -156,7 +156,7 @@ class Tests_EdgeTriangleCount
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::make_optional(d_cugraph_results.view()),
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
-  
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("EdgeTriangleCount");
