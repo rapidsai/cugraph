@@ -17,6 +17,8 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "prims/edge_bucket.cuh"
+#include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 
 #include <cugraph/graph_functions.hpp>
@@ -74,7 +76,9 @@ struct update_edges_p_r_q_r_num_triangles {
 };
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_impl(
+std::enable_if_t<!multi_gpu,
+                 edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t>>
+edge_triangle_count_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view)
 {
@@ -163,13 +167,36 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<edge_t>> edge_triangle_count_im
     prev_chunk_size += chunk_size;
   }
 
-  return num_triangles;
+  std::vector<rmm::device_uvector<edge_t>> buffer{};
+  buffer.push_back(std::move(num_triangles));
+  buffer.reserve(num_triangles.size());
+  buffer.push_back(std::move(num_triangles));
+
+  auto buff_counts =
+    edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t>(std::move(buffer));
+
+  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> counts(
+    handle, graph_view);
+
+  cugraph::transform_e(
+    handle,
+    graph_view,
+    cugraph::edge_src_dummy_property_t{}.view(),
+    cugraph::edge_dst_dummy_property_t{}.view(),
+    buff_counts.view(),
+    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) {
+      return count;
+    },
+    counts.mutable_view(),
+    false);
+
+  return counts;
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<edge_t> edge_triangle_count(
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
   raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
 {
   return detail::edge_triangle_count_impl(handle, graph_view);
