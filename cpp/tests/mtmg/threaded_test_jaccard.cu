@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,8 @@
 #include <cugraph/mtmg/per_thread_edgelist.hpp>
 #include <cugraph/mtmg/renumber_map.hpp>
 #include <cugraph/mtmg/resource_manager.hpp>
-#include <cugraph/mtmg/vertex_result.hpp>
+#include <cugraph/mtmg/vertex_pair_result.hpp>
 
-#include <raft/comms/mpi_comms.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -39,9 +38,8 @@
 #include <thrust/unique.h>
 
 #include <gtest/gtest.h>
+#include <nccl.h>
 
-#include <filesystem>
-#include <fstream>
 #include <vector>
 
 struct Multithreaded_Usecase {
@@ -49,16 +47,14 @@ struct Multithreaded_Usecase {
   bool check_correctness{true};
 };
 
-// Global variable defining resource manager
-static cugraph::mtmg::resource_manager_t g_resource_manager{};
-static int g_node_rank{-1};
-static int g_num_nodes{-1};
-
 template <typename input_usecase_t>
 class Tests_Multithreaded
   : public ::testing::TestWithParam<std::tuple<Multithreaded_Usecase, input_usecase_t>> {
  public:
   Tests_Multithreaded() {}
+
+  static void SetUpTestCase() {}
+  static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -74,11 +70,7 @@ class Tests_Multithreaded
     return gpu_list;
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            typename result_t,
-            bool multi_gpu>
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   void run_current_test(
     std::tuple<Multithreaded_Usecase const&, input_usecase_t const&> const& param,
     std::vector<int> gpu_list)
@@ -87,42 +79,46 @@ class Tests_Multithreaded
 
     constexpr bool renumber           = true;
     constexpr bool do_expensive_check = false;
+    constexpr bool store_transposed   = false;
 
     auto [multithreaded_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
 
-    result_t constexpr alpha{0.85};
-    result_t constexpr epsilon{1e-6};
-
     size_t device_buffer_size{64 * 1024 * 1024};
     size_t thread_buffer_size{4 * 1024 * 1024};
 
-    int num_local_gpus = gpu_list.size();
-    int num_threads    = num_local_gpus * 4;
+    const int num_threads_per_gpu{4};
+    int num_gpus    = gpu_list.size();
+    int num_threads = num_gpus * num_threads_per_gpu;
 
-    ncclUniqueId instance_manager_id{};
+    cugraph::mtmg::resource_manager_t resource_manager;
 
-    if (g_node_rank == 0) RAFT_NCCL_TRY(ncclGetUniqueId(&instance_manager_id));
+    std::for_each(gpu_list.begin(), gpu_list.end(), [&resource_manager](int gpu_id) {
+      resource_manager.register_local_gpu(gpu_id, rmm::cuda_device_id{gpu_id});
+    });
 
-    RAFT_MPI_TRY(
-      MPI_Bcast(&instance_manager_id, sizeof(instance_manager_id), MPI_CHAR, 0, MPI_COMM_WORLD));
+    ncclUniqueId instance_manager_id;
+    ncclGetUniqueId(&instance_manager_id);
 
-    auto instance_manager = g_resource_manager.create_instance_manager(
-      g_resource_manager.registered_ranks(), instance_manager_id);
+    // Currently the only uses for multiple streams for each CPU threads
+    // associated with a particular GPU, which is a constant set above
+    auto instance_manager = resource_manager.create_instance_manager(
+      resource_manager.registered_ranks(), instance_manager_id, num_threads_per_gpu);
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
-    cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu> graph_view;
-    cugraph::mtmg::vertex_result_t<result_t> pageranks;
+    cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph;
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> graph_view;
+    cugraph::mtmg::vertex_pair_result_t<vertex_t, weight_t> jaccard_results;
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
 
-    auto edge_weights = multithreaded_usecase.test_weighted
-                          ? std::make_optional<cugraph::mtmg::edge_property_t<
-                              cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                              weight_t>>()
-                          : std::nullopt;
+    auto edge_weights =
+      multithreaded_usecase.test_weighted
+        ? std::make_optional<cugraph::mtmg::edge_property_t<
+            cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+            weight_t>>()
+        : std::nullopt;
 
     //
     // Simulate graph creation by spawning threads to walk through the
@@ -131,7 +127,7 @@ class Tests_Multithreaded
     std::vector<std::thread> running_threads;
 
     //  Initialize shared edgelist object, one per GPU
-    for (int i = 0; i < num_local_gpus; ++i) {
+    for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &edgelist,
                                     device_buffer_size,
@@ -152,12 +148,27 @@ class Tests_Multithreaded
     // Load SG edge list
     auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
-        handle, multithreaded_usecase.test_weighted, false, false);
+        handle, multithreaded_usecase.test_weighted, store_transposed, false);
+
+    rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), d_unique_vertices.begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 d_dst_v.begin(),
+                 d_dst_v.end(),
+                 d_unique_vertices.begin() + d_src_v.size());
+    thrust::sort(handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
+
+    d_unique_vertices.resize(thrust::distance(d_unique_vertices.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             d_unique_vertices.begin(),
+                                                             d_unique_vertices.end())),
+                             handle.get_stream());
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);
     auto h_weights_v     = cugraph::test::to_host(handle, d_weights_v);
-    auto unique_vertices = cugraph::test::to_host(handle, d_vertices_v);
+    auto unique_vertices = cugraph::test::to_host(handle, d_unique_vertices);
 
     // Load edgelist from different threads.  We'll use more threads than GPUs here
     for (int i = 0; i < num_threads; ++i) {
@@ -167,13 +178,13 @@ class Tests_Multithreaded
                                     &h_src_v,
                                     &h_dst_v,
                                     &h_weights_v,
-                                    starting_edge_offset = g_node_rank * num_threads + i,
-                                    stride               = g_num_nodes * num_threads]() {
+                                    i,
+                                    num_threads]() {
         auto thread_handle = instance_manager->get_handle();
         cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
-        for (size_t j = starting_edge_offset; j < h_src_v.size(); j += stride) {
+        for (size_t j = i; j < h_src_v.size(); j += num_threads) {
           per_thread_edgelist.append(
             thread_handle,
             h_src_v[j],
@@ -192,14 +203,15 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    for (int i = 0; i < num_local_gpus; ++i) {
+    std::cout << "create graph" << std::endl;
+
+    for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
                                     &edge_weights,
                                     &edgelist,
                                     &renumber_map,
-                                    &pageranks,
-                                    &h_src_v,  // debugging
+                                    &jaccard_results,
                                     is_symmetric = is_symmetric,
                                     renumber,
                                     do_expensive_check]() {
@@ -208,29 +220,34 @@ class Tests_Multithreaded
         if (thread_handle.get_thread_rank() > 0) return;
 
         std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
           edge_t>>
           edge_ids{std::nullopt};
         std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
           int32_t>>
           edge_types{std::nullopt};
 
         edgelist.finalize_buffer(thread_handle);
-        edgelist.consolidate_and_shuffle(thread_handle, true);
+        edgelist.consolidate_and_shuffle(thread_handle, store_transposed);
 
-        cugraph::mtmg::
-          create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, multi_gpu>(
-            thread_handle,
-            edgelist,
-            cugraph::graph_properties_t{is_symmetric, true},
-            renumber,
-            graph,
-            edge_weights,
-            edge_ids,
-            edge_types,
-            renumber_map,
-            do_expensive_check);
+        cugraph::mtmg::create_graph_from_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  edge_t,
+                                                  int32_t,
+                                                  store_transposed,
+                                                  multi_gpu>(
+          thread_handle,
+          edgelist,
+          cugraph::graph_properties_t{is_symmetric, true},
+          renumber,
+          graph,
+          edge_weights,
+          edge_ids,
+          edge_types,
+          renumber_map,
+          do_expensive_check);
       });
     }
 
@@ -241,28 +258,27 @@ class Tests_Multithreaded
 
     graph_view = graph.view();
 
+    std::cout << "call all_pairs jaccard, multi_gpu = " << (multi_gpu ? "TRUE" : "FALSE")
+              << std::endl;
+
     for (int i = 0; i < num_threads; ++i) {
       running_threads.emplace_back(
-        [&instance_manager, &graph_view, &edge_weights, &pageranks, alpha, epsilon]() {
+        [&instance_manager, &graph_view, &edge_weights, &jaccard_results]() {
           auto thread_handle = instance_manager->get_handle();
 
           if (thread_handle.get_thread_rank() > 0) return;
 
-          auto [local_pageranks, metadata] =
-            cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, true>(
+          auto local_results =
+            cugraph::jaccard_all_pairs_coefficients<vertex_t, edge_t, weight_t, true>(
               thread_handle.raft_handle(),
               graph_view.get(thread_handle),
               edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
                            : std::nullopt,
               std::nullopt,
               std::nullopt,
-              std::nullopt,
-              alpha,
-              epsilon,
-              500,
               true);
 
-          pageranks.set(thread_handle, std::move(local_pageranks));
+          jaccard_results.set(thread_handle, std::move(local_results));
         });
     }
 
@@ -271,20 +287,23 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    std::vector<std::tuple<std::vector<vertex_t>, std::vector<result_t>>> computed_pageranks_v;
-    std::mutex computed_pageranks_lock{};
+    std::vector<std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::vector<weight_t>>>
+      computed_similarities_v;
+    std::mutex computed_similarities_lock{};
 
-    auto pageranks_view    = pageranks.view();
+    auto jaccard_results_view = jaccard_results.view();
     auto renumber_map_view = renumber_map ? std::make_optional(renumber_map->view()) : std::nullopt;
 
-    // Load computed_pageranks from different threads.
-    for (int i = 0; i < num_local_gpus; ++i) {
+    std::cout << "process all_pairs jaccard results" << std::endl;
+
+    // Load computed_similarities from different threads.
+    for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph_view,
                                     &renumber_map_view,
-                                    &pageranks_view,
-                                    &computed_pageranks_lock,
-                                    &computed_pageranks_v,
+                                    &jaccard_results_view,
+                                    &computed_similarities_lock,
+                                    &computed_similarities_v,
                                     &h_src_v,
                                     &h_dst_v,
                                     &h_weights_v,
@@ -293,13 +312,13 @@ class Tests_Multithreaded
                                     num_threads]() {
         auto thread_handle = instance_manager->get_handle();
 
-        auto number_of_vertices = unique_vertices->size();
+        auto number_of_vertices = unique_vertices.size();
 
         std::vector<vertex_t> my_vertex_list;
         my_vertex_list.reserve((number_of_vertices + num_threads - 1) / num_threads);
 
         for (size_t j = i; j < number_of_vertices; j += num_threads) {
-          my_vertex_list.push_back((*unique_vertices)[j]);
+          my_vertex_list.push_back(unique_vertices[j]);
         }
 
         rmm::device_uvector<vertex_t> d_my_vertex_list(my_vertex_list.size(),
@@ -309,23 +328,38 @@ class Tests_Multithreaded
                             my_vertex_list.size(),
                             thread_handle.raft_handle().get_stream());
 
-        auto d_my_pageranks = pageranks_view.gather(
-          thread_handle,
-          raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
-          graph_view.get_vertex_partition_range_lasts(thread_handle),
-          graph_view.get_vertex_partition_view(thread_handle),
-          renumber_map_view);
+        auto xxx = graph_view.get_vertex_partition_range_lasts(thread_handle);
 
-        std::vector<result_t> my_pageranks(d_my_pageranks.size());
-        raft::update_host(my_pageranks.data(),
-                          d_my_pageranks.data(),
-                          d_my_pageranks.size(),
+        // TODO: What's this going to look like?
+        auto [d_my_jaccard_v1, d_my_jaccard_v2, d_my_jaccard_similarity] =
+          jaccard_results_view.gather(
+            thread_handle,
+            raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
+            // graph_view.get_vertex_partition_range_lasts(thread_handle),
+            xxx,
+            graph_view.get_vertex_partition_view(thread_handle),
+            renumber_map_view);
+
+        std::vector<vertex_t> my_jaccard_v1(d_my_jaccard_v1.size());
+        std::vector<vertex_t> my_jaccard_v2(d_my_jaccard_v2.size());
+        std::vector<weight_t> my_jaccard_similarity(d_my_jaccard_similarity.size());
+        raft::update_host(my_jaccard_v1.data(),
+                          d_my_jaccard_v1.data(),
+                          d_my_jaccard_v1.size(),
+                          thread_handle.raft_handle().get_stream());
+        raft::update_host(my_jaccard_v2.data(),
+                          d_my_jaccard_v2.data(),
+                          d_my_jaccard_v2.size(),
+                          thread_handle.raft_handle().get_stream());
+        raft::update_host(my_jaccard_similarity.data(),
+                          d_my_jaccard_similarity.data(),
+                          d_my_jaccard_similarity.size(),
                           thread_handle.raft_handle().get_stream());
 
         {
-          std::lock_guard<std::mutex> lock(computed_pageranks_lock);
-          computed_pageranks_v.push_back(
-            std::make_tuple(std::move(my_vertex_list), std::move(my_pageranks)));
+          std::lock_guard<std::mutex> lock(computed_similarities_lock);
+          computed_similarities_v.push_back(std::make_tuple(
+            std::move(my_jaccard_v1), std::move(my_jaccard_v2), std::move(my_jaccard_similarity)));
         }
       });
     }
@@ -336,67 +370,81 @@ class Tests_Multithreaded
     instance_manager->reset_threads();
 
     if (multithreaded_usecase.check_correctness) {
-      // Want to compare the results in computed_pageranks_v with SG results
-      cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(handle);
+      // Want to compare the results in computed_similarities_v with SG results
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
       std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                 weight_t>>
         sg_edge_weights{std::nullopt};
-      std::optional<rmm::device_uvector<vertex_t>> sg_renumber_map{std::nullopt};
 
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, sg_renumber_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, false>(
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
+        cugraph::create_graph_from_edgelist<vertex_t,
+                                            edge_t,
+                                            weight_t,
+                                            edge_t,
+                                            int32_t,
+                                            store_transposed,
+                                            false>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_src_v),
+                                                   std::move(d_dst_v),
+                                                   std::move(d_weights_v),
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   cugraph::graph_properties_t{is_symmetric, true},
+                                                   false);
+
+      std::cout << "calling SG all-pairs" << std::endl;
+      auto [sg_v1, sg_v2, sg_similarities] =
+        cugraph::jaccard_all_pairs_coefficients<vertex_t, edge_t, weight_t, false>(
           handle,
+          sg_graph.view(),
+          sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
           std::nullopt,
-          std::move(d_src_v),
-          std::move(d_dst_v),
-          std::move(d_weights_v),
-          std::nullopt,
-          std::nullopt,
-          cugraph::graph_properties_t{is_symmetric, true},
-          true);
+          std::nullopt);
 
-      auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
-        handle,
-        sg_graph.view(),
-        sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        alpha,
-        epsilon);
-
-      auto h_sg_pageranks    = cugraph::test::to_host(handle, sg_pageranks);
-      auto h_sg_renumber_map = cugraph::test::to_host(handle, sg_renumber_map);
+      auto h_sg_v1           = cugraph::test::to_host(handle, sg_v1);
+      auto h_sg_v2           = cugraph::test::to_host(handle, sg_v2);
+      auto h_sg_similarities = cugraph::test::to_host(handle, sg_similarities);
       auto compare_functor   = cugraph::test::nearly_equal<weight_t>{
         weight_t{1e-3},
-        weight_t{(weight_t{1} / static_cast<weight_t>(h_sg_pageranks.size())) * weight_t{1e-3}}};
+        weight_t{(weight_t{1} / static_cast<weight_t>(h_sg_v1.size())) * weight_t{1e-3}}};
 
-      std::for_each(computed_pageranks_v.begin(),
-                    computed_pageranks_v.end(),
-                    [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t1) {
-                      std::for_each(
-                        thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
-                        thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
-                        [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
-                          vertex_t v  = thrust::get<0>(t2);
-                          weight_t pr = thrust::get<1>(t2);
+      std::map<std::tuple<vertex_t, vertex_t>, weight_t> sg_results;
 
-                          auto pos =
-                            std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
-                          auto offset = std::distance(h_sg_renumber_map->begin(), pos);
+      std::for_each(
+        thrust::make_zip_iterator(h_sg_v1.begin(), h_sg_v2.begin(), h_sg_similarities.begin()),
+        thrust::make_zip_iterator(h_sg_v1.end(), h_sg_v2.end(), h_sg_similarities.end()),
+        [&sg_results](auto tuple) {
+          sg_results.insert(std::make_pair(
+            std::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple)), thrust::get<2>(tuple)));
+        });
 
-                          if (pos == h_sg_renumber_map->end()) {
-                            ASSERT_TRUE(compare_functor(pr, weight_t{0}))
-                              << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
-                              << ", mtmg result = " << pr << ", not in renumber map";
-                          } else {
-                            ASSERT_TRUE(compare_functor(pr, h_sg_pageranks[offset]))
-                              << "vertex " << v << ", SG result = " << h_sg_pageranks[offset]
-                              << ", mtmg result = " << pr
-                              << ", renumber map = " << (*h_sg_renumber_map)[offset];
-                          }
-                        });
-                    });
+      std::for_each(
+        computed_similarities_v.begin(),
+        computed_similarities_v.end(),
+        [&sg_results, compare_functor](auto t1) {
+          std::for_each(
+            thrust::make_zip_iterator(
+              std::get<0>(t1).begin(), std::get<1>(t1).begin(), std::get<2>(t1).begin()),
+            thrust::make_zip_iterator(
+              std::get<0>(t1).end(), std::get<1>(t1).end(), std::get<2>(t1).end()),
+            [&sg_results, compare_functor](auto t2) {
+              vertex_t v1      = thrust::get<0>(t2);
+              vertex_t v2      = thrust::get<1>(t2);
+              weight_t jaccard = thrust::get<2>(t2);
+
+              auto pos = sg_results.find(std::make_tuple(v1, v2));
+
+              ASSERT_NE(pos, sg_results.end())
+                << "vertex pair (" << v1 << "," << v2 << ") from mtmg result not found in SG result"
+                << std::endl;
+
+              ASSERT_TRUE(compare_functor(jaccard, pos->second))
+                << "vertex pair (" << v1 << "," << v2 << ") SG result = " << pos->second
+                << ", mtmg result = " << jaccard;
+            });
+        });
     }
   }
 };
@@ -407,14 +455,14 @@ using Tests_Multithreaded_Rmat = Tests_Multithreaded<cugraph::test::Rmat_Usecase
 // FIXME: add tests for type combinations
 TEST_P(Tests_Multithreaded_File, CheckInt32Int32FloatFloat)
 {
-  run_current_test<int32_t, int32_t, float, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()), get_gpu_list());
+  run_current_test<int32_t, int32_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()), std::vector<int>{{0, 1}});
 }
 
 TEST_P(Tests_Multithreaded_Rmat, CheckInt32Int32FloatFloat)
 {
-  run_current_test<int32_t, int32_t, float, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), get_gpu_list());
+  run_current_test<int32_t, int32_t, float, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), std::vector<int>{{0, 1}});
 }
 
 INSTANTIATE_TEST_SUITE_P(file_test,
@@ -458,61 +506,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
-//
-// Need to customize the test configuration to support multi-node comms not using MPI
-//
-int main(int argc, char** argv)
-{
-  cugraph::test::initialize_mpi(argc, argv);
-  auto comm_rank = cugraph::test::query_mpi_comm_world_rank();
-  auto comm_size = cugraph::test::query_mpi_comm_world_size();
-
-  ::testing::InitGoogleTest(&argc, argv);
-  auto const cmd_opts = parse_test_options(argc, argv);
-  auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();
-  auto resource       = cugraph::test::create_memory_resource(rmm_mode);
-  rmm::mr::set_current_device_resource(resource.get());
-  cugraph::test::g_perf       = cmd_opts["perf"].as<bool>();
-  cugraph::test::g_rmat_scale = (cmd_opts.count("rmat_scale") > 0)
-                                  ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())
-                                  : std::nullopt;
-  cugraph::test::g_rmat_edge_factor =
-    (cmd_opts.count("rmat_edge_factor") > 0)
-      ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())
-      : std::nullopt;
-  cugraph::test::g_test_file_name =
-    (cmd_opts.count("test_file_name") > 0)
-      ? std::make_optional<std::string>(cmd_opts["test_file_name"].as<std::string>())
-      : std::nullopt;
-
-  //
-  //  Set global values for the test.  Need to know the rank of this process,
-  //  the comm size, number of GPUs per node, and the NCCL Id for rank 0.
-  //
-  int num_gpus_this_node{-1};
-  std::vector<int> num_gpus_per_node{};
-
-  g_node_rank = comm_rank;
-  g_num_nodes = comm_size;
-
-  num_gpus_per_node.resize(comm_size);
-
-  RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_this_node));
-  RAFT_MPI_TRY(MPI_Allgather(
-    &num_gpus_this_node, 1, MPI_INT, num_gpus_per_node.data(), 1, MPI_INT, MPI_COMM_WORLD));
-
-  int node_rank{0};
-
-  for (int i = 0; i < comm_size; ++i) {
-    for (int j = 0; j < num_gpus_per_node[i]; ++j) {
-      if (i != comm_rank)
-        g_resource_manager.register_remote_gpu(node_rank++);
-      else
-        g_resource_manager.register_local_gpu(node_rank++, rmm::cuda_device_id{j});
-    }
-  }
-
-  auto result = RUN_ALL_TESTS();
-  cugraph::test::finalize_mpi();
-  return result;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

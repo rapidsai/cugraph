@@ -21,6 +21,7 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/error_check_utils.cuh"
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
@@ -365,6 +366,24 @@ all_pairs_similarity(raft::handle_t const& handle,
         v1.resize(new_size, handle.get_stream());
         v2.resize(new_size, handle.get_stream());
 
+        if constexpr (multi_gpu) {
+          // shuffle vertex pairs
+          auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+
+          std::tie(v1, v2, std::ignore, std::ignore, std::ignore) =
+            detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                           edge_t,
+                                                                                           weight_t,
+                                                                                           int>(
+              handle,
+              std::move(v1),
+              std::move(v2),
+              std::nullopt,
+              std::nullopt,
+              std::nullopt,
+              vertex_partition_range_lasts);
+        }
+
         auto score =
           similarity(handle,
                      graph_view,
@@ -537,6 +556,24 @@ all_pairs_similarity(raft::handle_t const& handle,
     v1.resize(new_size, handle.get_stream());
     v2.resize(new_size, handle.get_stream());
 
+    if constexpr (multi_gpu) {
+      // shuffle vertex pairs
+      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+
+      std::tie(v1, v2, std::ignore, std::ignore, std::ignore) =
+        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                       edge_t,
+                                                                                       weight_t,
+                                                                                       int>(
+          handle,
+          std::move(v1),
+          std::move(v2),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          vertex_partition_range_lasts);
+    }
+
     auto score =
       similarity(handle,
                  graph_view,
@@ -545,6 +582,14 @@ all_pairs_similarity(raft::handle_t const& handle,
                                  raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                  functor,
                  do_expensive_check);
+
+#if 1
+    if constexpr (multi_gpu) { sleep(handle.get_comms().get_rank()); }
+
+    raft::print_device_vector("  v1", v1.data(), v1.size(), std::cout);
+    raft::print_device_vector("  v2", v2.data(), v2.size(), std::cout);
+    raft::print_device_vector("  score", score.data(), score.size(), std::cout);
+#endif
 
     return std::make_tuple(std::move(v1), std::move(v2), std::move(score));
   }

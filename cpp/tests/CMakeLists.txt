@@ -791,6 +791,13 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           UCP::UCP
                          )
 
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    target_link_libraries(MTMG_JACCARD_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          UCP::UCP
+                         )
+
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################
         # - Multi-node MTMG tests ---------------------------------------------------------------------

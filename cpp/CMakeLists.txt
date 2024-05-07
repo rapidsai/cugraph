@@ -284,6 +284,7 @@ set(CUGRAPH_SOURCES
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu
+    src/mtmg/vertex_pairs_result.cu
 )
 
 if(USE_CUGRAPH_OPS)
