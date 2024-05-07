@@ -55,14 +55,14 @@ struct edge_type_and_id_search_container_t {
 template <typename GraphViewType,
           typename EdgeIdInputWrapper,
           typename EdgeTypeInputWrapper,
-          typename EdgeTypeAndIdToSrcDstMapType>
+          typename EdgeTypeAndIdToSrcDstLookupContainerType>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>>
 lookup(raft::handle_t const& handle,
        GraphViewType const& graph_view,
        EdgeIdInputWrapper edge_id_view,
        EdgeTypeInputWrapper edge_type_view,
-       EdgeTypeAndIdToSrcDstMapType const& search_container,
+       EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
        raft::device_span<typename EdgeIdInputWrapper::value_type const> edge_ids_to_lookup,
        typename EdgeTypeInputWrapper::value_type edge_type_to_lookup)
 {
@@ -71,8 +71,8 @@ lookup(raft::handle_t const& handle,
   using edge_t      = typename GraphViewType::edge_type;
   using edge_id_t   = typename EdgeIdInputWrapper::value_type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
-  using value_t     = typename EdgeTypeAndIdToSrcDstMapType::value_type;
-  using store_t     = typename EdgeTypeAndIdToSrcDstMapType::container_t::mapped_type;
+  using value_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
+  using store_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t::mapped_type;
 
   static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
 
@@ -80,10 +80,12 @@ lookup(raft::handle_t const& handle,
   static_assert(std::is_integral_v<edge_type_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
-  static_assert(std::is_same_v<typename EdgeTypeAndIdToSrcDstMapType::edge_id_type, edge_id_t>,
-                "edge_id_t must match EdgeTypeAndIdToSrcDstMapType::edge_id_type");
-  static_assert(std::is_same_v<typename EdgeTypeAndIdToSrcDstMapType::edge_type_type, edge_type_t>,
-                "edge_type_t must match EdgeTypeAndIdToSrcDstMapType::edge_type_type ");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
+    "edge_id_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
+    "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
 
   rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
@@ -144,11 +146,12 @@ lookup(raft::handle_t const& handle,
 template <typename GraphViewType,
           typename EdgeIdInputWrapper,
           typename EdgeTypeInputWrapper,
-          typename EdgeTypeAndIdToSrcDstMapType>
-EdgeTypeAndIdToSrcDstMapType create_edge_id_lookup_map(raft::handle_t const& handle,
-                                                       GraphViewType const& graph_view,
-                                                       EdgeIdInputWrapper edge_id_view,
-                                                       EdgeTypeInputWrapper edge_type_view)
+          typename EdgeTypeAndIdToSrcDstLookupContainerType>
+EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_lookup_map(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeIdInputWrapper edge_id_view,
+  EdgeTypeInputWrapper edge_type_view)
 {
   static_assert(!std::is_same_v<typename EdgeIdInputWrapper::value_type, thrust::nullopt_t>,
                 "Can not create edge id lookup table without edge ids");
@@ -157,9 +160,9 @@ EdgeTypeAndIdToSrcDstMapType create_edge_id_lookup_map(raft::handle_t const& han
   using edge_t      = typename GraphViewType::edge_type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
   using edge_id_t   = typename EdgeIdInputWrapper::value_type;
-  using value_t     = typename EdgeTypeAndIdToSrcDstMapType::value_type;
-  using container_t = typename EdgeTypeAndIdToSrcDstMapType::container_t;
-  using store_t     = typename EdgeTypeAndIdToSrcDstMapType::container_t::mapped_type;
+  using value_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
+  using container_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t;
+  using store_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t::mapped_type;
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
@@ -169,11 +172,13 @@ EdgeTypeAndIdToSrcDstMapType create_edge_id_lookup_map(raft::handle_t const& han
 
   static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
 
-  static_assert(std::is_same_v<typename EdgeTypeAndIdToSrcDstMapType::edge_type_type, edge_type_t>,
-                "edge_type_t must match with EdgeTypeAndIdToSrcDstMapType::edge_type_type");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
+    "edge_type_t must match with EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type");
 
-  static_assert(std::is_same_v<typename EdgeTypeAndIdToSrcDstMapType::edge_id_type, edge_id_t>,
-                "edge_id_t must match with typename EdgeTypeAndIdToSrcDstMapType::edge_id_type");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
+    "edge_id_t must match with typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
 
   std::vector<edge_type_t> h_types_to_this_gpu{};
   std::vector<edge_t> h_freq_of_types_to_this_gpu{};
@@ -716,16 +721,18 @@ EdgeTypeAndIdToSrcDstMapType create_edge_id_lookup_map(raft::handle_t const& han
 }
 
 template edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>
-create_edge_id_lookup_map(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-                          edge_property_view_t<int32_t, int32_t const*> edge_id_view,
-                          edge_property_view_t<int32_t, uint8_t const*> edge_type_view);
+create_edge_id_and_type_to_src_dst_lookup_map(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  edge_property_view_t<int32_t, int32_t const*> edge_id_view,
+  edge_property_view_t<int32_t, uint8_t const*> edge_type_view);
 
 template edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>
-create_edge_id_lookup_map(raft::handle_t const& handle,
-                          graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-                          edge_property_view_t<int64_t, int64_t const*> edge_id_view,
-                          edge_property_view_t<int64_t, uint8_t const*> edge_type_view);
+create_edge_id_and_type_to_src_dst_lookup_map(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  edge_property_view_t<int64_t, int64_t const*> edge_id_view,
+  edge_property_view_t<int64_t, uint8_t const*> edge_type_view);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> lookup(
   raft::handle_t const& handle,
