@@ -94,6 +94,7 @@ def test_core_number(dask_client, dataset, degree_type, benchmark):
 @pytest.mark.mg
 def test_core_number_invalid_input():
     dg = karate_asymmetric.get_graph(create_using=cugraph.Graph(directed=True))
+
     invalid_degree_type = 3
 
     with pytest.raises(ValueError):

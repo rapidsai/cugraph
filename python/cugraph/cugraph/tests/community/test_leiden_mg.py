@@ -38,6 +38,7 @@ def get_mg_graph(dataset, directed):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", "wgt")
+
     return dg
 
 
