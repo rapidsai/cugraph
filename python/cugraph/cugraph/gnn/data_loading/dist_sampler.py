@@ -36,37 +36,44 @@ TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
 
 class DistSampleReader:
-    def __init__(self, directory:str, *, format: str = "parquet", rank:Optional[int] = None, filelist=None):
+    def __init__(
+        self,
+        directory: str,
+        *,
+        format: str = "parquet",
+        rank: Optional[int] = None,
+        filelist=None,
+    ):
         self.__format = format
         self.__directory = directory
 
         if format != "parquet":
             raise ValueError("Invalid format (currently supported: 'parquet')")
-        
+
         if filelist is None:
             files = os.listdir(directory)
-            ex = re.compile(r'batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet')
+            ex = re.compile(r"batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet")
             filematch = [ex.match(f) for f in files]
             filematch = [f for f in filematch if f]
             filematch = [f for f in filematch if int(f[1]) == rank]
 
             batch_count = sum([int(f[4]) - int(f[2]) + 1 for f in filematch])
             filematch = sorted(filematch, key=lambda f: int(f[2]), reverse=True)
-            
+
             self.__files = filematch
         else:
             self.__files = list(filelist)
-        
+
         if rank is None:
             self.__batch_count = batch_count
         else:
-            batch_count = torch.tensor([batch_count], device='cuda')
+            batch_count = torch.tensor([batch_count], device="cuda")
             torch.distributed.all_reduce(batch_count, torch.distributed.ReduceOp.MIN)
             self.__batch_count = int(batch_count)
-    
+
     def __iter__(self):
         return self
-    
+
     def __next__(self):
         if len(self.__files) > 0:
             f = self.__files.pop()
@@ -74,23 +81,24 @@ class DistSampleReader:
             start_inclusive = int(f[2])
             end_inclusive = int(f[4])
 
-            if(end_inclusive - start_inclusive + 1) > self.__batch_count:
+            if (end_inclusive - start_inclusive + 1) > self.__batch_count:
                 end_inclusive = start_inclusive + self.__batch_count - 1
                 self.__batch_count = 0
             else:
-                self.__batch_count -= (end_inclusive - start_inclusive + 1)
+                self.__batch_count -= end_inclusive - start_inclusive + 1
 
             df = cudf.read_parquet(os.path.join(self.__directory, fname))
             tensors = {}
             for col in list(df.columns):
                 s = df[col].dropna()
                 if len(s) > 0:
-                    tensors[col] = torch.as_tensor(s, device='cuda')
+                    tensors[col] = torch.as_tensor(s, device="cuda")
                 df.drop(col, axis=1, inplace=True)
-            
+
             return tensors, start_inclusive, end_inclusive
 
         raise StopIteration
+
 
 class DistSampleWriter:
     def __init__(
@@ -131,8 +139,10 @@ class DistSampleWriter:
     @property
     def _batches_per_partition(self):
         return self.__batches_per_partition
-    
-    def get_reader(self, rank: int) -> Iterator[Tuple[Dict[str, 'torch.Tensor'], int, int]]:
+
+    def get_reader(
+        self, rank: int
+    ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Returns an iterator over sampled data.
         """
@@ -250,7 +260,6 @@ class DistSampleWriter:
         fanout_length = (len(minibatch_dict["label_hop_offsets"]) - 1) // len(
             minibatch_dict["batch_id"]
         )
-        rank_batch_offset = minibatch_dict["batch_id"][0]
 
         for p in range(
             0, int(ceil(len(minibatch_dict["batch_id"]) / self.__batches_per_partition))
@@ -266,11 +275,18 @@ class DistSampleWriter:
             start_batch_id = batch_id_array_p[0]
 
             # major offsets and minors
-            major_offsets_start_incl, major_offsets_end_incl = label_hop_offsets_array_p[[0, -1]]
+            (
+                major_offsets_start_incl,
+                major_offsets_end_incl,
+            ) = label_hop_offsets_array_p[[0, -1]]
 
-            start_ix,end_ix = minibatch_dict['major_offsets'][[major_offsets_start_incl, major_offsets_end_incl]]
+            start_ix, end_ix = minibatch_dict["major_offsets"][
+                [major_offsets_start_incl, major_offsets_end_incl]
+            ]
 
-            major_offsets_array_p = minibatch_dict["major_offsets"][major_offsets_start_incl : major_offsets_end_incl + 1]
+            major_offsets_array_p = minibatch_dict["major_offsets"][
+                major_offsets_start_incl : major_offsets_end_incl + 1
+            ]
 
             minors_array_p = minibatch_dict["minors"][start_ix:end_ix]
             edge_id_array_p = (
@@ -350,7 +366,7 @@ class DistSampler:
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
         writer: DistSampleWriter,
         local_seeds_per_call: int,
-        retain_original_seeds: bool = False, 
+        retain_original_seeds: bool = False,
     ):
         """
         Parameters
@@ -382,8 +398,7 @@ class DistSampler:
         self.__handle = None
         self.__retain_original_seeds = retain_original_seeds
 
-
-    def get_reader(self) -> Iterator[Tuple[Dict[str, 'torch.Tensor'], int, int]]:
+    def get_reader(self) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Returns an iterator over sampled data.
         """
@@ -682,19 +697,20 @@ class UniformNeighborSampler(DistSampler):
             retain_original_seeds=retain_original_seeds,
         )
 
-    def __calc_local_seeds_per_call(self, local_seeds_per_call: Optional[int]=None):
+    def __calc_local_seeds_per_call(self, local_seeds_per_call: Optional[int] = None):
         if local_seeds_per_call is None:
             if len([x for x in self.__fanout if x <= 0]) > 0:
                 return UniformNeighborSampler.UNKNOWN_VERTICES_DEFAULT
-            
-            total_memory = torch.cuda.get_device_properties(0).total_memory
-            fanout_prod = reduce(lambda x, y : x * y, self.__fanout)
-            return int(
-                UniformNeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod           
-            )
-        
-        return local_seeds_per_call
 
+            total_memory = torch.cuda.get_device_properties(0).total_memory
+            fanout_prod = reduce(lambda x, y: x * y, self.__fanout)
+            return int(
+                UniformNeighborSampler.BASE_VERTICES_PER_BYTE
+                * total_memory
+                / fanout_prod
+            )
+
+        return local_seeds_per_call
 
     def sample_batches(
         self,
@@ -714,10 +730,14 @@ class UniformNeighborSampler(DistSampler):
             )
 
             if self._retain_original_seeds:
-                label_offsets = torch.concat([
-                    torch.searchsorted(batch_ids, local_label_list),
-                    torch.tensor([batch_ids.shape[0]], device='cuda', dtype=torch.int64)
-                ])
+                label_offsets = torch.concat(
+                    [
+                        torch.searchsorted(batch_ids, local_label_list),
+                        torch.tensor(
+                            [batch_ids.shape[0]], device="cuda", dtype=torch.int64
+                        ),
+                    ]
+                )
             else:
                 label_offsets = None
 
@@ -748,10 +768,14 @@ class UniformNeighborSampler(DistSampler):
             if self._retain_original_seeds:
                 batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
                 local_label_list = torch.unique(batch_ids)
-                label_offsets = torch.concat([
-                    torch.searchsorted(batch_ids, local_label_list),
-                    torch.tensor([batch_ids.shape[0]], device='cuda', dtype=torch.int64)
-                ])
+                label_offsets = torch.concat(
+                    [
+                        torch.searchsorted(batch_ids, local_label_list),
+                        torch.tensor(
+                            [batch_ids.shape[0]], device="cuda", dtype=torch.int64
+                        ),
+                    ]
+                )
             else:
                 label_offsets = None
 
@@ -771,8 +795,8 @@ class UniformNeighborSampler(DistSampler):
                 renumber=True,
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
-                retain_seeds = self._retain_original_seeds,
-                label_offsets = cupy.asarray(label_offsets),
+                retain_seeds=self._retain_original_seeds,
+                label_offsets=cupy.asarray(label_offsets),
                 return_dict=True,
             )
 

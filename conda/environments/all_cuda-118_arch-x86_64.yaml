@@ -69,6 +69,7 @@ dependencies:
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
+- tensordict
 - ucx-proc=*=gpu
 - ucx-py==0.38.*
 - wget

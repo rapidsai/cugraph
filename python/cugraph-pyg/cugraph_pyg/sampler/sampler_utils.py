@@ -401,4 +401,3 @@ def _sampler_output_from_sampling_results_heterogeneous(
         num_sampled_edges=num_edges_per_hop_dict,
         metadata=metadata,
     )
-
