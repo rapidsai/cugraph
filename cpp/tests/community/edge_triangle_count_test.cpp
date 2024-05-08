@@ -17,9 +17,9 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/check_utilities.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
-#include "utilities/property_generator_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -230,7 +230,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{true, false, true}), // FIXME: Still debugging edge_mask
+                      EdgeTriangleCount_Usecase{
+                        true, false, true}),  // FIXME: Still debugging edge_mask
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
