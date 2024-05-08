@@ -168,7 +168,6 @@ edge_triangle_count_impl(
   }
 
   std::vector<rmm::device_uvector<edge_t>> buffer{};
-  buffer.push_back(std::move(num_triangles));
   buffer.reserve(num_triangles.size());
   buffer.push_back(std::move(num_triangles));
 
