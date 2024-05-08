@@ -159,7 +159,7 @@ def symmetrize_ddf(
     >>> # Init a DASK Cluster
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> # chunksize = dcg.get_chunksize(datasets / 'karate.csv')
-    >>> # ddf = dask_cudf.read_csv(datasets/'karate.csv', chunksize=chunksize,
+    >>> # ddf = dask_cudf.read_csv(datasets/'karate.csv', blocksize=chunksize,
     >>> #                          delimiter=' ',
     >>> #                          names=['src', 'dst', 'weight'],
     >>> #                          dtype=['int32', 'int32', 'float32'])
