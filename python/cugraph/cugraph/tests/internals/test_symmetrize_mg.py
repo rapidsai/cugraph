@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -232,12 +232,12 @@ def test_mg_symmetrize(dask_client, read_datasets):
     if isinstance(sym_src, dask_cudf.Series):
         ddf2 = sym_src.to_frame()
         ddf2 = ddf2.rename(columns={sym_src.name: "src"})
-        ddf2["dst"] = sym_dst
+        ddf2["dst"] = sym_dst.values
     else:
         ddf2 = dask_cudf.concat([sym_src, sym_dst], axis=1)
 
     if val_col_name is not None:
-        ddf2["weight"] = sym_val
+        ddf2["weight"] = sym_val.values
 
     compare(ddf, ddf2, src_col_name, dst_col_name, val_col_name)
 
