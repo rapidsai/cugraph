@@ -128,14 +128,22 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
 
         if self.__graph is None:
             edgelist_dict = self.__get_edgelist()
+
             if self.is_multi_gpu:
+                rank = torch.distributed.get_rank()
+                world_size = torch.distributed.get_world_size()
+
+                vertices_array=cupy.arange(sum(self._num_vertices().values()), dtype='int64')
+                vertices_array = cupy.array_split(vertices_array, world_size)[rank]
+               
                 self.__graph = pylibcugraph.MGGraph(
                     self._resource_handle,
                     graph_properties,
                     [cupy.asarray(edgelist_dict['src'])],
                     [cupy.asarray(edgelist_dict['dst'])],
-                    edge_id_array=cupy.asarray(edgelist_dict['eid']),
-                    edge_type_array=cupy.asarray(edgelist_dict['etp']),
+                    vertices_array=[vertices_array],
+                    edge_id_array=[cupy.asarray(edgelist_dict['eid'])],
+                    edge_type_array=[cupy.asarray(edgelist_dict['etp'])],
                 )
             else:
                 self.__graph = pylibcugraph.SGGraph(
@@ -143,26 +151,31 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
                     graph_properties,
                     cupy.asarray(edgelist_dict['src']),
                     cupy.asarray(edgelist_dict['dst']),
+                    vertices_array=cupy.arange(sum(self._num_vertices.values()), dtype='int64'),
                     edge_id_array=cupy.asarray(edgelist_dict['eid']),
                     edge_type_array=cupy.asarray(edgelist_dict['etp']),
                 )
         
         return self.__graph
 
+    def _num_vertices(self) -> Dict[str, int]:
+        num_vertices = {}
+        for edge_attr in self.get_all_edge_attrs():
+            if edge_attr.size is not None:
+                num_vertices[edge_attr.edge_type[0]] = max(num_vertices[edge_attr.edge_type[0]], edge_attr.size[0]) if edge_attr.edge_type[0] in num_vertices else edge_attr.size[0]
+                num_vertices[edge_attr.edge_type[2]] = max(num_vertices[edge_attr.edge_type[2]], edge_attr.size[1]) if edge_attr.edge_type[2] in num_vertices else edge_attr.size[1]
+            else:
+                if edge_attr.edge_type[0] not in num_vertices:
+                    num_vertices[edge_attr.edge_type[0]] = self.__edge_indices[edge_attr.edge_type][0].max() + 1
+                if edge_attr.edge_type[2] not in num_vertices:
+                    num_vertices[edge_attr.edge_type[1]] = self.__edge_indices[edge_attr.edge_type][1].max() + 1
+        
+        return num_vertices
+
     @property
     def _vertex_offsets(self) -> Dict[str, int]:
-        if self.__vertex_offsets is None:
-            num_vertices = {}
-            for edge_attr in self.get_all_edge_attrs():
-                if edge_attr.size is not None:
-                    num_vertices[edge_attr.edge_type[0]] = max(num_vertices[edge_attr.edge_type[0]], edge_attr.size[0]) if edge_attr.edge_type[0] in num_vertices else edge_attr.size[0]
-                    num_vertices[edge_attr.edge_type[2]] = max(num_vertices[edge_attr.edge_type[2]], edge_attr.size[1]) if edge_attr.edge_type[2] in num_vertices else edge_attr.size[1]
-                else:
-                    if edge_attr.edge_type[0] not in num_vertices:
-                        num_vertices[edge_attr.edge_type[0]] = self.__edge_indices[edge_attr.edge_type][0].max() + 1
-                    if edge_attr.edge_type[2] not in num_vertices:
-                        num_vertices[edge_attr.edge_type[1]] = self.__edge_indices[edge_attr.edge_type][1].max() + 1
-            
+        if self.__vertex_offsets is None:            
+            num_vertices = self._num_vertices()
             ordered_keys = sorted(list(num_vertices.keys()))
             self.__vertex_offsets = {}
             offset = 0
@@ -203,6 +216,7 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
             ]) for (dst_type,rel_type,src_type) in sorted_keys
         ], axis=1).cuda()
 
+        # FIXME this is not calculated correctly
         edge_type_array = torch.arange(len(sorted_keys), dtype=torch.int32, device='cuda').repeat_interleave(torch.tensor([
             self.__edge_indices[et].shape[1] for et in sorted_keys
         ], device='cuda', dtype=torch.int32))

@@ -36,21 +36,33 @@ TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
 
 class DistSampleReader:
-    def __init__(self, directory:str, *, format: str = "parquet", rank:int = 0):
+    def __init__(self, directory:str, *, format: str = "parquet", rank:Optional[int] = None, filelist=None):
         self.__format = format
         self.__directory = directory
 
         if format != "parquet":
             raise ValueError("Invalid format (currently supported: 'parquet')")
         
-        files = os.listdir(directory)
-        ex = re.compile(r'batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet')
-        filematch = [ex.match(f) for f in files]
-        filematch = [f for f in filematch if f]
-        filematch = [f for f in filematch if int(f[1]) == rank]
-        filematch = sorted(filematch, key=lambda f: int(f[2]), reverse=True)
+        if filelist is None:
+            files = os.listdir(directory)
+            ex = re.compile(r'batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet')
+            filematch = [ex.match(f) for f in files]
+            filematch = [f for f in filematch if f]
+            filematch = [f for f in filematch if int(f[1]) == rank]
+
+            batch_count = sum([int(f[4]) - int(f[2]) + 1 for f in filematch])
+            filematch = sorted(filematch, key=lambda f: int(f[2]), reverse=True)
+            
+            self.__files = filematch
+        else:
+            self.__files = list(filelist)
         
-        self.__files = filematch
+        if rank is None:
+            self.__batch_count = batch_count
+        else:
+            batch_count = torch.tensor([batch_count], device='cuda')
+            torch.distributed.all_reduce(batch_count, torch.distributed.ReduceOp.MIN)
+            self.__batch_count = int(batch_count)
     
     def __iter__(self):
         return self
@@ -61,6 +73,12 @@ class DistSampleReader:
             fname = f[0]
             start_inclusive = int(f[2])
             end_inclusive = int(f[4])
+
+            if(end_inclusive - start_inclusive + 1) > self.__batch_count:
+                end_inclusive = start_inclusive + self.__batch_count - 1
+                self.__batch_count = 0
+            else:
+                self.__batch_count -= (end_inclusive - start_inclusive + 1)
 
             df = cudf.read_parquet(os.path.join(self.__directory, fname))
             tensors = {}
@@ -712,7 +730,7 @@ class UniformNeighborSampler(DistSampler):
                 label_to_output_comm_rank=cupy.asarray(label_to_output_comm_rank),
                 h_fan_out=np.array(self.__fanout, dtype="int32"),
                 with_replacement=self.__with_replacement,
-                do_expensive_check=False,
+                do_expensive_check=True,
                 with_edge_properties=True,
                 random_state=random_state + rank,
                 prior_sources_behavior=self.__prior_sources_behavior,
