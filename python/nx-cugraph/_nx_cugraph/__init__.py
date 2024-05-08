@@ -77,6 +77,7 @@ _info = {
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
+        "ego_graph",
         "eigenvector_centrality",
         "empty_graph",
         "florentine_families_graph",
@@ -193,6 +194,9 @@ _info = {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "bellman_ford_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "ego_graph": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "eigenvector_centrality": {
