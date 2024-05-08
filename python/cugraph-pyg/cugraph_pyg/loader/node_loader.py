@@ -119,7 +119,7 @@ class NodeLoader:
             perm = perm[:-d]
         
         input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
-            input_id=self.__input_data.input_id[perm],
+            input_id=None if self.__input_data.input_id is None else self.__input_data.input_id[perm],
             node=self.__input_data.node[perm],
             time=None if self.__input_data.time is None else self.__input_data.time[perm],
             input_type=self.__input_data.input_type,

@@ -216,15 +216,42 @@ class GraphStore(object if isinstance(torch_geometric, MissingModule) else torch
             ]) for (dst_type,rel_type,src_type) in sorted_keys
         ], axis=1).cuda()
 
-        # FIXME this is not calculated correctly
         edge_type_array = torch.arange(len(sorted_keys), dtype=torch.int32, device='cuda').repeat_interleave(torch.tensor([
             self.__edge_indices[et].shape[1] for et in sorted_keys
         ], device='cuda', dtype=torch.int32))
 
-        edge_id_array = torch.concat([
-            torch.arange(self.__edge_indices[et].shape[1], dtype=torch.int64, device='cuda')
-            for et in sorted_keys
-        ])
+        if self.is_multi_gpu:
+            rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+
+            num_edges_t = torch.tensor(
+                [
+                    self.__edge_indices[et].shape[1]
+                    for et in sorted_keys
+                ],
+                device='cuda'
+            )
+            num_edges_all_t = torch.empty(world_size, num_edges_t.numel(), dtype=torch.int64, device='cuda')
+            torch.distributed.all_gather_into_tensor(num_edges_all_t, num_edges_t)
+
+            if rank > 0:
+                start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
+                edge_id_array = torch.concat([
+                    torch.arange(start_offsets[i], start_offsets[i] + num_edges_all_t[rank][i], dtype=torch.int64, device='cuda')
+                    for i in range(len(sorted_keys))
+                ])
+            else:
+                edge_id_array = torch.concat([
+                    torch.arange(self.__edge_indices[et].shape[1], dtype=torch.int64, device='cuda')
+                    for et in sorted_keys
+                ])
+            
+        else:
+            # single GPU
+            edge_id_array = torch.concat([
+                torch.arange(self.__edge_indices[et].shape[1], dtype=torch.int64, device='cuda')
+                for et in sorted_keys
+            ])
 
         return {
             'dst': edge_index[0],
