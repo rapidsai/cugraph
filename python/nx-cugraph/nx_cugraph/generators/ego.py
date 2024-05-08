@@ -21,6 +21,8 @@ import nx_cugraph as nxcg
 
 from ..utils import _dtype_param, _get_float_dtype, index_dtype, networkx_algorithm
 
+__all__ = ["ego_graph"]
+
 
 @networkx_algorithm(
     extra_params=_dtype_param, version_added="24.06", _plc={"bfs", "ego_graph", "sssp"}
