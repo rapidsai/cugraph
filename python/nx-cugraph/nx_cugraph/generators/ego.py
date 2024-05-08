@@ -30,9 +30,7 @@ __all__ = ["ego_graph"]
 def ego_graph(
     G, n, radius=1, center=True, undirected=False, distance=None, *, dtype=None
 ):
-    """Weighted ego_graph with negative cycles is not yet supported.
-    `NotImplementedError` will be raised if there are negative `distance` edge weights.
-    """
+    """Weighted ego_graph with negative cycles is not yet supported. `NotImplementedError` will be raised if there are negative `distance` edge weights."""  # noqa: E501
     if isinstance(G, nx.Graph):
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     if n not in G:
