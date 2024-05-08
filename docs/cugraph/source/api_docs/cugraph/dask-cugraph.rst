@@ -54,7 +54,7 @@ Example
     # multi-GPU CSV reader
     e_list = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         names=['src', 'dst'],
         dtype=['int32', 'int32'],
     )
