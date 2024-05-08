@@ -17,6 +17,7 @@
 
 #include "prims/detail/optional_dataframe_buffer.hpp"
 
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
@@ -941,6 +942,30 @@ class kv_store_t {
     rmm::cuda_stream_view stream,
     std::enable_if_t<binary_search, int32_t> = 0)
     : store_(std::move(keys), std::move(values), invalid_value, key_sorted, stream)
+  {
+  }
+
+  /* when use_binary_search = true */
+  template <bool binary_search = use_binary_search>
+  kv_store_t(rmm::device_uvector<key_t>&& keys,
+             decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
+             decltype(cugraph::invalid_idx<key_t>::value)
+               invalid_value /* invalid_value is returned when match fails for the given key */,
+             bool key_sorted /* if set to true, assume that the input data is sorted and skip
+                                sorting (which is necessary for binary-search) */
+             ,
+             rmm::cuda_stream_view stream,
+             std::enable_if_t<binary_search && is_thrust_tuple<value_t>::value, int32_t> = 0)
+    : store_(
+        std::move(keys),
+        std::move(values),
+        [=]() {
+          auto invalid_row               = value_t{};
+          cuda::std::get<0>(invalid_row) = invalid_value;
+          return invalid_row;
+        }(),
+        key_sorted,
+        stream)
   {
   }
 
