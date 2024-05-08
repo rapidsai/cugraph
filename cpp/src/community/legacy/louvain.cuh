@@ -22,6 +22,7 @@
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/legacy/graph.hpp>
+
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
@@ -29,6 +30,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/functional>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -141,12 +143,13 @@ class Louvain {
       handle_.get_thrust_policy(),
       thrust::make_counting_iterator(0),
       thrust::make_counting_iterator(graph.number_of_vertices),
-      [d_deg = deg.data(), d_inc = inc.data(), total_edge_weight, resolution] __device__(
-        vertex_t community) -> weight_t {
-        return ((d_inc[community] / total_edge_weight) - resolution *
-                                                           (d_deg[community] * d_deg[community]) /
-                                                           (total_edge_weight * total_edge_weight));
-      },
+      cuda::proclaim_return_type<weight_t>(
+        [d_deg = deg.data(), d_inc = inc.data(), total_edge_weight, resolution] __device__(
+          vertex_t community) -> weight_t {
+          return ((d_inc[community] / total_edge_weight) -
+                  resolution * (d_deg[community] * d_deg[community]) /
+                    (total_edge_weight * total_edge_weight));
+        }),
       weight_t{0.0},
       thrust::plus<weight_t>());
 

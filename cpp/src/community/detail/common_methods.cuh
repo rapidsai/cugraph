@@ -29,6 +29,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
@@ -178,7 +179,7 @@ weight_t compute_modularity(
     handle.get_thrust_policy(),
     cluster_weights.begin(),
     cluster_weights.end(),
-    [] __device__(weight_t p) -> weight_t { return p * p; },
+    cuda::proclaim_return_type<weight_t>([] __device__(weight_t p) -> weight_t { return p * p; }),
     weight_t{0},
     thrust::plus<weight_t>());
 
