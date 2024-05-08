@@ -31,9 +31,9 @@ void print_edges(
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map)
 {
-  auto [srcs, dsts, weights, edge_ids] =
-    cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle, graph_view, edge_weight_view, std::nullopt, renumber_map);
+  auto [srcs, dsts, weights, edge_ids, edge_types] = cugraph::
+    decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+      handle, graph_view, edge_weight_view, std::nullopt, std::nullopt, renumber_map);
   raft::print_device_vector("srcs", srcs.data(), srcs.size(), std::cout);
   raft::print_device_vector("dsts", dsts.data(), dsts.size(), std::cout);
   if (weights) {
