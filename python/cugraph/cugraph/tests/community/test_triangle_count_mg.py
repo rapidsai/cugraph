@@ -45,7 +45,6 @@ START_LIST = [True, False]
 
 
 def get_sg_graph(dataset, directed, start):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
     if start:
         # sample k nodes from the cuGraph graph
@@ -57,7 +56,6 @@ def get_sg_graph(dataset, directed, start):
 
 
 def get_mg_graph(dataset, directed):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
@@ -83,8 +81,6 @@ def test_sg_triangles(dask_client, dataset, start, benchmark):
     sg_triangle_results = benchmark(cugraph.triangle_count, G, start)
     sg_triangle_results.sort_values("vertex").reset_index(drop=True)
     assert sg_triangle_results is not None
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
 
 
 @pytest.mark.mg
@@ -112,5 +108,3 @@ def test_triangles(dask_client, dataset, start, benchmark):
     counts_diffs = result_counts.query("mg_counts != sg_counts")
 
     assert len(counts_diffs) == 0
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

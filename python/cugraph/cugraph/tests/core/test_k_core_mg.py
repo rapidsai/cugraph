@@ -47,7 +47,6 @@ DEGREE_TYPE = ["bidirectional", "outgoing", "incoming"]
 
 
 def get_sg_results(dataset, core_number, degree_type):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=False))
 
     if core_number:
@@ -84,7 +83,6 @@ def get_sg_results(dataset, core_number, degree_type):
 def test_sg_k_core(dask_client, dataset, core_number, degree_type, benchmark):
     # This test is only for benchmark purposes.
     sg_k_core = None
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=False))
     if core_number:
         # compute the core_number
@@ -95,7 +93,6 @@ def test_sg_k_core(dask_client, dataset, core_number, degree_type, benchmark):
         cugraph.k_core, G, core_number=core_number, degree_type=degree_type
     )
     assert sg_k_core is not None
-    dataset.unload()
 
 
 @pytest.mark.mg
@@ -107,7 +104,6 @@ def test_dask_mg_k_core(dask_client, dataset, core_number, degree_type, benchmar
         dataset, core_number, degree_type
     )
 
-    dataset.unload()
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=False))
     k_core_results = benchmark(dcg.k_core, dg, core_number=core_number)
     k_core_results = (
@@ -120,19 +116,16 @@ def test_dask_mg_k_core(dask_client, dataset, core_number, degree_type, benchmar
     assert_frame_equal(
         expected_k_core_results, k_core_results, check_dtype=False, check_like=True
     )
-    dataset.unload()
 
 
 @pytest.mark.mg
 def test_dask_mg_k_core_invalid_input(dask_client):
     dataset = DATASETS[0]
-    dataset.unload()
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=True))
 
     with pytest.raises(ValueError):
         dcg.k_core(dg)
 
-    dataset.unload()
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=False))
 
     degree_type = "invalid"

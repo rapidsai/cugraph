@@ -54,10 +54,7 @@ def test_dask_mg_wcc(dask_client, directed, dataset):
     create_using = cugraph.Graph(directed=directed)
 
     g = dataset.get_graph(create_using=create_using)
-    dataset.unload()
-
     dg = dataset.get_dask_graph(create_using=create_using)
-    dataset.unload()
 
     if not directed:
         expected_dist = cugraph.weakly_connected_components(g)

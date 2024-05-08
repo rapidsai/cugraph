@@ -44,7 +44,6 @@ DEGREE_TYPE = ["incoming", "outgoing", "bidirectional"]
 
 
 def get_sg_results(dataset, degree_type):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=False))
     res = cugraph.core_number(G, degree_type)
     res = res.sort_values("vertex").reset_index(drop=True)
@@ -63,7 +62,6 @@ def test_sg_core_number(dask_client, dataset, degree_type, benchmark):
     # This test is only for benchmark purposes.
     sg_core_number_results = None
     G = dataset.get_graph(create_using=cugraph.Graph(directed=False))
-    dataset.unload()
     sg_core_number_results = benchmark(cugraph.core_number, G, degree_type)
     assert sg_core_number_results is not None
 
@@ -72,7 +70,6 @@ def test_sg_core_number(dask_client, dataset, degree_type, benchmark):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("degree_type", DEGREE_TYPE)
 def test_core_number(dask_client, dataset, degree_type, benchmark):
-    dataset.unload()
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=False))
 
     result_core_number = benchmark(dcg.core_number, dg, degree_type)
@@ -92,7 +89,6 @@ def test_core_number(dask_client, dataset, degree_type, benchmark):
     counts_diffs = result_core_number.query("mg_core_number != sg_core_number")
 
     assert len(counts_diffs) == 0
-    dataset.unload()
 
 
 @pytest.mark.mg

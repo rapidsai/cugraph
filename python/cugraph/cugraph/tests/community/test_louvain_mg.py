@@ -43,9 +43,6 @@ def test_mg_louvain_with_edgevals_directed_graph(dask_client, dataset):
     with pytest.raises(ValueError):
         parts, mod = dcg.louvain(dg)
 
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
-
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", DATASETS)
@@ -59,6 +56,3 @@ def test_mg_louvain_with_edgevals_undirected_graph(dask_client, dataset):
     print(parts.compute())
     print(mod)
     print()
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

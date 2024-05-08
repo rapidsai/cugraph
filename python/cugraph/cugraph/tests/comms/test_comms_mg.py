@@ -45,7 +45,6 @@ IS_DIRECTED = [True, False]
 
 def get_pagerank_result(dataset, is_mg):
     """Return the cugraph.pagerank result for an MG or SG graph"""
-    dataset.unload()
 
     if is_mg:
         dg = dataset.get_dask_graph(store_transposed=True)
@@ -113,7 +112,3 @@ def test_dask_mg_pagerank(dask_client, directed):
             err2 = err2 + 1
     print("Mismatches in ", input_data_path2, ": ", err2)
     assert err1 == err2 == 0
-
-    # Clean-up stored dataset edge-lists
-    karate.unload()
-    dolphins.unload()

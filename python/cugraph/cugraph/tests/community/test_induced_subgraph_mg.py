@@ -48,14 +48,12 @@ OFFSETS = [None]
 
 
 def get_sg_graph(dataset, directed):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
 
     return G
 
 
 def get_mg_graph(dataset, directed):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
@@ -121,6 +119,3 @@ def test_mg_induced_subgraph(
         # of all the vertices and ensure that there is None
         assert sg_induced_subgraph is None
         assert mg_df is None
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
