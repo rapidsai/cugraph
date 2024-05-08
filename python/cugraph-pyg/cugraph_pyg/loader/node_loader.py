@@ -19,6 +19,7 @@ from typing import Union, Tuple, Callable, Optional
 from cugraph.utilities.utils import import_optional
 
 torch_geometric = import_optional('torch_geometric')
+torch = import_optional('torch')
 
 class NodeLoader:
     """
@@ -35,6 +36,9 @@ class NodeLoader:
         filter_per_worker: Optional[bool] = None,
         custom_cls: Optional['torch_geometric.data.HeteroData'] = None,
         input_id: 'torch_geometric.typing.OptTensor' = None,
+        batch_size: int = 1,
+        shuffle: bool = False,
+        drop_last: bool = False, 
         **kwargs,):
             """
             Parameters
@@ -98,10 +102,30 @@ class NodeLoader:
             self.__data = data
 
             self.__node_sampler = node_sampler
+
+            self.__batch_size = batch_size
+            self.__shuffle = shuffle
+            self.__drop_last = drop_last
             
     
     def __iter__(self):
+        if self.__shuffle:
+            perm = torch.randperm(self.__input_data.node.numel())
+        else:
+            perm = torch.arange(self.__input_data.node.numel())
+        
+        if self.__drop_last:
+            d = perm.numel() % self.__batch_size
+            perm = perm[:-d]
+        
+        input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
+            input_id=self.__input_data.input_id[perm],
+            node=self.__input_data.node[perm],
+            time=None if self.__input_data.time is None else self.__input_data.time[perm],
+            input_type=self.__input_data.input_type,
+        )
+            
         return cugraph_pyg.sampler.SampleIterator(
             self.__data,
-            self.__node_sampler.sample_from_nodes(self.__input_data)
+            self.__node_sampler.sample_from_nodes(input_data)
         )

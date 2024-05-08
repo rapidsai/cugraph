@@ -210,5 +210,6 @@ class NeighborLoader(NodeLoader):
                 transform=transform,
                 transform_sampler_output=transform_sampler_output,
                 filter_per_worker=filter_per_worker,
+                batch_size=batch_size,
                 **kwargs,
             )
