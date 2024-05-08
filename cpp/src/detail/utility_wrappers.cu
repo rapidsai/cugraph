@@ -139,7 +139,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
     rmm::exec_policy(stream_view),
     edge_first,
     edge_first + num_edges,
-    [] __device__(auto e) { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },
+    [] __device__(auto e) -> vertex_t { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },
     vertex_t{0},
     thrust::maximum<vertex_t>());
 }

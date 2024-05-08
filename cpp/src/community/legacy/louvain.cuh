@@ -142,7 +142,7 @@ class Louvain {
       thrust::make_counting_iterator(0),
       thrust::make_counting_iterator(graph.number_of_vertices),
       [d_deg = deg.data(), d_inc = inc.data(), total_edge_weight, resolution] __device__(
-        vertex_t community) {
+        vertex_t community) -> weight_t {
         return ((d_inc[community] / total_edge_weight) - resolution *
                                                            (d_deg[community] * d_deg[community]) /
                                                            (total_edge_weight * total_edge_weight));

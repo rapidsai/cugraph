@@ -402,7 +402,7 @@ bool check_renumber_map_invariants(
          raft::device_span<vertex_t const>(sorted_org_vertices.data(), sorted_org_vertices.size()),
        matching_renumbered_vertices = raft::device_span<vertex_t const>(
          matching_renumbered_vertices.data(),
-         matching_renumbered_vertices.size())] __device__(vertex_t major) {
+         matching_renumbered_vertices.size())] __device__(vertex_t major) -> vertex_t {
         auto it = thrust::lower_bound(
           thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
         return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
@@ -418,7 +418,7 @@ bool check_renumber_map_invariants(
          raft::device_span<vertex_t const>(sorted_org_vertices.data(), sorted_org_vertices.size()),
        matching_renumbered_vertices = raft::device_span<vertex_t const>(
          matching_renumbered_vertices.data(),
-         matching_renumbered_vertices.size())] __device__(vertex_t minor) {
+         matching_renumbered_vertices.size())] __device__(vertex_t minor) -> vertex_t {
         auto it = thrust::lower_bound(
           thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), minor);
         return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
