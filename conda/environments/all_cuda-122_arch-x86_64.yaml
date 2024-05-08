@@ -4,7 +4,6 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
-- pytorch
 - pyg
 - dglteam/label/cu118
 - conda-forge
@@ -28,9 +27,7 @@ dependencies:
 - doxygen
 - fsspec>=0.6.0
 - gcc_linux-64=11.*
-- gmock>=1.13.0
 - graphviz
-- gtest>=1.13.0
 - ipython
 - libcublas-dev
 - libcudf==24.6.*

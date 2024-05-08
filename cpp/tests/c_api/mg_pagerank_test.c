@@ -576,8 +576,7 @@ int test_personalized_pagerank_non_convergence(const cugraph_resource_handle_t* 
   vertex_t h_src[]    = {0, 1, 2};
   vertex_t h_dst[]    = {1, 2, 3};
   weight_t h_wgt[]    = {1.f, 1.f, 1.f};
-  weight_t h_result[] = { 0.03625, 0.285, 0.32125, 0.3575 };
-
+  weight_t h_result[] = {0.03625, 0.285, 0.32125, 0.3575};
 
   vertex_t h_personalized_vertices[] = {0, 1, 2, 3};
   weight_t h_personalized_values[]   = {0.1, 0.2, 0.3, 0.4};
@@ -586,20 +585,20 @@ int test_personalized_pagerank_non_convergence(const cugraph_resource_handle_t* 
   double epsilon        = 1.0e-6;
   size_t max_iterations = 1;
 
-  return  generic_personalized_pagerank_nonconverging_test(handle,
-                                                           h_src,
-                                                           h_dst,
-                                                           h_wgt,
-                                                           h_result,
-                                                           h_personalized_vertices,
-                                                           h_personalized_values,
-                                                           num_vertices,
-                                                           num_edges,
-                                                           num_vertices,
-                                                           FALSE,
-                                                           alpha,
-                                                           epsilon,
-                                                           max_iterations);
+  return generic_personalized_pagerank_nonconverging_test(handle,
+                                                          h_src,
+                                                          h_dst,
+                                                          h_wgt,
+                                                          h_result,
+                                                          h_personalized_vertices,
+                                                          h_personalized_values,
+                                                          num_vertices,
+                                                          num_edges,
+                                                          num_vertices,
+                                                          FALSE,
+                                                          alpha,
+                                                          epsilon,
+                                                          max_iterations);
 }
 
 /******************************************************************************/

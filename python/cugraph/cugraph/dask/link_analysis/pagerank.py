@@ -295,7 +295,7 @@ def pagerank(
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
-    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          blocksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
     >>> dg = cugraph.Graph(directed=True)

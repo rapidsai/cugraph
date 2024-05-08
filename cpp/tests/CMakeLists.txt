@@ -20,7 +20,16 @@ include(rapids-test)
 rapids_test_init()
 
 ###################################################################################################
-# - common test utils -----------------------------------------------------------------------------
+# - set rapids dataset path ----------------------------------------------------------------------
+if(RAPIDS_DATASET_ROOT_DIR)
+    message(STATUS "setting default RAPIDS_DATASET_ROOT_DIR to: ${RAPIDS_DATASET_ROOT_DIR}")
+    string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
+    string(CONCAT CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
+    string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
+endif(RAPIDS_DATASET_ROOT_DIR)
+
+###################################################################################################
+# - common C++ test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
@@ -29,6 +38,7 @@ add_library(cugraphtestutil STATIC
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             utilities/conversion_utilities_sg.cu
+            utilities/debug_utilities_sg.cpp
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
@@ -38,27 +48,97 @@ add_library(cugraphtestutil STATIC
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
-            PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-                   "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
+    PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+           "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
 )
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphtestutil
     PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+    PRIVATE
         "${CUGRAPH_SOURCE_DIR}/src"
 )
 
 target_link_libraries(cugraphtestutil
     PUBLIC
         cugraph::cugraph
-        NCCL::NCCL
     PRIVATE
-        cuco::cuco
         GTest::gtest
 )
+
+
+###################################################################################################
+# - common C API test utils -----------------------------------------------------------------------
+
+add_library(cugraph_c_testutil STATIC
+            c_api/test_utils.cpp)
+
+target_compile_options(cugraph_c_testutil
+    PUBLIC "$<$<COMPILE_LANGUAGE:C>:${CUGRAPH_C_FLAGS}>"
+           "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+           "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
+)
+
+target_include_directories(cugraph_c_testutil
+    PRIVATE
+        "${CUGRAPH_SOURCE_DIR}/src"
+)
+
+set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_link_libraries(cugraph_c_testutil
+    PUBLIC
+        CUDA::toolkit
+    PRIVATE
+        cugraph::cugraph_c
+        cugraph::cugraph
+)
+
+if(BUILD_CUGRAPH_MG_TESTS)
+    include(../cmake/thirdparty/get_nccl.cmake)
+
+    ###############################################################################################
+    # - find MPI - only enabled if MG tests are to be built
+    find_package(MPI REQUIRED COMPONENTS CXX)
+
+
+    ###################################################################################################
+    # - common C++ mg test utils -----------------------------------------------------------------------
+    add_library(cugraphmgtestutil STATIC
+                utilities/device_comm_wrapper.cu
+                utilities/mg_utilities.cpp
+                utilities/conversion_utilities_mg.cu
+                utilities/property_generator_utilities_mg.cu
+                utilities/debug_utilities_mg.cpp
+                sampling/random_walks_check_mg.cu
+                c_api/mg_test_utils.cpp
+                )
+
+    set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    target_compile_options(cugraphmgtestutil
+                PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                       "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
+    )
+
+    target_include_directories(cugraphmgtestutil
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CUGRAPH_SOURCE_DIR}/src"
+    )
+
+    target_link_libraries(cugraphmgtestutil
+        PRIVATE
+            cugraph::cugraph
+            NCCL::NCCL
+            MPI::MPI_CXX
+            GTest::gtest
+    )
+endif()
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
@@ -84,10 +164,8 @@ function(ConfigureTest CMAKE_TEST_NAME)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
             cugraphtestutil
-            cugraph::cugraph
             GTest::gtest
             GTest::gtest_main
-            NCCL::NCCL
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -105,12 +183,11 @@ endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
-
+    target_include_directories(${CMAKE_TEST_NAME} PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
         cugraphmgtestutil
         cugraphtestutil
-        cugraph::cugraph
         GTest::gtest
         GTest::gtest_main
         NCCL::NCCL
@@ -212,22 +289,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
 endfunction()
 
-if(NOT USE_CUGRAPH_OPS)
-    string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -DNO_CUGRAPH_OPS")
-    string(CONCAT CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -DNO_CUGRAPH_OPS")
-    string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DNO_CUGRAPH_OPS")
-endif()
-
-###################################################################################################
-# - set rapids dataset path ----------------------------------------------------------------------
-
-if(RAPIDS_DATASET_ROOT_DIR)
-    message(STATUS "setting default RAPIDS_DATASET_ROOT_DIR to: ${RAPIDS_DATASET_ROOT_DIR}")
-    string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
-    string(CONCAT CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
-    string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
-endif(RAPIDS_DATASET_ROOT_DIR)
-
 ###################################################################################################
 ### test sources ##################################################################################
 ###################################################################################################
@@ -267,6 +328,7 @@ ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 ConfigureTest(SCC_TEST components/scc_test.cu)
+target_include_directories(SCC_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 #-Hungarian (Linear Assignment Problem)  tests ----------------------------------------------------
@@ -376,10 +438,12 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ###############################################################################################
 # - MIS tests ------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
+target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###############################################################################################
 # - VERTEX COLORING tests -------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
+target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
@@ -436,43 +500,6 @@ rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gt
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
-    ###############################################################################################
-    # - find MPI - only enabled if MG tests are to be built
-    find_package(MPI REQUIRED COMPONENTS CXX)
-
-    add_library(cugraphmgtestutil STATIC
-                utilities/device_comm_wrapper.cu
-                utilities/mg_utilities.cpp
-                utilities/conversion_utilities_mg.cu
-                utilities/property_generator_utilities_mg.cu
-                sampling/random_walks_check_mg.cu
-                c_api/mg_test_utils.cpp
-                )
-
-    set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-    target_compile_options(cugraphmgtestutil
-                PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-                       "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
-    )
-
-    target_include_directories(cugraphmgtestutil
-        PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CUGRAPH_SOURCE_DIR}/src"
-    )
-
-    target_link_libraries(cugraphmgtestutil
-        PUBLIC
-            cugraph::cugraph
-            NCCL::NCCL
-            MPI::MPI_CXX
-        PRIVATE
-            GTest::gtest
-    )
-
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
     # more than 1, override from the command line using -DGPU_COUNT=<gpucount>
     if (NOT DEFINED GPU_COUNT)
@@ -579,6 +606,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
     ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+
+    ###############################################################################################
+    # - MG coarsening tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_COARSEN_GRAPH_TEST structure/mg_coarsen_graph_test.cpp)
 
     ###############################################################################################
     # - MG INDUCED SUBGRAPH tests -----------------------------------------------------------------
@@ -711,31 +742,6 @@ endif()
 
 ###################################################################################################
 # - C API tests -----------------------------------------------------------------------------------
-
-###################################################################################################
-# - common C API test utils -----------------------------------------------------------------------
-
-add_library(cugraph_c_testutil STATIC
-            c_api/test_utils.cpp)
-
-target_compile_options(cugraph_c_testutil
-            PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-                   "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
-)
-
-set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-target_include_directories(cugraph_c_testutil
-    PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CUGRAPH_SOURCE_DIR}/src"
-)
-
-target_link_libraries(cugraph_c_testutil
-    PUBLIC
-        cugraph
-)
-
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_GENERATE_RMAT_TEST c_api/generate_rmat_test.c)
