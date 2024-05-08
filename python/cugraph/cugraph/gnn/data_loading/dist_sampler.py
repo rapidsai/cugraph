@@ -387,7 +387,7 @@ class DistSampler:
         """
         Returns an iterator over sampled data.
         """
-        rank = torch.distributed.get_rank() if self.is_multi_gpu else 0
+        rank = torch.distributed.get_rank() if self.is_multi_gpu else None
         return self.__writer.get_reader(rank)
 
     def sample_batches(
