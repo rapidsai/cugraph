@@ -100,7 +100,10 @@ collect_values_for_keys(raft::handle_t const& handle,
 
     auto rx_values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
     std::tie(rx_values_for_unique_keys, std::ignore) =
-      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, handle.get_stream());
+      shuffle_values(comm,
+                     get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                     rx_value_counts,
+                     handle.get_stream());
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
@@ -136,9 +139,9 @@ collect_values_for_keys(raft::handle_t const& handle,
                                         handle.get_stream());
 
     unique_keys.resize(0, handle.get_stream());
-    values_for_unique_keys.resize(0, handle.get_stream());
+    resize_dataframe_buffer(values_for_unique_keys, 0, handle.get_stream());
     unique_keys.shrink_to_fit(handle.get_stream());
-    values_for_unique_keys.shrink_to_fit(handle.get_stream());
+    shrink_to_fit_dataframe_buffer(values_for_unique_keys, handle.get_stream());
   }
   auto unique_key_value_store_view = unique_key_value_store.view();
 
