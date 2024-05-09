@@ -251,15 +251,15 @@ collect_values_for_unique_int_vertices(raft::handle_t const& handle,
   thrust::transform(handle.get_thrust_policy(),
                     rx_int_vertices.begin(),
                     rx_int_vertices.end(),
-                    value_buffer.begin(),
+                    get_dataframe_buffer_begin(value_buffer),
                     [local_value_first, local_int_vertex_first] __device__(auto v) {
                       return local_value_first[v - local_int_vertex_first];
                     });
 
   // 3: Shuffle results back to original GPU
 
-  std::tie(value_buffer, std::ignore) =
-    shuffle_values(comm, value_buffer.begin(), rx_int_vertex_counts, handle.get_stream());
+  std::tie(value_buffer, std::ignore) = shuffle_values(
+    comm, get_dataframe_buffer_begin(value_buffer), rx_int_vertex_counts, handle.get_stream());
 
   return std::make_tuple(std::move(collect_unique_int_vertices), std::move(value_buffer));
 }
@@ -308,7 +308,7 @@ collect_values_for_int_vertices(
   thrust::transform(handle.get_thrust_policy(),
                     collect_vertex_first,
                     collect_vertex_last,
-                    value_buffer.begin(),
+                    get_dataframe_buffer_begin(value_buffer),
                     [device_view] __device__(auto v) { return device_view.find(v); });
 
   return value_buffer;
