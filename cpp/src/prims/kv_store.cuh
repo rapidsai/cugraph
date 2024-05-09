@@ -960,8 +960,8 @@ class kv_store_t {
         std::move(keys),
         std::move(values),
         [=]() {
-          auto invalid_row               = value_t{};
-          cuda::std::get<0>(invalid_row) = invalid_value;
+          auto invalid_row            = value_t{};
+          thrust::get<0>(invalid_row) = invalid_value;
           return invalid_row;
         }(),
         key_sorted,
