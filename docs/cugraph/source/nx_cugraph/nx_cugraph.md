@@ -66,5 +66,3 @@ nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
 
 
 The latest list of algorithms that can be dispatched to nx-cuGraph for acceleration is found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms).
-
-
