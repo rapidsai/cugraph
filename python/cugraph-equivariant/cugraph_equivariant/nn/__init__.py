@@ -11,11 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .tensor_product_conv import FullyConnectedTensorProductConv
+from .tensor_product_conv import FullyConnectedTensorProductConv, TensorProductConv
 
 DiffDockTensorProductConv = FullyConnectedTensorProductConv
 
 __all__ = [
     "FullyConnectedTensorProductConv",
     "DiffDockTensorProductConv",
+    "TensorProductConv",
 ]

@@ -11,16 +11,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from typing import Optional, Sequence, Union
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 from e3nn import o3
 from e3nn.nn import BatchNorm
 
 from cugraph_equivariant.utils import scatter_reduce
 
-from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
+from pylibcugraphops.pytorch.operators import (
+    FusedFullyConnectedTensorProduct,
+    FusedTensorProduct,
+)
+
+
+class TensorProductConv(nn.Module):
+    def __init__(
+        self,
+        in_irreps: o3.Irreps,
+        sh_irreps: o3.Irreps,
+        out_irreps: o3.Irreps,
+        instructions: Sequence[o3.Instruction],
+        batch_norm: bool = True,
+        e3nn_compat_mode: bool = False,
+    ) -> None:
+        super().__init__()
+        self.in_irreps = in_irreps
+        self.out_irreps = out_irreps
+        self.sh_irreps = sh_irreps
+        self.e3nn_compat_mode = e3nn_compat_mode
+
+        self.tp = FusedTensorProduct(
+            instructions=instructions,
+            irreps_in1=in_irreps,
+            irreps_in2=sh_irreps,
+            irreps_out=out_irreps,
+            e3nn_compat_mode=e3nn_compat_mode,
+            internal_weights=None,
+            shared_weights=False,
+        )
+
+        self.batch_norm = BatchNorm(out_irreps) if batch_norm else None
+
+    def forward(
+        self,
+        src_features: Tensor,
+        edge_sh: Tensor,
+        graph: tuple[torch.Tensor, tuple[int, int]],
+        tp_weights: Tensor | None = None,
+        reduce: str = "sum",
+    ) -> Tensor:
+        (src, dst), (num_src_nodes, num_dst_nodes) = graph
+
+        out = self.tp(src_features[src], edge_sh, tp_weights)
+
+        out = scatter_reduce(out, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
+
+        if self.batch_norm:
+            out = self.batch_norm(out)
+
+        return out
 
 
 class FullyConnectedTensorProductConv(nn.Module):
