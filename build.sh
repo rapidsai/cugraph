@@ -313,13 +313,6 @@ if buildDefault || hasArg libcugraph_etl || hasArg all; then
     fi
 fi
 
-# For testing, will be removed when the package is released
-git clone -b main https://github.com/rapidsai/rapids-build-backend.git
-pushd rapids-build-backend
-sed -e 's/^version =.*/version = "0.0.2"/' -i pyproject.toml
-python -m pip install .
-popd
-
 # Build, and install pylibcugraph
 if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then

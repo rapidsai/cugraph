@@ -19,14 +19,7 @@ echo "${version}" > VERSION
 
 cd "${package_dir}"
 
-# For testing, will be removed when the package is released
-git clone -b main https://github.com/rapidsai/rapids-build-backend.git
-pushd rapids-build-backend
-sed -e 's/^version =.*/version = "0.0.2"/' -i pyproject.toml
-python -m pip wheel . --no-deps
-popd
-
-PIP_FIND_LINKS="$PWD/rapids-build-backend" python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
 if [[ ${package_name} == "nx-cugraph" ]] || \

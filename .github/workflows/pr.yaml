@@ -195,14 +195,6 @@ jobs:
       node_type: cpu32
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
-        # For testing, will be removed when the package is released
-        git clone -b main https://github.com/rapidsai/rapids-build-backend.git
-        pushd rapids-build-backend
-        sed -e 's/^version =.*/version = "0.0.2"/' -i pyproject.toml
-        python -m pip install .
-        popd
-        export PIP_FIND_LINKS="file://${PWD}/rapids-build-backend"
-
         sccache -z;
         build-all --verbose -j$(nproc --ignore=1);
         sccache -s;

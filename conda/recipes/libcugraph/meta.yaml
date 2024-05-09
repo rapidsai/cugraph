@@ -75,13 +75,7 @@ requirements:
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
-    # TODO: Add rapids-build-backend once the package exists. Then we can remove dependencies up to the next TODO.
-    #- rapids-build-backend
-    - tomli
-    - tomli-w
-    - packaging
-    - rapids-dependency-file-generator
-    # TODO: Remove above dependencies after rapids-build-backend packages exist
+    - rapids-build-backend
 
 outputs:
   - name: libcugraph

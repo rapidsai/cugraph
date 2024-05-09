@@ -70,13 +70,7 @@ requirements:
     - rmm ={{ minor_version }}
     - scikit-build-core >=0.7.0
     - setuptools
-    # TODO: Add rapids-build-backend once the package exists. Then we can remove dependencies up to the next TODO.
-    #- rapids-build-backend
-    - tomli
-    - tomli-w
-    - packaging
-    - rapids-dependency-file-generator
-    # TODO: Remove above dependencies after rapids-build-backend packages exist
+    - rapids-build-backend
   run:
     - aiohttp
     - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}

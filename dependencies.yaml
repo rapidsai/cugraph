@@ -438,7 +438,7 @@ dependencies:
               - python>=3.9,<3.12
   python_build_wheel:
     common:
-      - output_types: [pyproject] # TODO: Enable requirements once packages are available
+      - output_types: [pyproject, requirements]
         packages:
           - rapids-build-backend
       - output_types: [conda, pyproject, requirements]
