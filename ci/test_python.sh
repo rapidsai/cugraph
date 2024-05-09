@@ -150,7 +150,7 @@ else
 fi
 
 if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-  rapids-mamba-retry create --yes -n test_cugraph_dgl rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
+  rapids-mamba-retry create --yes -n test_cugraph_dgl rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai-nightly -c conda-forge -c nvidia
 
   # activate test_cugraph_dgl environment for dgl
   set +u
@@ -167,7 +167,7 @@ if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     pylibcugraphops \
     cugraph \
     cugraph-dgl \
-    'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
+    'dgl>=1.1.0.cu*' \
     "ogb"
 
   rapids-print-env
@@ -190,7 +190,7 @@ else
 fi
 
 if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-  rapids-mamba-retry create --yes -n test_cugraph_pyg rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai -c conda-forge -c nvidia
+  rapids-mamba-retry create --yes -n test_cugraph_pyg rapids pytorch "cuda-version=${CONDA_CUDA_VERSION}" -c rapidsai-nightly -c conda-forge -c nvidia
 
   # Temporarily allow unbound variables for conda activation.
   set +u
