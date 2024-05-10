@@ -40,6 +40,21 @@ IS_DIRECTED = [False, True]
 
 
 # =============================================================================
+# Helper
+# =============================================================================
+
+
+def get_mg_graph(dataset, directed):
+    """Returns an MG graph"""
+    ddf = dataset.get_dask_edgelist()
+
+    dg = cugraph.Graph(directed=directed)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "wgt")
+
+    return dg
+
+
+# =============================================================================
 # Tests
 # =============================================================================
 
@@ -47,15 +62,14 @@ IS_DIRECTED = [False, True]
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_mg_wcc(dask_client, directed, dataset):
-
+def test_dask_mg_wcc(dask_client, dataset, directed):
     input_data_path = dataset.get_path()
     print(f"dataset={input_data_path}")
-    create_using = cugraph.Graph(directed=directed)
 
-    g = dataset.get_graph(create_using=create_using)
-    dg = dataset.get_dask_graph(create_using=create_using)
+    g = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+    dg = get_mg_graph(dataset, directed)
 
+    # breakpoint()
     if not directed:
         expected_dist = cugraph.weakly_connected_components(g)
         result_dist = dcg.weakly_connected_components(dg)
