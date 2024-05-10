@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #pragma once
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/resource_ref.hpp>
 
 #include <memory>
 #include <vector>
@@ -28,7 +29,7 @@ class Dendrogram {
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
                  rmm::cuda_stream_view stream_view,
-                 rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
+                 rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
   {
     level_ptr_.push_back(
       std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
