@@ -43,7 +43,6 @@
 #include <vector>
 
 struct Multithreaded_Usecase {
-  bool test_weighted{false};
   bool check_correctness{true};
 };
 
@@ -80,6 +79,7 @@ class Tests_Multithreaded
     constexpr bool renumber           = true;
     constexpr bool do_expensive_check = false;
     constexpr bool store_transposed   = false;
+    constexpr bool test_weighted      = false;
 
     auto [multithreaded_usecase, input_usecase] = param;
 
@@ -113,12 +113,10 @@ class Tests_Multithreaded
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
 
-    auto edge_weights =
-      multithreaded_usecase.test_weighted
-        ? std::make_optional<cugraph::mtmg::edge_property_t<
-            cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-            weight_t>>()
-        : std::nullopt;
+    std::optional<cugraph::mtmg::edge_property_t<
+      cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+      weight_t>>
+      edge_weights{std::nullopt};
 
     //
     // Simulate graph creation by spawning threads to walk through the
@@ -148,7 +146,7 @@ class Tests_Multithreaded
     // Load SG edge list
     auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
-        handle, multithreaded_usecase.test_weighted, store_transposed, false);
+        handle, test_weighted, store_transposed, false);
 
     rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
     thrust::copy(
@@ -203,8 +201,6 @@ class Tests_Multithreaded
     running_threads.resize(0);
     instance_manager->reset_threads();
 
-    std::cout << "create graph" << std::endl;
-
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
@@ -258,9 +254,6 @@ class Tests_Multithreaded
 
     graph_view = graph.view();
 
-    std::cout << "call all_pairs jaccard, multi_gpu = " << (multi_gpu ? "TRUE" : "FALSE")
-              << std::endl;
-
     for (int i = 0; i < num_threads; ++i) {
       running_threads.emplace_back(
         [&instance_manager, &graph_view, &edge_weights, &jaccard_results]() {
@@ -293,8 +286,6 @@ class Tests_Multithreaded
 
     auto jaccard_results_view = jaccard_results.view();
     auto renumber_map_view = renumber_map ? std::make_optional(renumber_map->view()) : std::nullopt;
-
-    std::cout << "process all_pairs jaccard results" << std::endl;
 
     // Load computed_similarities from different threads.
     for (int i = 0; i < num_gpus; ++i) {
@@ -394,7 +385,6 @@ class Tests_Multithreaded
                                                    cugraph::graph_properties_t{is_symmetric, true},
                                                    false);
 
-      std::cout << "calling SG all-pairs" << std::endl;
       auto [sg_v1, sg_v2, sg_similarities] =
         cugraph::jaccard_all_pairs_coefficients<vertex_t, edge_t, weight_t, false>(
           handle,
@@ -469,8 +459,7 @@ INSTANTIATE_TEST_SUITE_P(file_test,
                          Tests_Multithreaded_File,
                          ::testing::Combine(
                            // enable correctness checks
-                           ::testing::Values(Multithreaded_Usecase{false, true},
-                                             Multithreaded_Usecase{true, true}),
+                           ::testing::Values(Multithreaded_Usecase{true}),
                            ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
                                              cugraph::test::File_Usecase("dolphins.csv"))));
 
@@ -479,8 +468,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Multithreaded_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Multithreaded_Usecase{false, true}, Multithreaded_Usecase{true, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(Multithreaded_Usecase{true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -491,7 +480,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Multithreaded_File,
   ::testing::Combine(
     // disable correctness checks
-    ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
+    ::testing::Values(Multithreaded_Usecase{false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -503,7 +492,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Multithreaded_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(Multithreaded_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -583,14 +583,6 @@ all_pairs_similarity(raft::handle_t const& handle,
                  functor,
                  do_expensive_check);
 
-#if 1
-    if constexpr (multi_gpu) { sleep(handle.get_comms().get_rank()); }
-
-    raft::print_device_vector("  v1", v1.data(), v1.size(), std::cout);
-    raft::print_device_vector("  v2", v2.data(), v2.size(), std::cout);
-    raft::print_device_vector("  score", score.data(), score.size(), std::cout);
-#endif
-
     return std::make_tuple(std::move(v1), std::move(v2), std::move(score));
   }
 }

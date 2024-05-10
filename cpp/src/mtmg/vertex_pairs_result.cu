@@ -43,19 +43,21 @@ std::
   //        We could have the host threads copy the data to a device_uvector
   //        and then have rank 0 execute this logic, and we could copy to
   //        host at the end.
-  rmm::device_uvector<vertex_t> local_vertices(vertices.size(), handle.get_stream());
-  rmm::device_uvector<int> vertex_gpu_ids(vertices.size(), handle.get_stream());
+  auto stream = handle.raft_handle().get_stream();
 
-  raft::copy(local_vertices.data(), vertices.data(), vertices.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> local_vertices(vertices.size(), stream);
+  rmm::device_uvector<int> vertex_gpu_ids(vertices.size(), stream);
+
+  raft::copy(local_vertices.data(), vertices.data(), vertices.size(), stream);
   cugraph::detail::scalar_fill(
-    handle.get_stream(), vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
+    stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
 
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                               handle.get_stream());
+                                                               stream);
   raft::update_device(d_vertex_partition_range_lasts.data(),
                       vertex_partition_range_lasts.data(),
                       vertex_partition_range_lasts.size(),
-                      handle.get_stream());
+                      stream);
 
   if (renumber_map_view) {
     cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
@@ -82,7 +84,7 @@ std::
                                         d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size},
-    handle.get_stream());
+    stream);
 
   //
   // LOOK AT THIS...
@@ -97,25 +99,23 @@ std::
   //
   auto& wrapped = this->get(handle);
 
-  rmm::device_uvector<vertex_t> v1(std::get<0>(wrapped).size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> v2(std::get<0>(wrapped).size(), handle.get_stream());
-  rmm::device_uvector<result_t> result(std::get<0>(wrapped).size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> v1(std::get<0>(wrapped).size(), stream);
+  rmm::device_uvector<vertex_t> v2(std::get<0>(wrapped).size(), stream);
+  rmm::device_uvector<result_t> result(std::get<0>(wrapped).size(), stream);
 
   thrust::copy(
-    handle.get_thrust_policy(),
+    rmm::exec_policy(stream),
     thrust::make_zip_iterator(
       std::get<0>(wrapped).begin(), std::get<1>(wrapped).begin(), std::get<2>(wrapped).begin()),
     thrust::make_zip_iterator(
       std::get<0>(wrapped).end(), std::get<1>(wrapped).end(), std::get<2>(wrapped).end()),
     thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()));
 
-  thrust::sort_by_key(handle.get_thrust_policy(),
-                      local_vertices.begin(),
-                      local_vertices.end(),
-                      vertex_gpu_ids.begin());
+  thrust::sort_by_key(
+    rmm::exec_policy(stream), local_vertices.begin(), local_vertices.end(), vertex_gpu_ids.begin());
 
   auto new_end =
-    thrust::remove_if(handle.get_thrust_policy(),
+    thrust::remove_if(rmm::exec_policy(stream),
                       thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()),
                       thrust::make_zip_iterator(v1.end(), v2.end(), result.end()),
                       [v1_check = raft::device_span<vertex_t const>{
@@ -126,9 +126,9 @@ std::
 
   v1.resize(
     thrust::distance(thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()), new_end),
-    handle.get_stream());
-  v2.resize(v1.size(), handle.get_stream());
-  result.resize(v1.size(), handle.get_stream());
+    stream);
+  v2.resize(v1.size(), stream);
+  result.resize(v1.size(), stream);
 
   //
   // Shuffle back
@@ -146,7 +146,7 @@ std::
           return gpu[thrust::distance(
             local_v.begin(), thrust::lower_bound(thrust::seq, local_v.begin(), local_v.end(), v1))];
         }),
-      handle.get_stream());
+      stream);
 
   if (renumber_map_view) {
     cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle.raft_handle(),
@@ -161,14 +161,6 @@ std::
                                                           renumber_map_view->get(handle).data(),
                                                           vertex_partition_range_lasts);
   }
-
-#if 1
-  sleep(handle.get_rank());
-  std::cout << "after gather" << std::endl;
-  raft::print_device_vector("  v1", v1.data(), v1.size(), std::cout);
-  raft::print_device_vector("  v2", v2.data(), v2.size(), std::cout);
-  raft::print_device_vector("  result", result.data(), result.size(), std::cout);
-#endif
 
   return std::make_tuple(std::move(v1), std::move(v2), std::move(result));
 }
