@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -122,6 +122,17 @@ class EXPERIMENTAL__PropertyGraph:
     """
 
     _default_type_name = ""
+
+    _internal_col_names = set(
+        (
+            vertex_col_name,
+            src_col_name,
+            dst_col_name,
+            type_col_name,
+            edge_id_col_name,
+            weight_col_name,
+        )
+    )
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -1380,6 +1391,15 @@ class EXPERIMENTAL__PropertyGraph:
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
         """
+        # Omit internal columns if an object is passed in to be applied to the
+        # entire DataFrame and assume the intent is for users to fillna only on
+        # their data.
+        if type(val) not in [dict, self.__series_type]:
+            user_col_names = (
+                set(self.__vertex_prop_dataframe.columns) - self._internal_col_names
+            )
+            val = dict((k, val) for k in user_col_names)
+
         self.__vertex_prop_dataframe.fillna(val, inplace=True)
 
     def fillna_edges(self, val=0):
@@ -1394,6 +1414,14 @@ class EXPERIMENTAL__PropertyGraph:
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
         """
+        # Omit internal columns if an object is passed in to be applied to the
+        # entire DataFrame and assume the intent is for users to fillna only on
+        # their data.
+        if type(val) not in [dict, self.__series_type]:
+            user_col_names = (
+                set(self.__edge_prop_dataframe.columns) - self._internal_col_names
+            )
+            val = dict((k, val) for k in user_col_names)
 
         self.__edge_prop_dataframe.fillna(val, inplace=True)
 
