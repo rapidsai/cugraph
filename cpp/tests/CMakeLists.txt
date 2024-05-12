@@ -584,6 +584,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
+    ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+
+    ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)

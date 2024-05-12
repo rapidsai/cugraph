@@ -27,6 +27,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/util/integer_utils.hpp>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -564,7 +566,7 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        false);  // FIXME: Renumbering should not be hardcoded.
+        false);
 
     modified_graph_view = (*modified_graph).view();
 
@@ -670,12 +672,13 @@ k_truss(raft::handle_t const& handle,
 
     auto prop_num_triangles = edge_triangle_count<vertex_t, edge_t, false>(handle, cur_graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, num_triangles) =
-      decompress_to_edgelist(handle,
-                             cur_graph_view,
-                             edge_weight_view,
-                             std::make_optional(prop_num_triangles.view()),
-                             std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, num_triangles) = decompress_to_edgelist(
+      handle,
+      cur_graph_view,
+      edge_weight_view,
+      // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
+      std::make_optional(prop_num_triangles.view()),
+      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
 
@@ -718,18 +721,17 @@ k_truss(raft::handle_t const& handle,
 
       // nbr_intersection requires the edges to be sort by 'src'
       // sort the invalid edges by src for nbr intersection
-      size_t approx_edges_to_intersect_per_iteration =
+      size_t edges_to_intersect_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
       size_t prev_chunk_size         = 0;
       size_t chunk_num_invalid_edges = num_invalid_edges;
-      auto num_chunks = ((num_invalid_edges % approx_edges_to_intersect_per_iteration) == 0)
-                          ? (num_invalid_edges / approx_edges_to_intersect_per_iteration)
-                          : (num_invalid_edges / approx_edges_to_intersect_per_iteration) + 1;
+
+      auto num_chunks =
+        raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
 
       for (size_t i = 0; i < num_chunks; ++i) {
-        auto chunk_size =
-          std::min(approx_edges_to_intersect_per_iteration, chunk_num_invalid_edges);
+        auto chunk_size = std::min(edges_to_intersect_per_iteration, chunk_num_invalid_edges);
         thrust::sort_by_key(handle.get_thrust_policy(),
                             edge_first + num_valid_edges,
                             edge_first + edgelist_srcs.size(),

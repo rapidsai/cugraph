@@ -283,13 +283,15 @@ class Tests_MGExtractTransformVFrontierOutgoingE
       }
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                              (*d_mg_renumber_map_labels).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                                (*d_mg_renumber_map_labels).size()),
+          false);
       rmm::device_uvector<result_t> sg_vertex_prop(0, handle_->get_stream());
       std::tie(std::ignore, sg_vertex_prop) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
