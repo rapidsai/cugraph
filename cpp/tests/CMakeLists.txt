@@ -585,7 +585,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     
     ###############################################################################################
     # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
-    #ConfigureTest(MG_EDGE_TC community/mg_tc_test.cpp)
+    ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
