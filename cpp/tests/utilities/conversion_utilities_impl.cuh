@@ -296,11 +296,7 @@ mg_graph_to_sg_graph(
   std::optional<rmm::device_uvector<edge_t>> d_edge_id{std::nullopt};
 
   std::tie(d_src, d_dst, d_wgt, d_edge_id) = cugraph::decompress_to_edgelist(
-    handle,
-    graph_view,
-    edge_weight_view,
-    edge_id_view,
-    renumber_map);
+    handle, graph_view, edge_weight_view, edge_id_view, renumber_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
@@ -361,7 +357,10 @@ mg_graph_to_sg_graph(
     }
   }
 
-  return std::make_tuple(std::move(sg_graph), std::move(sg_edge_weights), std::move(sg_edge_ids), std::move(sg_number_map));
+  return std::make_tuple(std::move(sg_graph),
+                         std::move(sg_edge_weights),
+                         std::move(sg_edge_ids),
+                         std::move(sg_number_map));
 }
 
 template <typename vertex_t, typename value_t>

@@ -582,7 +582,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
-    
+
     ###############################################################################################
     # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
     ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)

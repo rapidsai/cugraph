@@ -2018,7 +2018,7 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * 
+ *
  * @return edge_property_t containing the edge triangle count
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
