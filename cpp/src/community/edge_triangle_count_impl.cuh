@@ -127,12 +127,12 @@ edge_triangle_count_impl(
   using weight_t = float;
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) = decompress_to_edgelist(
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) = decompress_to_edgelist<vertex_t, edge_t, weight_t>(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::nullopt,
+    std::nullopt,
+    std::nullopt);
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
