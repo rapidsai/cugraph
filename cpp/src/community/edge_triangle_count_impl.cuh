@@ -136,8 +136,6 @@ edge_triangle_count_impl(
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
-  thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
-
   size_t edges_to_intersect_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
