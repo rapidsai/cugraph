@@ -138,12 +138,12 @@ edge_triangle_count_impl(
 
   thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
 
-  size_t approx_edges_to_intersect_per_iteration =
+  size_t edges_to_intersect_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
-  auto num_chunks        = ((edgelist_srcs.size() % approx_edges_to_intersect_per_iteration) == 0)
-                             ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration)
-                             : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
+  auto num_chunks        = ((edgelist_srcs.size() % edges_to_intersect_per_iteration) == 0)
+                             ? (edgelist_srcs.size() / edges_to_intersect_per_iteration)
+                             : (edgelist_srcs.size() / edges_to_intersect_per_iteration) + 1;
 
   size_t prev_chunk_size = 0;
   auto num_edges         = edgelist_srcs.size();
@@ -159,7 +159,7 @@ edge_triangle_count_impl(
   thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
-    auto chunk_size = std::min(approx_edges_to_intersect_per_iteration, num_edges);
+    auto chunk_size = std::min(edges_to_intersect_per_iteration, num_edges);
     num_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =

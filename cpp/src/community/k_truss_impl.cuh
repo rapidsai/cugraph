@@ -718,18 +718,18 @@ k_truss(raft::handle_t const& handle,
 
       // nbr_intersection requires the edges to be sort by 'src'
       // sort the invalid edges by src for nbr intersection
-      size_t approx_edges_to_intersect_per_iteration =
+      size_t edges_to_intersect_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
       size_t prev_chunk_size         = 0;
       size_t chunk_num_invalid_edges = num_invalid_edges;
-      auto num_chunks = ((num_invalid_edges % approx_edges_to_intersect_per_iteration) == 0)
-                          ? (num_invalid_edges / approx_edges_to_intersect_per_iteration)
-                          : (num_invalid_edges / approx_edges_to_intersect_per_iteration) + 1;
+      auto num_chunks = ((num_invalid_edges % edges_to_intersect_per_iteration) == 0)
+                          ? (num_invalid_edges / edges_to_intersect_per_iteration)
+                          : (num_invalid_edges / edges_to_intersect_per_iteration) + 1;
 
       for (size_t i = 0; i < num_chunks; ++i) {
         auto chunk_size =
-          std::min(approx_edges_to_intersect_per_iteration, chunk_num_invalid_edges);
+          std::min(edges_to_intersect_per_iteration, chunk_num_invalid_edges);
         thrust::sort_by_key(handle.get_thrust_policy(),
                             edge_first + num_valid_edges,
                             edge_first + edgelist_srcs.size(),
