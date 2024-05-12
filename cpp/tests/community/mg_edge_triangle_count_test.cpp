@@ -99,6 +99,7 @@ class Tests_MGEdgeTriangleCount
   
 
     // 2. run MG EdgeTriangleCount
+    
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -116,8 +117,10 @@ class Tests_MGEdgeTriangleCount
     }
 
     // 3. Compare SG & MG results
+    
     if (edge_triangle_count_usecase.check_correctness_) {
       // 3-1. Convert to SG graph
+      
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, edge_t>>
@@ -126,6 +129,7 @@ class Tests_MGEdgeTriangleCount
         *handle_,
         mg_graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        // FIXME: Update 'create_graph_from_edgelist' to support int32_t and int64_t values
         std::make_optional(d_mg_cugraph_results.view()),
         std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                               (*mg_renumber_map).size()),
@@ -133,15 +137,18 @@ class Tests_MGEdgeTriangleCount
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-2. Convert the MG triangle counts stored as 'edge_property_t' to device vector
+        
         auto [edgelist_srcs, edgelist_dsts, d_edgelist_weights, d_edge_triangle_counts] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+            // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
             std::make_optional((*d_sg_cugraph_results).view()),
             std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
         // 3-3. Run SG EdgeTriangleCount
+        
         auto ref_d_sg_cugraph_results = cugraph::edge_triangle_count<vertex_t, edge_t, false>(*handle_, sg_graph.view());
         auto [ref_edgelist_srcs, ref_edgelist_dsts, ref_d_edgelist_weights, ref_d_edge_triangle_counts] =
           cugraph::decompress_to_edgelist(
@@ -152,6 +159,7 @@ class Tests_MGEdgeTriangleCount
             std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
         // 3-4. Compare
+        
         auto h_mg_edge_triangle_counts =
           cugraph::test::to_host(*handle_, *d_edge_triangle_counts);
         auto h_sg_edge_triangle_counts =

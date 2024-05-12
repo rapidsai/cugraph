@@ -145,9 +145,6 @@ edge_triangle_count_impl(
                              ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration)
                              : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
 
-  // Note: host_scalar_all_reduce to get the max reduction
-  // Note: edge src dst and delta -> shuffle those -> and update -> check this : shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning
-  // Note: shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning in shuffle_wrapper
   size_t prev_chunk_size = 0;
   auto num_edges         = edgelist_srcs.size();
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
@@ -262,6 +259,7 @@ edge_triangle_count_impl(
         std::move(std::get<0>(vertex_pair_buffer)),
         std::move(std::get<1>(vertex_pair_buffer)),
         std::nullopt,
+        // FIXME: Update 'shuffle_int_...' to support int32_t and int64_t values
         std::move(opt_increase_count),
         std::nullopt,
         graph_view.vertex_partition_range_lasts());
