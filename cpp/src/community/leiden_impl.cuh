@@ -561,6 +561,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           louvain_of_refined_graph.size(),
           false);
       }
+    } else {
+      // Reset dendrogram.
+      //    FIXME: Revisit how dendrogram is populated
+      detail::sequence_fill(handle.get_stream(),
+                            dendrogram->current_level_begin(),
+                            dendrogram->current_level_size(),
+                            current_graph_view.local_vertex_partition_range_first());
     }
 
     copied_louvain_partition.resize(0, handle.get_stream());
