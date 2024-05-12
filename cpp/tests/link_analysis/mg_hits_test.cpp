@@ -186,10 +186,11 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
         mg_graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                               (*mg_renumber_map).size()),
         false);

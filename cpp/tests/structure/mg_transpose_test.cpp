@@ -87,10 +87,11 @@ class Tests_MGTranspose
                                weight_t>>
       sg_edge_weights{std::nullopt};
     if (transpose_usecase.check_correctness) {
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
         mg_graph.view(),
         mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                               (*mg_renumber_map).size()),
         false);
