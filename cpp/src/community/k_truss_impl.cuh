@@ -566,7 +566,7 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        false);  // FIXME: Renumbering should not be hardcoded.
+        false);
 
     modified_graph_view = (*modified_graph).view();
 
@@ -676,6 +676,7 @@ k_truss(raft::handle_t const& handle,
       decompress_to_edgelist(handle,
                              cur_graph_view,
                              edge_weight_view,
+                             // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
                              std::make_optional(prop_num_triangles.view()),
                              std::optional<raft::device_span<vertex_t const>>(std::nullopt));
     auto transposed_edge_first =
