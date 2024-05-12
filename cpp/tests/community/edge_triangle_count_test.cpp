@@ -241,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(
   // enable correctness checks
   ::testing::Combine(
     ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{true, false, true}),
+                      EdgeTriangleCount_Usecase{true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
