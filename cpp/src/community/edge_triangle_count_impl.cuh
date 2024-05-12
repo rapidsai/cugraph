@@ -21,12 +21,6 @@
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 
-// FIXME:::: Remove ************************************************************
-#include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_edge_property_device_view.cuh>
-#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
-// FIXME:::: Remove ************************************************************
-
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
@@ -146,13 +140,11 @@ edge_triangle_count_impl(
 
   size_t approx_edges_to_intersect_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
-  
-  approx_edges_to_intersect_per_iteration = 4;
 
   auto num_chunks        = ((edgelist_srcs.size() % approx_edges_to_intersect_per_iteration) == 0)
                              ? (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration)
                              : (edgelist_srcs.size() / approx_edges_to_intersect_per_iteration) + 1;
-  
+
   // Note: host_scalar_all_reduce to get the max reduction
   // Note: edge src dst and delta -> shuffle those -> and update -> check this : shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning
   // Note: shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning in shuffle_wrapper
@@ -166,17 +158,11 @@ edge_triangle_count_impl(
           handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream());
   }
 
-  printf("\n initial edgelists, num_chunk = %d\n", num_chunks);
-
-  raft::print_device_vector("edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-  raft::print_device_vector("edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-
   // Need to ensure that the vector has its values initialized to 0 before incrementing
   thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
     auto chunk_size = std::min(approx_edges_to_intersect_per_iteration, num_edges);
-    printf("\niteration = %d, chunk_size = %d\n", i, chunk_size);
     num_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
@@ -187,18 +173,9 @@ edge_triangle_count_impl(
                                edge_first + prev_chunk_size + chunk_size,
                                std::array<bool, 2>{true, true},
                                false /*FIXME: pass 'do_expensive_check' as argument*/);
-    
-    printf("\nchunk processed\n");
-    raft::print_device_vector("edgelist_srcs", edgelist_srcs.data() + prev_chunk_size, chunk_size, std::cout);
-    raft::print_device_vector("edgelist_dsts", edgelist_dsts.data() + prev_chunk_size, chunk_size, std::cout);
-    raft::print_device_vector("offsets", intersection_offsets.data(), intersection_offsets.size(), std::cout);
-    raft::print_device_vector("indices", intersection_indices.data(), intersection_indices.size(), std::cout);
-    printf("\n");
 
     // Update the number of triangles of each (p, q) edges by looking at their intersection
-    // size
-
-    
+    // size    
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator<edge_t>(0),
@@ -248,10 +225,6 @@ edge_triangle_count_impl(
                   get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                   get_dataframe_buffer_end(vertex_pair_buffer_tmp));
       
-      printf("\np, r and q, r\n");
-      raft::print_device_vector("edgelist_srcs", std::get<0>(vertex_pair_buffer_tmp).data(), std::get<0>(vertex_pair_buffer_tmp).size(), std::cout);
-      raft::print_device_vector("edgelist_dsts", std::get<1>(vertex_pair_buffer_tmp).data(), std::get<1>(vertex_pair_buffer_tmp).size(), std::cout);
-      
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(), handle.get_stream());
       thrust::fill(handle.get_thrust_policy(), increase_count_tmp.begin(), increase_count_tmp.end(), size_t{1});
 
@@ -260,7 +233,6 @@ edge_triangle_count_impl(
                                             get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
       rmm::device_uvector<edge_t> increase_count(count_p_r_q_r, handle.get_stream());
-      
 
       auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
             count_p_r_q_r, handle.get_stream());
@@ -353,66 +325,11 @@ edge_triangle_count_impl(
           raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
           edge_first});
     }
-    printf("\ndone with the iteration\n");
-    printf("\nafter updating p, r and q, r edges\n");
-      raft::print_device_vector("num_triangles", num_triangles.data(), num_triangles.size(), std::cout);
     prev_chunk_size += chunk_size;
   }
 
-  /*
-  printf("\nfrom edge triangle count and size = %d\n", num_triangles.size());
-  raft::print_device_vector("edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
-  raft::print_device_vector("edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
-  raft::print_device_vector("triangle_count", num_triangles.data(), num_triangles.size(), std::cout);
-  printf("\n");
-  */
-  /*
-  std::vector<rmm::device_uvector<edge_t>> buffer{};
-  buffer.push_back(std::move(num_triangles));
-  auto buff_counts =
-    edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t>(std::move(buffer));
-  */
-
-  //std::vector<rmm::device_uvector<edge_t>> buffer{};
-  //buffer.push_back(std::move(num_triangles));
-  //buffer.reserve(num_triangles.size());
-  //buffer.push_back(std::move(num_triangles));
-  //printf("\nother count\n");
-  //raft::print_device_vector("triangle_count", buffer[0].data(), buffer[0].size(), std::cout);
-  printf("\n");
-
-
-  //auto buff_counts =
-  //  edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t>(std::move(buffer));
-  
-  //#if 0
   cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> counts(
     handle, graph_view);
-
-  /*
-  auto counts_ = detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>(
-                       (buff_counts.view()), 0);
-  */
-
-  //edge_t*
-  //auto y = x.value_first();
-  //raft::print_device_vector("prop_triangle_ct", counts_.value_first(), num_triangles.size(), std::cout);
-  /*
-  cugraph::transform_e(
-    handle,
-    graph_view,
-    // buccket.
-    cugraph::edge_src_dummy_property_t{}.view(),
-    cugraph::edge_dst_dummy_property_t{}.view(),
-    buff_counts.view(),
-    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) {
-      //printf("\nedge %d, %d, count = %d\n", src, dst, count);
-      return count;
-    },
-    counts.mutable_view(),
-    false);
-  */
-  
 
   cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> valid_edges(handle);
       valid_edges.insert(edgelist_srcs.begin(),
@@ -420,13 +337,8 @@ edge_triangle_count_impl(
                          edgelist_dsts.begin());
 
   auto cur_graph_view = graph_view;
-  /*
-  auto unmasked_cur_graph_view = cur_graph_view;
-  if (unmasked_cur_graph_view.has_edge_mask()) { unmasked_cur_graph_view.clear_edge_mask(); }
-  */
 
-  auto edge_last = edge_first + edgelist_srcs.size();
-  printf("\nthe number of edges = %d\n", edgelist_srcs.size());
+  auto edge_last = edge_first + edgelist_srcs.size(); // FIXME: Remove this unnecessary variable
   cugraph::transform_e(
     handle,
     graph_view,
@@ -438,25 +350,16 @@ edge_triangle_count_impl(
      edge_last,
      num_edges = edgelist_srcs.size(),
      num_triangles = num_triangles.data()] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
-      //printf("\nedge %d, %d\n", src, dst);
       auto pair = thrust::make_tuple(src, dst);
-      // Find its position in 'edges'
 
+      // Find its position in 'edges'
       auto itr_pair =
         thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
-      //auto itr_pair = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
-      //assert(*itr_p_r_q_r == p_r_q_r_pair);
-      //if (itr_pair != edge_last && *itr_pair == pair)  {
       auto idx_pair = thrust::distance(edge_first, itr_pair);
-      printf("\nin - edge %d, %d, count = %d\n", src, dst, num_triangles[idx_pair]);
       return num_triangles[idx_pair];
-      //}
     },
     counts.mutable_view(),
     false);
-  
-
-  //#endif
 
   return counts;
 }
