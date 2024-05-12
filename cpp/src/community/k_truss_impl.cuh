@@ -27,6 +27,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/util/integer_utils.hpp>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -723,9 +725,8 @@ k_truss(raft::handle_t const& handle,
 
       size_t prev_chunk_size         = 0;
       size_t chunk_num_invalid_edges = num_invalid_edges;
-      auto num_chunks = ((num_invalid_edges % edges_to_intersect_per_iteration) == 0)
-                          ? (num_invalid_edges / edges_to_intersect_per_iteration)
-                          : (num_invalid_edges / edges_to_intersect_per_iteration) + 1;
+      
+      auto num_chunks = raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
 
       for (size_t i = 0; i < num_chunks; ++i) {
         auto chunk_size =

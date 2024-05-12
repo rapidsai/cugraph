@@ -26,6 +26,8 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/util/integer_utils.hpp>
+
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
@@ -139,10 +141,7 @@ edge_triangle_count_impl(
   size_t edges_to_intersect_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
-  auto num_chunks        = ((edgelist_srcs.size() % edges_to_intersect_per_iteration) == 0)
-                             ? (edgelist_srcs.size() / edges_to_intersect_per_iteration)
-                             : (edgelist_srcs.size() / edges_to_intersect_per_iteration) + 1;
-
+  auto num_chunks = raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
   size_t prev_chunk_size = 0;
   auto num_edges         = edgelist_srcs.size();
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
