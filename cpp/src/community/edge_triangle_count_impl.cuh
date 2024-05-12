@@ -143,7 +143,7 @@ edge_triangle_count_impl(
 
   auto num_chunks = raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
   size_t prev_chunk_size = 0;
-  auto num_edges         = edgelist_srcs.size();
+  auto num_remaining_edges         = edgelist_srcs.size();
   rmm::device_uvector<edge_t> num_triangles(edgelist_srcs.size(), handle.get_stream());
 
   //auto my_rank = handle.get_comms().get_rank();
@@ -156,8 +156,8 @@ edge_triangle_count_impl(
   thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
-    auto chunk_size = std::min(edges_to_intersect_per_iteration, num_edges);
-    num_edges -= chunk_size;
+    auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_edges);
+    num_remaining_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
       detail::nbr_intersection(handle,
