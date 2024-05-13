@@ -131,7 +131,7 @@ class simpleGraphImpl:
         edge_id=None,
         edge_type=None,
         renumber=True,
-        legacy_renum_only=True,
+        legacy_renum_only=False,
         store_transposed=False,
     ):
         if legacy_renum_only:
