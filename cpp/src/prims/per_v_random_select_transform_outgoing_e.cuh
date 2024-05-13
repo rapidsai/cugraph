@@ -54,6 +54,22 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename key_t>
+struct constant_e_bias_op_t {
+  __device__ float operator()(key_t,
+                              typename GraphViewType::vertex_type,
+                              typename EdgeSrcValueInputWrapper::value_type,
+                              typename EdgeDstValueInputWrapper::value_type,
+                              typename EdgeValueInputWrapper::value_type) const
+  {
+    return 1.0;
+  }
+};
+
 template <typename edge_t, typename T>
 struct check_invalid_t {
   edge_t invalid_idx{};
@@ -93,12 +109,7 @@ struct transform_local_nbr_indices_t {
   {
     auto key_idx = local_key_indices ? (*local_key_indices)[i] : (i / K);
     auto key     = *(key_first + key_idx);
-    vertex_t major{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      major = key;
-    } else {
-      major = thrust::get<0>(key);
-    }
+    auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{0};
@@ -270,15 +281,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     // FIXME: better re-factor this check function?
-    vertex_t const* frontier_vertex_first{nullptr};
-    vertex_t const* frontier_vertex_last{nullptr};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      frontier_vertex_first = frontier.begin();
-      frontier_vertex_last  = frontier.end();
-    } else {
-      frontier_vertex_first = thrust::get<0>(frontier.begin().get_iterator_tuple());
-      frontier_vertex_last  = thrust::get<0>(frontier.end().get_iterator_tuple());
-    }
+    auto frontier_vertex_first = thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
+    auto frontier_vertex_last = thrust_tuple_get_or_identity<decltype(frontier.end()), 0>(frontier.end());
     auto num_invalid_keys =
       frontier.size() -
       thrust::count_if(handle.get_thrust_policy(),
@@ -297,10 +301,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   std::vector<size_t> local_frontier_sizes{};
   if (minor_comm_size > 1) {
     auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_frontier_sizes = host_scalar_allgather(
-      minor_comm,
-      frontier.size(),
-      handle.get_stream());
+    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
   } else {
     local_frontier_sizes = std::vector<size_t>{frontier.size()};
   }
@@ -330,16 +331,43 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 2. randomly select neighbor indices and compute local neighbor indices for every local edge
   // partition
 
-  auto [sample_local_nbr_indices, sample_key_indices, local_frontier_sample_offsets] =
-    uniform_sample_and_compute_local_nbr_indices(handle,
-                                         graph_view,
-                                         frontier,
-                                         aggregate_local_frontier,
-                                         local_frontier_displacements,
-                                         local_frontier_sizes,
-                                         rng_state,
-                                         K,
-                                         with_replacement);
+  rmm::device_uvector<edge_t> sample_local_nbr_indices(0, handle.get_stream());
+  std::optional<rmm::device_uvector<size_t>> sample_key_indices{std::nullopt};
+  std::vector<size_t> local_frontier_sample_offsets{};
+  if constexpr (std::is_same_v<EdgeBiasOp,
+                               constant_e_bias_op_t<GraphViewType,
+                                                    EdgeSrcValueInputWrapper,
+                                                    EdgeDstValueInputWrapper,
+                                                    EdgeValueInputWrapper,
+                                                    key_t>>) {
+    std::tie(sample_local_nbr_indices, sample_key_indices, local_frontier_sample_offsets) =
+      uniform_sample_and_compute_local_nbr_indices(
+        handle,
+        graph_view,
+        (minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
+                              : frontier.begin(),
+        local_frontier_displacements,
+        local_frontier_sizes,
+        rng_state,
+        K,
+        with_replacement);
+  } else {
+    std::tie(sample_local_nbr_indices, sample_key_indices, local_frontier_sample_offsets) =
+      biased_sample_and_compute_local_nbr_indices(
+        handle,
+        graph_view,
+        (minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
+                              : frontier.begin(),
+        edge_src_value_input,
+        edge_dst_value_input,
+        edge_value_input,
+        e_bias_op,
+        local_frontier_displacements,
+        local_frontier_sizes,
+        rng_state,
+        K,
+        with_replacement);
+  }
 
   std::vector<size_t> local_frontier_sample_counts(minor_comm_size);
   std::adjacent_difference(local_frontier_sample_offsets.begin() + 1,
@@ -378,7 +406,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     }
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
-    if (minor_comm_size > 1) {
+    if (sample_key_indices) {
       auto edge_partition_sample_key_index_first =
         (*sample_key_indices).begin() + local_frontier_sample_offsets[i];
       thrust::transform(
