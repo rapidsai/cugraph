@@ -282,8 +282,8 @@ def test_cugraph_loader_from_disk_subset_csr():
         )
         assert row.tolist() == bogus_samples.minors.dropna().values_host.tolist()
 
-        assert sample["t0"]["num_sampled_nodes"].tolist() == [1, 3, 2]
-        assert sample["t0", "knows", "t0"]["num_sampled_edges"].tolist() == [3, 5]
+        assert sample["t0"]["num_sampled_nodes"] == [1, 3, 2]
+        assert sample["t0", "knows", "t0"]["num_sampled_edges"] == [3, 5]
 
     assert num_samples == 100
 
@@ -337,10 +337,10 @@ def test_cugraph_loader_e2e_coo():
     for hetero_data in loader:
         ei = hetero_data["t0", "knows", "t0"]["edge_index"]
         x = hetero_data["t0"]["x"].cuda()
-        num_sampled_nodes = hetero_data["t0"]["num_sampled_nodes"].tolist()
+        num_sampled_nodes = hetero_data["t0"]["num_sampled_nodes"]
         num_sampled_edges = hetero_data["t0", "knows", "t0"][
             "num_sampled_edges"
-        ].tolist()
+        ]
 
         for i in range(len(convs)):
             x, ei, _ = trim(i, num_sampled_nodes, num_sampled_edges, x, ei, None)
