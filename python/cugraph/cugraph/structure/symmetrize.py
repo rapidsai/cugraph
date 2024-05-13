@@ -73,8 +73,7 @@ def symmetrize_df(
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = symmetrize_df(M, '0', '1')
-
+    >>> sym_df = symmetrize_df(M, '0', '1', multi=True)
     """
     if not isinstance(src_name, list):
         src_name = [src_name]
@@ -256,8 +255,7 @@ def symmetrize(
     >>> df['sources'] = cudf.Series(M['0'])
     >>> df['destinations'] = cudf.Series(M['1'])
     >>> df['values'] = cudf.Series(M['2'])
-    >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values')
-
+    >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values', multi=True)
     """
 
     # FIXME: Redundant check that should be done at the graph creation
