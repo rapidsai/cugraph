@@ -59,55 +59,27 @@
 #include <sstream>
 #include <type_traits>
 
-template <typename key_t, typename vertex_t, typename property_t, typename output_payload_t>
+template <typename vertex_t, typename property_t, typename output_payload_t>
 struct e_op_t {
-  static_assert(std::is_same_v<key_t, vertex_t> ||
-                std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
   static_assert(std::is_same_v<output_payload_t, int32_t> ||
                 std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
 
-  using return_type = thrust::optional<typename std::conditional_t<
-    std::is_same_v<key_t, vertex_t>,
-    std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, vertex_t, float, int32_t>>,
-    std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, float, int32_t>>>>;
+  using return_type =
+    thrust::optional<std::conditional_t<std::is_arithmetic_v<output_payload_t>,
+                                        thrust::tuple<vertex_t, vertex_t, int32_t>,
+                                        thrust::tuple<vertex_t, vertex_t, float, int32_t>>>;
 
-  __device__ return_type operator()(key_t optionally_tagged_src,
-                                    vertex_t dst,
-                                    property_t src_val,
-                                    property_t dst_val,
-                                    thrust::nullopt_t) const
+  __device__ return_type operator()(
+    vertex_t src, vertex_t dst, property_t src_val, property_t dst_val, thrust::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
     if (src_val < dst_val) {
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        if constexpr (std::is_arithmetic_v<output_payload_t>) {
-          return thrust::make_tuple(optionally_tagged_src, dst, output_payload);
-        } else {
-          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-          return thrust::make_tuple(optionally_tagged_src,
-                                    dst,
-                                    thrust::get<0>(output_payload),
-                                    thrust::get<1>(output_payload));
-        }
+      if constexpr (std::is_arithmetic_v<output_payload_t>) {
+        return thrust::make_tuple(src, dst, output_payload);
       } else {
-        static_assert(thrust::tuple_size<key_t>::value == size_t{2});
-        if constexpr (std::is_arithmetic_v<output_payload_t>) {
-          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                    thrust::get<1>(optionally_tagged_src),
-                                    dst,
-                                    output_payload);
-        } else {
-          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                    thrust::get<1>(optionally_tagged_src),
-                                    dst,
-                                    thrust::get<0>(output_payload),
-                                    thrust::get<1>(output_payload));
-        }
+        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+        return thrust::make_tuple(
+          src, dst, thrust::get<0>(output_payload), thrust::get<1>(output_payload));
       }
     } else {
       return thrust::nullopt;
@@ -134,19 +106,11 @@ class Tests_MGExtractTransformE
   virtual void TearDown() {}
 
   // Compare the results of extract_transform_e primitive
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            typename tag_t,
-            typename output_payload_t>
+  template <typename vertex_t, typename edge_t, typename weight_t, typename output_payload_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using result_t = int32_t;
 
-    using key_t =
-      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
-
-    static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
     static_assert(std::is_same_v<output_payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<output_payload_t>::value);
     if constexpr (cugraph::is_thrust_tuple<output_payload_t>::value) {
@@ -212,7 +176,7 @@ class Tests_MGExtractTransformE
                                    mg_src_prop.view(),
                                    mg_dst_prop.view(),
                                    cugraph::edge_dummy_property_t{}.view(),
-                                   e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
+                                   e_op_t<vertex_t, result_t, output_payload_t>{});
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -225,7 +189,7 @@ class Tests_MGExtractTransformE
 
     if (prims_usecase.check_correctness) {
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
-        typename e_op_t<key_t, vertex_t, result_t, output_payload_t>::return_type::value_type>(
+        typename e_op_t<vertex_t, result_t, output_payload_t>::return_type::value_type>(
         size_t{0}, handle_->get_stream());
       std::get<0>(mg_aggregate_extract_transform_output_buffer) =
         cugraph::test::device_gatherv(*handle_,
@@ -239,17 +203,11 @@ class Tests_MGExtractTransformE
         cugraph::test::device_gatherv(*handle_,
                                       std::get<2>(mg_extract_transform_output_buffer).data(),
                                       std::get<2>(mg_extract_transform_output_buffer).size());
-      if constexpr (!std::is_same_v<key_t, vertex_t> || !std::is_arithmetic_v<output_payload_t>) {
+      if constexpr (!std::is_arithmetic_v<output_payload_t>) {
         std::get<3>(mg_aggregate_extract_transform_output_buffer) =
           cugraph::test::device_gatherv(*handle_,
                                         std::get<3>(mg_extract_transform_output_buffer).data(),
                                         std::get<3>(mg_extract_transform_output_buffer).size());
-      }
-      if constexpr (!std::is_same_v<key_t, vertex_t> && !std::is_arithmetic_v<output_payload_t>) {
-        std::get<4>(mg_aggregate_extract_transform_output_buffer) =
-          cugraph::test::device_gatherv(*handle_,
-                                        std::get<4>(mg_extract_transform_output_buffer).data(),
-                                        std::get<4>(mg_extract_transform_output_buffer).size());
       }
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
@@ -290,7 +248,7 @@ class Tests_MGExtractTransformE
                                        sg_src_prop.view(),
                                        sg_dst_prop.view(),
                                        cugraph::edge_dummy_property_t{}.view(),
-                                       e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
+                                       e_op_t<vertex_t, result_t, output_payload_t>{});
 
         thrust::sort(handle_->get_thrust_policy(),
                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
@@ -319,13 +277,13 @@ using Tests_MGExtractTransformE_Rmat = Tests_MGExtractTransformE<cugraph::test::
 TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, int32_t>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, int32_t>(
+  run_current_test<int32_t, int32_t, float, int32_t>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -333,14 +291,14 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidInt32)
 TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
-    std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
+                                                                           std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -348,14 +306,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, int32_t>(std::get<0>(param),
-                                                              std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, int32_t>(
+  run_current_test<int32_t, int32_t, float, int32_t>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -363,14 +320,14 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32Int32)
 TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
-    std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
+                                                                           std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -378,14 +335,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
-                                                              std::get<1>(param));
+  run_current_test<int32_t, int64_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int32_t, int32_t>(
+  run_current_test<int32_t, int64_t, float, int32_t>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -393,14 +349,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int64FloatInt32Int32)
 TEST_P(Tests_MGExtractTransformE_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
-                                                              std::get<1>(param));
+  run_current_test<int64_t, int64_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int32_t, int32_t>(
+  run_current_test<int64_t, int64_t, float, int32_t>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
