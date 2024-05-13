@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ from cugraph.generators import rmat
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
     # FIXME: create an MG graph if server is mg?
-    return dataset_obj.get_graph(fetch=True)
+    return dataset_obj.get_graph(download=True)
 
 
 def create_property_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
-    edgelist_df = dataset_obj.get_edgelist(fetch=True)
+    edgelist_df = dataset_obj.get_edgelist(download=True)
 
     if mg and (server is not None) and server.is_multi_gpu:
         G = MGPropertyGraph()
