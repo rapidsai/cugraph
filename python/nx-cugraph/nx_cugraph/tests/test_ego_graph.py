@@ -61,8 +61,14 @@ def test_ego_graph_cycle_graph(
 
     kwargs["distance"] = "weight"
     H2nx = nx.ego_graph(Gnx, n, **kwargs)
+    is_nx32 = nxver.major == 3 and nxver.minor == 2
     if undirected and Gnx.is_directed() and Gnx.is_multigraph():
-        with pytest.raises(RuntimeError, match="not implemented by cugraph"):
+        if is_nx32:
+            # `should_run` was added in nx 3.3
+            match = "Weighted ego_graph with undirected=True not implemented"
+        else:
+            match = "not implemented by cugraph"
+        with pytest.raises(RuntimeError, match=match):
             nx.ego_graph(Gnx, n, **kwargs, backend="cugraph")
         with pytest.raises(NotImplementedError, match="ego_graph"):
             nx.ego_graph(Gcg, n, **kwargs)
