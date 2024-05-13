@@ -108,9 +108,11 @@ class networkx_algorithm:
         if instance.name in _registered_algorithms:
             instance.__doc__ = _registered_algorithms[instance.name].__doc__
         instance.can_run = _default_can_run
+        instance.should_run = _default_should_run
         setattr(BackendInterface, instance.name, instance)
         # Set methods so they are in __dict__
         instance._can_run = instance._can_run
+        instance._should_run = instance._should_run
         if nodes_or_number is not None and nx.__version__[:3] <= "3.2":
             instance = nx.utils.decorators.nodes_or_number(nodes_or_number)(instance)
         return instance
@@ -124,6 +126,15 @@ class networkx_algorithm:
             )
         self.can_run = func
 
+    def _should_run(self, func):
+        """Set the `should_run` attribute to the decorated function."""
+        if not func.__name__.startswith("_"):
+            raise ValueError(
+                "The name of the function used by `_should_run` must begin with '_'; "
+                f"got: {func.__name__!r}"
+            )
+        self.should_run = func
+
     def __call__(self, /, *args, **kwargs):
         return self.__wrapped__(*args, **kwargs)
 
@@ -132,6 +143,10 @@ class networkx_algorithm:
 
 
 def _default_can_run(*args, **kwargs):
+    return True
+
+
+def _default_should_run(*args, **kwargs):
     return True
 
 

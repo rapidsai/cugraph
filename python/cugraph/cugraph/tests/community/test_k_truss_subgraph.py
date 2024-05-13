@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -98,7 +98,7 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
 
     k = 5
     G = polbooks.get_graph(download=True, create_using=cugraph.Graph(directed=False))
-    k_subgraph = cugraph.ktruss_subgraph(G, k)
+    k_subgraph = cugraph.ktruss_subgraph(G, k, use_weights=False)
 
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 

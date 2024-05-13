@@ -11,7 +11,6 @@ Jaccard Coefficient
 
    cugraph.jaccard
    cugraph.jaccard_coefficient
-   cugraph.jaccard_w
 
 
 Overlap Coefficient
@@ -21,7 +20,6 @@ Overlap Coefficient
 
    cugraph.overlap
    cugraph.overlap_coefficient
-   cugraph.overlap_w
 
 
 Sorensen Coefficient
@@ -31,4 +29,3 @@ Sorensen Coefficient
 
    cugraph.sorensen
    cugraph.sorensen_coefficient
-   cugraph.sorensen_w
