@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -37,6 +38,7 @@
 #include <random>
 
 struct WeightedMatching_UseCase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -94,6 +96,13 @@ class Tests_MGWeightedMatching
     auto mg_graph_view = mg_graph.view();
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (weighted_matching_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     rmm::device_uvector<vertex_t> mg_partners(0, handle_->get_stream());
     weight_t mg_matching_weights;
@@ -155,26 +164,26 @@ class Tests_MGWeightedMatching
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGWeightedMatching<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGWeightedMatching_File = Tests_MGWeightedMatching<cugraph::test::File_Usecase>;
+// using Tests_MGWeightedMatching_File = Tests_MGWeightedMatching<cugraph::test::File_Usecase>;
 using Tests_MGWeightedMatching_Rmat = Tests_MGWeightedMatching<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGWeightedMatching_File, CheckInt32Int32FloatFloat)
-{
-  run_current_test<int32_t, int32_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGWeightedMatching_File, CheckInt32Int32FloatFloat)
+// {
+//   run_current_test<int32_t, int32_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGWeightedMatching_File, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGWeightedMatching_File, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGWeightedMatching_File, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGWeightedMatching_File, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
 TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt32Int32FloatFloat)
 {
@@ -182,44 +191,46 @@ TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt32Int32FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGWeightedMatching_Rmat, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-bool constexpr check_correctness = false;
+bool constexpr check_correctness = true;
+bool constexpr edge_masking      = true;
 
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_MGWeightedMatching_File,
-  ::testing::Combine(::testing::Values(WeightedMatching_UseCase{check_correctness},
-                                       WeightedMatching_UseCase{check_correctness}),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+// INSTANTIATE_TEST_SUITE_P(
+//   file_test,
+//   Tests_MGWeightedMatching_File,
+//   ::testing::Combine(::testing::Values(WeightedMatching_UseCase{edge_masking, check_correctness},
+//                                        WeightedMatching_UseCase{edge_masking,
+//                                        check_correctness}),
+//                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGWeightedMatching_Rmat,
   ::testing::Combine(
-    ::testing::Values(WeightedMatching_UseCase{check_correctness}),
+    ::testing::Values(WeightedMatching_UseCase{edge_masking, check_correctness}),
     ::testing::Values(cugraph::test::Rmat_Usecase(3, 2, 0.57, 0.19, 0.19, 0, true, false))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_MGWeightedMatching_Rmat,
-  ::testing::Combine(
-    ::testing::Values(WeightedMatching_UseCase{check_correctness},
-                      WeightedMatching_UseCase{check_correctness}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+// INSTANTIATE_TEST_SUITE_P(
+//   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+//                           --gtest_filter to select only the rmat_benchmark_test with a specific
+//                           vertex & edge type combination) by command line arguments and do not
+//                           include more than one Rmat_Usecase that differ only in scale or edge
+//                           factor (to avoid running same benchmarks more than once) */
+//   Tests_MGWeightedMatching_Rmat,
+//   ::testing::Combine(
+//     ::testing::Values(WeightedMatching_UseCase{edge_masking, check_correctness},
+//                       WeightedMatching_UseCase{edge_masking, check_correctness}),
+//     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

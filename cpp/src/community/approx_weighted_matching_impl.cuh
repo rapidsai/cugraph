@@ -86,7 +86,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                         local_vertices.size(),
                         current_graph_view.local_vertex_partition_range_first());
 
-  using flag_t = uint8_t;
+  using flag_t = uint32_t;
   edge_src_property_t<graph_view_t, vertex_t> src_key_cache(handle);
   cugraph::edge_src_property_t<graph_view_t, flag_t> src_match_flags(handle);
   cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_match_flags(handle);
@@ -101,6 +101,28 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
   vertex_t loop_counter = 0;
   while (true) {
+    std::cout << "#V: " << current_graph_view.number_of_vertices()
+              << " #E: " << current_graph_view.compute_number_of_edges(handle) << std::endl;
+    cugraph::edge_property_t<graph_view_t, bool> temp_eps(handle, current_graph_view);
+    auto sg = graph_view_t::is_multi_gpu;
+    cugraph::transform_e(
+      handle,
+      current_graph_view,
+      cugraph::edge_src_dummy_property_t{}.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      edge_weight_view,
+      [loop_counter, sg] __device__(
+        auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto wgt) {
+        printf("\n %d   =>  %d %d %f [%d]\n",
+               static_cast<int>(loop_counter),
+               static_cast<int>(src),
+               static_cast<int>(dst),
+               static_cast<float>(wgt),
+               static_cast<int>(sg));
+        return false;
+      },
+      temp_eps.mutable_view());
+
     if constexpr (graph_view_t::is_multi_gpu) {
       update_edge_src_property(handle, current_graph_view, local_vertices.begin(), src_key_cache);
     }
@@ -150,34 +172,21 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      auto func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      auto key_func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
         raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                           d_vertex_partition_range_lasts.size()),
         major_comm_size,
         minor_comm_size};
 
-      rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
-
-      auto triplet_first = thrust::make_zip_iterator(
-        candidates.begin(), offers_from_candidates.begin(), targets.begin());
-
-      d_tx_value_counts = cugraph::groupby_and_count(
-        triplet_first,
-        triplet_first + candidates.size(),
-        [func] __device__(auto val) { return func(thrust::get<2>(val)); },
-        handle.get_comms().get_size(),
-        std::numeric_limits<vertex_t>::max(),
-        handle.get_stream());
-
-      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-      raft::update_host(h_tx_value_counts.data(),
-                        d_tx_value_counts.data(),
-                        d_tx_value_counts.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-
       std::forward_as_tuple(std::tie(candidates, offers_from_candidates, targets), std::ignore) =
-        shuffle_values(handle.get_comms(), triplet_first, h_tx_value_counts, handle.get_stream());
+        cugraph::groupby_gpu_id_and_shuffle_values(
+          handle.get_comms(),
+          thrust::make_zip_iterator(thrust::make_tuple(
+            candidates.begin(), offers_from_candidates.begin(), targets.begin())),
+          thrust::make_zip_iterator(
+            thrust::make_tuple(candidates.end(), offers_from_candidates.end(), targets.end())),
+          [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+          handle.get_stream());
     }
 
     auto itr_to_tuples = thrust::make_zip_iterator(
@@ -254,6 +263,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                                                                   candidates.begin(),
                                                                   candidates.end(),
                                                                   vertex_to_gpu_id_op);
+
     } else {
       candidates_of_candidates.resize(candidates.size(), handle.get_stream());
 
@@ -262,6 +272,35 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                                        candidates_of_candidates.begin(),
                                        handle.get_stream());
     }
+
+    auto const comm_rank = graph_view_t::is_multi_gpu ? handle.get_comms().get_rank() : 0;
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto targetss_title = std::string("targets_").append(std::to_string(comm_rank)).append("_");
+
+    raft::print_device_vector(targetss_title.c_str(), targets.begin(), targets.size(), std::cout);
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto cands_title = std::string("cands_").append(std::to_string(comm_rank)).append("_");
+
+    raft::print_device_vector(
+      cands_title.c_str(), candidates.begin(), candidates.size(), std::cout);
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto offers_title = std::string("offers_").append(std::to_string(comm_rank)).append("_");
+
+    raft::print_device_vector(offers_title.c_str(),
+                              offers_from_candidates.begin(),
+                              offers_from_candidates.size(),
+                              std::cout);
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto ccs_title = std::string("ccs_").append(std::to_string(comm_rank)).append("_");
+
+    raft::print_device_vector(ccs_title.c_str(),
+                              candidates_of_candidates.begin(),
+                              candidates_of_candidates.size(),
+                              std::cout);
 
     //
     // Mask out neighborhood of matched vertices
@@ -302,6 +341,12 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         }
       });
 
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto ivm_title = std::string("ivm_").append(std::to_string(comm_rank)).append("_");
+
+    raft::print_device_vector(
+      ivm_title.c_str(), is_vertex_matched.begin(), is_vertex_matched.size(), std::cout);
+
     if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
 
     if constexpr (graph_view_t::is_multi_gpu) {
@@ -324,6 +369,15 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         cugraph::edge_dummy_property_t{}.view(),
         [loop_counter] __device__(
           auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
+          bool flag = !((is_src_matched == uint8_t{true}) || (is_dst_matched == uint8_t{true}));
+          if (flag) {
+            printf("\n** %d   =>  src %d dst  %d sm %d  dm %d\n",
+                   static_cast<int>(loop_counter),
+                   static_cast<int>(src),
+                   static_cast<int>(dst),
+                   static_cast<int>(is_src_matched),
+                   static_cast<int>(is_dst_matched));
+          }
           return !((is_src_matched == uint8_t{true}) || (is_dst_matched == uint8_t{true}));
         },
         edge_masks_odd.mutable_view());
@@ -355,6 +409,14 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     loop_counter++;
   }
+
+  auto const comm_rank = graph_view_t::is_multi_gpu ? handle.get_comms().get_rank() : 0;
+
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto ofp_title = std::string("ofp_").append(std::to_string(comm_rank)).append("_");
+
+  raft::print_device_vector(
+    ofp_title.c_str(), offers_from_partners.begin(), offers_from_partners.size(), std::cout);
 
   weight_t sum_matched_edge_weights = thrust::reduce(
     handle.get_thrust_policy(), offers_from_partners.begin(), offers_from_partners.end());
