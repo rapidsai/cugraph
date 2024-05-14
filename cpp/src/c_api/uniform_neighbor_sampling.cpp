@@ -40,6 +40,7 @@ struct cugraph_sampling_options_t {
   bool_t renumber_results_{FALSE};
   cugraph_compression_type_t compression_type_{cugraph_compression_type_t::COO};
   bool_t compress_per_hop_{FALSE};
+  bool_t retain_seeds_{FALSE};
 };
 
 struct cugraph_sample_result_t {
@@ -68,6 +69,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_list_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
@@ -81,6 +83,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
     cugraph_type_erased_device_array_view_t const* start_vertex_labels,
     cugraph_type_erased_device_array_view_t const* label_list,
     cugraph_type_erased_device_array_view_t const* label_to_comm_rank,
+    cugraph_type_erased_device_array_view_t const* label_offsets,
     cugraph_type_erased_host_array_view_t const* fan_out,
     cugraph_rng_state_t* rng_state,
     cugraph::c_api::cugraph_sampling_options_t options,
@@ -99,6 +102,9 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       label_to_comm_rank_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           label_to_comm_rank)),
+      label_offsets_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          label_offsets)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
@@ -267,8 +273,13 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               std::move(edge_id),
               std::move(edge_type),
               std::move(hop),
-              std::nullopt,
-              std::nullopt,
+              options_.retain_seeds_
+                ? std::make_optional(raft::device_span<vertex_t const>{
+                    start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
+                : std::nullopt,
+              options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
+                                         label_offsets_->as_type<size_t>(), label_offsets_->size_})
+                                     : std::nullopt,
               offsets ? std::make_optional(
                           raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
@@ -304,8 +315,13 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               std::move(edge_id),
               std::move(edge_type),
               std::move(hop),
-              std::nullopt,
-              std::nullopt,
+              options_.retain_seeds_
+                ? std::make_optional(raft::device_span<vertex_t const>{
+                    start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
+                : std::nullopt,
+              options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
+                                         label_offsets_->as_type<size_t>(), label_offsets_->size_})
+                                     : std::nullopt,
               offsets ? std::make_optional(
                           raft::device_span<size_t const>{offsets->data(), offsets->size()})
                       : std::nullopt,
@@ -400,6 +416,12 @@ extern "C" cugraph_error_code_t cugraph_sampling_options_create(
   }
 
   return CUGRAPH_SUCCESS;
+}
+
+extern "C" void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options, bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->retain_seeds_ = value;
 }
 
 extern "C" void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options,
@@ -871,6 +893,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
   const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+  const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
@@ -878,6 +901,13 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
+  auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
+
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (label_offsets != nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "must specify label_offsets if retain_seeds is true",
+               *error);
+
   CAPI_EXPECTS((start_vertex_labels == nullptr) ||
                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
                     start_vertex_labels)
@@ -911,16 +941,16 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
-  uniform_neighbor_sampling_functor functor{
-    handle,
-    graph,
-    start_vertices,
-    start_vertex_labels,
-    label_list,
-    label_to_comm_rank,
-    fan_out,
-    rng_state,
-    *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options),
-    do_expensive_check};
+  uniform_neighbor_sampling_functor functor{handle,
+                                            graph,
+                                            start_vertices,
+                                            start_vertex_labels,
+                                            label_list,
+                                            label_to_comm_rank,
+                                            label_offsets,
+                                            fan_out,
+                                            rng_state,
+                                            std::move(options_cpp),
+                                            do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
