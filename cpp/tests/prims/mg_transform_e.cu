@@ -127,11 +127,12 @@ class Tests_MGTransformE
     if (prims_usecase.use_edgelist) {
       rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());
-      std::tie(srcs, dsts, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
         *handle_,
         mg_graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),

@@ -129,9 +129,9 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
   using weight_t = float;
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) =
-    decompress_to_edgelist<vertex_t, edge_t, weight_t>(
-      handle, graph_view, std::nullopt, std::nullopt, std::nullopt);
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
+    decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
+      handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 

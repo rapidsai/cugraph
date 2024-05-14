@@ -672,12 +672,13 @@ k_truss(raft::handle_t const& handle,
 
     auto prop_num_triangles = edge_triangle_count<vertex_t, edge_t, false>(handle, cur_graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, num_triangles) = decompress_to_edgelist(
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, num_triangles, std::ignore) = decompress_to_edgelist(
       handle,
       cur_graph_view,
       edge_weight_view,
       // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
       std::make_optional(prop_num_triangles.view()),
+      std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
       std::optional<raft::device_span<vertex_t const>>(std::nullopt));
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
@@ -912,12 +913,14 @@ k_truss(raft::handle_t const& handle,
       (*num_triangles).resize(num_edges_with_triangles, handle.get_stream());
     }
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
+      decompress_to_edgelist(
+        handle,
+        cur_graph_view,
+        edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
+        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,

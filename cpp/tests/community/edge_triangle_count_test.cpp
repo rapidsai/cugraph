@@ -157,12 +157,13 @@ class Tests_EdgeTriangleCount
     auto d_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts) =
+    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts, std::ignore) =
       cugraph::decompress_to_edgelist(
         handle,
         graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::make_optional(d_cugraph_results.view()),
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>> {std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
     if (cugraph::test::g_perf) {
