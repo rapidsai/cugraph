@@ -98,6 +98,9 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
   if constexpr (graph_view_t::is_multi_gpu) {
     src_key_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+
+    update_edge_src_property(handle, current_graph_view, local_vertices.begin(), src_key_cache);
+
     src_match_flags =
       cugraph::edge_src_property_t<graph_view_t, flag_t>(handle, current_graph_view);
     dst_match_flags =
@@ -106,10 +109,6 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
   vertex_t loop_counter = 0;
   while (true) {
-    if constexpr (graph_view_t::is_multi_gpu) {
-      update_edge_src_property(handle, current_graph_view, local_vertices.begin(), src_key_cache);
-    }
-
     //
     // For each candidate vertex, find the best possible target
     //
@@ -120,7 +119,6 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     // FIXME: This can be implemented more efficiently if per_v_transform_reduce_incoming|outgoing_e
     // is updated to support reduction on thrust::tuple.
-
     std::forward_as_tuple(candidates, std::tie(offers_from_candidates, targets)) =
       cugraph::transform_reduce_e_by_src_key(
         handle,
