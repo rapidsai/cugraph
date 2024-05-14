@@ -118,6 +118,9 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     rmm::device_uvector<weight_t> offers_from_candidates(0, handle.get_stream());
     rmm::device_uvector<vertex_t> targets(0, handle.get_stream());
 
+    // FIXME: This can be implemented more efficiently if per_v_transform_reduce_incoming|outgoing_e
+    // is updated to support reduction on thrust::tuple.
+
     std::forward_as_tuple(candidates, std::tie(offers_from_candidates, targets)) =
       cugraph::transform_reduce_e_by_src_key(
         handle,
