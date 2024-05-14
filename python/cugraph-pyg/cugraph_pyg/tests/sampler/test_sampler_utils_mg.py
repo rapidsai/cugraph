@@ -17,7 +17,7 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import DaskGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import (
+from cugraph_pyg.sampler.sampler_utils import (
     _sampler_output_from_sampling_results_heterogeneous,
 )
 

@@ -17,7 +17,7 @@ import cupy
 import pytest
 
 from cugraph_pyg.data import DaskGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import (
+from cugraph_pyg.sampler.sampler_utils import (
     _sampler_output_from_sampling_results_heterogeneous,
 )
 
@@ -191,9 +191,3 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
-
-
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip("needs to be written")
-def test_neighbor_sample_renumbered():
-    pass
