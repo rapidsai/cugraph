@@ -41,7 +41,6 @@
 #include <vector>
 
 struct EdgeTriangleCount_Usecase {
-  bool test_weighted_{false};
   bool edge_masking_{false};
   bool check_correctness_{true};
 };
@@ -134,7 +133,7 @@ class Tests_EdgeTriangleCount
 
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, edge_triangle_count_usecase.test_weighted_, renumber, true, true);
+        handle, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -158,12 +157,13 @@ class Tests_EdgeTriangleCount
     auto d_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts) =
+    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts, std::ignore) =
       cugraph::decompress_to_edgelist(
         handle,
         graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::make_optional(d_cugraph_results.view()),
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
     if (cugraph::test::g_perf) {
@@ -229,9 +229,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_EdgeTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{
-                        true, false, true}),  // FIXME: Still debugging edge_mask
+    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -240,8 +239,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_EdgeTriangleCount_Rmat,
   // enable correctness checks
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{true, true, true}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -254,7 +253,8 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, false}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, false},
+                      EdgeTriangleCount_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(16, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
