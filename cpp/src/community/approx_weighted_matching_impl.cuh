@@ -92,20 +92,17 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                         local_vertices.size(),
                         current_graph_view.local_vertex_partition_range_first());
 
-  using flag_t = uint8_t;
   edge_src_property_t<graph_view_t, vertex_t> src_key_cache(handle);
-  cugraph::edge_src_property_t<graph_view_t, flag_t> src_match_flags(handle);
-  cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_match_flags(handle);
+  cugraph::edge_src_property_t<graph_view_t, bool> src_match_flags(handle);
+  cugraph::edge_dst_property_t<graph_view_t, bool> dst_match_flags(handle);
 
   if constexpr (graph_view_t::is_multi_gpu) {
     src_key_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
 
     update_edge_src_property(handle, current_graph_view, local_vertices.begin(), src_key_cache);
 
-    src_match_flags =
-      cugraph::edge_src_property_t<graph_view_t, flag_t>(handle, current_graph_view);
-    dst_match_flags =
-      cugraph::edge_dst_property_t<graph_view_t, flag_t>(handle, current_graph_view);
+    src_match_flags = cugraph::edge_src_property_t<graph_view_t, bool>(handle, current_graph_view);
+    dst_match_flags = cugraph::edge_dst_property_t<graph_view_t, bool>(handle, current_graph_view);
   }
 
   vertex_t loop_counter = 0;
@@ -261,12 +258,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     // Mask out neighborhood of matched vertices
     //
 
-    rmm::device_uvector<flag_t> is_vertex_matched = rmm::device_uvector<flag_t>(
+    rmm::device_uvector<bool> is_vertex_matched = rmm::device_uvector<bool>(
       current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 is_vertex_matched.begin(),
-                 is_vertex_matched.end(),
-                 flag_t{false});
+    thrust::fill(
+      handle.get_thrust_policy(), is_vertex_matched.begin(), is_vertex_matched.end(), bool{false});
 
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -280,7 +275,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                                                    offers_from_candidates.end())),
       [partners             = partners.begin(),
        offers_from_partners = offers_from_partners.begin(),
-       is_vertex_matched    = is_vertex_matched.data(),
+       is_vertex_matched =
+         raft::device_span<bool>(is_vertex_matched.data(), is_vertex_matched.size()),
        v_first =
          current_graph_view.local_vertex_partition_range_first()] __device__(auto msrc_tgt) {
         auto candidate_of_candidate = thrust::get<0>(msrc_tgt);
@@ -290,7 +286,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
         if (candidate_of_candidate != invalid_partner && candidate_of_candidate == tgt) {
           auto tgt_offset                  = tgt - v_first;
-          is_vertex_matched[tgt_offset]    = flag_t{true};
+          is_vertex_matched[tgt_offset]    = true;
           partners[tgt_offset]             = candiate;
           offers_from_partners[tgt_offset] = offer_value;
         }
@@ -306,41 +302,63 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     }
 
     if (loop_counter % 2 == 0) {
-      cugraph::transform_e(
-        handle,
-        current_graph_view,
-        graph_view_t::is_multi_gpu
-          ? src_match_flags.view()
-          : detail::edge_major_property_view_t<vertex_t, flag_t const*>(is_vertex_matched.begin()),
-        graph_view_t::is_multi_gpu ? dst_match_flags.view()
-                                   : detail::edge_minor_property_view_t<vertex_t, flag_t const*>(
-                                       is_vertex_matched.begin(), vertex_t{0}),
-        cugraph::edge_dummy_property_t{}.view(),
-        [loop_counter] __device__(
-          auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
-          return !((is_src_matched == uint8_t{true}) || (is_dst_matched == uint8_t{true}));
-        },
-        edge_masks_odd.mutable_view());
+      if constexpr (graph_view_t::is_multi_gpu) {
+        cugraph::transform_e(
+          handle,
+          current_graph_view,
+          src_match_flags.view(),
+          dst_match_flags.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          [loop_counter] __device__(
+            auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
+            return !((is_src_matched == true) || (is_dst_matched == true));
+          },
+          edge_masks_odd.mutable_view());
+      } else {
+        cugraph::transform_e(
+          handle,
+          current_graph_view,
+          detail::edge_major_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin()),
+          detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
+                                                                    vertex_t{0}),
+          cugraph::edge_dummy_property_t{}.view(),
+          [loop_counter] __device__(
+            auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
+            return !((is_src_matched == true) || (is_dst_matched == true));
+          },
+          edge_masks_odd.mutable_view());
+      }
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
       cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
       current_graph_view.attach_edge_mask(edge_masks_odd.view());
     } else {
-      cugraph::transform_e(
-        handle,
-        current_graph_view,
-        graph_view_t::is_multi_gpu
-          ? src_match_flags.view()
-          : detail::edge_major_property_view_t<vertex_t, flag_t const*>(is_vertex_matched.begin()),
-        graph_view_t::is_multi_gpu ? dst_match_flags.view()
-                                   : detail::edge_minor_property_view_t<vertex_t, flag_t const*>(
-                                       is_vertex_matched.begin(), vertex_t{0}),
-        cugraph::edge_dummy_property_t{}.view(),
-        [loop_counter] __device__(
-          auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
-          return !((is_src_matched == uint8_t{true}) || (is_dst_matched == uint8_t{true}));
-        },
-        edge_masks_even.mutable_view());
+      if constexpr (graph_view_t::is_multi_gpu) {
+        cugraph::transform_e(
+          handle,
+          current_graph_view,
+          src_match_flags.view(),
+          dst_match_flags.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          [loop_counter] __device__(
+            auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
+            return !((is_src_matched == true) || (is_dst_matched == true));
+          },
+          edge_masks_even.mutable_view());
+      } else {
+        cugraph::transform_e(
+          handle,
+          current_graph_view,
+          detail::edge_major_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin()),
+          detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
+                                                                    vertex_t{0}),
+          cugraph::edge_dummy_property_t{}.view(),
+          [loop_counter] __device__(
+            auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
+            return !((is_src_matched == true) || (is_dst_matched == true));
+          },
+          edge_masks_even.mutable_view());
+      }
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
       cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
