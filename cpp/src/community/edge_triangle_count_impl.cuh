@@ -334,7 +334,6 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 
   auto cur_graph_view = graph_view;
 
-  auto edge_last = edge_first + edgelist_srcs.size();  // FIXME: Remove this unnecessary variable
   cugraph::transform_e(
     handle,
     graph_view,
@@ -343,7 +342,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     cugraph::edge_dst_dummy_property_t{}.view(),
     cugraph::edge_dummy_property_t{}.view(),
     [edge_first,
-     edge_last,
+     edge_last     = edge_first + edgelist_srcs.size(),
      num_edges     = edgelist_srcs.size(),
      num_triangles = num_triangles.data()] __device__(auto src,
                                                       auto dst,
