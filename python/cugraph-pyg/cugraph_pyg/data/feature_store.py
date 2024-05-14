@@ -102,7 +102,7 @@ class TensorDictFeatureStore(
         if attr.group_name not in self.__features:
             return False
 
-        if attr.attr_name not in self.__features[attr.group_name]:
+        if attr.attr_name not in self.__features[attr.group_name].keys():
             return False
 
         del self.__features[attr.group_name][attr.attr_name]
