@@ -25,6 +25,9 @@ else()
       "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}")
 endif()
 
+set(rapids-cmake-repo trxcllnt/rapids-cmake)
+set(rapids-cmake-branch fea/cccl-2.5)
+
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
   file(
     DOWNLOAD
