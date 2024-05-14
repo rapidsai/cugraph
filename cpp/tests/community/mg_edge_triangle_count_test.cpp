@@ -137,7 +137,11 @@ class Tests_MGEdgeTriangleCount
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-2. Convert the MG triangle counts stored as 'edge_property_t' to device vector
 
-        auto [edgelist_srcs, edgelist_dsts, d_edgelist_weights, d_edge_triangle_counts, d_edgelist_type] =
+        auto [edgelist_srcs,
+              edgelist_dsts,
+              d_edgelist_weights,
+              d_edge_triangle_counts,
+              d_edgelist_type] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
