@@ -158,34 +158,21 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      auto func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      auto key_func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
         raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                           d_vertex_partition_range_lasts.size()),
         major_comm_size,
         minor_comm_size};
 
-      rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
-
-      auto triplet_first = thrust::make_zip_iterator(
-        candidates.begin(), offers_from_candidates.begin(), targets.begin());
-
-      d_tx_value_counts = cugraph::groupby_and_count(
-        triplet_first,
-        triplet_first + candidates.size(),
-        [func] __device__(auto val) { return func(thrust::get<2>(val)); },
-        handle.get_comms().get_size(),
-        std::numeric_limits<vertex_t>::max(),
-        handle.get_stream());
-
-      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-      raft::update_host(h_tx_value_counts.data(),
-                        d_tx_value_counts.data(),
-                        d_tx_value_counts.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-
       std::forward_as_tuple(std::tie(candidates, offers_from_candidates, targets), std::ignore) =
-        shuffle_values(handle.get_comms(), triplet_first, h_tx_value_counts, handle.get_stream());
+        cugraph::groupby_gpu_id_and_shuffle_values(
+          handle.get_comms(),
+          thrust::make_zip_iterator(thrust::make_tuple(
+            candidates.begin(), offers_from_candidates.begin(), targets.begin())),
+          thrust::make_zip_iterator(
+            thrust::make_tuple(candidates.end(), offers_from_candidates.end(), targets.end())),
+          [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+          handle.get_stream());
     }
 
     auto itr_to_tuples = thrust::make_zip_iterator(
