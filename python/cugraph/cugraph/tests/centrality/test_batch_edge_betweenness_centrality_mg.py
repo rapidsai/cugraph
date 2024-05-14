@@ -84,5 +84,3 @@ def test_mg_edge_betweenness_centrality(
         second_key="ref_bc",
         epsilon=DEFAULT_EPSILON,
     )
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
