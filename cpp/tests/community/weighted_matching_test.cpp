@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -35,6 +36,7 @@
 #include <random>
 
 struct WeightedMatching_UseCase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -86,6 +88,13 @@ class Tests_SGWeightedMatching
     auto sg_graph_view = sg_graph.view();
     auto sg_edge_weight_view =
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(sg_graph_view), bool>> edge_mask{std::nullopt};
+    if (weighted_matching_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(sg_graph_view), bool>::edge_property(
+        handle, sg_graph_view, 2);
+      sg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     rmm::device_uvector<vertex_t> d_partners(0, handle.get_stream());
     weight_t total_matching_weights;
@@ -144,21 +153,19 @@ TEST_P(Tests_SGWeightedMatching_Rmat, CheckInt64Int64FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-bool constexpr check_correctness = false;
-
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_SGWeightedMatching_File,
-  ::testing::Combine(::testing::Values(WeightedMatching_UseCase{check_correctness},
-                                       WeightedMatching_UseCase{check_correctness}),
+  ::testing::Combine(::testing::Values(WeightedMatching_UseCase{false},
+                                       WeightedMatching_UseCase{true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_SGWeightedMatching_Rmat,
-  ::testing::Combine(
-    ::testing::Values(WeightedMatching_UseCase{check_correctness}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(3, 3, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_SGWeightedMatching_Rmat,
+                         ::testing::Combine(::testing::Values(WeightedMatching_UseCase{false},
+                                                              WeightedMatching_UseCase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              3, 3, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -168,8 +175,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_SGWeightedMatching_Rmat,
   ::testing::Combine(
-    ::testing::Values(WeightedMatching_UseCase{check_correctness},
-                      WeightedMatching_UseCase{check_correctness}),
+    ::testing::Values(WeightedMatching_UseCase{false, false},
+                      WeightedMatching_UseCase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

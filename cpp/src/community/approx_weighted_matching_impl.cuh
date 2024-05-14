@@ -45,10 +45,16 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                   "need to be symmetric");
 
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
-  graph_view_t current_graph_view(graph_view);
 
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
+  graph_view_t graph_view_without_mask(graph_view);
+  if (graph_view_without_mask.has_edge_mask()) { graph_view_without_mask.clear_edge_mask(); }
+
+  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, graph_view_without_mask);
+  cugraph::fill_edge_property(handle, graph_view_without_mask, bool{false}, edge_masks_even);
+  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, graph_view_without_mask);
+  cugraph::fill_edge_property(handle, graph_view_without_mask, bool{false}, edge_masks_odd);
+
+  graph_view_t current_graph_view(graph_view);
 
   // Mask out self-loop
   cugraph::transform_e(
@@ -63,7 +69,6 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     edge_masks_even.mutable_view());
 
   if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
   current_graph_view.attach_edge_mask(edge_masks_even.view());
 
   auto constexpr invalid_partner = invalid_vertex_id<vertex_t>::value;
