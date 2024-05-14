@@ -541,7 +541,7 @@ k_truss(raft::handle_t const& handle,
     std::tie(srcs, dsts, wgts) = k_core(handle,
                                         cur_graph_view,
                                         edge_weight_view,
-                                        size_t{k - 1},
+                                        k - 1,
                                         std::make_optional(k_core_degree_type_t::OUT),
                                         std::make_optional(core_number_span));
 
