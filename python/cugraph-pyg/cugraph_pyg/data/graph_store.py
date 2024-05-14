@@ -160,7 +160,7 @@ class GraphStore(
                     cupy.asarray(edgelist_dict["src"]),
                     cupy.asarray(edgelist_dict["dst"]),
                     vertices_array=cupy.arange(
-                        sum(self._num_vertices.values()), dtype="int64"
+                        sum(self._num_vertices().values()), dtype="int64"
                     ),
                     edge_id_array=cupy.asarray(edgelist_dict["eid"]),
                     edge_type_array=cupy.asarray(edgelist_dict["etp"]),
