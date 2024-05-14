@@ -20,9 +20,9 @@ import cudf
 import cupy
 import numpy as np
 
-from cugraph_pyg.loader import CuGraphNeighborLoader
+from cugraph_pyg.loader import DaskNeighborLoader
 from cugraph_pyg.loader import BulkSampleLoader
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 from cugraph_pyg.nn import SAGEConv as CuGraphSAGEConv
 
 from cugraph.gnn import FeatureStore
@@ -49,8 +49,8 @@ def test_cugraph_loader_basic(
     ]
 ):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
         10,
@@ -79,8 +79,8 @@ def test_cugraph_loader_hetero(
     ]
 ):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         input_nodes=("type1", torch.tensor([0, 1, 2, 5], device="cuda")),
         batch_size=2,
@@ -114,7 +114,7 @@ def test_cugraph_loader_from_disk():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -171,7 +171,7 @@ def test_cugraph_loader_from_disk_subset():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -230,7 +230,7 @@ def test_cugraph_loader_from_disk_subset_csr():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = DaskGraphStore(F, G, N)
 
     bogus_samples = cudf.DataFrame(
         {
@@ -294,7 +294,7 @@ def test_cugraph_loader_e2e_coo():
     G = {("t0", "knows", "t0"): 9999}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -362,7 +362,7 @@ def test_cugraph_loader_e2e_csc(framework: str):
     G = {("t0", "knows", "t0"): 9999}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = DaskGraphStore(F, G, N)
 
     bogus_samples = cudf.DataFrame(
         {
@@ -467,9 +467,9 @@ def test_drop_last(drop_last):
     F = FeatureStore(backend="torch")
     F.add_data(torch.arange(10), "N", "z")
 
-    store = CuGraphStore(F, G, N)
+    store = DaskGraphStore(F, G, N)
     with tempfile.TemporaryDirectory() as dir:
-        loader = CuGraphNeighborLoader(
+        loader = DaskNeighborLoader(
             (store, store),
             input_nodes=torch.tensor([0, 1, 2, 3, 4]),
             num_neighbors=[1],
@@ -504,8 +504,8 @@ def test_load_directory(
     if directory == "local":
         local_dir = tempfile.TemporaryDirectory(dir=".")
 
-    cugraph_store = CuGraphStore(*karate_gnn)
-    cugraph_loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(*karate_gnn)
+    cugraph_loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(8, dtype=torch.int64),
         2,

@@ -13,8 +13,8 @@
 
 import pytest
 
-from cugraph_pyg.loader import CuGraphNeighborLoader
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.loader import DaskNeighborLoader
+from cugraph_pyg.data import DaskGraphStore
 from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
@@ -23,8 +23,8 @@ torch = import_optional("torch")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
         10,
@@ -51,8 +51,8 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_hetero(dask_client, karate_gnn):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         input_nodes=("type1", torch.tensor([0, 1, 2, 5], device="cuda")),
         batch_size=2,

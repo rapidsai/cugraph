@@ -159,8 +159,8 @@ def train(
     td.barrier()
 
     import cugraph
-    from cugraph_pyg.data import CuGraphStore
-    from cugraph_pyg.loader import CuGraphNeighborLoader
+    from cugraph_pyg.data import DaskGraphStore
+    from cugraph_pyg.loader import DaskNeighborLoader
 
     if rank == 0:
         print("Rank 0 downloading dataset")
@@ -212,7 +212,7 @@ def train(
         # Rank 0 will initialize the distributed cugraph graph.
         cugraph_store_create_start = time.perf_counter_ns()
         print("G:", G[("paper", "cites", "paper")].shape)
-        cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+        cugraph_store = DaskGraphStore(fs, G, N, multi_gpu=True)
         cugraph_store_create_end = time.perf_counter_ns()
         print(
             "cuGraph Store created on rank 0 in "
@@ -237,7 +237,7 @@ def train(
 
             # Will automatically use the stored distributed cugraph graph on rank 0.
             cugraph_store_create_start = time.perf_counter_ns()
-            cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+            cugraph_store = DaskGraphStore(fs, G, N, multi_gpu=True)
             cugraph_store_create_end = time.perf_counter_ns()
             print(
                 f"Rank {rank} created cugraph store in "
@@ -269,7 +269,7 @@ def train(
         model.train()
 
         start_time_loader = time.perf_counter_ns()
-        cugraph_bulk_loader = CuGraphNeighborLoader(
+        cugraph_bulk_loader = DaskNeighborLoader(
             cugraph_store,
             train_nodes,
             batch_size=250,

@@ -16,7 +16,7 @@ import cupy
 
 import pytest
 
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import (
     _sampler_output_from_sampling_results_heterogeneous,
 )
@@ -31,7 +31,7 @@ torch = import_optional("torch")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     batches = cudf.DataFrame(
         {
@@ -90,7 +90,7 @@ def test_neighbor_sample(basic_graph_1):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     batches = cudf.DataFrame(
         {
@@ -151,7 +151,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 def test_neighbor_sample_mock_sampling_results(abc_graph):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N, order="CSR")
+    graph_store = DaskGraphStore(F, G, N, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(

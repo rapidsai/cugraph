@@ -19,5 +19,5 @@ from cugraph_pyg.data.feature_store import TensorDictFeatureStore
 
 
 def CuGraphStore(*args, **kwargs):
-    warnings.warn("CuGraphStore has been renamed to DaskGraphStore")
+    warnings.warn("CuGraphStore has been renamed to DaskGraphStore", FutureWarning)
     return DaskGraphStore(*args, **kwargs)

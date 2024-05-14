@@ -17,7 +17,7 @@ from cugraph_pyg.data.cugraph_store import (
     CuGraphEdgeAttr,
     EdgeLayout,
 )
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 
 import cudf
 import dask_cudf
@@ -120,7 +120,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
             G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=1)
             G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=1)
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSC", multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, order="CSC", multi_gpu=True)
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
@@ -145,7 +145,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_edge_types(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     eta = cugraph_store._edge_types_to_attrs
     assert eta.keys() == G.keys()
@@ -161,7 +161,7 @@ def test_edge_types(graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_subgraph(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     if len(G.keys()) > 1:
         for edge_type in G.keys():
@@ -179,7 +179,7 @@ def test_get_subgraph(graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     nodes_of_interest = torch.as_tensor(
         cupy.random.randint(0, sum(N.values()), 3), device="cuda"
@@ -194,7 +194,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
     multi_edge_multi_vertex_graph_1, dask_client
 ):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     nodes_of_interest = torch.as_tensor(
         cupy.random.randint(0, sum(N.values()), 3), device="cuda"
@@ -215,7 +215,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
-    graph_store = CuGraphStore(F, G, N, multi_gpu=True, order="CSR")
+    graph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
@@ -250,7 +250,7 @@ def test_renumber_edges(abc_graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     for feature_name, feature_on_types in F.get_feature_list().items():
         for type_name in feature_on_types:
@@ -271,7 +271,7 @@ def test_get_tensor(graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_empty_idx(karate_gnn, dask_client):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     t = cugraph_store.get_tensor(
         CuGraphTensorAttr(group_name="type0", attr_name="prop0", index=None)
@@ -282,7 +282,7 @@ def test_get_tensor_empty_idx(karate_gnn, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     for vertex_type in sorted(N.keys()):
         v_ids = np.arange(N[vertex_type])
@@ -309,7 +309,7 @@ def test_multi_get_tensor(graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_all_tensor_attrs(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = []
     for vertex_type in sorted(N.keys()):
@@ -341,7 +341,7 @@ def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_clien
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_from_tensor_attrs(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = cugraph_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
@@ -355,7 +355,7 @@ def test_get_tensor_from_tensor_attrs(graph, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_size(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = cugraph_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
@@ -371,7 +371,7 @@ def test_get_tensor_size(graph, dask_client):
 )
 def test_get_input_nodes(karate_gnn, dask_client):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
 
     node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
         (cugraph_store, cugraph_store), "type0"
@@ -384,8 +384,8 @@ def test_get_input_nodes(karate_gnn, dask_client):
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
-    assert isinstance(cugraph_store._CuGraphStore__graph._plc_graph, dict)
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
+    assert isinstance(cugraph_store._DaskGraphStore__graph._plc_graph, dict)
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
@@ -399,7 +399,7 @@ def test_cugraph_loader_large_index(dask_client):
     F = cugraph.gnn.FeatureStore(backend="torch")
     F.add_data(large_features, "N", "f")
 
-    store = CuGraphStore(
+    store = DaskGraphStore(
         F,
         {("N", "e", "N"): large_index},
         {"N": 1_000_000},

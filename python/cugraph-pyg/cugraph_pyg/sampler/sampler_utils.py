@@ -14,7 +14,7 @@
 
 from typing import Sequence, Dict, Tuple
 
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 
 from cugraph.utilities.utils import import_optional
 import cudf
@@ -28,7 +28,7 @@ HeteroSamplerOutput = torch_geometric.sampler.base.HeteroSamplerOutput
 
 def _get_unique_nodes(
     sampling_results: cudf.DataFrame,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     node_type: str,
     node_position: str,
 ) -> int:
@@ -40,7 +40,7 @@ def _get_unique_nodes(
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results or filtered sampling results
         (i.e. sampling results for hop 2)
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     node_type: str
         The node type to count the number of unique nodes of.
@@ -81,7 +81,7 @@ def _get_unique_nodes(
 def _sampler_output_from_sampling_results_homogeneous_coo(
     sampling_results: cudf.DataFrame,
     renumber_map: torch.Tensor,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     data_index: Dict[Tuple[int, int], Dict[str, int]],
     batch_id: int,
     metadata: Sequence = None,
@@ -94,7 +94,7 @@ def _sampler_output_from_sampling_results_homogeneous_coo(
     renumber_map: torch.Tensor
         The tensor containing the renumber map, or None if there
         is no renumber map.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     data_index: Dict[Tuple[int, int], Dict[str, int]]
         Dictionary where keys are the batch id and hop id,
@@ -181,7 +181,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     major_offsets: torch.Tensor,
     minors: torch.Tensor,
     renumber_map: torch.Tensor,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     label_hop_offsets: torch.Tensor,
     batch_id: int,
     metadata: Sequence = None,
@@ -196,7 +196,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     renumber_map: torch.Tensor
         The tensor containing the renumber map.
         Required.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     label_hop_offsets: torch.Tensor
         The tensor containing the label-hop offsets.
@@ -261,7 +261,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 def _sampler_output_from_sampling_results_heterogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: cudf.Series,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     metadata: Sequence = None,
 ) -> HeteroSamplerOutput:
     """
@@ -272,7 +272,7 @@ def _sampler_output_from_sampling_results_heterogeneous(
     renumber_map: cudf.Series
         The series containing the renumber map, or None if there
         is no renumber map.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     metadata: Tensor
         The metadata for the sampled batch.

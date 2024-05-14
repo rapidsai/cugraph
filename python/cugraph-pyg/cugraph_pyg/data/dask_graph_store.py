@@ -221,7 +221,7 @@ class DaskGraphStore:
         order: str = "CSR",
     ):
         """
-        Constructs a new CuGraphStore from the provided
+        Constructs a new DaskGraphStore from the provided
         arguments.
 
         Parameters
