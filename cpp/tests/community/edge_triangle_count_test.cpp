@@ -253,7 +253,8 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, false},
+                      EdgeTriangleCount_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(16, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
