@@ -293,7 +293,7 @@ if __name__ == "__main__":
         world_size = torch.cuda.device_count()
     else:
         world_size = args.n_devices
-    print("Let's use", world_size, "GPUs!")
+    print("Using", world_size, "GPUs...")
 
     # Create the uid needed for cuGraph comms
     cugraph_id = cugraph_comms_create_unique_id()
