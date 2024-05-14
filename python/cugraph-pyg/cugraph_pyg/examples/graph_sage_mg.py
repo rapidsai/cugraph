@@ -19,8 +19,6 @@
 # To connect to dask, the scheduler JSON file must be provided.  This can be done
 # using the `--dask_scheduler_file` argument in the mg python script being run.
 
-
-
 from ogb.nodeproppred import NodePropPredDataset
 
 import time

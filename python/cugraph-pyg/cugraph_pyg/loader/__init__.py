@@ -22,5 +22,7 @@ from cugraph_pyg.loader.dask_node_loader import BulkSampleLoader
 
 
 def CuGraphNeighborLoader(*args, **kwargs):
-    warnings.warn("CuGraphNeighborLoader has been renamed to DaskNeighborLoader", FutureWarning)
+    warnings.warn(
+        "CuGraphNeighborLoader has been renamed to DaskNeighborLoader", FutureWarning
+    )
     return DaskNeighborLoader(*args, **kwargs)
