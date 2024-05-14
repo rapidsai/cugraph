@@ -147,8 +147,8 @@ class GraphStore(
                 self.__graph = pylibcugraph.MGGraph(
                     self._resource_handle,
                     graph_properties,
-                    [cupy.asarray(edgelist_dict["src"])],
-                    [cupy.asarray(edgelist_dict["dst"])],
+                    [cupy.asarray(edgelist_dict["src"]).astype("int64")],
+                    [cupy.asarray(edgelist_dict["dst"]).astype("int64")],
                     vertices_array=[vertices_array],
                     edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
                     edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
@@ -157,8 +157,8 @@ class GraphStore(
                 self.__graph = pylibcugraph.SGGraph(
                     self._resource_handle,
                     graph_properties,
-                    cupy.asarray(edgelist_dict["src"]),
-                    cupy.asarray(edgelist_dict["dst"]),
+                    cupy.asarray(edgelist_dict["src"]).astype("int64"),
+                    cupy.asarray(edgelist_dict["dst"]).astype("int64"),
                     vertices_array=cupy.arange(
                         sum(self._num_vertices().values()), dtype="int64"
                     ),
@@ -184,14 +184,20 @@ class GraphStore(
                 )
             else:
                 if edge_attr.edge_type[0] not in num_vertices:
-                    num_vertices[edge_attr.edge_type[0]] = (
+                    num_vertices[edge_attr.edge_type[0]] = int(
                         self.__edge_indices[edge_attr.edge_type][0].max() + 1
                     )
                 if edge_attr.edge_type[2] not in num_vertices:
-                    num_vertices[edge_attr.edge_type[1]] = (
+                    num_vertices[edge_attr.edge_type[1]] = int(
                         self.__edge_indices[edge_attr.edge_type][1].max() + 1
                     )
 
+        if self.is_multi_gpu:
+            vtypes = num_vertices.keys()
+            for vtype in vtypes:
+                sz = torch.tensor(num_vertices[vtype], device="cuda")
+                torch.distributed.all_reduce(sz, op=torch.distributed.ReduceOp.MAX)
+                num_vertices[vtype] = int(sz)
         return num_vertices
 
     @property

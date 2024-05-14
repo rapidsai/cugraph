@@ -55,7 +55,9 @@ class DistSampleReader:
             ex = re.compile(r"batch\=([0-9]+)\.([0-9]+)\-([0-9]+)\.([0-9]+)\.parquet")
             filematch = [ex.match(f) for f in files]
             filematch = [f for f in filematch if f]
-            filematch = [f for f in filematch if int(f[1]) == rank]
+
+            if rank is not None:
+                filematch = [f for f in filematch if int(f[1]) == rank]
 
             batch_count = sum([int(f[4]) - int(f[2]) + 1 for f in filematch])
             filematch = sorted(filematch, key=lambda f: int(f[2]), reverse=True)
