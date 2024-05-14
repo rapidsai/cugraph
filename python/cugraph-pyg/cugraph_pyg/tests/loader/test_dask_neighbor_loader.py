@@ -32,7 +32,11 @@ from typing import Dict, Tuple
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
+
 trim_to_layer = import_optional("torch_geometric.utils.trim_to_layer")
+if isinstance(trim_to_layer, MissingModule):
+    trim_to_layer = import_optional("torch_geometric.utils._trim_to_layer")
+
 
 try:
     import torch_sparse  # noqa: F401
@@ -283,8 +287,8 @@ def test_cugraph_loader_from_disk_subset_csr():
         )
         assert row.tolist() == bogus_samples.minors.dropna().values_host.tolist()
 
-        assert sample["t0"]["num_sampled_nodes"].tolist() == [1, 3, 2]
-        assert sample["t0", "knows", "t0"]["num_sampled_edges"].tolist() == [3, 5]
+        assert sample["t0"]["num_sampled_nodes"] == [1, 3, 2]
+        assert sample["t0", "knows", "t0"]["num_sampled_edges"] == [3, 5]
 
     assert num_samples == 100
 
