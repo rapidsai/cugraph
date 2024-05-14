@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph
-from cugraph_pyg.data.cugraph_store import (
+from cugraph_pyg.data.dask_graph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
     EdgeLayout,
