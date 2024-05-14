@@ -40,7 +40,6 @@
 #include <random>
 
 struct EdgeTriangleCount_Usecase {
-  bool test_weighted_{false};
   bool edge_masking_{false};
   bool check_correctness_{true};
 };
@@ -219,8 +218,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEdgeTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{false, true, true}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -228,8 +227,8 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGEdgeTriangleCount_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, true},
-                      EdgeTriangleCount_Usecase{false, true, true}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -240,7 +239,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGEdgeTriangleCount_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false, false}),
+    ::testing::Values(EdgeTriangleCount_Usecase{false, false},
+                      EdgeTriangleCount_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
