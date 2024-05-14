@@ -309,7 +309,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           src_match_flags.view(),
           dst_match_flags.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          [loop_counter] __device__(
+          [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
@@ -322,7 +322,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
                                                                     vertex_t{0}),
           cugraph::edge_dummy_property_t{}.view(),
-          [loop_counter] __device__(
+          [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
@@ -340,7 +340,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           src_match_flags.view(),
           dst_match_flags.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          [loop_counter] __device__(
+          [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
@@ -353,7 +353,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
                                                                     vertex_t{0}),
           cugraph::edge_dummy_property_t{}.view(),
-          [loop_counter] __device__(
+          [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, thrust::nullopt_t) {
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
