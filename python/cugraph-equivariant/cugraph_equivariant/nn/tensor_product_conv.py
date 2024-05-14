@@ -16,15 +16,21 @@ from typing import Optional, Sequence, Union
 
 import torch
 from torch import nn, Tensor
+import e3nn
 from e3nn import o3
 from e3nn.nn import BatchNorm
+
+from ._mace_utils import tp_out_irreps_with_instructions
 
 from cugraph_equivariant.utils import scatter_reduce
 
 from pylibcugraphops.pytorch.operators import (
     FusedFullyConnectedTensorProduct,
     FusedTensorProduct,
+    FusedLinear,
 )
+
+Graph = tuple[Tensor, tuple[int, int]]
 
 
 class TensorProductConv(nn.Module):
@@ -34,7 +40,7 @@ class TensorProductConv(nn.Module):
         sh_irreps: o3.Irreps,
         out_irreps: o3.Irreps,
         instructions: Sequence[o3.Instruction],
-        batch_norm: bool = True,
+        batch_norm: bool = False,
         e3nn_compat_mode: bool = False,
     ) -> None:
         super().__init__()
@@ -69,10 +75,102 @@ class TensorProductConv(nn.Module):
 
         out = scatter_reduce(out, dst, dim=0, dim_size=num_dst_nodes, reduce=reduce)
 
-        if self.batch_norm:
+        if self.batch_norm is not None:
             out = self.batch_norm(out)
 
         return out
+
+
+class MACE_InteractionBlock(nn.Module):
+    def __init__(
+        self,
+        in_irreps: o3.Irreps,
+        sh_irreps: o3.Irreps,
+        target_irreps: o3.Irreps,
+        num_elements: o3.Irreps,
+        num_bessel_basis: int,
+        avg_num_neighbors: float,
+        radial_mlp_channels: Sequence[int] | None = None,
+        e3nn_compat_mode: bool = False,
+    ) -> None:
+        """Identical to RealAgnosticInteractionBlock from MACE repo."""
+        super().__init__()
+        self.in_irreps = in_irreps
+        self.sh_irreps = sh_irreps
+        self.target_irreps = target_irreps
+        self.num_elements = num_elements
+        self.num_bessel_basis = num_bessel_basis
+        self.avg_num_neighbors = avg_num_neighbors
+        self.e3nn_compat_mode = e3nn_compat_mode
+
+        if radial_mlp_channels is None:
+            radial_mlp_channels = [64, 64, 64]
+        self.radial_mlp_channels = list(radial_mlp_channels)
+
+        self.linear_up = FusedLinear(
+            self.in_irreps,
+            self.in_irreps,
+            e3nn_compat_mode=self.e3nn_compat_mode,
+            internal_weights=True,
+            shared_weights=True,
+        )
+
+        # generate uvu instructions here
+        tp_out_irreps, instructions = tp_out_irreps_with_instructions(
+            in_irreps, sh_irreps, target_irreps
+        )
+
+        self.tp_conv = TensorProductConv(
+            in_irreps,
+            sh_irreps,
+            tp_out_irreps,
+            instructions,
+            e3nn_compat_mode=self.e3nn_compat_mode,
+        )
+
+        self.radial_mlp = e3nn.nn.FullyConnectedNet(
+            [num_bessel_basis]
+            + self.radial_mlp_channels
+            + [self.tp_conv.tp.weight_numel],
+            torch.nn.SiLU(),
+        )
+
+        self.linear = FusedLinear(
+            tp_out_irreps,
+            self.target_irreps,
+            internal_weights=True,
+            shared_weights=True,
+        )
+
+        self.skip_tp_conv = FusedFullyConnectedTensorProduct(
+            self.target_irreps,
+            o3.Irreps(f"{num_elements}x0e"),
+            self.target_irreps,
+            e3nn_compat_mode=self.e3nn_compat_mode,
+            internal_weights=True,
+            shared_weights=True,
+        )
+
+    def forward(
+        self,
+        node_feats: Tensor,  # (num_nodes, in_irreps.dim)
+        node_attrs: Tensor,  # (num_nodes, num_elements)
+        edge_feats: Tensor,  # (num_edges, num_bessel_basis)
+        edge_attrs: Tensor,  # (num_edges, sh_irreps.dim)
+        graph: Graph,
+    ):
+        node_feats = self.linear_up(node_feats)
+        tp_weights = self.radial_mlp(edge_feats)
+        message = self.tp_conv(
+            src_features=node_feats,
+            edge_sh=edge_attrs,
+            graph=graph,
+            tp_weights=tp_weights,
+            reduce="sum",
+        )
+        message = self.linear(message) / self.avg_num_neighbors
+        message = self.skip_tp_conv(message, node_attrs)
+        return message
 
 
 class FullyConnectedTensorProductConv(nn.Module):
