@@ -16,6 +16,7 @@
 #pragma once
 
 #include "prims/property_op_utils.cuh"
+#include "prims/detail/partition_v_frontier.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -127,7 +128,7 @@ __global__ static void transform_v_frontier_e_hypersparse_or_low_degree(
     [[maybe_unused]] edge_t edge_offset{};
     edge_t local_degree{};
     if constexpr (hypersparse) {
-      auto major_idx = edge_partition.major_idxt_from_major_nocheck(major);
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
       assert(major_idx);
       thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
     } else {
@@ -323,6 +324,7 @@ __global__ static void transform_v_frontier_e_high_degree(
             edge_partition,
             key,
             major_offset,
+            indices[i],
             edge_offset + i,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
@@ -500,12 +502,14 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
-      auto [edge_partition_v_frontier_partition_offsets, edge_partition_key_indices] =
-        partition_v_froniter_indices(
+      auto [edge_partition_key_indices, edge_partition_v_frontier_partition_offsets] =
+        partition_v_frontier(
           handle,
           edge_partition_frontier_major_first,
-          edge_partition_frontier_major_first + local_frontier_displacements,
-          std::vector<vertex_t>{edge_partition.major_range_first() + *segment_offsets[1], edge_partition.major_range_first() + *segment_offsets[2], edge_partition.major_range_first() + *segment_offsets[3]}); 
+          edge_partition_frontier_major_first + local_frontier_sizes[i],
+          std::vector<vertex_t>{edge_partition.major_range_first() + (*segment_offsets)[1],
+                                edge_partition.major_range_first() + (*segment_offsets)[2],
+                                edge_partition.major_range_first() + (*segment_offsets)[3]});
 
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one

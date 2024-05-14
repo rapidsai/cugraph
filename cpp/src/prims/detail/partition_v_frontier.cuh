@@ -51,12 +51,12 @@ namespace detail {
 
 template <typename ValueIterator>
 std::tuple<rmm::device_uvector<size_t> /* indices */, std::vector<size_t> /* offsets (size = value_offsets.size()) */>
-partition_v_frontier_indices(raft::handle_t const& handle,
+partition_v_frontier(raft::handle_t const& handle,
   ValueIterator frontier_value_first,
   ValueIterator frontier_value_last,
   std::vector<typename thrust::iterator_traits<ValueIterator>::value_type> const& thresholds /* size = # partitions - 1 */
 ) {
-  rmm::device_uvector<size_t> indices(frontier_vertices.size(), handle.get_stream());
+  rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last), handle.get_stream());
   thrust::sequence(
     handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
   std::vector<size_t> v_frontier_partition_offsets(thresholds.size() + 2);
