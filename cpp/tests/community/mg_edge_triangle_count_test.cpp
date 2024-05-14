@@ -137,13 +137,18 @@ class Tests_MGEdgeTriangleCount
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-2. Convert the MG triangle counts stored as 'edge_property_t' to device vector
 
-        auto [edgelist_srcs, edgelist_dsts, d_edgelist_weights, d_edge_triangle_counts] =
+        auto [edgelist_srcs,
+              edgelist_dsts,
+              d_edgelist_weights,
+              d_edge_triangle_counts,
+              d_edgelist_type] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
             // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
             std::make_optional((*d_sg_cugraph_results).view()),
+            std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
             std::optional<raft::device_span<vertex_t const>>{
               std::nullopt});  // FIXME: No longer needed
 
