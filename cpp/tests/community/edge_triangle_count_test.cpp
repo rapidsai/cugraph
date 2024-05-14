@@ -229,8 +229,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(EdgeTriangleCount_Usecase{false, true},
-                      EdgeTriangleCount_Usecase{
-                        true, true}),
+                      EdgeTriangleCount_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
