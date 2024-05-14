@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,7 +78,7 @@ def input_expected_output(dask_client, input_combo):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -143,7 +143,7 @@ def test_core_number_invalid_input(input_expected_output):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],

@@ -17,6 +17,7 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_buffer.hpp>
+#include <rmm/resource_ref.hpp>
 
 #include <unistd.h>
 
@@ -349,9 +350,9 @@ class GraphCOO {
    */
   GraphCOO(vertex_t number_of_vertices,
            edge_t number_of_edges,
-           bool has_data                       = false,
-           cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
+           bool has_data                     = false,
+           cudaStream_t stream               = nullptr,
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
     : number_of_vertices_p(number_of_vertices),
       number_of_edges_p(number_of_edges),
       src_indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
@@ -361,8 +362,8 @@ class GraphCOO {
   }
 
   GraphCOO(GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
-           cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
+           cudaStream_t stream               = nullptr,
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
     : number_of_vertices_p(graph.number_of_vertices),
       number_of_edges_p(graph.number_of_edges),
       src_indices_p(graph.src_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr),
@@ -457,7 +458,7 @@ class GraphCompressedSparseBase {
                             edge_t number_of_edges,
                             bool has_data,
                             cudaStream_t stream,
-                            rmm::mr::device_memory_resource* mr)
+                            rmm::device_async_resource_ref mr)
     : number_of_vertices_p(number_of_vertices),
       number_of_edges_p(number_of_edges),
       offsets_p(sizeof(edge_t) * (number_of_vertices + 1), stream, mr),
@@ -525,9 +526,9 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    */
   GraphCSR(vertex_t number_of_vertices_,
            edge_t number_of_edges_,
-           bool has_data_                      = false,
-           cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
+           bool has_data_                    = false,
+           cudaStream_t stream               = nullptr,
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
