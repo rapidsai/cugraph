@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,7 @@ ATOL = 1e-6
 @pytest.mark.parametrize("num_bases", [1, 2, None])
 @pytest.mark.parametrize("root_weight", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+@pytest.mark.sg
 def test_rgcn_conv_equality(
     aggr, bias, max_num_neighbors, num_bases, root_weight, graph, request
 ):

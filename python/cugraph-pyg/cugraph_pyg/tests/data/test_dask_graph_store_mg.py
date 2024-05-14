@@ -101,6 +101,7 @@ def single_vertex_graph(request):
 @pytest.mark.parametrize(
     "edge_index_type", ["numpy", "torch-cpu", "torch-gpu", "cudf", "dask-cudf"]
 )
+@pytest.mark.mg
 def test_get_edge_index(graph, edge_index_type, dask_client):
     F, G, N = graph
     if "torch" in edge_index_type:
@@ -143,6 +144,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_edge_types(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -159,6 +161,7 @@ def test_edge_types(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_subgraph(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -177,6 +180,7 @@ def test_get_subgraph(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -190,6 +194,7 @@ def test_renumber_vertices_basic(single_vertex_graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_renumber_vertices_multi_edge_multi_vertex(
     multi_edge_multi_vertex_graph_1, dask_client
 ):
@@ -212,6 +217,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
@@ -248,6 +254,7 @@ def test_renumber_edges(abc_graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_tensor(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -269,6 +276,7 @@ def test_get_tensor(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_tensor_empty_idx(karate_gnn, dask_client):
     F, G, N = karate_gnn
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -280,6 +288,7 @@ def test_get_tensor_empty_idx(karate_gnn, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -307,6 +316,7 @@ def test_multi_get_tensor(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_all_tensor_attrs(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -328,17 +338,8 @@ def test_get_all_tensor_attrs(graph, dask_client):
     )
 
 
-@pytest.mark.skip("not implemented")
-def test_get_tensor_spec_props(graph, dask_client):
-    raise NotImplementedError("not implemented")
-
-
-@pytest.mark.skip("not implemented")
-def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_client):
-    raise NotImplementedError("not implemented")
-
-
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_tensor_from_tensor_attrs(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -353,6 +354,7 @@ def test_get_tensor_from_tensor_attrs(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_get_tensor_size(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -369,6 +371,7 @@ def test_get_tensor_size(graph, dask_client):
 @pytest.mark.skipif(
     isinstance(torch_geometric, MissingModule), reason="pyg not available"
 )
+@pytest.mark.mg
 def test_get_input_nodes(karate_gnn, dask_client):
     F, G, N = karate_gnn
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -382,6 +385,7 @@ def test_get_input_nodes(karate_gnn, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
     cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True)
@@ -389,6 +393,7 @@ def test_mg_frame_handle(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
 def test_cugraph_loader_large_index(dask_client):
     large_index = (
         np.random.randint(0, 1_000_000, (100_000_000,)),

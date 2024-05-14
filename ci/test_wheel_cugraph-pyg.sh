@@ -47,7 +47,7 @@ rapids-logger "pytest cugraph-pyg (single GPU)"
 pushd python/cugraph-pyg/cugraph_pyg
 python -m pytest \
   --cache-clear \
-  --ignore=tests/mg \
+  --benchmark-disable \
   tests
 # Test examples
 for e in "$(pwd)"/examples/*.py; do

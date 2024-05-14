@@ -43,6 +43,7 @@ except:  # noqa: E722
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_basic(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
@@ -73,6 +74,7 @@ def test_cugraph_loader_basic(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_hetero(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
@@ -103,6 +105,7 @@ def test_cugraph_loader_hetero(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -160,6 +163,7 @@ def test_cugraph_loader_from_disk():
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk_subset():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -219,6 +223,7 @@ def test_cugraph_loader_from_disk_subset():
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(not HAS_TORCH_SPARSE, reason="torch-sparse not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk_subset_csr():
     m = [2, 9, 99, 82, 11, 13]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -285,6 +290,7 @@ def test_cugraph_loader_from_disk_subset_csr():
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_e2e_coo():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
@@ -353,6 +359,7 @@ def test_cugraph_loader_e2e_coo():
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(not HAS_TORCH_SPARSE, reason="torch-sparse not available")
 @pytest.mark.parametrize("framework", ["pyg", "cugraph-ops"])
+@pytest.mark.sg
 def test_cugraph_loader_e2e_csc(framework: str):
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
@@ -457,6 +464,7 @@ def test_cugraph_loader_e2e_csc(framework: str):
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("drop_last", [True, False])
+@pytest.mark.sg
 def test_drop_last(drop_last):
     N = {"N": 10}
     G = {
@@ -495,6 +503,7 @@ def test_drop_last(drop_last):
 
 
 @pytest.mark.parametrize("directory", ["local", "temp"])
+@pytest.mark.sg
 def test_load_directory(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]

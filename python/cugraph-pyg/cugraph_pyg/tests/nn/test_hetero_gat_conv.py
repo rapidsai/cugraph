@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,7 @@ ATOL = 1e-6
 )
 @pytest.mark.parametrize("heads", [1, 3, 10])
 @pytest.mark.parametrize("aggr", ["sum", "mean"])
+@pytest.mark.sg
 def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     major, minor, patch = torch_geometric.__version__.split(".")[:3]
     pyg_version = tuple(map(int, [major, minor, patch]))
