@@ -67,7 +67,7 @@ def main():
     el = dataset[0][0]["edge_index"].astype("int64")
 
     with tempfile.TemporaryDirectory() as directory:
-        sample(el, "/home/nfs/abarghi/deleteme/")
+        sample(el, directory)
 
         print("Printing samples...")
         for file in os.listdir(directory):
