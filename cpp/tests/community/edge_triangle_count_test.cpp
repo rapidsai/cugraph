@@ -163,7 +163,7 @@ class Tests_EdgeTriangleCount
         graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::make_optional(d_cugraph_results.view()),
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>> {std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
 
     if (cugraph::test::g_perf) {
