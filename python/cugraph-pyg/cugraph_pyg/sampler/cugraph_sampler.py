@@ -222,7 +222,9 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     major_offsets = major_offsets.clone() - major_offsets[0]
     label_hop_offsets = label_hop_offsets.clone() - label_hop_offsets[0]
 
-    num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().tolist()}
+    num_edges_per_hop_dict = {
+        edge_type: major_offsets[label_hop_offsets].diff().tolist()
+    }
 
     label_hop_offsets = label_hop_offsets.cpu()
     num_nodes_per_hop_dict = {
