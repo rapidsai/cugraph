@@ -25,6 +25,8 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
