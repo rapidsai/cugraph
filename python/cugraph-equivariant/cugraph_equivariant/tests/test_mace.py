@@ -11,40 +11,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph_equivariant.nn.tensor_product_conv import MACE_InteractionBlock
+from cugraph_equivariant.nn.mace import InteractionBlock
 from utils import get_random_edge_index
 import torch
 from e3nn import o3
 
 device = torch.device("cuda")
 
-sparse_size = (10, 10)
-num_batches = 100
-edge_index = get_random_edge_index(*sparse_size, num_batches, device=device)
 
-num_elements = 2
-num_basis = 8
-avg_number_neighbors = 8
+def test_interaction_block_equivariance():
+    sparse_size = (10, 10)
+    num_batches = 100
+    edge_index = get_random_edge_index(*sparse_size, num_batches, device=device)
 
-in_irreps = o3.Irreps("32x0e+32x1o")
-sh_irreps = o3.Irreps.spherical_harmonics(2)
-num_features = 32
-target_irreps = (sh_irreps * num_features).sort()[0].simplify()
+    num_elements = 2
+    num_basis = 8
+    avg_number_neighbors = 8
 
-node_feats = torch.randn(sparse_size[0], in_irreps.dim, device=device)
-node_attrs = torch.randn(sparse_size[0], num_elements, device=device)
-edge_feats = torch.randn(num_batches, num_basis, device=device)
-edge_attrs = torch.randn(num_batches, sh_irreps.dim, device=device)
+    in_irreps = o3.Irreps("32x0e+32x1o")
+    sh_irreps = o3.Irreps.spherical_harmonics(2)
+    num_features = 32
+    target_irreps = (sh_irreps * num_features).sort()[0].simplify()
 
-conv = MACE_InteractionBlock(
-    in_irreps=in_irreps,
-    sh_irreps=sh_irreps,
-    target_irreps=target_irreps,
-    num_elements=num_elements,
-    num_bessel_basis=num_basis,
-    avg_num_neighbors=avg_number_neighbors,
-    e3nn_compat_mode=True,
-).to(device=device)
+    node_feats = torch.randn(sparse_size[0], in_irreps.dim, device=device)
+    node_attrs = torch.randn(sparse_size[0], num_elements, device=device)
+    edge_feats = torch.randn(num_batches, num_basis, device=device)
+    edge_attrs = torch.randn(num_batches, sh_irreps.dim, device=device)
 
-graph = ((edge_index[0], edge_index[1]), edge_index.sparse_size())
-out = conv(node_feats, node_attrs, edge_feats, edge_attrs, graph)
+    conv = InteractionBlock(
+        in_irreps=in_irreps,
+        sh_irreps=sh_irreps,
+        target_irreps=target_irreps,
+        num_elements=num_elements,
+        num_bessel_basis=num_basis,
+        avg_num_neighbors=avg_number_neighbors,
+        e3nn_compat_mode=True,
+    ).to(device=device)
+
+    rot = o3.rand_matrix()
+    D_in = conv.in_irreps.D_from_matrix(rot).to(device)
+    D_sh = conv.sh_irreps.D_from_matrix(rot).to(device)
+    D_out = conv.target_irreps.D_from_matrix(rot).to(device)
+
+    graph = ((edge_index[0], edge_index[1]), edge_index.sparse_size())
+    out_before = conv(
+        node_feats @ D_in.T, node_attrs, edge_feats, edge_attrs @ D_sh.T, graph
+    )
+
+    out_after = conv(node_feats, node_attrs, edge_feats, edge_attrs, graph) @ D_out.T
+
+    assert torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-4)
