@@ -12,13 +12,13 @@
 # limitations under the License.
 
 import pytest
-
+from utils import get_random_edge_index
 import torch
 from torch import nn
 from e3nn import o3
 from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 
-device = torch.device("cuda:0")
+device = torch.device("cuda")
 
 
 @pytest.mark.parametrize("e3nn_compat_mode", [True, False])
@@ -36,6 +36,11 @@ def test_tensor_product_conv_equivariance(
 ):
     torch.manual_seed(12345)
 
+    sparse_size = (9, 7)
+    num_batches = 100
+    edge_index = get_random_edge_index(*sparse_size, num_batches, device=device)
+    graph = ((edge_index[0], edge_index[1]), edge_index.sparse_size())
+
     in_irreps = o3.Irreps("10x0e + 10x1e")
     out_irreps = o3.Irreps("20x0e + 10x1e")
     sh_irreps = o3.Irreps.spherical_harmonics(lmax=2)
@@ -50,19 +55,8 @@ def test_tensor_product_conv_equivariance(
         e3nn_compat_mode=e3nn_compat_mode,
     ).to(device)
 
-    num_src_nodes, num_dst_nodes = 9, 7
-    num_edges = 40
-    src = torch.randint(num_src_nodes, (num_edges,), device=device)
-    dst = torch.randint(num_dst_nodes, (num_edges,), device=device)
-    edge_index = torch.vstack((src, dst))
-
-    src_pos = torch.randn(num_src_nodes, 3, device=device)
-    dst_pos = torch.randn(num_dst_nodes, 3, device=device)
-    edge_vec = dst_pos[dst] - src_pos[src]
-    edge_sh = o3.spherical_harmonics(
-        tp_conv.sh_irreps, edge_vec, normalize=True, normalization="component"
-    ).to(device)
-    src_features = torch.randn(num_src_nodes, in_irreps.dim, device=device)
+    edge_sh = torch.randn(num_batches, sh_irreps.dim, device=device)
+    src_features = torch.randn(sparse_size[0], in_irreps.dim, device=device)
 
     rot = o3.rand_matrix()
     D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device)
@@ -70,46 +64,51 @@ def test_tensor_product_conv_equivariance(
     D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device)
 
     if mlp_channels is None:
-        edge_emb = torch.randn(num_edges, tp_conv.tp.weight_numel, device=device)
+        edge_emb = torch.randn(num_batches, tp_conv.tp.weight_numel, device=device)
         src_scalars = dst_scalars = None
     else:
         if scalar_sizes:
-            edge_emb = torch.randn(num_edges, scalar_sizes[0], device=device)
+            edge_emb = torch.randn(num_batches, scalar_sizes[0], device=device)
             src_scalars = (
                 None
                 if scalar_sizes[1] == 0
-                else torch.randn(num_src_nodes, scalar_sizes[1], device=device)
+                else torch.randn(sparse_size[0], scalar_sizes[1], device=device)
             )
             dst_scalars = (
                 None
                 if scalar_sizes[2] == 0
-                else torch.randn(num_dst_nodes, scalar_sizes[2], device=device)
+                else torch.randn(sparse_size[0], scalar_sizes[2], device=device)
             )
         else:
-            edge_emb = torch.randn(num_edges, tp_conv.mlp[0].in_features, device=device)
+            edge_emb = torch.randn(
+                num_batches, tp_conv.mlp[0].in_features, device=device
+            )
             src_scalars = dst_scalars = None
 
     # rotate before
+    torch.manual_seed(12345)
     out_before = tp_conv(
         src_features=src_features @ D_in.T,
         edge_sh=edge_sh @ D_sh.T,
         edge_emb=edge_emb,
-        graph=(edge_index, (num_src_nodes, num_dst_nodes)),
+        graph=graph,
         src_scalars=src_scalars,
         dst_scalars=dst_scalars,
     )
 
     # rotate after
+    torch.manual_seed(12345)
     out_after = (
         tp_conv(
             src_features=src_features,
             edge_sh=edge_sh,
             edge_emb=edge_emb,
-            graph=(edge_index, (num_src_nodes, num_dst_nodes)),
+            graph=graph,
             src_scalars=src_scalars,
             dst_scalars=dst_scalars,
         )
         @ D_out.T
     )
 
-    torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-4)
+    if e3nn_compat_mode:
+        assert torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-3)
