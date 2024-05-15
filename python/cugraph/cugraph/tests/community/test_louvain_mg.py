@@ -14,122 +14,41 @@
 import pytest
 
 import cugraph.dask as dcg
+from cugraph.datasets import karate_asymmetric, karate, dolphins
 
-import cugraph
-import dask_cudf
-from cugraph.testing import utils
-
-
-try:
-    from rapids_pytest_benchmark import setFixtureParamNames
-except ImportError:
-    print(
-        "\n\nWARNING: rapids_pytest_benchmark is not installed, "
-        "falling back to pytest_benchmark fixtures.\n"
-    )
-
-    # if rapids_pytest_benchmark is not available, just perfrom time-only
-    # benchmarking and replace the util functions with nops
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
-
-    def setFixtureParamNames(*args, **kwargs):
-        pass
+from test_leiden_mg import get_mg_graph
 
 
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS_ASYMMETRIC = [utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"]
 
 
-###############################################################################
-# Fixtures
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
-@pytest.fixture(
-    scope="module",
-    params=DATASETS_ASYMMETRIC,
-    ids=[f"dataset={d.as_posix()}" for d in DATASETS_ASYMMETRIC],
-)
-def daskGraphFromDataset(request, dask_client):
-    """
-    Returns a new dask dataframe created from the dataset file param.
-    This creates a directed Graph.
-    """
-    # Since parameterized fixtures do not assign param names to param values,
-    # manually call the helper to do so.
-    setFixtureParamNames(request, ["dataset"])
-    dataset = request.param
-
-    chunksize = dcg.get_chunksize(dataset)
-    ddf = dask_cudf.read_csv(
-        dataset,
-        blocksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
-    return dg
+DATASETS_ASYMMETRIC = DATASETS_ASYMMETRIC = [karate_asymmetric]
+DATASETS = [karate, dolphins]
 
 
-@pytest.fixture(
-    scope="module",
-    params=utils.DATASETS_UNDIRECTED,
-    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNDIRECTED],
-)
-def uddaskGraphFromDataset(request, dask_client):
-    """
-    Returns a new dask dataframe created from the dataset file param.
-    This creates an undirected Graph.
-    """
-    # Since parameterized fixtures do not assign param names to param
-    # values, manually call the helper to do so.
-    setFixtureParamNames(request, ["dataset"])
-    dataset = request.param
-
-    chunksize = dcg.get_chunksize(dataset)
-    ddf = dask_cudf.read_csv(
-        dataset,
-        blocksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
-    return dg
-
-
-###############################################################################
+# =============================================================================
 # Tests
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
+# =============================================================================
 # FIXME: Implement more robust tests
+
+
 @pytest.mark.mg
-def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
+@pytest.mark.parametrize("dataset", DATASETS_ASYMMETRIC)
+def test_mg_louvain_with_edgevals_directed_graph(dask_client, dataset):
+    dg = get_mg_graph(dataset, directed=True)
     # Directed graphs are not supported by Louvain and a ValueError should be
     # raised
     with pytest.raises(ValueError):
-        parts, mod = dcg.louvain(daskGraphFromDataset)
+        parts, mod = dcg.louvain(dg)
 
 
-###############################################################################
-# Tests
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
-# FIXME: Implement more robust tests
 @pytest.mark.mg
-def test_mg_louvain_with_edgevals_undirected_graph(uddaskGraphFromDataset):
-    parts, mod = dcg.louvain(uddaskGraphFromDataset)
+@pytest.mark.parametrize("dataset", DATASETS)
+def test_mg_louvain_with_edgevals_undirected_graph(dask_client, dataset):
+    dg = get_mg_graph(dataset, directed=False)
+    parts, mod = dcg.louvain(dg)
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hardcode golden results to compare to.
