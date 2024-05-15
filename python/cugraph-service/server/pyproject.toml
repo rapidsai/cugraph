@@ -74,3 +74,4 @@ include = [
 build-backend = "setuptools.build_meta"
 requires = []
 dependencies-file = "../../../dependencies.yaml"
+disable-cuda = true
