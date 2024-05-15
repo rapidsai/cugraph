@@ -671,12 +671,14 @@ k_truss(raft::handle_t const& handle,
     edge_weight_view =
       edge_weight ? std::make_optional((*edge_weight).view())
                   : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      edge_weight_view,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
+      decompress_to_edgelist(
+        handle,
+        cur_graph_view,
+        edge_weight_view,
+        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     auto num_triangles = edge_triangle_count<vertex_t, edge_t, false, false>(
       handle,
@@ -894,12 +896,14 @@ k_truss(raft::handle_t const& handle,
       num_triangles.resize(num_edges_with_triangles, handle.get_stream());
     }
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
+      decompress_to_edgelist(
+        handle,
+        cur_graph_view,
+        edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
+        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,

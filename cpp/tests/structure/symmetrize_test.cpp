@@ -214,12 +214,13 @@ class Tests_Symmetrize
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
 
     if (symmetrize_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights, std::ignore) =
+      std::tie(d_org_srcs, d_org_dsts, d_org_weights, std::ignore, std::ignore) =
         cugraph::decompress_to_edgelist(
           handle,
           graph.view(),
           edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
           d_renumber_map_labels
             ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
                                                                     (*d_renumber_map_labels).size())
@@ -249,12 +250,13 @@ class Tests_Symmetrize
       rmm::device_uvector<vertex_t> d_symm_dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> d_symm_weights{std::nullopt};
 
-      std::tie(d_symm_srcs, d_symm_dsts, d_symm_weights, std::ignore) =
+      std::tie(d_symm_srcs, d_symm_dsts, d_symm_weights, std::ignore, std::ignore) =
         cugraph::decompress_to_edgelist(
           handle,
           graph.view(),
           edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
           d_renumber_map_labels
             ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
                                                                     (*d_renumber_map_labels).size())
