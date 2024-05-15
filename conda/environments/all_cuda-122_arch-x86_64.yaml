@@ -62,7 +62,7 @@ dependencies:
 - pytest-xdist
 - python-louvain
 - raft-dask==24.6.*
-- rapids-build-backend>=0.1.1,<0.2.0.dev0
+- rapids-build-backend>=0.2.0,<0.3.0.dev0
 - rapids-dask-dependency==24.6.*
 - recommonmark
 - requests

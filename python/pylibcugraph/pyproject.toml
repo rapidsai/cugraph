@@ -4,7 +4,7 @@
 
 requires = [
     "cython>=3.0.0",
-    "rapids-build-backend>=0.1.1,<0.2.0.dev0",
+    "rapids-build-backend>=0.2.0,<0.3.0.dev0",
     "scikit-build-core[pyproject]>=0.7.0",
     "setuptools>=61.0.0",
     "wheel",
@@ -64,7 +64,6 @@ regex = "(?P<value>.*)"
 
 [tool.rapids-build-backend]
 build-backend = "scikit_build_core.build"
-commit-file = "pylibcugraph/GIT_COMMIT"
 dependencies-file = "../../dependencies.yaml"
 requires = [
     "cmake>=3.26.4",
