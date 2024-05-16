@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,26 @@
 
 #pragma once
 
-#include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
-
-#include <raft/core/device_span.hpp>
+#include <cugraph/mtmg/detail/device_shared_device_vector_tuple.hpp>
+#include <cugraph/mtmg/vertex_pair_result_view.hpp>
 
 namespace cugraph {
 namespace mtmg {
-namespace detail {
 
 /**
- * @brief  Manage device spans on each GPU
+ * @brief An MTMG device vector for storing vertex results
  */
-template <typename T>
-using device_shared_device_span_t = device_shared_wrapper_t<raft::device_span<T>>;
+template <typename vertex_t, typename result_t>
+class vertex_pair_result_t
+  : public detail::device_shared_device_vector_tuple_t<vertex_t, vertex_t, result_t> {
+  using parent_t = detail::device_shared_device_vector_tuple_t<vertex_t, vertex_t, result_t>;
 
-}  // namespace detail
+ public:
+  /**
+   * @brief Create a vertex result view (read only)
+   */
+  auto view() { return vertex_pair_result_view_t<vertex_t, result_t>(this->parent_t::view()); }
+};
+
 }  // namespace mtmg
 }  // namespace cugraph

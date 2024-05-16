@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,11 @@ namespace mtmg {
 namespace detail {
 
 /**
- * @brief  Manage device spans on each GPU
+ * @brief  Manage a tuple of device spans on each GPU
  */
-template <typename T>
-using device_shared_device_span_t = device_shared_wrapper_t<raft::device_span<T>>;
+template <typename... Ts>
+using device_shared_device_span_tuple_t =
+  device_shared_wrapper_t<std::tuple<raft::device_span<Ts>...>>;
 
 }  // namespace detail
 }  // namespace mtmg
