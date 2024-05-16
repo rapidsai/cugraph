@@ -182,8 +182,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     if constexpr (multi_gpu) {
       // stores all the pairs (p, r) and (q, r)
       auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-        intersection_indices.size() * 2, handle.get_stream());  // *2 for both (p, r) and (q, r)
-      // So that you shuffle only once
+        intersection_indices.size() * 2, handle.get_stream());
 
       // tabulate with the size of intersection_indices, and call binary search on
       // intersection_offsets to get (p, r).
@@ -260,7 +259,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
           std::move(std::get<0>(vertex_pair_buffer)),
           std::move(std::get<1>(vertex_pair_buffer)),
           std::nullopt,
-          // FIXME: Update 'shuffle_int_...' to support int32_t and int64_t values
+          // FIXME: Add general purpose function for shuffling vertex pairs and arbitrary attributes
           std::move(opt_increase_count),
           std::nullopt,
           graph_view.vertex_partition_range_lasts());
