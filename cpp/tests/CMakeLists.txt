@@ -796,14 +796,31 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
     target_link_libraries(MTMG_TEST
                           PRIVATE
-                          UCP::UCP
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
                          )
 
     ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
                           cugraphmgtestutil
-                          UCP::UCP
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
+                         )
+
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    target_link_libraries(MTMG_JACCARD_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
                          )
 
     if(BUILD_CUGRAPH_MG_TESTS)
@@ -813,7 +830,10 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
                               cugraphmgtestutil
-                              UCP::UCP
+                              ${COMPILED_RAFT_LIB}
+                              ucx::ucp
+                              ucx::ucs
+                              ucxx::ucxx
                              )
     endif(BUILD_CUGRAPH_MG_TESTS)
 endif(BUILD_CUGRAPH_MTMG_TESTS)
