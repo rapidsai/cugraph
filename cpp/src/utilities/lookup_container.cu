@@ -63,6 +63,6 @@ void search_container_t<edge_type_t, edge_id_t, value_t>::insert(edge_type_t et,
   pimpl->insert(et, ei, v);
 }
 
-template class search_container_t<int32_t, int32_t, int32_t>;
+template class search_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>>;
 
 }  // namespace cugraph
