@@ -10,7 +10,7 @@ namespace cugraph {
 //---------------------
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
-class edge_type_and_id_search_container_t_2 {
+class search_container_t {
   template <typename _edge_type_t, typename _edge_id_t, typename _value_t>
   struct impl;
   std::unique_ptr<impl<edge_type_t, edge_id_t, value_t>> pimpl;
@@ -24,9 +24,9 @@ class edge_type_and_id_search_container_t_2 {
   static_assert(std::is_arithmetic_v<edge_id_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
-  edge_type_and_id_search_container_t_2();
-  ~edge_type_and_id_search_container_t_2();
-  edge_type_and_id_search_container_t_2(const edge_type_and_id_search_container_t_2&);
+  ~search_container_t();
+  search_container_t();
+  search_container_t(const search_container_t&);
 
   void insert(edge_type_t, edge_id_t, value_t);
 };

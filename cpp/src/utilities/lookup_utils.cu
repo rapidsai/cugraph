@@ -4,12 +4,11 @@
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/lookup_container.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/core/handle.hpp>
-
-#include <unordered_map>
 
 namespace cugraph {
 
@@ -35,10 +34,6 @@ struct edge_type_and_id_search_container_t {
   using edge_type_type = edge_type_t;
   using edge_id_type   = edge_id_t;
   using value_type     = value_t;
-  using container_t =
-    std::unordered_map<edge_type_t,
-                       cugraph::kv_store_t<edge_id_t, value_t, false /*use_binary_search*/>>;
-
   static_assert(std::is_arithmetic_v<edge_type_t>);
   static_assert(std::is_arithmetic_v<edge_id_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
@@ -49,6 +44,10 @@ struct edge_type_and_id_search_container_t {
   edge_type_and_id_search_container_t& operator=(const edge_type_and_id_search_container_t&) =
     delete;
 
+  using container_t =
+    std::unordered_map<edge_type_t,
+                       cugraph::kv_store_t<edge_id_t, value_t, false /*use_binary_search*/>>;
+
   container_t edge_type_to_kv_store;
 };
 
@@ -57,7 +56,8 @@ template <typename vertex_t,
           typename edge_type_t,
           typename EdgeTypeAndIdToSrcDstLookupContainerType,
           bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type(
   raft::handle_t const& handle,
   EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,
@@ -140,7 +140,8 @@ template <typename vertex_t,
           typename edge_type_t,
           typename EdgeTypeAndIdToSrcDstLookupContainerType,
           bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type(
   raft::handle_t const& handle,
   EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,
@@ -232,7 +233,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> lookup(
     auto typ = h_unique_types[idx];
 
     auto [srcs, dsts] =
-      lookup<vertex_t, edge_id_t, edge_type_t, EdgeTypeAndIdToSrcDstLookupContainerType, multi_gpu>(
+      cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t,
+                                                   edge_id_t,
+                                                   edge_type_t,
+                                                   EdgeTypeAndIdToSrcDstLookupContainerType,
+                                                   multi_gpu>(
         handle,
         search_container,
         raft::device_span<edge_id_t const>{
@@ -738,32 +743,22 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
       auto key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
         comm_size, major_comm_size, minor_comm_size};
 
-      rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
-
-      auto itr_to_quadruple = thrust::make_zip_iterator(edgelist_majors.begin(),
-                                                        edgelist_minors.begin(),
-                                                        (*edgelist_ids).begin(),
-                                                        (*edgelist_types).begin());
-
-      d_tx_value_counts = cugraph::groupby_and_count(
-        itr_to_quadruple,
-        itr_to_quadruple + edgelist_majors.size(),
-        [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
-        comm_size,
-        std::numeric_limits<edge_id_t>::max(), /* mem_frugal_threshold */
-        handle.get_stream());
-
-      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-      raft::update_host(h_tx_value_counts.data(),
-                        d_tx_value_counts.data(),
-                        d_tx_value_counts.size(),
-                        handle.get_stream());
-
+      // Shuffle to the proper GPUs
       std::forward_as_tuple(
         std::tie(edgelist_majors, edgelist_minors, (*edgelist_ids), (*edgelist_types)),
         std::ignore) =
-        shuffle_values(
-          handle.get_comms(), itr_to_quadruple, h_tx_value_counts, handle.get_stream());
+        cugraph::groupby_gpu_id_and_shuffle_values(
+          handle.get_comms(),
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(),
+                                                       edgelist_minors.begin(),
+                                                       (*edgelist_ids).begin(),
+                                                       (*edgelist_types).begin())),
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.end(),
+                                                       edgelist_minors.end(),
+                                                       (*edgelist_ids).end(),
+                                                       (*edgelist_types).end())),
+          [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+          handle.get_stream());
     }
 
     //
@@ -834,162 +829,232 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     std::move(edge_type_to_kv_store_umap)};
 }
 
-template edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>
-create_edge_id_and_type_to_src_dst_lookup_map(
+template <typename vertex_t, typename edge_id_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type_pub(
+  raft::handle_t const& handle,
+  search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t, vertex_t>> const&
+    search_container,
+  raft::device_span<edge_id_t const> edge_ids_to_lookup,
+  edge_type_t edge_type_to_lookup)
+{
+  search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t, vertex_t>> search;
+  search.insert(edge_type_t{1}, edge_id_t{2}, thrust::tuple<vertex_t, vertex_t>(1, 1));
+
+  rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
+
+  auto constexpr invalid_vertex_id = cugraph::invalid_vertex_id<vertex_t>::value;
+  thrust::fill(
+    handle.get_thrust_policy(), output_srcs.begin(), output_srcs.end(), invalid_vertex_id);
+  thrust::fill(
+    handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_vertex_id);
+
+  return std::make_tuple(std::move(output_srcs), std::move(output_dsts));
+
+  // using m_t =
+  //   edge_type_and_id_search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t,
+  //   vertex_t>>;
+  // return cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t,
+  //                                                     edge_id_t,
+  //                                                     edge_type_t,
+  //                                                     m_t,
+  //                                                     // decltype(search_container),
+  //                                                     multi_gpu>(
+  //   handle, search_container, edge_ids_to_lookup, edge_type_to_lookup);
+}
+
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>
+create_edge_id_and_type_to_src_dst_lookup_map_pub(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, edge_t const*> edge_id_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view)
+{
+  search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>> search;
+  search.insert(edge_type_t{1}, edge_t{2}, thrust::tuple<vertex_t, vertex_t>(1, 1));
+  return search;
+
+  //   using return_t =
+  //   edge_type_and_id_search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>;
+  // using graph_view_t = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+
+  // return create_edge_id_and_type_to_src_dst_lookup_map<graph_view_t,
+  //                                                      decltype(edge_id_view),
+  //                                                      decltype(edge_type_view),
+  //                                                      return_t>(
+  //   handle, graph_view, edge_id_view, edge_type_view);
+}
+
+using edge_type_t = int32_t;
+
+template search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>
+create_edge_id_and_type_to_src_dst_lookup_map_pub(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   edge_property_view_t<int32_t, int32_t const*> edge_id_view,
-  edge_property_view_t<int32_t, uint8_t const*> edge_type_view);
-
-template edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>
-create_edge_id_and_type_to_src_dst_lookup_map(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, int64_t const*> edge_id_view,
-  edge_property_view_t<int64_t, uint8_t const*> edge_type_view);
+  edge_property_view_t<int32_t, edge_type_t const*> edge_type_view);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int32_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>,
-       false>(
+cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, false>(
   raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
+  search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>> const& search_container,
   raft::device_span<int32_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+  edge_type_t const edge_type_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int32_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int32_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int32_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int32_t const> edge_ids_to_lookup,
+//   edge_type_t const edge_type_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int32_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>,
-       false>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int32_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int32_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>,
+//   false>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int32_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int32_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int32_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int32_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int32_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int32_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int32_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>>,
-       false>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   false>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-lookup<int64_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>,
-       false>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int64_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   false>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-lookup<int64_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  raft::device_span<uint8_t const> edge_types_to_lookup);
+// template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int64_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>>,
-       false>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   false>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   edge_type_t const edge_type_to_lookup);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-lookup<int32_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int32_t, int32_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+// template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int32_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   edge_type_t const edge_type_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-lookup<int64_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>,
-       false>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+// template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int64_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   false>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   edge_type_t const edge_type_to_lookup);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-lookup<int64_t,
-       int64_t,
-       uint8_t,
-       edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>>,
-       true>(
-  raft::handle_t const& handle,
-  edge_type_and_id_search_container_t<uint8_t, int64_t, thrust::tuple<int64_t, int64_t>> const&
-    search_container,
-  raft::device_span<int64_t const> edge_ids_to_lookup,
-  uint8_t const edge_type_to_lookup);
+// template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+// cugraph_lookup_src_dst_from_edge_id_and_type<
+//   int64_t,
+//   int64_t,
+//   edge_type_t,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   true>(
+//   raft::handle_t const& handle,
+//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   const&
+//     search_container,
+//   raft::device_span<int64_t const> edge_ids_to_lookup,
+//   edge_type_t const edge_type_to_lookup);
 
 }  // namespace cugraph

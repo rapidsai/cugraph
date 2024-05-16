@@ -23,7 +23,7 @@ namespace cugraph {
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
 template <typename _edge_type_t, typename _edge_id_t, typename _value_t>
-struct edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::impl {
+struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
   static_assert(std::is_same_v<edge_type_t, _edge_type_t>);
   static_assert(std::is_same_v<edge_id_t, _edge_id_t>);
   static_assert(std::is_same_v<value_t, _value_t>);
@@ -39,32 +39,30 @@ struct edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::i
 };
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
-edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::
-  edge_type_and_id_search_container_t_2()
+search_container_t<edge_type_t, edge_id_t, value_t>::~search_container_t()
+{
+  // FIXME
+}
+
+template <typename edge_type_t, typename edge_id_t, typename value_t>
+search_container_t<edge_type_t, edge_id_t, value_t>::search_container_t()
   : pimpl{std::make_unique<impl<edge_type_t, edge_id_t, value_t>>()}
 {
 }
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
-edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::
-  edge_type_and_id_search_container_t_2(const edge_type_and_id_search_container_t_2&)
+search_container_t<edge_type_t, edge_id_t, value_t>::search_container_t(const search_container_t&)
 {
 }
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
-edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::
-  ~edge_type_and_id_search_container_t_2()
-{
-}
-
-template <typename edge_type_t, typename edge_id_t, typename value_t>
-void edge_type_and_id_search_container_t_2<edge_type_t, edge_id_t, value_t>::insert(edge_type_t et,
-                                                                                    edge_id_t ei,
-                                                                                    value_t v)
+void search_container_t<edge_type_t, edge_id_t, value_t>::insert(edge_type_t et,
+                                                                 edge_id_t ei,
+                                                                 value_t v)
 {
   pimpl->insert(et, ei, v);
 }
 
-template class edge_type_and_id_search_container_t_2<int32_t, int32_t, int32_t>;
+template class search_container_t<int32_t, int32_t, int32_t>;
 
 }  // namespace cugraph
