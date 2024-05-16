@@ -13,7 +13,7 @@ dependencies:
 - dgl>=1.1.0.cu*
 - pandas
 - pre-commit
-- pylibcugraphops==24.6.*
+- pylibcugraphops==24.6.*,>=0.0.0a0
 - pytest
 - pytest-benchmark
 - pytest-cov

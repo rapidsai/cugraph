@@ -47,7 +47,7 @@ dependencies:
 - pandas
 - pre-commit
 - pydata-sphinx-theme
-- pylibcugraphops==24.6.*
+- pylibcugraphops==24.6.*,>=0.0.0a0
 - pylibraft==24.6.*
 - pylibwholegraph==24.6.*
 - pytest

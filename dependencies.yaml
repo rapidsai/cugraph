@@ -712,7 +712,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibcugraphops_conda pylibcugraphops==24.6.*
+          - &pylibcugraphops_conda pylibcugraphops==24.6.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -727,7 +727,7 @@ dependencies:
           - matrix: {cuda: "11.*"}
             packages:
               - pylibcugraphops-cu11==24.6.*,>=0.0.0a0
-          - {matrix: null, packages: null}
+          - {matrix: null, packages: [*pylibcugraphops_conda]}
 
   depends_on_cupy:
     common:
