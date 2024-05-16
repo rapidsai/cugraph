@@ -22,6 +22,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
+#include <cugraph/lookup_container.hpp>
 
 #ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
@@ -2390,6 +2391,24 @@ std::
     cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
     raft::device_span<edge_t const> edge_ids_to_lookup);
+
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+edge_type_and_id_search_container_t_2<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>
+create_edge_id_and_type_to_src_dst_lookup_map_pub(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, edge_t const*> edge_id_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view);
+
+template <typename vertex_t, typename edge_id_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type_pub(
+  raft::handle_t const& handle,
+  edge_type_and_id_search_container_t_2<edge_type_t,
+                                        edge_id_t,
+                                        thrust::tuple<vertex_t, vertex_t>> const& search_container,
+  raft::device_span<edge_id_t const> edge_ids_to_lookup,
+  edge_type_t edge_type_to_lookup);
 
 }  // namespace cugraph
 
