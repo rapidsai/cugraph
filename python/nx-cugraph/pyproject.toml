@@ -84,7 +84,7 @@ include = [
 build-backend = "setuptools.build_meta"
 commit-files = ["_nx_cugraph/GIT_COMMIT"]
 dependencies-file = "../../dependencies.yaml"
-require-cuda = false
+disable-cuda = true
 
 [tool.black]
 line-length = 88
