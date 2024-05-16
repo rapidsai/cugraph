@@ -75,7 +75,7 @@ requirements:
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
-    - rapids-build-backend
+    - rapids-build-backend>=0.2.0,<0.3.0.dev0
 
 outputs:
   - name: libcugraph
