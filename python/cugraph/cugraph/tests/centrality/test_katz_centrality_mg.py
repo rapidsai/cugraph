@@ -53,7 +53,6 @@ def test_dask_mg_katz_centrality(dask_client, dataset, directed):
     input_data_path = dataset.get_path()
     print(f"dataset={input_data_path}")
 
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
@@ -95,16 +94,12 @@ def test_dask_mg_katz_centrality(dask_client, dataset, directed):
             err = err + 1
     assert err == 0
 
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
-
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_mg_katz_centrality_nstart(dask_client, dataset, directed):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
@@ -136,14 +131,10 @@ def test_dask_mg_katz_centrality_nstart(dask_client, dataset, directed):
             err = err + 1
     assert err == 0
 
-    # Clean-up stored dataset edge-lists
-    dataset.unload()
-
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", DATASETS)
 def test_dask_mg_katz_centrality_transposed_false(dask_client, dataset):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
@@ -156,6 +147,3 @@ def test_dask_mg_katz_centrality_transposed_false(dask_client, dataset):
 
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.katz_centrality(dg)
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

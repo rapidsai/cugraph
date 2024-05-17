@@ -963,6 +963,46 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
             assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
 
 
+def test_uniform_neighbor_sample_retain_seeds():
+    src = cupy.array([0, 1, 2, 3, 4, 5], dtype="int64")
+    dst = cupy.array([2, 3, 1, 7, 5, 6], dtype="int64")
+
+    seeds = cupy.array([6, 0, 1, 7], dtype="int64")
+    batch = cupy.array([0, 0, 1, 1], dtype="int32")
+    batch_offsets = cupy.array([0, 2, 4], dtype="int64")
+
+    fanout = [2, 2]
+
+    df = cudf.DataFrame({"src": src, "dst": dst})
+
+    G = cugraph.MultiGraph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+
+    batch_df = cudf.DataFrame({"seeds": seeds, "batch": batch})
+    batch_offsets_s = cudf.Series(batch_offsets, name="batch_offsets")
+    results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        batch_df,
+        fanout,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=True,
+        random_state=62,
+        return_offsets=True,
+        label_offsets=batch_offsets_s,
+        return_hops=True,
+        prior_sources_behavior="exclude",
+        deduplicate_sources=True,
+        renumber=True,
+        retain_seeds=True,
+        compress_per_hop=False,
+    )
+
+    assert offsets.renumber_map_offsets.dropna().values_host.tolist() == [0, 4, 7]
+    assert renumber_map.renumber_map.values_host[[0, 1]].tolist() == [0, 6]
+    assert renumber_map.renumber_map.values_host[[4, 5]].tolist() == [1, 7]
+
+
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
 def test_uniform_neighbor_sample_dcsr_dcsc_global():

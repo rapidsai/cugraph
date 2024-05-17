@@ -49,6 +49,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_renumber_results,
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
+    cugraph_sampling_set_retain_seeds,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_uniform_neighbor_sample,
@@ -89,10 +90,12 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             batch_id_list=None,
                             label_list=None,
                             label_to_output_comm_rank=None,
+                            label_offsets=None,
                             prior_sources_behavior=None,
                             deduplicate_sources=False,
                             return_hops=False,
                             renumber=False,
+                            retain_seeds=False,
                             compression='COO',
                             compress_per_hop=False,
                             random_state=None,
@@ -143,6 +146,9 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         worker that should hold results for that batch id.
         Defaults to NULL (does nothing)
 
+    label_offsets: list[int] (Optional)
+        Offsets of each label within the start vertex list.
+
     prior_sources_behavior: str (Optional)
         Options are "carryover", and "exclude".
         Default will leave the source list as-is.
@@ -159,6 +165,11 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         If True, will renumber the sources and destinations on a
         per-batch basis and return the renumber map and batch offsets
         in additional to the standard returns.
+
+    retain_seeds: bool (Optional)
+        If True, will retain the original seeds (original source vertices)
+        in the output even if they do not have outgoing neighbors.
+        Defaults to False.
 
     compression: str (Optional)
         Options: COO (default), CSR, CSC, DCSR, DCSR
@@ -210,6 +221,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     assert_CAI_type(batch_id_list, "batch_id_list", True)
     assert_CAI_type(label_list, "label_list", True)
     assert_CAI_type(label_to_output_comm_rank, "label_to_output_comm_rank", True)
+    assert_CAI_type(label_offsets, "label_offsets", True)
     assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
@@ -233,6 +245,11 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     if label_to_output_comm_rank is not None:
         cai_label_to_output_comm_rank_ptr = \
             label_to_output_comm_rank.__cuda_array_interface__['data'][0]
+
+    cdef uintptr_t cai_label_offsets_ptr
+    if label_offsets is not None:
+        cai_label_offsets_ptr = \
+            label_offsets.__cuda_array_interface__['data'][0]
 
     cdef uintptr_t ai_fan_out_ptr = \
         h_fan_out.__array_interface__["data"][0]
@@ -268,6 +285,17 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                 <void*>cai_label_to_output_comm_rank_ptr,
                 len(label_to_output_comm_rank),
                 get_c_type_from_numpy_type(label_to_output_comm_rank.dtype)
+            )
+
+    cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if retain_seeds:
+        if label_offsets is None:
+            raise ValueError("Must provide label offsets if retain_seeds is True")
+        label_offsets_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_label_offsets_ptr,
+                len(label_offsets),
+                get_c_type_from_numpy_type(label_offsets.dtype)
             )
 
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
@@ -323,6 +351,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_renumber_results(sampling_options, c_renumber)
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
+    cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
 
     error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,
@@ -331,6 +360,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         batch_id_ptr,
         label_list_ptr,
         label_to_output_comm_rank_ptr,
+        label_offsets_ptr,
         fan_out_ptr,
         rng_state_ptr,
         sampling_options,
@@ -347,6 +377,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
     if batch_id_list is not None:
         cugraph_type_erased_device_array_view_free(batch_id_ptr)
+    if label_offsets is not None:
+        cugraph_type_erased_device_array_view_free(label_offsets_ptr)
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()

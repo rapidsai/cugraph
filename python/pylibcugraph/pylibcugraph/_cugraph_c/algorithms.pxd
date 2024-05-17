@@ -293,6 +293,12 @@ cdef extern from "cugraph_c/algorithms.h":
         )
 
     cdef void \
+        cugraph_sampling_set_retain_seeds(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+
+    cdef void \
         cugraph_sampling_set_with_replacement(
             cugraph_sampling_options_t* options,
             bool_t value,

@@ -234,12 +234,13 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
           normalized_,
           do_expensive_check_);
 
-      auto [src_ids, dst_ids, output_centralities, output_edge_ids] =
-        cugraph::decompress_to_edgelist(
+      auto [src_ids, dst_ids, output_centralities, output_edge_ids, output_edge_types] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
           handle_,
           graph_view,
           std::make_optional(centralities.view()),
           (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+          std::nullopt,
           (number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
                                       number_map->data(), number_map->size()})
                                   : std::nullopt);

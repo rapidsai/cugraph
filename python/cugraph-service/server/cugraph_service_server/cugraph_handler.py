@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1370,7 +1370,23 @@ class CugraphHandler:
             # FIXME: should something other than a numpy type be serialized to
             # prevent a copy? (note: any other type required to be de-serialzed
             # on the client end could add dependencies on the client)
-            df_numpy = dataframe.to_numpy(na_value=n)
+            df_copy = dataframe.copy()
+            for col_name in df_copy.columns:
+                if df_copy[col_name].dtype == "category":
+                    cat_dt = df_copy.dtypes[col_name].categories.dtype
+                    if cat_dt == "object":
+                        new_cat = str(n)
+                    else:
+                        new_cat = n
+                    if new_cat not in df_copy.dtypes[col_name].categories:
+                        df_copy[col_name] = df_copy[col_name].cat.add_categories(
+                            new_cat
+                        )
+                    df_copy[col_name].fillna(new_cat, inplace=True)
+                else:
+                    df_copy[col_name].fillna(n, inplace=True)
+
+            df_numpy = df_copy.to_numpy()
             return df_numpy.dumps()
 
         except Exception:
