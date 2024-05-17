@@ -462,7 +462,6 @@ dependencies:
           - &dask_cuda dask-cuda==24.6.*,>=0.0.0a0
           - &numba numba>=0.57
           - &numpy numpy>=1.23,<2.0a0
-          - &ucx_py ucx-py==0.38.*,>=0.0.0a0
       - output_types: conda
         packages:
           - aiohttp
@@ -470,11 +469,26 @@ dependencies:
           - requests
           - nccl>=2.9.9
           - ucx-proc=*=gpu
+          - &ucx_py ucx-py==0.38.*,>=0.0.0a0
       - output_types: pyproject
         packages:
             # cudf uses fsspec but is protocol independent. cugraph
             # dataset APIs require [http] extras for use with cudf.
           - fsspec[http]>=0.6.0
+    specific:
+      - output_types: pyproject
+        matrices:
+          - matrix:
+              cuda: "11.*"
+            packages:
+              - &ucx_py_cu11 ucx-py-cu11==0.38.*,>=0.0.0a0
+          - matrix:
+              cuda: "12.*"
+            packages:
+              - &ucx_py_cu12 ucx-py-cu12==0.38.*,>=0.0.0a0
+          - matrix:
+            packages:
+              - *ucx_py
   python_run_nx_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -513,11 +527,27 @@ dependencies:
           - *numba
           - *numpy
           - *thrift
-          - *ucx_py
       - output_types: pyproject
         packages:
           - *cugraph
           - cugraph-service-client==24.6.*,>=0.0.0a0
+      - output_types: conda
+        packages:
+          - *ucx_py
+    specific:
+      - output_types: pyproject
+        matrices:
+          - matrix:
+              cuda: "11.*"
+            packages:
+              - *ucx_py_cu11
+          - matrix:
+              cuda: "12.*"
+            packages:
+              - *ucx_py_cu12
+          - matrix:
+            packages:
+              - *ucx_py
   test_cpp:
     common:
       - output_types: conda
