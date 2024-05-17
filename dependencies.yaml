@@ -368,11 +368,11 @@ dependencies:
         packages:
           - c-compiler
           - cxx-compiler
-          - libcudf==24.6.*
-          - libcugraphops==24.6.*
-          - libraft-headers==24.6.*
-          - libraft==24.6.*
-          - librmm==24.6.*
+          - libcudf==24.6.*,>=0.0.0a0
+          - libcugraphops==24.6.*,>=0.0.0a0
+          - libraft-headers==24.6.*,>=0.0.0a0
+          - libraft==24.6.*,>=0.0.0a0
+          - librmm==24.6.*,>=0.0.0a0
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -458,8 +458,8 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &dask rapids-dask-dependency==24.6.*
-          - &dask_cuda dask-cuda==24.6.*
+          - &dask rapids-dask-dependency==24.6.*,>=0.0.0a0
+          - &dask_cuda dask-cuda==24.6.*,>=0.0.0a0
           - &numba numba>=0.57
           - &numpy numpy>=1.23,<2.0a0
           - &ucx_py ucx-py==0.38.*
@@ -489,7 +489,7 @@ dependencies:
           - *numpy
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==24.6.*
+          - &cugraph cugraph==24.6.*,>=0.0.0a0
   python_run_cugraph_pyg:
     common:
       - output_types: [conda, pyproject]
@@ -517,7 +517,7 @@ dependencies:
       - output_types: pyproject
         packages:
           - *cugraph
-          - cugraph-service-client==24.6.*
+          - cugraph-service-client==24.6.*,>=0.0.0a0
   test_cpp:
     common:
       - output_types: conda
@@ -552,7 +552,7 @@ dependencies:
           - scikit-learn>=0.23.1
       - output_types: [conda]
         packages:
-          - pylibwholegraph==24.6.*
+          - pylibwholegraph==24.6.*,>=0.0.0a0
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
@@ -569,7 +569,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cugraph==24.6.*
+          - cugraph==24.6.*,>=0.0.0a0
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - dgl>=1.1.0.cu*
@@ -577,7 +577,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cugraph==24.6.*
+          - cugraph==24.6.*,>=0.0.0a0
           - pytorch>=2.0
           - pytorch-cuda==11.8
           - pyg>=2.5,<2.6

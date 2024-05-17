@@ -24,7 +24,7 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "cugraph==24.6.*",
+    "cugraph==24.6.*,>=0.0.0a0",
     "numba>=0.57",
     "numpy>=1.23,<2.0a0",
     "pylibcugraphops==24.6.*,>=0.0.0a0",

@@ -9,7 +9,7 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
-- cugraph==24.6.*
+- cugraph==24.6.*,>=0.0.0a0
 - dgl>=1.1.0.cu*
 - pandas
 - pre-commit
