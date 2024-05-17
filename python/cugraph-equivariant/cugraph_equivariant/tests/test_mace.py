@@ -13,29 +13,30 @@
 
 import pytest
 from cugraph_equivariant.nn.mace import InteractionBlock, FusedSymmetricContraction
-from utils import get_random_edge_index
+from utils import get_random_graph
 import torch
 from e3nn import o3
 
 device = torch.device("cuda")
 
 
-def test_interaction_block_equivariance():
-    sparse_size = (10, 10)
-    num_batches = 100
-    edge_index = get_random_edge_index(*sparse_size, num_batches, device=device)
+@pytest.mark.parametrize("irreps_in", ["32x0e", "64x0e+64x1o"])
+def test_interaction_block_equivariance(irreps_in):
+    num_nodes = (100, 100)
+    num_batches = 1000
+    graph = get_random_graph(*num_nodes, num_batches, device=device)
 
     num_elements = 2
     num_basis = 8
     avg_number_neighbors = 8
 
-    in_irreps = o3.Irreps("32x0e+32x1o")
+    in_irreps = o3.Irreps(irreps_in)
     sh_irreps = o3.Irreps.spherical_harmonics(2)
     num_features = 32
     target_irreps = (sh_irreps * num_features).sort()[0].simplify()
 
-    node_feats = torch.randn(sparse_size[0], in_irreps.dim, device=device)
-    node_attrs = torch.randn(sparse_size[0], num_elements, device=device)
+    node_feats = torch.randn(num_nodes[0], in_irreps.dim, device=device)
+    node_attrs = torch.randn(num_nodes[0], num_elements, device=device)
     edge_feats = torch.randn(num_batches, num_basis, device=device)
     edge_attrs = torch.randn(num_batches, sh_irreps.dim, device=device)
 
@@ -54,7 +55,6 @@ def test_interaction_block_equivariance():
     D_sh = conv.sh_irreps.D_from_matrix(rot).to(device)
     D_out = conv.target_irreps.D_from_matrix(rot).to(device)
 
-    graph = ((edge_index[0], edge_index[1]), edge_index.sparse_size())
     out_before = conv(
         node_feats @ D_in.T, node_attrs, edge_feats, edge_attrs @ D_sh.T, graph
     )
@@ -64,7 +64,7 @@ def test_interaction_block_equivariance():
     assert torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-4)
 
 
-@pytest.mark.parametrize("multiplicity", [16, 128, 256])
+@pytest.mark.parametrize("multiplicity", [16, 32, 128])
 def test_symmetric_contraction(multiplicity):
     mul = multiplicity
     irreps_in = o3.Irreps(f"{mul}x0e + {mul}x1o + {mul}x2e")

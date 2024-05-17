@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, NamedTuple
 
 import torch
 from torch import nn, Tensor
@@ -26,7 +26,10 @@ from pylibcugraphops.pytorch.operators import (
     FusedTensorProduct,
 )
 
-Graph = tuple[Tensor, tuple[int, int]]
+
+class Graph(NamedTuple):
+    edge_index: torch.Tensor
+    size: tuple[int, int]
 
 
 class TensorProductConv(nn.Module):

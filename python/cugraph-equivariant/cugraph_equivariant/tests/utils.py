@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph_equivariant.nn.tensor_product_conv import Graph
 import torch
-from torch_geometric import EdgeIndex
 
 
-def get_random_edge_index(
+def get_random_graph(
     num_src_nodes,
     num_dst_nodes,
     num_edges,
@@ -26,4 +26,4 @@ def get_random_edge_index(
     col = torch.randint(num_dst_nodes, (num_edges,), dtype=dtype, device=device)
     edge_index = torch.stack([row, col], dim=0)
 
-    return EdgeIndex(edge_index, sparse_size=(num_src_nodes, num_dst_nodes))
+    return Graph(edge_index, (num_src_nodes, num_dst_nodes))

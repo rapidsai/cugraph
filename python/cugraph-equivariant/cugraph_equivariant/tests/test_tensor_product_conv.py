@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import pytest
-from utils import get_random_edge_index
+from utils import get_random_graph
 import torch
 from torch import nn
 from e3nn import o3
@@ -38,8 +38,7 @@ def test_tensor_product_conv_equivariance(
 
     sparse_size = (9, 7)
     num_batches = 100
-    edge_index = get_random_edge_index(*sparse_size, num_batches, device=device)
-    graph = ((edge_index[0], edge_index[1]), edge_index.sparse_size())
+    graph = get_random_graph(*sparse_size, num_batches, device=device)
 
     in_irreps = o3.Irreps("10x0e + 10x1e")
     out_irreps = o3.Irreps("20x0e + 10x1e")
