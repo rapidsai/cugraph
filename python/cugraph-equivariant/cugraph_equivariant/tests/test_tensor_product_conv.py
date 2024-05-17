@@ -31,14 +31,15 @@ device = torch.device("cuda")
         [None, None, None],
     ],
 )
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 def test_tensor_product_conv_equivariance(
-    mlp_channels, mlp_activation, scalar_sizes, batch_norm, e3nn_compat_mode
+    mlp_channels, mlp_activation, scalar_sizes, batch_norm, e3nn_compat_mode, dtype
 ):
     torch.manual_seed(12345)
 
-    sparse_size = (9, 7)
+    num_src_nodes, num_dst_nodes = 9, 7
     num_batches = 100
-    graph = get_random_graph(*sparse_size, num_batches, device=device)
+    graph = get_random_graph(num_src_nodes, num_dst_nodes, num_batches, device=device)
 
     in_irreps = o3.Irreps("10x0e + 10x1e")
     out_irreps = o3.Irreps("20x0e + 10x1e")
@@ -52,35 +53,43 @@ def test_tensor_product_conv_equivariance(
         mlp_activation=mlp_activation,
         batch_norm=batch_norm,
         e3nn_compat_mode=e3nn_compat_mode,
-    ).to(device)
+    ).to(device=device, dtype=dtype)
 
-    edge_sh = torch.randn(num_batches, sh_irreps.dim, device=device)
-    src_features = torch.randn(sparse_size[0], in_irreps.dim, device=device)
+    edge_sh = torch.randn(num_batches, sh_irreps.dim, device=device, dtype=dtype)
+    src_features = torch.randn(num_src_nodes, in_irreps.dim, device=device, dtype=dtype)
 
     rot = o3.rand_matrix()
-    D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device)
-    D_sh = tp_conv.sh_irreps.D_from_matrix(rot).to(device)
-    D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device)
+    D_in = tp_conv.in_irreps.D_from_matrix(rot).to(device=device, dtype=dtype)
+    D_sh = tp_conv.sh_irreps.D_from_matrix(rot).to(device=device, dtype=dtype)
+    D_out = tp_conv.out_irreps.D_from_matrix(rot).to(device=device, dtype=dtype)
 
     if mlp_channels is None:
-        edge_emb = torch.randn(num_batches, tp_conv.tp.weight_numel, device=device)
+        edge_emb = torch.randn(
+            num_batches, tp_conv.tp.weight_numel, device=device, dtype=dtype
+        )
         src_scalars = dst_scalars = None
     else:
         if scalar_sizes:
-            edge_emb = torch.randn(num_batches, scalar_sizes[0], device=device)
+            edge_emb = torch.randn(
+                num_batches, scalar_sizes[0], device=device, dtype=dtype
+            )
             src_scalars = (
                 None
                 if scalar_sizes[1] == 0
-                else torch.randn(sparse_size[0], scalar_sizes[1], device=device)
+                else torch.randn(
+                    num_src_nodes, scalar_sizes[1], device=device, dtype=dtype
+                )
             )
             dst_scalars = (
                 None
                 if scalar_sizes[2] == 0
-                else torch.randn(sparse_size[0], scalar_sizes[2], device=device)
+                else torch.randn(
+                    num_dst_nodes, scalar_sizes[2], device=device, dtype=dtype
+                )
             )
         else:
             edge_emb = torch.randn(
-                num_batches, tp_conv.mlp[0].in_features, device=device
+                num_batches, tp_conv.mlp[0].in_features, device=device, dtype=dtype
             )
             src_scalars = dst_scalars = None
 
@@ -109,5 +118,6 @@ def test_tensor_product_conv_equivariance(
         @ D_out.T
     )
 
+    atol = 1e-3 if dtype == torch.float32 else 1e-1
     if e3nn_compat_mode:
-        assert torch.allclose(out_before, out_after, rtol=1e-4, atol=1e-3)
+        assert torch.allclose(out_before, out_after, rtol=1e-4, atol=atol)
