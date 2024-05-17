@@ -88,10 +88,10 @@ def test_neighbor_sample(dask_client, basic_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 1
-    assert out.num_sampled_nodes["vt1"].tolist() == [4, 1]
+    assert out.num_sampled_nodes["vt1"] == [4, 1]
 
     assert len(out.num_sampled_edges) == 1
-    assert out.num_sampled_edges[("vt1", "pig", "vt1")].tolist() == [6]
+    assert out.num_sampled_edges[("vt1", "pig", "vt1")] == [6]
 
 
 @pytest.mark.cugraph_ops
@@ -225,11 +225,11 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     assert out.col[("B", "ba", "A")].tolist() == [1, 1]
 
     assert len(out.num_sampled_nodes) == 3
-    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 0, 0, 0]
-    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 0, 0]
-    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 1]
+    assert out.num_sampled_nodes["A"] == [2, 0, 0, 0, 0]
+    assert out.num_sampled_nodes["B"] == [0, 2, 0, 0, 0]
+    assert out.num_sampled_nodes["C"] == [0, 0, 2, 0, 1]
 
     assert len(out.num_sampled_edges) == 3
-    assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
-    assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
-    assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
+    assert out.num_sampled_edges[("A", "ab", "B")] == [3, 0, 1, 0]
+    assert out.num_sampled_edges[("B", "ba", "A")] == [0, 1, 0, 1]
+    assert out.num_sampled_edges[("B", "bc", "C")] == [0, 2, 0, 2]

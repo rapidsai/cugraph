@@ -191,6 +191,6 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_nodes["C"] == [0, 0, 2, 0, 1]
 
     assert len(out.num_sampled_edges) == 3
-    assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
-    assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
-    assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
+    assert out.num_sampled_edges[("A", "ab", "B")] == [3, 0, 1, 0]
+    assert out.num_sampled_edges[("B", "ba", "A")] == [0, 1, 0, 1]
+    assert out.num_sampled_edges[("B", "bc", "C")] == [0, 2, 0, 2]
