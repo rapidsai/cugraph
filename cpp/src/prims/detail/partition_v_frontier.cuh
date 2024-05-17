@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,30 +50,35 @@ namespace cugraph {
 namespace detail {
 
 template <typename ValueIterator>
-std::tuple<rmm::device_uvector<size_t> /* indices */, std::vector<size_t> /* offsets (size = value_offsets.size()) */>
+std::tuple<rmm::device_uvector<size_t> /* indices */,
+           std::vector<size_t> /* offsets (size = value_offsets.size()) */>
 partition_v_frontier(raft::handle_t const& handle,
-  ValueIterator frontier_value_first,
-  ValueIterator frontier_value_last,
-  std::vector<typename thrust::iterator_traits<ValueIterator>::value_type> const& thresholds /* size = # partitions - 1 */
-) {
-  rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last), handle.get_stream());
-  thrust::sequence(
-    handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+                     ValueIterator frontier_value_first,
+                     ValueIterator frontier_value_last,
+                     std::vector<typename thrust::iterator_traits<ValueIterator>::value_type> const&
+                       thresholds /* size = # partitions - 1 */
+)
+{
+  rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last),
+                                      handle.get_stream());
+  thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
   std::vector<size_t> v_frontier_partition_offsets(thresholds.size() + 2);
   v_frontier_partition_offsets[0] = size_t{0};
-  v_frontier_partition_offsets.back() = static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
+  v_frontier_partition_offsets.back() =
+    static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
 
   auto index_first = indices.begin();
-  auto index_last = indices.end();
+  auto index_last  = indices.end();
   for (size_t i = 0; i < thresholds.size(); ++i) {
-    auto false_first = thrust::partition(
-        handle.get_thrust_policy(),
-        index_first,
-        index_last,
-        [frontier_value_first, threshold = thresholds[i]]__device__(size_t idx) {
-          return *(frontier_value_first + idx) < threshold;
-        });
-    v_frontier_partition_offsets[1 + i] = v_frontier_partition_offsets[i] + thrust::distance(index_first, false_first);
+    auto false_first =
+      thrust::partition(handle.get_thrust_policy(),
+                        index_first,
+                        index_last,
+                        [frontier_value_first, threshold = thresholds[i]] __device__(size_t idx) {
+                          return *(frontier_value_first + idx) < threshold;
+                        });
+    v_frontier_partition_offsets[1 + i] =
+      v_frontier_partition_offsets[i] + thrust::distance(index_first, false_first);
     index_first = false_first;
   }
 

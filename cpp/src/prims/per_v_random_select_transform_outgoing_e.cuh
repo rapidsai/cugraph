@@ -107,9 +107,9 @@ struct transform_local_nbr_indices_t {
 
   __device__ T operator()(size_t i) const
   {
-    auto key_idx = local_key_indices ? (*local_key_indices)[i] : (i / K);
-    auto key     = *(key_first + key_idx);
-    auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
+    auto key_idx      = local_key_indices ? (*local_key_indices)[i] : (i / K);
+    auto key          = *(key_first + key_idx);
+    auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{0};
@@ -281,8 +281,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     // FIXME: better re-factor this check function?
-    auto frontier_vertex_first = thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
-    auto frontier_vertex_last = thrust_tuple_get_or_identity<decltype(frontier.end()), 0>(frontier.end());
+    auto frontier_vertex_first =
+      thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
+    auto frontier_vertex_last =
+      thrust_tuple_get_or_identity<decltype(frontier.end()), 0>(frontier.end());
     auto num_invalid_keys =
       frontier.size() -
       thrust::count_if(handle.get_thrust_policy(),
