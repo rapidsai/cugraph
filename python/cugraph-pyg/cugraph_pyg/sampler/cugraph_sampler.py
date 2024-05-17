@@ -171,8 +171,8 @@ def _sampler_output_from_sampling_results_homogeneous_coo(
         row=row_dict,
         col=col_dict,
         edge=None,
-        num_sampled_nodes=num_nodes_per_hop_dict,
-        num_sampled_edges=num_edges_per_hop_dict,
+        num_sampled_nodes={k: t.tolist() for k, t in num_nodes_per_hop_dict.items()},
+        num_sampled_edges={k: t.tolist() for k, t in num_edges_per_hop_dict.items()},
         metadata=metadata,
     )
 
@@ -222,7 +222,9 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     major_offsets = major_offsets.clone() - major_offsets[0]
     label_hop_offsets = label_hop_offsets.clone() - label_hop_offsets[0]
 
-    num_edges_per_hop_dict = {edge_type: major_offsets[label_hop_offsets].diff().cpu()}
+    num_edges_per_hop_dict = {
+        edge_type: major_offsets[label_hop_offsets].diff().tolist()
+    }
 
     label_hop_offsets = label_hop_offsets.cpu()
     num_nodes_per_hop_dict = {
@@ -231,7 +233,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
                 label_hop_offsets.diff(),
                 (renumber_map.shape[0] - label_hop_offsets[-1]).reshape((1,)),
             ]
-        ).cpu()
+        ).tolist()
     }
 
     noi_index = {node_type: torch.as_tensor(renumber_map, device="cuda")}
@@ -397,8 +399,8 @@ def _sampler_output_from_sampling_results_heterogeneous(
         row=row_dict,
         col=col_dict,
         edge=None,
-        num_sampled_nodes=num_nodes_per_hop_dict,
-        num_sampled_edges=num_edges_per_hop_dict,
+        num_sampled_nodes={k: t.tolist() for k, t in num_nodes_per_hop_dict.items()},
+        num_sampled_edges={k: t.tolist() for k, t in num_edges_per_hop_dict.items()},
         metadata=metadata,
     )
 

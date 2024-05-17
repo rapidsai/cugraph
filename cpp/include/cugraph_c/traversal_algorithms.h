@@ -88,7 +88,7 @@ void cugraph_paths_result_free(cugraph_paths_result_t* result);
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
  * FIXME:  Make this just [in], copy it if I need to temporarily modify internally
- * @param [in/out]  sources  Array of source vertices.  NOTE: Array might be modified if
+ * @param [in,out]  sources  Array of source vertices.  NOTE: Array might be modified if
  *                           renumbering is enabled for the graph
  * @param [in]  direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
