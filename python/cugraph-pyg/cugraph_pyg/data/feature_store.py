@@ -20,6 +20,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
 tensordict = import_optional("tensordict")
+wgth = import_optional("pylibwholegraph.torch")
 
 
 class TensorDictFeatureStore(
@@ -127,3 +128,139 @@ class TensorDictFeatureStore(
                 )
 
         return attrs
+
+
+class WholeFeatureStore(
+    object
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.data.FeatureStore
+):
+    """
+    A basic implementation of the PyG FeatureStore interface that stores
+    feature data in WholeGraph WholeMemory.  This type of feature store is
+    distributed, and avoids data replication across workers.
+
+    Data should be sliced before being passed into this feature store.
+    That means each worker should have its own partition.
+    """
+
+    def __init__(self, memory_type='distributed', location='cpu'):
+        """
+        Parameters
+        ----------
+        memory_type: str (optional, default='distributed')
+            The memory type of this store.
+        location: str(optional, default='cpu')
+            The location ('cpu' or 'cuda') where data is stored.
+        """
+        super().__init__()
+
+        self.__features = {}
+
+        self.__wg_comm = wgth.get_local_node_communicator()
+        self.__wg_type = memory_type
+        self.__wg_location = location
+
+    def _put_tensor(
+        self,
+        tensor: "torch_geometric.typing.FeatureTensorType",
+        attr: "torch_geometric.data.feature_store.TensorAttr",
+    ) -> bool:
+        wg_comm_obj = self.__wg_comm
+
+        if attr.is_set('index'):
+            if (attr.group_name, attr.attr_name) in self.__features:
+                raise NotImplementedError(
+                    "Updating an embedding from an index"
+                    " is not supported by WholeGraph."
+                )
+            else:
+                warnings.warn(
+                    "Ignoring index parameter "
+                    f"(attribute does not exist for group {attr.group_name})"
+                )
+
+        if len(t.shape) > 2:
+            raise ValueError(
+                "Only 1-D or 2-D tensors are supported by WholeGraph."
+            )
+    
+        ld = torch.tensor(
+            t.shape[0],
+            device='cuda',
+            dtype=torch.int64
+        )
+        torch.distributed.all_reduce(ld, op=torch.distributed.ReduceOp.SUM)
+
+        td = -1 if len(t.shape) == 1 else t.shape[1]
+        global_shape = torch.Size[
+            int(ld),
+            td if td > 0 else 1,
+        ]
+        t = t.reshape((t.shape[0], global_shape[1]))
+            
+
+        wg_embedding = wgth.create_embedding(
+            wg_comm_obj,
+            self.__wg_type,
+            self.__wg_location,
+            t.dtype,
+            global_shape,
+        )
+
+        (
+            local_wg_tensor,
+            local_ld_offset, # not used; we assume the data is already partitioned
+        ) = wg_embedding.get_embedding_tensor().get_local_tensor()
+
+        local_wg_tensor.copy_(t)
+        wg_comm_obj.barrier()
+        
+        self.__features[attr.group_name, attr.attr_name] = (wg_embedding, td)
+        return True
+
+    def _get_tensor(
+        self, attr: "torch_geometric.data.feature_store.TensorAttr"
+    ) -> Optional["torch_geometric.typing.FeatureTensorType"]:
+        if (attr.group_name, attr.attr_name) not in self.__features:
+            return None
+        
+        emb = self.__features[attr.group_name, attr.attr_name]
+
+        if attr.index is None or (not attr.is_set("index")):
+            attr.index = torch.arange(emb.shape[0], dtype=torch.int64)
+
+        attr.index = attr.index.cuda()
+        return emb.gather(
+            attr.index
+        )
+
+    def _remove_tensor(
+        self, attr: "torch_geometric.data.feature_store.TensorAttr"
+    ) -> bool:
+        if (attr.group_name, attr.attr_name) not in self.__features:
+            return False
+
+        del self.__features[attr.group_name, attr.attr_name]
+        return True
+
+    def _get_tensor_size(
+        self, attr: "torch_geometric.data.feature_store.TensorAttr"
+    ) -> Tuple:
+        return self.__features[attr.group_name, attr.attr_name].shape
+
+    def get_all_tensor_attrs(
+        self,
+    ) -> List["torch_geometric.data.feature_store.TensorAttr"]:
+        attrs = []
+        for (group_name, attr_name) in self.__features.items():
+            attrs.append(
+                torch_geometric.data.feature_store.TensorAttr(
+                    group_name,
+                    attr_name,
+                )
+            )
+
+        return attrs
+
+    
