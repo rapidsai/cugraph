@@ -37,30 +37,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
 endif()
 
-# Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
-# cuhornet currently doesn't support
-#
-# >= 90
-set(supported_archs "70" "72" "75" "80" "86" "89" "90")
-foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
-    string(REPLACE "-real" "" arch ${arch})
-    if( arch IN_LIST supported_archs )
-        list(APPEND usable_arch_values ${arch})
-    endif()
-endforeach()
-# Make sure everything but the 'newest' arch
-# is marked as `-real` so we only generate PTX for
-# arch > 86
-list(POP_BACK usable_arch_values latest_arch)
-list(TRANSFORM usable_arch_values APPEND "-real")
-if (usable_arch_values)
-    list(APPEND usable_arch_values ${latest_arch})
-else()
-    list(APPEND usable_arch_values ${latest_arch}-real)
-endif()
-
-set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
-
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 rapids_cmake_write_version_file(include/cugraph_c/version_config.hpp)
@@ -101,6 +77,17 @@ rapids_find_package(CUDAToolkit REQUIRED
     INSTALL_EXPORT_SET  cugraph-exports
     )
 
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    if(NOT TARGET ucx::ucp)
+        find_package(ucx REQUIRED)
+    endif()
+
+    if(NOT TARGET ucxx::ucxx)
+        find_package(ucxx REQUIRED)
+    endif()
+endif()
+
+set(CUGRAPH_C_FLAGS "")
 set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
 
@@ -130,6 +117,7 @@ endif()
 
 if(NOT USE_CUGRAPH_OPS)
     message(STATUS "Disabling functions that reference cugraph-ops")
+    list(APPEND CUGRAPH_C_FLAGS -DNO_CUGRAPH_OPS)
     list(APPEND CUGRAPH_CXX_FLAGS -DNO_CUGRAPH_OPS)
     list(APPEND CUGRAPH_CUDA_FLAGS -DNO_CUGRAPH_OPS)
 endif()
@@ -167,15 +155,9 @@ if(USE_CUGRAPH_OPS)
   include(cmake/thirdparty/get_libcugraphops.cmake)
 endif()
 
-include(cmake/thirdparty/get_nccl.cmake)
-include(cmake/thirdparty/get_cuhornet.cmake)
-
-if (BUILD_CUGRAPH_MTMG_TESTS)
-  include(cmake/thirdparty/get_ucp.cmake)
-endif()
-
 if(BUILD_TESTS)
-  include(cmake/thirdparty/get_gtest.cmake)
+  include(${rapids-cmake-dir}/cpm/gtest.cmake)
+  rapids_cpm_gtest(BUILD_STATIC)
 endif()
 
 ################################################################################
@@ -197,6 +179,7 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_sg.cu
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
+    src/community/edge_triangle_count_sg.cu
     src/community/detail/maximal_independent_moves_sg.cu
     src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
@@ -222,10 +205,10 @@ set(CUGRAPH_SOURCES
     src/community/ecg_sg.cu
     src/community/ecg_mg.cu
     src/community/legacy/louvain.cu
-    src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
+    src/community/k_truss_sg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/prepare_next_frontier_sg.cu
@@ -308,6 +291,7 @@ set(CUGRAPH_SOURCES
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu
+    src/mtmg/vertex_pairs_result.cu
 )
 
 if(USE_CUGRAPH_OPS)
@@ -363,51 +347,26 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
-set(COMPILED_RAFT_LIB "")
-if(CUDA_STATIC_RUNTIME)
-  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
-  target_include_directories(cugraph PUBLIC ${_includes})
-  # Add CTK include paths because we make our CTK library links private below
-  target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
-  if(CUGRAPH_COMPILE_RAFT_LIB)
+set(COMPILED_RAFT_LIB )
+if(CUGRAPH_COMPILE_RAFT_LIB)
+  set(COMPILED_RAFT_LIB raft::compiled)
+  if(USE_RAFT_STATIC)
     set(COMPILED_RAFT_LIB raft::compiled_static)
-  endif()
-else()
-  if(CUGRAPH_COMPILE_RAFT_LIB)
-    set(COMPILED_RAFT_LIB raft::compiled)
   endif()
 endif()
 
 ################################################################################
 # - link libraries -------------------------------------------------------------
-if (USE_CUGRAPH_OPS)
-    target_link_libraries(cugraph
-        PUBLIC
-            rmm::rmm
-            cugraph-ops::cugraph-ops++
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
-        PRIVATE
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
-            cuco::cuco
-            cugraph::cuHornet
-            NCCL::NCCL
+target_link_libraries(cugraph
+    PUBLIC
+        rmm::rmm
+        raft::raft
+        $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
+        $<TARGET_NAME_IF_EXISTS:cugraph-ops::cugraph-ops++>
+    PRIVATE
+        ${COMPILED_RAFT_LIB}
+        cuco::cuco
     )
-else()
-    target_link_libraries(cugraph
-        PUBLIC
-            rmm::rmm
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
-        PRIVATE
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
-            cuco::cuco
-            cugraph::cuHornet
-            NCCL::NCCL
-    )
-endif()
 
 ################################################################################
 # - C-API library --------------------------------------------------------------
@@ -427,6 +386,7 @@ add_library(cugraph_c
         src/c_api/eigenvector_centrality.cpp
         src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
+        src/c_api/k_truss.cpp
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/ecg.cpp
@@ -455,7 +415,6 @@ add_library(cugraph_c
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
-        src/c_api/legacy_k_truss.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
@@ -494,30 +453,9 @@ target_include_directories(cugraph_c
         "$<INSTALL_INTERFACE:include>"
 )
 
-if(CUDA_STATIC_RUNTIME)
-  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
-  target_include_directories(cugraph_c PUBLIC ${_includes})
-  # Add CTK include paths because we make our CTK library links private below
-  target_include_directories(cugraph_c SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
-  set(_ctk_static_suffix "_static")
-endif()
-
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
-target_link_libraries(cugraph_c
-        PUBLIC
-                CUDA::curand${_ctk_static_suffix}
-                CUDA::cusolver${_ctk_static_suffix}
-                CUDA::cusparse${_ctk_static_suffix}
-                rmm::rmm
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:${COMPILED_RAFT_LIB}>
-        PRIVATE
-                cuco::cuco
-                cugraph::cugraph
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:${COMPILED_RAFT_LIB}>
-)
+target_link_libraries(cugraph_c PRIVATE cugraph::cugraph)
 
 ################################################################################
 # - generate tests -------------------------------------------------------------

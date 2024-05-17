@@ -106,16 +106,16 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/bipartite.html#module-networkx.algorithms.bipartite.generators">generators</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.bipartite.generators.complete_bipartite_graph.html#networkx.algorithms.bipartite.generators.complete_bipartite_graph">complete_bipartite_graph</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#module-networkx.algorithms.centrality">centrality</a>
- ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#shortest-path-betweenness">betweenness</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#networkx-algorithms-centrality-betweenness">betweenness</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.betweenness_centrality.html#networkx.algorithms.centrality.betweenness_centrality">betweenness_centrality</a>
  │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.edge_betweenness_centrality.html#networkx.algorithms.centrality.edge_betweenness_centrality">edge_betweenness_centrality</a>
- ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#degree">degree_alg</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#networkx-algorithms-centrality-degree-alg">degree_alg</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.degree_centrality.html#networkx.algorithms.centrality.degree_centrality">degree_centrality</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.in_degree_centrality.html#networkx.algorithms.centrality.in_degree_centrality">in_degree_centrality</a>
  │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.out_degree_centrality.html#networkx.algorithms.centrality.out_degree_centrality">out_degree_centrality</a>
- ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#eigenvector">eigenvector</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#networkx-algorithms-centrality-eigenvector">eigenvector</a>
  │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.eigenvector_centrality.html#networkx.algorithms.centrality.eigenvector_centrality">eigenvector_centrality</a>
- └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#eigenvector">katz</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/centrality.html#networkx-algorithms-centrality-katz">katz</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.katz_centrality.html#networkx.algorithms.centrality.katz_centrality">katz_centrality</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/clustering.html#module-networkx.algorithms.cluster">cluster</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.cluster.average_clustering.html#networkx.algorithms.cluster.average_clustering">average_clustering</a>
@@ -126,12 +126,12 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/community.html#module-networkx.algorithms.community.louvain">louvain</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.louvain.louvain_communities.html#networkx.algorithms.community.louvain.louvain_communities">louvain_communities</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/component.html#module-networkx.algorithms.components">components</a>
- ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/component.html#connectivity">connected</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/component.html#networkx-algorithms-components-connected">connected</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.connected_components.html#networkx.algorithms.components.connected_components">connected_components</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.is_connected.html#networkx.algorithms.components.is_connected">is_connected</a>
  │   ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.node_connected_component.html#networkx.algorithms.components.node_connected_component">node_connected_component</a>
  │   └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.number_connected_components.html#networkx.algorithms.components.number_connected_components">number_connected_components</a>
- └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/component.html#weak-connectivity">weakly_connected</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/component.html#networkx-algorithms-components-weakly-connected">weakly_connected</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.is_weakly_connected.html#networkx.algorithms.components.is_weakly_connected">is_weakly_connected</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.number_weakly_connected_components.html#networkx.algorithms.components.number_weakly_connected_components">number_weakly_connected_components</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.weakly_connected_components.html#networkx.algorithms.components.weakly_connected_components">weakly_connected_components</a>
@@ -248,6 +248,9 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 ### Other
 
 <pre>
+<a href="https://networkx.org/documentation/stable/reference/classes/index.html">classes</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/functions.html#module-networkx.classes.function">function</a>
+     └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.classes.function.is_negatively_weighted.html#networkx.classes.function.is_negatively_weighted">is_negatively_weighted</a>
 <a href="https://networkx.org/documentation/stable/reference/convert.html#module-networkx.convert_matrix">convert_matrix</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_pandas_edgelist.html#networkx.convert_matrix.from_pandas_edgelist">from_pandas_edgelist</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_scipy_sparse_array.html#networkx.convert_matrix.from_scipy_sparse_array">from_scipy_sparse_array</a>
