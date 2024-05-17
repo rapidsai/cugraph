@@ -81,22 +81,6 @@ def compare(ddf1, ddf2, src_col_name, dst_col_name, val_col_name):
     #
     join = ddf1.merge(ddf2, left_on=[*col_names1], right_on=[*col_names2])
 
-    # import os
-    # import dask
-
-    # opt = join.optimize(fuse=False)
-    # dsk = opt.dask
-    # #os.environ['DEBUG_MERGE'] = 'True'
-    # results = [
-    #     dask.get(dsk, (opt._name, 0))
-    #     for _ in range(5)
-    # ]
-    # import pdb; pdb.set_trace()
-    # pass
-    # _l = dask.get(dsk, ('add_suffix-420f7d1467145297af71a3dc98ec35a5', 0))
-    # _r = dask.get(dsk, ('add_suffix-7cd4ba8e27e710df50f416db99b1386a', 0))
-    # _l.merge(_r, **{'how': 'inner', 'left_on': ['src_x', 'dst_x'], 'right_on': ['src_y', 'dst_y'], 'left_index': False, 'right_index': False, 'suffixes': ('_x', '_y'), 'indicator': False})
-
     if len(ddf1) != len(join):
         # The code below is for debugging purposes only. It will print
         # edges in the original dataframe that are missing from the symmetrize
