@@ -51,8 +51,7 @@
 
 template <typename vertex_t, typename weight_t, typename property_t>
 struct e_bias_op_t {
-  __device__ weight_t
-  operator()(vertex_t, vertex_t, property_t, property_t, weight_t w) const
+  __device__ weight_t operator()(vertex_t, vertex_t, property_t, property_t, weight_t w) const
   {
     return w;
   }
@@ -149,7 +148,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     }
 
     auto mg_graph_view = mg_graph.view();
-    auto mg_edge_weight_view = mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {

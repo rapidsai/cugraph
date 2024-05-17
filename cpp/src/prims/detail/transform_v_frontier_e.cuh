@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include "prims/property_op_utils.cuh"
 #include "prims/detail/partition_v_frontier.cuh"
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -129,8 +129,11 @@ __global__ static void transform_v_frontier_e_hypersparse_or_low_degree(
     edge_t local_degree{};
     if constexpr (hypersparse) {
       auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
-      assert(major_idx);
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+      if (major_idx) {
+        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+      } else {
+        local_degree = edge_t{0};
+      }
     } else {
       thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
