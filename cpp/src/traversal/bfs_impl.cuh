@@ -31,8 +31,6 @@
 
 #include <raft/core/handle.hpp>
 
-#include <rmm/exec_policy.hpp>
-
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -149,11 +147,11 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
+  thrust::fill(handle.get_thrust_policy(),
                distances,
                distances + push_graph_view.local_vertex_partition_range_size(),
                invalid_distance);
-  thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
+  thrust::fill(handle.get_thrust_policy(),
                predecessor_first,
                predecessor_first + push_graph_view.local_vertex_partition_range_size(),
                invalid_vertex);
@@ -161,7 +159,7 @@ void bfs(raft::handle_t const& handle,
     push_graph_view.local_vertex_partition_view());
   if (n_sources) {
     thrust::for_each(
-      rmm::exec_policy(handle.get_thrust_policy()),
+      handle.get_thrust_policy(),
       sources,
       sources + n_sources,
       [vertex_partition, distances, predecessor_first] __device__(auto v) {
