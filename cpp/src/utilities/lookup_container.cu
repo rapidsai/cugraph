@@ -43,6 +43,7 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
   static_assert(std::is_same_v<edge_id_t, _edge_id_t>);
   static_assert(std::is_same_v<value_t, _value_t>);
 
+  ~impl() { std::cout << "impl::~impl\n"; }
   impl() {}
   impl(raft::handle_t const& handle,
        std::vector<edge_type_t> types,
@@ -64,7 +65,34 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
     }
   }
 
-  void insert(edge_type_t et, edge_id_t ei, value_t v) { std::cout << "From impl insert\n"; }
+  void print()
+  {
+    std::cout << " Print ()" << std::endl;
+    for (const auto& [key, value] : edge_type_to_kv_store) {
+      std::cout << "key: " << key << std::endl;
+    }
+  }
+
+  void insert(raft::handle_t const& handle,
+              edge_type_t type,
+              raft::device_span<edge_id_t const> edge_ids_to_insert,
+              decltype(cugraph::allocate_dataframe_buffer<value_t>(
+                0, rmm::cuda_stream_view{}))&& values_to_insert)
+  {
+    auto itr = edge_type_to_kv_store.find(type);
+
+    if (itr != edge_type_to_kv_store.end()) {
+      assert(itr->first == type);
+      itr->second.insert(edge_ids_to_insert.begin(),
+                         edge_ids_to_insert.end(),
+                         cugraph::get_dataframe_buffer_begin(values_to_insert),
+                         handle.get_stream());
+    } else {
+      assert(false);
+    }
+
+    std::cout << "From impl insert\n";
+  }
 
   std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
   lookup_src_dst_from_edge_id_and_type(raft::handle_t const& handle,
@@ -224,7 +252,8 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
 template <typename edge_type_t, typename edge_id_t, typename value_t>
 search_container_t<edge_type_t, edge_id_t, value_t>::~search_container_t()
 {
-  // FIXME
+  std::cout << "\ndestructor of search_container_t\n";
+  // delete pimpl;
 }
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
@@ -246,11 +275,15 @@ search_container_t<edge_type_t, edge_id_t, value_t>::search_container_t(const se
 }
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
-void search_container_t<edge_type_t, edge_id_t, value_t>::insert(edge_type_t et,
-                                                                 edge_id_t ei,
-                                                                 value_t v)
+void search_container_t<edge_type_t, edge_id_t, value_t>::insert(
+  raft::handle_t const& handle,
+  edge_type_t type,
+  raft::device_span<edge_id_t const> edge_ids_to_insert,
+  decltype(cugraph::allocate_dataframe_buffer<value_t>(0,
+                                                       rmm::cuda_stream_view{}))&& values_to_insert)
 {
-  pimpl->insert(et, ei, v);
+  pimpl->print();
+  pimpl->insert(handle, type, edge_ids_to_insert, std::move(values_to_insert));
 }
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>

@@ -48,7 +48,11 @@ class search_container_t {
                      std::vector<edge_id_t> type_counts);
   search_container_t(const search_container_t&);
 
-  void insert(edge_type_t, edge_id_t, value_t);
+  void insert(raft::handle_t const& handle,
+              edge_type_t type,
+              raft::device_span<edge_id_t const> edge_ids_to_insert,
+              decltype(cugraph::allocate_dataframe_buffer<value_t>(
+                0, rmm::cuda_stream_view{}))&& values_to_insert);
 
   std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
   lookup_src_dst_from_edge_id_and_type(raft::handle_t const& handle,

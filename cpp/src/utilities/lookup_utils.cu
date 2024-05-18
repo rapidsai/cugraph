@@ -10,6 +10,8 @@
 
 #include <raft/core/handle.hpp>
 
+// #include <typeinfo>  // operator typeid
+
 namespace cugraph {
 
 template <typename edge_type_t, typename edge_id_t, typename value_t>
@@ -178,17 +180,21 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
   std::vector<edge_t> h_freq_of_types_to_this_gpu{};
   std::unordered_map<edge_type_t, edge_t> edge_type_to_count_map{};
 
-  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+  for (size_t local_ep_idx = 0; local_ep_idx < graph_view.number_of_local_edge_partitions();
+       ++local_ep_idx) {
     //
     //  Copy edge ids and types
     //
 
-    auto number_of_edges_partition = graph_view.local_edge_partition_view(i).number_of_edges();
+    auto number_of_edges_partition =
+      graph_view.local_edge_partition_view(local_ep_idx).number_of_edges();
     auto number_of_active_edges_partition = number_of_edges_partition;
 
     if (graph_view.has_edge_mask()) {
-      number_of_active_edges_partition = detail::count_set_bits(
-        handle, (*(graph_view.edge_mask_view())).value_firsts()[i], number_of_edges_partition);
+      number_of_active_edges_partition =
+        detail::count_set_bits(handle,
+                               (*(graph_view.edge_mask_view())).value_firsts()[local_ep_idx],
+                               number_of_edges_partition);
     }
 
     [[maybe_unused]] auto edgelist_ids = std::make_optional<rmm::device_uvector<edge_t>>(
@@ -201,33 +207,35 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
       graph_view.has_edge_mask()
         ? std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
-            *(graph_view.edge_mask_view()), i)
+            *(graph_view.edge_mask_view()), local_ep_idx)
         : std::nullopt;
 
     if (edge_partition_mask_view) {
       if constexpr (multi_gpu) {
-        detail::copy_if_mask_set(handle,
-                                 edge_id_view.value_firsts()[i],
-                                 edge_id_view.value_firsts()[i] + number_of_edges_partition,
-                                 (*edge_partition_mask_view).value_first(),
-                                 (*edgelist_ids).begin());
+        detail::copy_if_mask_set(
+          handle,
+          edge_id_view.value_firsts()[local_ep_idx],
+          edge_id_view.value_firsts()[local_ep_idx] + number_of_edges_partition,
+          (*edge_partition_mask_view).value_first(),
+          (*edgelist_ids).begin());
       }
-      detail::copy_if_mask_set(handle,
-                               edge_type_view.value_firsts()[i],
-                               edge_type_view.value_firsts()[i] + number_of_edges_partition,
-                               (*edge_partition_mask_view).value_first(),
-                               (*edgelist_types).begin());
+      detail::copy_if_mask_set(
+        handle,
+        edge_type_view.value_firsts()[local_ep_idx],
+        edge_type_view.value_firsts()[local_ep_idx] + number_of_edges_partition,
+        (*edge_partition_mask_view).value_first(),
+        (*edgelist_types).begin());
 
     } else {
       if constexpr (multi_gpu) {
         thrust::copy(handle.get_thrust_policy(),
-                     edge_id_view.value_firsts()[i],
-                     edge_id_view.value_firsts()[i] + number_of_edges_partition,
+                     edge_id_view.value_firsts()[local_ep_idx],
+                     edge_id_view.value_firsts()[local_ep_idx] + number_of_edges_partition,
                      (*edgelist_ids).begin());
       }
       thrust::copy(handle.get_thrust_policy(),
-                   edge_type_view.value_firsts()[i],
-                   edge_type_view.value_firsts()[i] + number_of_edges_partition,
+                   edge_type_view.value_firsts()[local_ep_idx],
+                   edge_type_view.value_firsts()[local_ep_idx] + number_of_edges_partition,
                    (*edgelist_types).begin());
     }
 
@@ -235,6 +243,22 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     std::vector<edge_t> h_gpu_offsets{};
 
     if constexpr (multi_gpu) {
+      auto const comm_rank = handle.get_comms().get_rank();
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // auto ids_title = std::string("ids_")
+      //                    .append(std::to_string(comm_rank))
+      //                    .append("_")
+      //                    .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   ids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+
+      // auto types_title = std::string("types_")
+      //                      .append(std::to_string(comm_rank))
+      //                      .append("_")
+      //                      .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+
       //
       // Count number of edge ids mapped to each GPU
       //
@@ -256,6 +280,14 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                            comm_size, major_comm_size, minor_comm_size}] __device__(auto eid) {
                           return key_func(eid);
                         });
+
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // auto gids_title = std::string("gids_")
+      //                     .append(std::to_string(comm_rank))
+      //                     .append("_")
+      //                     .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(
@@ -287,12 +319,49 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                              gpu_offsets.begin(),
                              size_t{0});
 
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+      // gids_title = std::string("s_gids_")
+      //                .append(std::to_string(comm_rank))
+      //                .append("_")
+      //                .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+
+      // types_title = std::string("s_types_")
+      //                 .append(std::to_string(comm_rank))
+      //                 .append("_")
+      //                 .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+
+      // auto ugids = std::string("u_gids_")
+      //                .append(std::to_string(comm_rank))
+      //                .append("_")
+      //                .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   ugids.c_str(), unique_gpu_ids.begin(), unique_gpu_ids.size(), std::cout);
+
+      // auto goffsets = std::string("goff_")
+      //                   .append(std::to_string(comm_rank))
+      //                   .append("_")
+      //                   .append(std::to_string(local_ep_idx));
+      // raft::print_device_vector(
+      //   goffsets.c_str(), gpu_offsets.begin(), gpu_offsets.size(), std::cout);
+
       h_unique_gpu_ids.resize(unique_gpu_ids.size());
       h_gpu_offsets.resize(gpu_offsets.size());
       raft::update_host(
         h_unique_gpu_ids.data(), unique_gpu_ids.data(), unique_gpu_ids.size(), handle.get_stream());
       raft::update_host(
         h_gpu_offsets.data(), gpu_offsets.data(), gpu_offsets.size(), handle.get_stream());
+
+      // std::cout << "h_unique_gpu_ids: \n";
+      // for (auto n : h_unique_gpu_ids)
+      //   printf("%d (%d_%d)  ", n, comm_rank, local_ep_idx);
+      // std::cout << "h_gpu_offsets: \n";
+      // for (auto n : h_gpu_offsets)
+      //   printf("%d (%d_%d)  ", n, comm_rank, local_ep_idx);
 
     } else {
       thrust::sort(handle.get_thrust_policy(), (*edgelist_types).begin(), (*edgelist_types).end());
@@ -301,8 +370,8 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
       h_unique_gpu_ids.push_back(0);
 
       h_gpu_offsets.resize(h_unique_gpu_ids.size() + 1);
-      h_gpu_offsets.push_back(0);
-      h_gpu_offsets.push_back((*edgelist_types).size());
+      h_gpu_offsets.push_back(0);                         // correct?
+      h_gpu_offsets.push_back((*edgelist_types).size());  // correct?
     }
     //
     // For edge ids mapped to each gpu, count number of unique types and elements per type.
@@ -316,22 +385,23 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     rmm::device_uvector<edge_type_t> unique_types_segment(0, handle.get_stream());
     rmm::device_uvector<edge_t> type_freqs_segment(0, handle.get_stream());
 
-    for (size_t j = 0; j < h_unique_gpu_ids.size(); ++j) {
-      auto gpu_id = h_unique_gpu_ids[i];
+    for (size_t idx = 0; idx < h_unique_gpu_ids.size(); ++idx) {
+      auto gpu_id = h_unique_gpu_ids[idx];
 
-      auto nr_uniqe_types_segment = thrust::count_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(
-          static_cast<size_t>(h_gpu_offsets[i + 1] - h_gpu_offsets[i])),
-        detail::is_first_in_run_t<edge_type_t const*>{(*edgelist_types).data() + h_gpu_offsets[i]});
+      auto nr_uniqe_types_segment =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(
+                           static_cast<size_t>(h_gpu_offsets[idx + 1] - h_gpu_offsets[idx])),
+                         detail::is_first_in_run_t<edge_type_t const*>{(*edgelist_types).data() +
+                                                                       h_gpu_offsets[idx]});
 
       unique_types_segment.resize(nr_uniqe_types_segment, handle.get_stream());
       type_freqs_segment.resize(nr_uniqe_types_segment, handle.get_stream());
 
       thrust::reduce_by_key(handle.get_thrust_policy(),
-                            (*edgelist_types).begin() + h_gpu_offsets[i],
-                            (*edgelist_types).begin() + h_gpu_offsets[i + 1],
+                            (*edgelist_types).begin() + h_gpu_offsets[idx],
+                            (*edgelist_types).begin() + h_gpu_offsets[idx + 1],
                             thrust::make_constant_iterator(size_t{1}),
                             unique_types_segment.begin(),
                             type_freqs_segment.begin());
@@ -435,9 +505,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                       unique_type_freqs_partition.size(),
                       handle.get_stream());
 
-    for (edge_type_t j = 0; j < nr_uniqe_types_partition; j++) {
-      auto typ  = h_unique_types_partition[i];
-      auto freq = h_unique_type_freqs_partition[i];
+    for (edge_type_t idx = 0; idx < nr_uniqe_types_partition; idx++) {
+      auto typ  = h_unique_types_partition[idx];
+      auto freq = h_unique_type_freqs_partition[idx];
       if (edge_type_to_count_map.find(typ) != edge_type_to_count_map.end()) {
         edge_type_to_count_map[typ] += freq;
       } else {
@@ -495,7 +565,8 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                         unique_types_to_this_gpu.begin(),
                         freq_of_unique_types_this_gpu.begin());
 
-  rmm::device_uvector<int> global_unique_types(nr_unique_types_this_gpu, handle.get_stream());
+  rmm::device_uvector<edge_type_t> global_unique_types(nr_unique_types_this_gpu,
+                                                       handle.get_stream());
 
   thrust::transform(handle.get_thrust_policy(),
                     unique_types_to_this_gpu.begin(),
@@ -530,7 +601,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     assert(global_unique_types.size() == nr_unique_types_global);
   }
 
-  std::vector<int> h_unique_types_global(nr_unique_types_global);
+  std::vector<edge_type_t> h_unique_types_global(nr_unique_types_global);
 
   raft::update_host(h_unique_types_global.data(),
                     global_unique_types.data(),
@@ -541,170 +612,218 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
   // Create search container with appropriate capacity
   //
 
-  return EdgeTypeAndIdToSrcDstLookupContainerType(
-    handle, std::vector<edge_type_t>{1, 2}, std::vector<edge_id_t>{10, 20});
+  // using container_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t;
+  // using store_t     = typename
+  // EdgeTypeAndIdToSrcDstLookupContainerType::container_t::mapped_type; container_t
+  // edge_type_to_kv_store_umap{}; edge_type_to_kv_store_umap.reserve(nr_unique_types_global);
 
-  /*
-    using container_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t;
-    using store_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t::mapped_type;
-    container_t edge_type_to_kv_store_umap{};
-    edge_type_to_kv_store_umap.reserve(nr_unique_types_global);
+  // auto invalid_key   = cugraph::invalid_vertex_id<edge_id_t>::value;
+  // auto invalid_value = (std::is_integral<value_t>::value)
+  //                        ? (cugraph::invalid_vertex_id<value_t>::value)
+  //                        : cugraph::invalid_of_thrust_tuple_of_integral<value_t>();
 
-    auto invalid_key   = cugraph::invalid_vertex_id<edge_id_t>::value;
-    auto invalid_value = (std::is_integral<value_t>::value)
-                           ? (cugraph::invalid_vertex_id<value_t>::value)
-                           : cugraph::invalid_of_thrust_tuple_of_integral<value_t>();
+  std::vector<edge_id_t> local_freqs(h_unique_types_global.size(), 0);
 
-    for (size_t idx = 0; idx < h_unique_types_global.size(); idx++) {
-      auto typ              = h_unique_types_global[idx];
-      auto search_itr       = edge_type_to_count_map.find(typ);
-      size_t store_capacity = (search_itr != edge_type_to_count_map.end()) ? search_itr->second : 0;
+  std::cout << "Create Map Object\n";
 
-      edge_type_to_kv_store_umap.insert(
-        {typ, std::move(store_t(store_capacity, invalid_key, invalid_value, handle.get_stream()))});
+  for (size_t idx = 0; idx < h_unique_types_global.size(); idx++) {
+    auto typ              = h_unique_types_global[idx];
+    auto search_itr       = edge_type_to_count_map.find(typ);
+    size_t store_capacity = (search_itr != edge_type_to_count_map.end()) ? search_itr->second : 0;
+    local_freqs[idx]      = store_capacity;
 
-      assert(edge_type_to_kv_store_umap.find(typ) != edge_type_to_kv_store_umap.end());
+    // edge_type_to_kv_store_umap.insert(
+    //   {typ, std::move(store_t(store_capacity, invalid_key, invalid_value,
+    //   handle.get_stream()))});
+
+    // assert(edge_type_to_kv_store_umap.find(typ) != edge_type_to_kv_store_umap.end());
+  }
+
+  // std::cout << "keys: \n";
+  // for (auto n : h_unique_types_global)
+  //   std::cout << n << ' ';
+  // std::cout << "\nsizes: \n";
+  // for (auto n : local_freqs)
+  //   std::cout << n << ' ';
+  // std::cout << "\n-------- \n";
+
+  auto search_container =
+    EdgeTypeAndIdToSrcDstLookupContainerType(handle, h_unique_types_global, local_freqs);
+
+  //
+  // Populate the search container
+  //
+
+  for (size_t local_ep_idx = 0; local_ep_idx < graph_view.number_of_local_edge_partitions();
+       ++local_ep_idx) {
+    //
+    // decompress one edge_partition at a time
+    //
+
+    auto number_of_local_edges =
+      graph_view.local_edge_partition_view(local_ep_idx).number_of_edges();
+
+    if (graph_view.has_edge_mask()) {
+      number_of_local_edges =
+        detail::count_set_bits(handle,
+                               (*(graph_view.edge_mask_view())).value_firsts()[local_ep_idx],
+                               number_of_local_edges);
+    }
+
+    rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
+    rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
+    auto edgelist_ids =
+      std::make_optional<rmm::device_uvector<edge_t>>(edgelist_majors.size(), handle.get_stream());
+    auto edgelist_types = std::make_optional<rmm::device_uvector<edge_type_t>>(
+      edgelist_majors.size(), handle.get_stream());
+
+    detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, edge_type_t, multi_gpu>(
+      handle,
+      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
+        graph_view.local_edge_partition_view(local_ep_idx)),
+      std::make_optional<
+        detail::edge_partition_edge_property_device_view_t<edge_t, edge_type_t const*>>(
+        edge_type_view, local_ep_idx),
+      std::make_optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
+        edge_id_view, local_ep_idx),
+      graph_view.has_edge_mask()
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *(graph_view.edge_mask_view()), local_ep_idx)
+        : std::nullopt,
+      raft::device_span<vertex_t>(edgelist_majors.data(), number_of_local_edges),
+      raft::device_span<vertex_t>(edgelist_minors.data(), number_of_local_edges),
+      std::make_optional<raft::device_span<edge_type_t>>((*edgelist_types).data(),
+                                                         number_of_local_edges),
+      std::make_optional<raft::device_span<edge_t>>((*edgelist_ids).data(), number_of_local_edges),
+      graph_view.local_edge_partition_segment_offsets(local_ep_idx));
+
+    //
+    // Shuffle to the right GPUs using edge ids as keys
+    //
+
+    if constexpr (multi_gpu) {
+      auto const comm_size = handle.get_comms().get_size();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+
+      auto key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+        comm_size, major_comm_size, minor_comm_size};
+
+      // Shuffle to the proper GPUs
+      std::forward_as_tuple(
+        std::tie(edgelist_majors, edgelist_minors, (*edgelist_ids), (*edgelist_types)),
+        std::ignore) =
+        cugraph::groupby_gpu_id_and_shuffle_values(
+          handle.get_comms(),
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(),
+                                                       edgelist_minors.begin(),
+                                                       (*edgelist_ids).begin(),
+                                                       (*edgelist_types).begin())),
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.end(),
+                                                       edgelist_minors.end(),
+                                                       (*edgelist_ids).end(),
+                                                       (*edgelist_types).end())),
+          [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+          handle.get_stream());
     }
 
     //
-    // Populate the search container
+    // Sort by edge types and insert to type specific kv_store_t object
     //
 
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      //
-      // decompress one edge_partition at a time
-      //
+    auto itr_to_triple = thrust::make_zip_iterator(
+      edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_ids).begin());
 
-      auto number_of_local_edges = graph_view.local_edge_partition_view(i).number_of_edges();
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        (*edgelist_types).begin(),
+                        (*edgelist_types).end(),
+                        itr_to_triple);
 
-      if (graph_view.has_edge_mask()) {
-        number_of_local_edges = detail::count_set_bits(
-          handle, (*(graph_view.edge_mask_view())).value_firsts()[i], number_of_local_edges);
-      }
+    auto nr_uniqe_edge_types_partition =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator((*edgelist_types).size()),
+                       detail::is_first_in_run_t<edge_type_t const*>{(*edgelist_types).data()});
 
-      rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
-      rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-      auto edgelist_ids =
-        std::make_optional<rmm::device_uvector<edge_t>>(edgelist_majors.size(),
-    handle.get_stream()); auto edgelist_types =
-    std::make_optional<rmm::device_uvector<edge_type_t>>( edgelist_majors.size(),
-    handle.get_stream());
+    rmm::device_uvector<edge_type_t> unique_types(nr_uniqe_edge_types_partition,
+                                                  handle.get_stream());
+    rmm::device_uvector<edge_t> type_offsets(nr_uniqe_edge_types_partition + 1,
+                                             handle.get_stream());
 
-      detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, edge_type_t, multi_gpu>(
-        handle,
-        edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
-          graph_view.local_edge_partition_view(i)),
-        std::make_optional<
-          detail::edge_partition_edge_property_device_view_t<edge_t, edge_type_t const*>>(
-          edge_type_view, i),
-        std::make_optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t
-    const*>>( edge_id_view, i), graph_view.has_edge_mask() ? std::make_optional<
-              detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
-              *(graph_view.edge_mask_view()), i)
-          : std::nullopt,
-        raft::device_span<vertex_t>(edgelist_majors.data(), number_of_local_edges),
-        raft::device_span<vertex_t>(edgelist_minors.data(), number_of_local_edges),
-        std::make_optional<raft::device_span<edge_type_t>>((*edgelist_types).data(),
-                                                           number_of_local_edges),
-        std::make_optional<raft::device_span<edge_t>>((*edgelist_ids).data(),
-    number_of_local_edges), graph_view.local_edge_partition_segment_offsets(i));
+    thrust::fill(handle.get_thrust_policy(), type_offsets.begin(), type_offsets.end(), edge_t{0});
 
-      //
-      // Shuffle to the right GPUs using edge ids as keys
-      //
-
-      if constexpr (multi_gpu) {
-        auto const comm_size = handle.get_comms().get_size();
-        auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-        auto const major_comm_size = major_comm.get_size();
-        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-        auto const minor_comm_size = minor_comm.get_size();
-
-        auto key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-          comm_size, major_comm_size, minor_comm_size};
-
-        // Shuffle to the proper GPUs
-        std::forward_as_tuple(
-          std::tie(edgelist_majors, edgelist_minors, (*edgelist_ids), (*edgelist_types)),
-          std::ignore) =
-          cugraph::groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(),
-                                                         edgelist_minors.begin(),
-                                                         (*edgelist_ids).begin(),
-                                                         (*edgelist_types).begin())),
-            thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.end(),
-                                                         edgelist_minors.end(),
-                                                         (*edgelist_ids).end(),
-                                                         (*edgelist_types).end())),
-            [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
-            handle.get_stream());
-      }
-
-      //
-      // Sort by edge types and insert to type specific kv_store_t object
-      //
-
-      auto itr_to_triple = thrust::make_zip_iterator(
-        edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_ids).begin());
-
-      thrust::sort_by_key(handle.get_thrust_policy(),
+    thrust::reduce_by_key(handle.get_thrust_policy(),
                           (*edgelist_types).begin(),
                           (*edgelist_types).end(),
-                          itr_to_triple);
+                          thrust::make_constant_iterator(size_t{1}),
+                          unique_types.begin(),
+                          type_offsets.begin());
 
-      auto nr_uniqe_edge_types_partition =
-        thrust::count_if(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator((*edgelist_types).size()),
-                         detail::is_first_in_run_t<edge_type_t const*>{(*edgelist_types).data()});
+    thrust::exclusive_scan(handle.get_thrust_policy(),
+                           type_offsets.begin(),
+                           type_offsets.end(),
+                           type_offsets.begin(),
+                           size_t{0});
 
-      rmm::device_uvector<edge_type_t> unique_types(nr_uniqe_edge_types_partition,
-                                                    handle.get_stream());
-      rmm::device_uvector<edge_t> type_offsets(nr_uniqe_edge_types_partition + 1,
-                                               handle.get_stream());
+    std::vector<edge_type_t> h_unique_types(unique_types.size());
+    std::vector<edge_t> h_type_offsets(type_offsets.size());
 
-      thrust::fill(handle.get_thrust_policy(), type_offsets.begin(), type_offsets.end(), edge_t{0});
+    raft::update_host(
+      h_unique_types.data(), unique_types.data(), unique_types.size(), handle.get_stream());
 
-      thrust::reduce_by_key(handle.get_thrust_policy(),
-                            (*edgelist_types).begin(),
-                            (*edgelist_types).end(),
-                            thrust::make_constant_iterator(size_t{1}),
-                            unique_types.begin(),
-                            type_offsets.begin());
+    raft::update_host(
+      h_type_offsets.data(), type_offsets.data(), type_offsets.size(), handle.get_stream());
 
-      thrust::exclusive_scan(handle.get_thrust_policy(),
-                             type_offsets.begin(),
-                             type_offsets.end(),
-                             type_offsets.begin(),
-                             size_t{0});
+    for (size_t idx = 0; idx < h_unique_types.size(); idx++) {
+      auto typ                   = h_unique_types[idx];
+      auto nr_elements_to_insert = (h_type_offsets[idx + 1] - h_type_offsets[idx]);
 
-      std::vector<edge_type_t> h_unique_types(unique_types.size());
-      std::vector<edge_t> h_type_offsets(type_offsets.size());
+      auto values_to_insert =
+        cugraph::allocate_dataframe_buffer<value_t>(nr_elements_to_insert, handle.get_stream());
 
-      raft::update_host(
-        h_unique_types.data(), unique_types.data(), unique_types.size(), handle.get_stream());
+      auto zip_itr = thrust::make_zip_iterator(
+        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
 
-      raft::update_host(
-        h_type_offsets.data(), type_offsets.data(), type_offsets.size(), handle.get_stream());
+      // FIXME: Can we avoid copying
+      thrust::copy(handle.get_thrust_policy(),
+                   zip_itr + h_type_offsets[idx],
+                   zip_itr + h_type_offsets[idx] + nr_elements_to_insert,
+                   cugraph::get_dataframe_buffer_begin(values_to_insert));
 
-      for (size_t idx = 0; idx < h_unique_types.size(); idx++) {
-        auto typ = h_unique_types[idx];
-        auto itr = edge_type_to_kv_store_umap.find(typ);
-        if (itr != edge_type_to_kv_store_umap.end()) {
-          assert(itr->first == typ);
-          itr->second.insert((*edgelist_ids).begin() + h_type_offsets[idx],
-                             (*edgelist_ids).begin() + h_type_offsets[idx + 1],
-                             thrust::make_zip_iterator(
-                               thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()))
-    + h_type_offsets[idx], handle.get_stream()); } else { assert(false);
-        }
-      }
+      using tt = typename thrust::iterator_traits<decltype(cugraph::get_dataframe_buffer_begin(
+        values_to_insert))>::value_type;
+      static_assert(std::is_same_v<tt, value_t>);
+
+      search_container.insert(
+        handle,
+        typ,
+        raft::device_span<edge_t>((*edgelist_ids).begin() + h_type_offsets[idx],
+                                  nr_elements_to_insert),
+        std::move(values_to_insert));
+
+      // raft::device_span<thrust::tuple<vertex_t, vertex_t>>(
+      //   thrust::make_zip_iterator(
+      //     thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin())) +
+      //     h_type_offsets[idx],
+      //   nr_elements_to_insert));
+
+      //     auto itr = edge_type_to_kv_store_umap.find(typ);
+      //     if (itr != edge_type_to_kv_store_umap.end()) {
+      //       assert(itr->first == typ);
+      //       itr->second.insert((*edgelist_ids).begin() + h_type_offsets[idx],
+      //                          (*edgelist_ids).begin() + h_type_offsets[idx + 1],
+      //                          thrust::make_zip_iterator(
+      //                            thrust::make_tuple(edgelist_majors.begin(),
+      //                            edgelist_minors.begin()))
+      // + h_type_offsets[idx], handle.get_stream()); } else { assert(false);
+      //     }
     }
+  }
 
-    return edge_type_and_id_search_container_t<edge_type_t, edge_id_t, value_t>{
-      std::move(edge_type_to_kv_store_umap)};
-      */
+  return search_container;
 }
 
 template <typename vertex_t, typename edge_id_t, typename edge_type_t, bool multi_gpu>
@@ -798,6 +917,8 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
   raft::device_span<int32_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
+// #From here---------
+// -------
 // template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 // cugraph_lookup_src_dst_from_edge_id_and_type<
 //   int32_t,
