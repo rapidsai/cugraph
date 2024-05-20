@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -204,7 +204,7 @@ def betweenness_centrality(
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
-    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          blocksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
     >>> dg = cugraph.Graph(directed=True)
@@ -362,7 +362,7 @@ def edge_betweenness_centrality(
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
-    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          blocksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
     >>> dg = cugraph.Graph(directed=True)

@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 #include "utilities/base_fixture.hpp"
+#include "utilities/check_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -388,11 +389,11 @@ class Tests_Multithreaded
       std::for_each(
         computed_pageranks_v.begin(),
         computed_pageranks_v.end(),
-        [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t1) {
+        [&h_sg_pageranks, compare_functor, &h_sg_renumber_map](auto t1) {
           std::for_each(
             thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
             thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
-            [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
+            [&h_sg_pageranks, compare_functor, &h_sg_renumber_map](auto t2) {
               vertex_t v  = thrust::get<0>(t2);
               weight_t pr = thrust::get<1>(t2);
 

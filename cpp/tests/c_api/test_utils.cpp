@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "c_test_utils.h"
 #include "c_api/resource_handle.hpp"
+#include "c_test_utils.h"
 
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -394,7 +394,7 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
 
 extern "C" size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* handle, size_t value)
 {
-  auto internal_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const *>(handle);
+  auto internal_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
   return cugraph::host_scalar_allreduce(internal_handle->handle_->get_comms(),
                                         value,
                                         raft::comms::op_t::SUM,

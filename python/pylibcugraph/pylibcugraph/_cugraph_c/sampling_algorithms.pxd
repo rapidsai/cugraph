@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,6 +50,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* start_vertex_labels,
         const cugraph_type_erased_device_array_view_t* label_list,
         const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+        const cugraph_type_erased_device_array_view_t* label_offsets,
         const cugraph_type_erased_host_array_view_t* fan_out,
         cugraph_rng_state_t* rng_state,
         const cugraph_sampling_options_t* options,

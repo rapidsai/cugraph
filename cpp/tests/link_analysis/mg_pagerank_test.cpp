@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -40,6 +41,8 @@
 struct PageRank_Usecase {
   double personalization_ratio{0.0};
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -85,6 +88,13 @@ class Tests_MGPageRank
     auto mg_graph_view = mg_graph.view();
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (pagerank_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. generate personalization vertex/value pairs
 
@@ -290,10 +300,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGPageRank_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(PageRank_Usecase{0.0, false},
-                      PageRank_Usecase{0.5, false},
-                      PageRank_Usecase{0.0, true},
-                      PageRank_Usecase{0.5, true}),
+    ::testing::Values(PageRank_Usecase{0.0, false, false},
+                      PageRank_Usecase{0.0, false, true},
+                      PageRank_Usecase{0.0, true, false},
+                      PageRank_Usecase{0.0, true, true},
+                      PageRank_Usecase{0.5, false, false},
+                      PageRank_Usecase{0.5, false, true},
+                      PageRank_Usecase{0.5, true, false},
+                      PageRank_Usecase{0.5, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -301,10 +315,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGPageRank_Rmat,
-                         ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
-                                                              PageRank_Usecase{0.5, false},
-                                                              PageRank_Usecase{0.0, true},
-                                                              PageRank_Usecase{0.5, true}),
+                         ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false, false},
+                                                              PageRank_Usecase{0.0, false, true},
+                                                              PageRank_Usecase{0.0, true, false},
+                                                              PageRank_Usecase{0.0, true, true},
+                                                              PageRank_Usecase{0.5, false, false},
+                                                              PageRank_Usecase{0.5, false, true},
+                                                              PageRank_Usecase{0.5, true, false},
+                                                              PageRank_Usecase{0.5, true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -316,10 +334,14 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPageRank_Rmat,
   ::testing::Combine(
-    ::testing::Values(PageRank_Usecase{0.0, false, false},
-                      PageRank_Usecase{0.5, false, false},
-                      PageRank_Usecase{0.0, true, false},
-                      PageRank_Usecase{0.5, true, false}),
+    ::testing::Values(PageRank_Usecase{0.0, false, false, false},
+                      PageRank_Usecase{0.0, false, true, false},
+                      PageRank_Usecase{0.0, true, false, false},
+                      PageRank_Usecase{0.0, true, true, false},
+                      PageRank_Usecase{0.5, false, false, false},
+                      PageRank_Usecase{0.5, false, true, false},
+                      PageRank_Usecase{0.5, true, false, false},
+                      PageRank_Usecase{0.5, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

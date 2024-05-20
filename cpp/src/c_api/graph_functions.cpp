@@ -214,6 +214,44 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
   }
 };
 
+struct count_multi_edges_functor : public cugraph::c_api::abstract_functor {
+  raft::handle_t const& handle_{};
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
+  size_t result_{};
+  bool do_expensive_check_{false};
+
+  count_multi_edges_functor(::cugraph_resource_handle_t const* handle,
+                            ::cugraph_graph_t* graph,
+                            bool do_expensive_check)
+    : abstract_functor(),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      do_expensive_check_(do_expensive_check)
+  {
+  }
+
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
+            typename edge_type_type_t,
+            bool store_transposed,
+            bool multi_gpu>
+  void operator()()
+  {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else {
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(
+          graph_->graph_);
+
+      auto graph_view = graph->view();
+
+      result_ = static_cast<size_t>(graph_view.count_multi_edges(handle_));
+    }
+  }
+};
+
 }  // namespace
 
 extern "C" cugraph_error_code_t cugraph_create_vertex_pairs(
@@ -278,6 +316,17 @@ extern "C" cugraph_error_code_t cugraph_two_hop_neighbors(
   cugraph_error_t** error)
 {
   two_hop_neighbors_functor functor(handle, graph, start_vertices, do_expensive_check);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource_handle_t* handle,
+                                                          cugraph_graph_t* graph,
+                                                          bool_t do_expensive_check,
+                                                          size_t* result,
+                                                          cugraph_error_t** error)
+{
+  count_multi_edges_functor functor(handle, graph, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
