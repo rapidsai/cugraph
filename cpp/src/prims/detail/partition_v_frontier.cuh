@@ -56,7 +56,8 @@ partition_v_frontier(raft::handle_t const& handle,
                      ValueIterator frontier_value_first,
                      ValueIterator frontier_value_last,
                      std::vector<typename thrust::iterator_traits<ValueIterator>::value_type> const&
-                       thresholds /* size = # partitions - 1 */
+                       thresholds /* size = # partitions - 1, thresholds[i] marks the end
+                                     (exclusive) of the i'th partition value range */
 )
 {
   rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last),
