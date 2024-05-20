@@ -505,13 +505,13 @@ dependencies:
       - output_types: [pyproject]
         matrices:
           - matrix:
-              cuda: "12.x"
+              cuda: "11.*"
             packages:
-              - cugraph-cu12==24.6.*,>=0.0.0a0
+              - &cugraph_cu11 cugraph-cu11==24.6.*,>=0.0.0a0
           - matrix:
-              cuda: "11.x"
+              cuda: "12.*"
             packages:
-              - cugraph-cu11==24.6.*,>=0.0.0a0
+              - &cugraph_cu12 cugraph-cu12==24.6.*,>=0.0.0a0
           - matrix:
             packages:
               - &cugraph cugraph==24.6.*,>=0.0.0a0
@@ -525,13 +525,13 @@ dependencies:
       - output_types: [pyproject]
         matrices:
           - matrix:
-              cuda: "12.x"
+              cuda: "11.*"
             packages:
-              - cugraph-cu12==24.6.*,>=0.0.0a0
+              - *cugraph_cu11
           - matrix:
-              cuda: "11.x"
+              cuda: "12.*"
             packages:
-              - cugraph-cu11==24.6.*,>=0.0.0a0
+              - *cugraph_cu12
           - matrix:
             packages:
               - *cugraph
