@@ -501,18 +501,40 @@ dependencies:
         packages:
           - *numba
           - *numpy
+    specific:
       - output_types: [pyproject]
-        packages:
-          - &cugraph cugraph==24.6.*,>=0.0.0a0
+        matrices:
+          - matrix:
+              cuda: "12.x"
+            packages:
+              - cugraph-cu12==24.6.*,>=0.0.0a0
+          - matrix:
+              cuda: "11.x"
+            packages:
+              - cugraph-cu11==24.6.*,>=0.0.0a0
+          - matrix:
+            packages:
+              - &cugraph cugraph==24.6.*,>=0.0.0a0
   python_run_cugraph_pyg:
     common:
       - output_types: [conda, pyproject]
         packages:
           - *numba
           - *numpy
+    specific:
       - output_types: [pyproject]
-        packages:
-          - *cugraph
+        matrices:
+          - matrix:
+              cuda: "12.x"
+            packages:
+              - cugraph-cu12==24.6.*,>=0.0.0a0
+          - matrix:
+              cuda: "11.x"
+            packages:
+              - cugraph-cu11==24.6.*,>=0.0.0a0
+          - matrix:
+            packages:
+              - *cugraph
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
