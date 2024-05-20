@@ -285,23 +285,20 @@ class simpleDistributedGraphImpl:
                 symmetrize=not self.properties.directed,
             )
 
+        # Create a dask_cudf dataframe from the cudf series
+        # or dataframe objects obtained from symmetrization
         if isinstance(source_col, dask_cudf.Series):
-            # Create a dask_cudf dataframe from the cudf series obtained
-            # from symmetrization
-            input_ddf = source_col.to_frame()
-            input_ddf = input_ddf.rename(columns={source_col.name: source})
-            input_ddf[destination] = dest_col
+            frames = [
+                source_col.to_frame(name=source),
+                dest_col.to_frame(name=destination),
+            ]
         else:
-            # Multi column dask_cudf dataframe
-            input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
-
-        def _assign(x, y, names):
-            for name in names:
-                x[name] = y[name]
-            return x
+            frames = [source_col, dest_col]
 
         if value_col is not None:
-            input_ddf = input_ddf.map_partitions(_assign, value_col, value_col_names)
+            frames.append(value_col[value_col_names])
+
+        input_ddf = dask_cudf.concat(frames, axis=1)
 
         self.input_df = input_ddf
 
