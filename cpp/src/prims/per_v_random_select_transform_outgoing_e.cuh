@@ -627,7 +627,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * access edge property values).
  * @param e_bias_op Quinary operator takes (tagged-)edge source, edge destination, property values
  * for the source, destination, and edge and returns a floating point bias value to be used in
- * biased random selection.
+ * biased random selection. The return value should be non-negative. The bias value of 0 indicates
+ * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
+ * the sum of the bias values for any seed vertex should not exceed
+ * std::numeric_limits<bias_t>::max().
  * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
  * the source, destination, and edge and returns a value to be collected in the output. This
  * function is called only for the selected edges.
