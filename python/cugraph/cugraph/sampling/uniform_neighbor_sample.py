@@ -353,7 +353,7 @@ def uniform_neighbor_sample(
         else None,
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
-        do_expensive_check=True,
+        do_expensive_check=False,
         with_edge_properties=with_edge_properties,
         random_state=random_state,
         prior_sources_behavior=prior_sources_behavior,

@@ -348,7 +348,7 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
  *                            parameter is only used with the retain_seeds option.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
- * @param [in/out] rng_state State of the random number generator, updated with each call
+ * @param [in,out] rng_state State of the random number generator, updated with each call
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
  * @param [in]  do_expensive_check
@@ -599,7 +599,7 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  *
  * @param [in]      handle        Handle for accessing resources
  * @param [in]      graph         Pointer to graph
- * @param [in/out]  rng_state     State of the random number generator, updated with each call
+ * @param [in,out]  rng_state     State of the random number generator, updated with each call
  * @param [in]      num_vertices  Number of vertices to sample
  * @param [out]     vertices      Device array view to populate label
  * @param [out]     error         Pointer to an error object storing details of
