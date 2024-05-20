@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple
+from typing import Optional, Union
 
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import agg_hg_basis_n2n_post
 
-from .base import BaseConv
+from .base import BaseConv, CSC
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -110,13 +110,16 @@ class RGCNConv(BaseConv):  # pragma: no cover
     def forward(
         self,
         x: torch.Tensor,
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_type: torch.Tensor,
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
 
-        graph = self.get_typed_cugraph(
-            csc, edge_type, self.num_relations, max_num_neighbors=max_num_neighbors
+        graph, _ = self.get_typed_cugraph(
+            edge_index,
+            edge_type,
+            self.num_relations,
+            max_num_neighbors=max_num_neighbors,
         )
 
         out = agg_hg_basis_n2n_post(
