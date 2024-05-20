@@ -130,6 +130,7 @@ class TensorDictFeatureStore(
         return attrs
 
 
+
 class WholeFeatureStore(
     object
     if isinstance(torch_geometric, MissingModule)
@@ -180,40 +181,55 @@ class WholeFeatureStore(
                     f"(attribute does not exist for group {attr.group_name})"
                 )
 
-        if len(t.shape) > 2:
+        if len(tensor.shape) > 2:
             raise ValueError(
                 "Only 1-D or 2-D tensors are supported by WholeGraph."
             )
     
+        rank = torch.distributed.get_rank()
+        world_size = torch.distributed.get_world_size()
+
         ld = torch.tensor(
-            t.shape[0],
+            tensor.shape[0],
             device='cuda',
             dtype=torch.int64
         )
-        torch.distributed.all_reduce(ld, op=torch.distributed.ReduceOp.SUM)
+        sizes = torch.empty((world_size,), device='cuda', dtype=torch.int64)
+        torch.distributed.all_gather_into_tensor(sizes, ld)
 
-        td = -1 if len(t.shape) == 1 else t.shape[1]
-        global_shape = torch.Size[
+        sizes = sizes.cpu()
+        ld = sizes.sum()
+
+        td = -1 if len(tensor.shape) == 1 else tensor.shape[1]
+        global_shape = [
             int(ld),
             td if td > 0 else 1,
         ]
-        t = t.reshape((t.shape[0], global_shape[1]))
-            
 
-        wg_embedding = wgth.create_embedding(
+        if td < 0:
+            tensor = tensor.reshape((tensor.shape[0], 1))
+
+        # Stride correction
+        # Input tensors are very frequently incorrectly-strided so this
+        # enforces the right striding.
+        tensor = torch.as_strided(tensor, (tensor.shape[0], tensor.shape[1]), (tensor.shape[1], 1))
+
+        wg_embedding = wgth.create_wholememory_tensor(
             wg_comm_obj,
             self.__wg_type,
             self.__wg_location,
-            t.dtype,
             global_shape,
+            tensor.dtype,
+            [global_shape[1], 1]
         )
 
-        (
-            local_wg_tensor,
-            local_ld_offset, # not used; we assume the data is already partitioned
-        ) = wg_embedding.get_embedding_tensor().get_local_tensor()
+        offset = sizes[:rank].sum() if rank > 0 else 0
 
-        local_wg_tensor.copy_(t)
+        wg_embedding.scatter(
+            tensor.cuda().contiguous(),
+            torch.arange(offset, offset + tensor.shape[0], dtype=torch.int64, device='cuda').contiguous()
+        )
+
         wg_comm_obj.barrier()
         
         self.__features[attr.group_name, attr.attr_name] = (wg_embedding, td)
@@ -225,15 +241,21 @@ class WholeFeatureStore(
         if (attr.group_name, attr.attr_name) not in self.__features:
             return None
         
-        emb = self.__features[attr.group_name, attr.attr_name]
+        emb, td = self.__features[attr.group_name, attr.attr_name]
 
         if attr.index is None or (not attr.is_set("index")):
             attr.index = torch.arange(emb.shape[0], dtype=torch.int64)
 
         attr.index = attr.index.cuda()
-        return emb.gather(
-            attr.index
+        t = emb.gather(
+            attr.index,
+            force_dtype=emb.dtype,
         )
+
+        if td < 0:
+            t = t.reshape((t.shape[0], ))
+        
+        return t
 
     def _remove_tensor(
         self, attr: "torch_geometric.data.feature_store.TensorAttr"
@@ -253,11 +275,11 @@ class WholeFeatureStore(
         self,
     ) -> List["torch_geometric.data.feature_store.TensorAttr"]:
         attrs = []
-        for (group_name, attr_name) in self.__features.items():
+        for (group_name, attr_name) in self.__features.keys():
             attrs.append(
                 torch_geometric.data.feature_store.TensorAttr(
-                    group_name,
-                    attr_name,
+                    group_name=group_name,
+                    attr_name=attr_name,
                 )
             )
 
