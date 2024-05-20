@@ -267,6 +267,13 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--dataset", type=str, default="ogbn-products")
 
+    parser.add_argument(
+        "--n_devices",
+        type=int,
+        default=-1,
+        help="1-8 to use that many GPUs. Defaults to all available GPUs",
+    )
+    
     args = parser.parse_args()
     wall_clock_start = time.perf_counter()
 
