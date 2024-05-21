@@ -344,6 +344,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -351,8 +352,9 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the graph to be decompressed.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param renumber_map If valid, return the renumbered edge list based on the provided @p
  * renumber_map
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -363,17 +365,20 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>>
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>>
 decompress_to_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check = false);
 

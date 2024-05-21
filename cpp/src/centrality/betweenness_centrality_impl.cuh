@@ -591,7 +591,13 @@ edge_betweenness_centrality(
   edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t> centralities(
     handle, graph_view);
 
-  fill_edge_property(handle, graph_view, weight_t{0}, centralities, do_expensive_check);
+  if (graph_view.has_edge_mask()) {
+    auto unmasked_graph_view = graph_view;
+    unmasked_graph_view.clear_edge_mask();
+    fill_edge_property(handle, unmasked_graph_view, weight_t{0}, centralities, do_expensive_check);
+  } else {
+    fill_edge_property(handle, graph_view, weight_t{0}, centralities, do_expensive_check);
+  }
 
   size_t num_sources = thrust::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};
@@ -691,8 +697,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const include_endpoints,
   bool const do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (vertices) {
     return detail::betweenness_centrality(handle,
                                           graph_view,
@@ -725,8 +729,6 @@ edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (vertices) {
     return detail::edge_betweenness_centrality(handle,
                                                graph_view,

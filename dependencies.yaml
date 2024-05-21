@@ -354,8 +354,6 @@ dependencies:
         packages:
           - c-compiler
           - cxx-compiler
-          - gmock>=1.13.0
-          - gtest>=1.13.0
           - libcudf==24.6.*
           - libcugraphops==24.6.*
           - libraft-headers==24.6.*
@@ -567,7 +565,7 @@ dependencies:
           - cugraph==24.6.*
           - pytorch>=2.0
           - pytorch-cuda==11.8
-          - pyg>=2.4.0
+          - pyg>=2.5,<2.6
 
   depends_on_rmm:
     common:

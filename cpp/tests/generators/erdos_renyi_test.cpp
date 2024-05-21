@@ -87,6 +87,7 @@ void er_test(size_t num_vertices, float p)
 TEST_F(GenerateErdosRenyiTest, ERTest)
 {
   er_test<int32_t>(size_t{10}, float{0.1});
+  er_test<int32_t>(size_t{10}, float{0.5});
   er_test<int32_t>(size_t{20}, float{0.1});
   er_test<int32_t>(size_t{50}, float{0.1});
   er_test<int32_t>(size_t{10000}, float{0.1});

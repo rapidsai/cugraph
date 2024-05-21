@@ -199,9 +199,7 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
-    >>> b_ego_graph, offsets = cugraph.batched_ego_graphs(G, seeds=[1,5],
-    ...                                                   radius=2)
-
+    >>> cugraph.batched_ego_graphs(G, seeds=[1,5], radius=2)  # doctest: +SKIP
     """
     warning_msg = "This function is deprecated. Batched support for multiple vertices \
          will be added to `ego_graph`"

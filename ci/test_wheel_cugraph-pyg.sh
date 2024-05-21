@@ -33,7 +33,7 @@ else
 fi
 rapids-logger "Installing PyTorch and PyG dependencies"
 rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install torch-geometric==2.4.0
+rapids-retry python -m pip install "torch-geometric>=2.5,<2.6"
 rapids-retry python -m pip install \
   ogb \
   pyg_lib \
@@ -52,6 +52,6 @@ python -m pytest \
 # Test examples
 for e in "$(pwd)"/examples/*.py; do
   rapids-logger "running example $e"
-  python $e
+  (yes || true) | python $e
 done
 popd
