@@ -309,14 +309,17 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     detail::decompress_edge_partition_to_edgelist<vertex_t,
                                                   edge_t,
                                                   weight_t,
+                                                  int32_t,
                                                   GraphViewType::is_multi_gpu>(
       handle,
       edge_partition,
       std::nullopt,
       std::nullopt,
+      std::nullopt,
       edge_partition_e_mask,
       raft::device_span<vertex_t>(majors.data(), majors.size()),
       raft::device_span<vertex_t>(minors.data(), minors.size()),
+      std::nullopt,
       std::nullopt,
       std::nullopt,
       segment_offsets);

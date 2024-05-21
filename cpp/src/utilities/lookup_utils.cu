@@ -10,32 +10,8 @@
 
 #include <raft/core/handle.hpp>
 
-// #include <typeinfo>  // operator typeid
-
 namespace cugraph {
-
-template <typename edge_type_t, typename edge_id_t, typename value_t>
-struct edge_type_and_id_search_container_t {
-  using edge_type_type = edge_type_t;
-  using edge_id_type   = edge_id_t;
-  using value_type     = value_t;
-  static_assert(std::is_arithmetic_v<edge_type_t>);
-  static_assert(std::is_arithmetic_v<edge_id_t>);
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
-  edge_type_and_id_search_container_t() = delete;
-
-  edge_type_and_id_search_container_t(const edge_type_and_id_search_container_t&) = delete;
-
-  edge_type_and_id_search_container_t& operator=(const edge_type_and_id_search_container_t&) =
-    delete;
-
-  using container_t =
-    std::unordered_map<edge_type_t,
-                       cugraph::kv_store_t<edge_id_t, value_t, false /*use_binary_search*/>>;
-
-  container_t edge_type_to_kv_store;
-};
-
+namespace detail {
 template <typename vertex_t,
           typename edge_id_t,
           typename edge_type_t,
@@ -72,13 +48,8 @@ cugraph_lookup_src_dst_from_edge_id_and_type(
   thrust::fill(
     handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_vertex_id);
 
-  // search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t, vertex_t>> search;
-  // search.insert(edge_type_t{1}, edge_id_t{2}, thrust::tuple<vertex_t, vertex_t>(1, 1));
-
   auto optional_value_buffer = search_container.lookup_src_dst_from_edge_id_and_type(
     handle, edge_ids_to_lookup, edge_type_to_lookup, multi_gpu);
-
-  // std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 
   if (optional_value_buffer.has_value()) {
     thrust::copy(
@@ -180,6 +151,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
   std::vector<edge_t> h_freq_of_types_to_this_gpu{};
   std::unordered_map<edge_type_t, edge_t> edge_type_to_count_map{};
 
+  bool debug = false;
   for (size_t local_ep_idx = 0; local_ep_idx < graph_view.number_of_local_edge_partitions();
        ++local_ep_idx) {
     //
@@ -244,21 +216,22 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
 
     if constexpr (multi_gpu) {
       auto const comm_rank = handle.get_comms().get_rank();
-      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      // auto ids_title = std::string("ids_")
-      //                    .append(std::to_string(comm_rank))
-      //                    .append("_")
-      //                    .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   ids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+      if (debug) {
+        // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        // auto ids_title = std::string("ids_")
+        //                    .append(std::to_string(comm_rank))
+        //                    .append("_")
+        //                    .append(std::to_string(local_ep_idx));
+        // raft::print_device_vector(
+        //   ids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
 
-      // auto types_title = std::string("types_")
-      //                      .append(std::to_string(comm_rank))
-      //                      .append("_")
-      //                      .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
-
+        // auto types_title = std::string("types_")
+        //                      .append(std::to_string(comm_rank))
+        //                      .append("_")
+        //                      .append(std::to_string(local_ep_idx));
+        // raft::print_device_vector(
+        //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+      }
       //
       // Count number of edge ids mapped to each GPU
       //
@@ -281,13 +254,15 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                           return key_func(eid);
                         });
 
-      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      // auto gids_title = std::string("gids_")
-      //                     .append(std::to_string(comm_rank))
-      //                     .append("_")
-      //                     .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+      if (debug) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto gids_title = std::string("gids_")
+                            .append(std::to_string(comm_rank))
+                            .append("_")
+                            .append(std::to_string(local_ep_idx));
+        raft::print_device_vector(
+          gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+      }
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(
@@ -319,35 +294,37 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                              gpu_offsets.begin(),
                              size_t{0});
 
-      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      // gids_title = std::string("s_gids_")
-      //                .append(std::to_string(comm_rank))
-      //                .append("_")
-      //                .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+        auto gids_title = std::string("s_gids_")
+                            .append(std::to_string(comm_rank))
+                            .append("_")
+                            .append(std::to_string(local_ep_idx));
+        raft::print_device_vector(
+          gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
 
-      // types_title = std::string("s_types_")
-      //                 .append(std::to_string(comm_rank))
-      //                 .append("_")
-      //                 .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+        auto types_title = std::string("s_types_")
+                             .append(std::to_string(comm_rank))
+                             .append("_")
+                             .append(std::to_string(local_ep_idx));
+        raft::print_device_vector(
+          types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
 
-      // auto ugids = std::string("u_gids_")
-      //                .append(std::to_string(comm_rank))
-      //                .append("_")
-      //                .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   ugids.c_str(), unique_gpu_ids.begin(), unique_gpu_ids.size(), std::cout);
+        auto ugids = std::string("u_gids_")
+                       .append(std::to_string(comm_rank))
+                       .append("_")
+                       .append(std::to_string(local_ep_idx));
+        raft::print_device_vector(
+          ugids.c_str(), unique_gpu_ids.begin(), unique_gpu_ids.size(), std::cout);
 
-      // auto goffsets = std::string("goff_")
-      //                   .append(std::to_string(comm_rank))
-      //                   .append("_")
-      //                   .append(std::to_string(local_ep_idx));
-      // raft::print_device_vector(
-      //   goffsets.c_str(), gpu_offsets.begin(), gpu_offsets.size(), std::cout);
+        auto goffsets = std::string("goff_")
+                          .append(std::to_string(comm_rank))
+                          .append("_")
+                          .append(std::to_string(local_ep_idx));
+        raft::print_device_vector(
+          goffsets.c_str(), gpu_offsets.begin(), gpu_offsets.size(), std::cout);
+      }
 
       h_unique_gpu_ids.resize(unique_gpu_ids.size());
       h_gpu_offsets.resize(gpu_offsets.size());
@@ -356,12 +333,20 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
       raft::update_host(
         h_gpu_offsets.data(), gpu_offsets.data(), gpu_offsets.size(), handle.get_stream());
 
-      // std::cout << "h_unique_gpu_ids: \n";
-      // for (auto n : h_unique_gpu_ids)
-      //   printf("%d (%d_%d)  ", n, comm_rank, local_ep_idx);
-      // std::cout << "h_gpu_offsets: \n";
-      // for (auto n : h_gpu_offsets)
-      //   printf("%d (%d_%d)  ", n, comm_rank, local_ep_idx);
+      if (debug) {
+        std::cout << "h_unique_gpu_ids: \n";
+        for (auto n : h_unique_gpu_ids)
+          printf("%d (%d_%d)  ",
+                 static_cast<int>(n),
+                 static_cast<int>(comm_rank),
+                 static_cast<int>(local_ep_idx));
+        std::cout << "h_gpu_offsets: \n";
+        for (auto n : h_gpu_offsets)
+          printf("%d (%d_%d)  ",
+                 static_cast<int>(n),
+                 static_cast<int>(comm_rank),
+                 static_cast<int>(local_ep_idx));
+      }
 
     } else {
       thrust::sort(handle.get_thrust_policy(), (*edgelist_types).begin(), (*edgelist_types).end());
@@ -612,40 +597,24 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
   // Create search container with appropriate capacity
   //
 
-  // using container_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::container_t;
-  // using store_t     = typename
-  // EdgeTypeAndIdToSrcDstLookupContainerType::container_t::mapped_type; container_t
-  // edge_type_to_kv_store_umap{}; edge_type_to_kv_store_umap.reserve(nr_unique_types_global);
-
-  // auto invalid_key   = cugraph::invalid_vertex_id<edge_id_t>::value;
-  // auto invalid_value = (std::is_integral<value_t>::value)
-  //                        ? (cugraph::invalid_vertex_id<value_t>::value)
-  //                        : cugraph::invalid_of_thrust_tuple_of_integral<value_t>();
-
   std::vector<edge_id_t> local_freqs(h_unique_types_global.size(), 0);
-
-  std::cout << "Create Map Object\n";
 
   for (size_t idx = 0; idx < h_unique_types_global.size(); idx++) {
     auto typ              = h_unique_types_global[idx];
     auto search_itr       = edge_type_to_count_map.find(typ);
     size_t store_capacity = (search_itr != edge_type_to_count_map.end()) ? search_itr->second : 0;
     local_freqs[idx]      = store_capacity;
-
-    // edge_type_to_kv_store_umap.insert(
-    //   {typ, std::move(store_t(store_capacity, invalid_key, invalid_value,
-    //   handle.get_stream()))});
-
-    // assert(edge_type_to_kv_store_umap.find(typ) != edge_type_to_kv_store_umap.end());
   }
 
-  // std::cout << "keys: \n";
-  // for (auto n : h_unique_types_global)
-  //   std::cout << n << ' ';
-  // std::cout << "\nsizes: \n";
-  // for (auto n : local_freqs)
-  //   std::cout << n << ' ';
-  // std::cout << "\n-------- \n";
+  if (debug) {
+    std::cout << "keys: \n";
+    for (auto n : h_unique_types_global)
+      std::cout << n << ' ';
+    std::cout << "\nsizes: \n";
+    for (auto n : local_freqs)
+      std::cout << n << ' ';
+    std::cout << "\n-------- \n";
+  }
 
   auto search_container =
     EdgeTypeAndIdToSrcDstLookupContainerType(handle, h_unique_types_global, local_freqs);
@@ -677,15 +646,16 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     auto edgelist_types = std::make_optional<rmm::device_uvector<edge_type_t>>(
       edgelist_majors.size(), handle.get_stream());
 
-    detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, edge_type_t, multi_gpu>(
+    detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, float, edge_type_t, multi_gpu>(
       handle,
       edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
         graph_view.local_edge_partition_view(local_ep_idx)),
+      std::nullopt,
+      std::make_optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
+        edge_id_view, local_ep_idx),
       std::make_optional<
         detail::edge_partition_edge_property_device_view_t<edge_t, edge_type_t const*>>(
         edge_type_view, local_ep_idx),
-      std::make_optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
-        edge_id_view, local_ep_idx),
       graph_view.has_edge_mask()
         ? std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
@@ -693,9 +663,10 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
         : std::nullopt,
       raft::device_span<vertex_t>(edgelist_majors.data(), number_of_local_edges),
       raft::device_span<vertex_t>(edgelist_minors.data(), number_of_local_edges),
+      std::nullopt,
+      std::make_optional<raft::device_span<edge_t>>((*edgelist_ids).data(), number_of_local_edges),
       std::make_optional<raft::device_span<edge_type_t>>((*edgelist_types).data(),
                                                          number_of_local_edges),
-      std::make_optional<raft::device_span<edge_t>>((*edgelist_ids).data(), number_of_local_edges),
       graph_view.local_edge_partition_segment_offsets(local_ep_idx));
 
     //
@@ -803,28 +774,12 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
         raft::device_span<edge_t>((*edgelist_ids).begin() + h_type_offsets[idx],
                                   nr_elements_to_insert),
         std::move(values_to_insert));
-
-      // raft::device_span<thrust::tuple<vertex_t, vertex_t>>(
-      //   thrust::make_zip_iterator(
-      //     thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin())) +
-      //     h_type_offsets[idx],
-      //   nr_elements_to_insert));
-
-      //     auto itr = edge_type_to_kv_store_umap.find(typ);
-      //     if (itr != edge_type_to_kv_store_umap.end()) {
-      //       assert(itr->first == typ);
-      //       itr->second.insert((*edgelist_ids).begin() + h_type_offsets[idx],
-      //                          (*edgelist_ids).begin() + h_type_offsets[idx + 1],
-      //                          thrust::make_zip_iterator(
-      //                            thrust::make_tuple(edgelist_majors.begin(),
-      //                            edgelist_minors.begin()))
-      // + h_type_offsets[idx], handle.get_stream()); } else { assert(false);
-      //     }
     }
   }
 
   return search_container;
 }
+}  // namespace detail
 
 template <typename vertex_t, typename edge_id_t, typename edge_type_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
@@ -836,12 +791,9 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub(
   edge_type_t edge_type_to_lookup)
 {
   using m_t = search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t, vertex_t>>;
-  return cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t,
-                                                      edge_id_t,
-                                                      edge_type_t,
-                                                      m_t,
-                                                      multi_gpu>(
-    handle, search_container, edge_ids_to_lookup, edge_type_to_lookup);
+  return detail::
+    cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t, edge_id_t, edge_type_t, m_t, multi_gpu>(
+      handle, search_container, edge_ids_to_lookup, edge_type_to_lookup);
 }
 
 template <typename vertex_t, typename edge_id_t, typename edge_type_t, bool multi_gpu>
@@ -854,17 +806,14 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub(
   raft::device_span<edge_type_t const> edge_types_to_lookup)
 {
   using m_t = search_container_t<edge_type_t, edge_id_t, thrust::tuple<vertex_t, vertex_t>>;
-  return cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t,
-                                                      edge_id_t,
-                                                      edge_type_t,
-                                                      m_t,
-                                                      multi_gpu>(
-    handle, search_container, edge_ids_to_lookup, edge_types_to_lookup);
+  return detail::
+    cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t, edge_id_t, edge_type_t, m_t, multi_gpu>(
+      handle, search_container, edge_ids_to_lookup, edge_types_to_lookup);
 }
 
 template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
 search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>
-create_edge_id_and_type_to_src_dst_lookup_map_pub(
+build_edge_id_and_type_to_src_dst_lookup_map(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, edge_t const*> edge_id_view,
@@ -873,17 +822,17 @@ create_edge_id_and_type_to_src_dst_lookup_map_pub(
   using graph_view_t = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
   using return_t     = search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>;
 
-  return create_edge_id_and_type_to_src_dst_lookup_map<graph_view_t,
-                                                       decltype(edge_id_view),
-                                                       decltype(edge_type_view),
-                                                       return_t>(
+  return detail::create_edge_id_and_type_to_src_dst_lookup_map<graph_view_t,
+                                                               decltype(edge_id_view),
+                                                               decltype(edge_type_view),
+                                                               return_t>(
     handle, graph_view, edge_id_view, edge_type_view);
 }
 
 using edge_type_t = int32_t;
 
 template search_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>>
-create_edge_id_and_type_to_src_dst_lookup_map_pub(
+build_edge_id_and_type_to_src_dst_lookup_map(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   edge_property_view_t<int32_t, int32_t const*> edge_id_view,
@@ -917,17 +866,16 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
   raft::device_span<int32_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
-// #From here---------
 // -------
 // template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 // cugraph_lookup_src_dst_from_edge_id_and_type<
 //   int32_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
 //   false>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -938,10 +886,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int32_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
 //   true>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -952,10 +900,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int64_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
 //   false>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -966,10 +914,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int64_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
 //   true>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -980,10 +928,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int32_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
 //   false>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -994,10 +942,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int32_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>,
 //   true>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int32_t, int32_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -1008,10 +956,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int64_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
 //   false>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,
@@ -1022,10 +970,10 @@ cugraph_lookup_src_dst_from_edge_id_and_type_pub<int32_t, int32_t, edge_type_t, 
 //   int64_t,
 //   int64_t,
 //   edge_type_t,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>,
 //   true>(
 //   raft::handle_t const& handle,
-//   edge_type_and_id_search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
+//   search_container_t<edge_type_t, int64_t, thrust::tuple<int64_t, int64_t>>
 //   const&
 //     search_container,
 //   raft::device_span<int64_t const> edge_ids_to_lookup,

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ from typing import Optional, Tuple, Union
 from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_simple_n2n
 
-from .base import BaseConv
+from .base import BaseConv, CSC
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
@@ -153,7 +153,7 @@ class TransformerConv(BaseConv):
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_index: Union[torch_geometric.EdgeIndex, CSC],
         edge_attr: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         r"""Runs the forward pass of the module.
@@ -161,15 +161,11 @@ class TransformerConv(BaseConv):
         Args:
             x (torch.Tensor or tuple): The node features. Can be a tuple of
                 tensors denoting source and destination node features.
-            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
-                representation of a graph, given as a tuple of
-                :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`to_csc` method to convert an :obj:`edge_index`
-                representation to the desired format.
+            edge_index (EdgeIndex or CSC): The edge indices.
             edge_attr: (torch.Tensor, optional) The edge features.
         """
         bipartite = True
-        graph = self.get_cugraph(csc, bipartite=bipartite)
+        graph, perm = self.get_cugraph(edge_index=edge_index, bipartite=bipartite)
 
         if isinstance(x, torch.Tensor):
             x = (x, x)
@@ -184,6 +180,8 @@ class TransformerConv(BaseConv):
                     f"{self.__class__.__name__}.edge_dim must be set to accept "
                     f"edge features."
                 )
+            if perm is not None:
+                edge_attr = edge_attr[perm]
             edge_attr = self.lin_edge(edge_attr)
 
         out = mha_simple_n2n(

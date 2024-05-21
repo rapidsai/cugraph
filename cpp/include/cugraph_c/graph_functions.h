@@ -230,6 +230,26 @@ cugraph_error_code_t cugraph_allgather(const cugraph_resource_handle_t* handle,
                                        cugraph_error_t** error);
 
 /**
+ * @brief      Count multi_edges
+ *
+ * Count the number of multi-edges in the graph
+ *
+ * @param [in]  handle              Handle for accessing resources.
+ * @param [in]  graph               Pointer to graph
+ * @param [in]  do_expensive_check  A flag to run expensive checks for input arguments (if set to
+ * true)
+ * @param [out] result              Where to store the count of multi-edges
+ * @param [out] error               Pointer to an error object storing details of any error.  Will
+ *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource_handle_t* handle,
+                                               cugraph_graph_t* graph,
+                                               bool_t do_expensive_check,
+                                               size_t* result,
+                                               cugraph_error_t** error);
+
+/**
  * @brief       Opaque degree result type
  */
 typedef struct {

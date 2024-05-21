@@ -526,6 +526,7 @@ class kv_cuco_store_t {
                     std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(0, stream))
   {
     allocate(capacity, invalid_key, invalid_value, stream);
+    if constexpr (!std::is_arithmetic_v<value_t>) { invalid_value_ = invalid_value; }
     capacity_ = capacity;
     size_     = 0;
   }
