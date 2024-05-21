@@ -15,9 +15,6 @@
   ],
   "hostRequirements": {"gpu": "optional"},
   "features": {
-    "ghcr.io/rapidsai/devcontainers/features/ucx:24.6": {
-      "version": "1.15.0"
-    },
     "ghcr.io/rapidsai/devcontainers/features/cuda:24.6": {
       "version": "12.2",
       "installcuBLAS": true,
@@ -25,11 +22,14 @@
       "installcuRAND": true,
       "installcuSPARSE": true
     },
+    "ghcr.io/rapidsai/devcontainers/features/ucx:24.6": {
+      "version": "1.15.0"
+    },
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils:24.6": {}
   },
   "overrideFeatureInstallOrder": [
-    "ghcr.io/rapidsai/devcontainers/features/ucx",
     "ghcr.io/rapidsai/devcontainers/features/cuda",
+    "ghcr.io/rapidsai/devcontainers/features/ucx",
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils"
   ],
   "initializeCommand": ["/bin/bash", "-c", "mkdir -m 0755 -p ${localWorkspaceFolder}/../.{aws,cache,config/pip,local/share/${localWorkspaceFolderBasename}-cuda12.2-venvs}"],
