@@ -40,8 +40,6 @@ from pylibwholegraph.torch.initialize import (
     finalize as wm_finalize,
 )
 
-import pylibwholegraph.binding.wholememory_binding as wmb
-
 # Allow computation on objects that are larger than GPU memory
 # https://docs.rapids.ai/api/cudf/stable/developer_guide/library_design/#spilling-to-host-memory
 os.environ["CUDF_SPILL"] = "1"
