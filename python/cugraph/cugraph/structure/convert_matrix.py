@@ -277,6 +277,8 @@ def from_pandas_edgelist(
     renumber=True,
 ):
     """
+    See :func:`networkx.convert_matrix.from_pandas_edgelist`.
+
     Initialize a graph from the edge list. It is an error to call this
     method on an initialized Graph object. Source argument is source
     column name and destination argument is destination column name.
