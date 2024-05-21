@@ -22,7 +22,6 @@ import json
 
 import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
 import torch.nn.functional as F
 from ogb.nodeproppred import PygNodePropPredDataset
 from torch.nn.parallel import DistributedDataParallel
@@ -71,7 +70,9 @@ def init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id):
 
     torch.cuda.set_device(local_rank)
 
-    cugraph_comms_init(rank=global_rank, world_size=world_size, uid=cugraph_id, device=local_rank)
+    cugraph_comms_init(
+        rank=global_rank, world_size=world_size, uid=cugraph_id, device=local_rank
+    )
 
     wm_init(global_rank, world_size, local_rank, torch.cuda.device_count())
 
@@ -80,80 +81,88 @@ def partition_data(dataset, split_idx, edge_path, feature_path, label_path, meta
     data = dataset[0]
 
     # Split and save edge index
-    os.makedirs(edge_path, exist_ok=True,)
+    os.makedirs(
+        edge_path,
+        exist_ok=True,
+    )
     for (r, e) in enumerate(torch.tensor_split(data.edge_index, world_size, dim=1)):
-        rank_path = os.path.join(edge_path, f'rank={r}.pt')
+        rank_path = os.path.join(edge_path, f"rank={r}.pt")
         torch.save(
             e,
             rank_path,
         )
 
     # Split and save features
-    os.makedirs(feature_path, exist_ok=True,)
+    os.makedirs(
+        feature_path,
+        exist_ok=True,
+    )
+
     for (r, f) in enumerate(torch.tensor_split(data.x, world_size)):
-        rank_path = os.path.join(feature_path, f'rank={r}_x.pt')
+        rank_path = os.path.join(feature_path, f"rank={r}_x.pt")
         torch.save(
-            f,
+            f.clone(),
             rank_path,
         )
     for (r, f) in enumerate(torch.tensor_split(data.y, world_size)):
-        rank_path = os.path.join(feature_path, f'rank={r}_y.pt')
+        rank_path = os.path.join(feature_path, f"rank={r}_y.pt")
         torch.save(
-            f,
+            f.clone(),
             rank_path,
         )
 
     # Split and save labels
-    os.makedirs(label_path, exist_ok=True,)
+    os.makedirs(
+        label_path,
+        exist_ok=True,
+    )
     for (d, i) in split_idx.items():
         i_parts = torch.tensor_split(i, world_size)
         for r, i_part in enumerate(i_parts):
-            rank_path = os.path.join(label_path, f'rank={r}')
+            rank_path = os.path.join(label_path, f"rank={r}")
             os.makedirs(rank_path, exist_ok=True)
-            torch.save(
-                i_part,
-                os.path.join(rank_path, f'{d}.pt')
-            )
+            torch.save(i_part, os.path.join(rank_path, f"{d}.pt"))
 
     # Save metadata
     meta = {
-        'num_classes': dataset.num_classes,
-        'num_features': dataset.num_features,
-        'num_nodes': data.num_nodes,
+        "num_classes": dataset.num_classes,
+        "num_features": dataset.num_features,
+        "num_nodes": data.num_nodes,
     }
-    with open(meta_path, 'w') as f:
+    with open(meta_path, "w") as f:
         json.dump(meta, f)
 
 
 def load_partitioned_data(rank, edge_path, feature_path, label_path, meta_path):
     from cugraph_pyg.data import GraphStore, WholeFeatureStore
+
     graph_store = GraphStore(is_multi_gpu=True)
-    feature_store= WholeFeatureStore()
+    feature_store = WholeFeatureStore(memory_type="chunked")
 
     # Load metadata
-    with open(meta_path, 'r') as f:
+    with open(meta_path, "r") as f:
         meta = json.load(f)
-    
+
     # Load labels
     split_idx = {}
-    for split in ['train','test','valid']:
+    for split in ["train", "test", "valid"]:
         split_idx[split] = torch.load(
-            os.path.join(label_path, f'rank={rank}', f'{split}.pt')
+            os.path.join(label_path, f"rank={rank}", f"{split}.pt")
         )
-    
+
     # Load features
-    feature_store['node','x'] = torch.load(
-        os.path.join(feature_path, f'rank={rank}_x.pt')
+    feature_store["node", "x"] = torch.load(
+        os.path.join(feature_path, f"rank={rank}_x.pt")
     )
-    feature_store['node','y'] = torch.load(
-        os.path.join(feature_path, f'rank={rank}_y.pt')
+    feature_store["node", "y"] = torch.load(
+        os.path.join(feature_path, f"rank={rank}_y.pt")
     )
 
     # Load edge index
-    eix = torch.load(
-        os.path.join(edge_path, f'rank={rank}.pt')
-    )
-    graph_store[("node", "rel", "node"), "coo", False, (meta['num_nodes'], meta['num_nodes'])] = eix
+    eix = torch.load(os.path.join(edge_path, f"rank={rank}.pt"))
+    graph_store[
+        ("node", "rel", "node"), "coo", False, (meta["num_nodes"], meta["num_nodes"])
+    ] = eix
 
     return (feature_store, graph_store), split_idx, meta
 
@@ -182,7 +191,7 @@ def run_train(
     # Set Up Neighbor Loading
     from cugraph_pyg.loader import NeighborLoader
 
-    ix_train = split_idx['train'].cuda()
+    ix_train = split_idx["train"].cuda()
     train_path = os.path.join(tempdir, f"train_{global_rank}")
     os.mkdir(train_path)
     train_loader = NeighborLoader(
@@ -194,7 +203,7 @@ def run_train(
         **kwargs,
     )
 
-    ix_test = split_idx['test'].cuda()
+    ix_test = split_idx["test"].cuda()
     test_path = os.path.join(tempdir, f"test_{global_rank}")
     os.mkdir(test_path)
     test_loader = NeighborLoader(
@@ -230,8 +239,6 @@ def run_train(
         prep_time = round(time.perf_counter() - wall_clock_start, 2)
         print("Total time before training begins (prep_time) =", prep_time, "seconds")
         print("Beginning training...")
-    
-    print('ix train:', ix_train)
 
     for epoch in range(epochs):
         for i, batch in enumerate(train_loader):
@@ -336,7 +343,8 @@ if __name__ == "__main__":
     parser.add_argument("--tempdir_root", type=str, default=None)
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--dataset", type=str, default="ogbn-products")
-    parser.add_argument("--skip_partition", action='store_true')
+    parser.add_argument("--skip_partition", action="store_true")
+    parser.add_argument("--wg_mem_type", type=str, default="chunked")
 
     args = parser.parse_args()
     wall_clock_start = time.perf_counter()
@@ -344,7 +352,7 @@ if __name__ == "__main__":
     dist.init_process_group("nccl")
     world_size = dist.get_world_size()
     global_rank = dist.get_rank()
-    local_rank =  int(os.environ['LOCAL_RANK'])
+    local_rank = int(os.environ["LOCAL_RANK"])
     device = torch.device(local_rank)
 
     # Create the uid needed for cuGraph comms
@@ -358,8 +366,8 @@ if __name__ == "__main__":
     init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id)
 
     # Split the data
-    edge_path = os.path.join(args.dataset_root, args.dataset + "_eix_part") 
-    feature_path = os.path.join(args.dataset_root, args.dataset + "_fea_part") 
+    edge_path = os.path.join(args.dataset_root, args.dataset + "_eix_part")
+    feature_path = os.path.join(args.dataset_root, args.dataset + "_fea_part")
     label_path = os.path.join(args.dataset_root, args.dataset + "_label_part")
     meta_path = os.path.join(args.dataset_root, args.dataset + "_meta.json")
 
@@ -371,7 +379,7 @@ if __name__ == "__main__":
     if not args.skip_partition and global_rank == 0:
         dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
         split_idx = dataset.get_idx_split()
-        
+
         partition_data(
             dataset,
             split_idx,
@@ -380,7 +388,8 @@ if __name__ == "__main__":
             feature_path=feature_path,
             edge_path=edge_path,
         )
-    
+
+    dist.barrier()
     data, split_idx, meta = load_partitioned_data(
         rank=global_rank,
         edge_path=edge_path,
@@ -391,7 +400,7 @@ if __name__ == "__main__":
     dist.barrier()
 
     model = torch_geometric.nn.models.GCN(
-        meta['num_features'], args.hidden_channels, args.num_layers, meta['num_classes']
+        meta["num_features"], args.hidden_channels, args.num_layers, meta["num_classes"]
     ).to(device)
     model = DistributedDataParallel(model, device_ids=[local_rank])
 
@@ -406,8 +415,8 @@ if __name__ == "__main__":
             args.epochs,
             args.batch_size,
             args.fan_out,
-            meta['num_classes'],
+            meta["num_classes"],
             wall_clock_start,
             tempdir,
-            args.num_layers
+            args.num_layers,
         )
