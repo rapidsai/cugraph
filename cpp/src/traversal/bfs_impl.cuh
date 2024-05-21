@@ -31,8 +31,6 @@
 
 #include <raft/core/handle.hpp>
 
-#include <rmm/exec_policy.hpp>
-
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 
 [build-system]
 
@@ -19,7 +19,7 @@ authors = [
 license = { text = "Apache 2.0" }
 requires-python = ">=3.9"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -233,6 +233,7 @@ ignore = [
 "nx_cugraph/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
 "_nx_cugraph/__init__.py" = ["E501"]
 "nx_cugraph/algorithms/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for algorithms
+"nx_cugraph/generators/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for generators
 "nx_cugraph/interface.py" = ["D401"]  # Flexible docstrings
 "scripts/update_readme.py" = ["INP001"]  # Not part of a package
 

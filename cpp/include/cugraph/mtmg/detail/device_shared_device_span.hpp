@@ -25,12 +25,7 @@ namespace mtmg {
 namespace detail {
 
 /**
- * @brief  Wrap an object to be available for each GPU
- *
- * In the MTMG environment we need the ability to manage a collection of objects
- * that are associated with a particular GPU, and fetch the objects from an
- * arbitrary GPU thread.  This object will wrap any object and allow it to be
- * accessed from different threads.
+ * @brief  Manage device spans on each GPU
  */
 template <typename T>
 using device_shared_device_span_t = device_shared_wrapper_t<raft::device_span<T>>;
