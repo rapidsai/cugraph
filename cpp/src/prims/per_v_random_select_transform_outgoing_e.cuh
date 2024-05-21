@@ -368,7 +368,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         local_frontier_sizes,
         rng_state,
         K,
-        with_replacement);
+        with_replacement,
+        do_expensive_check);
   }
 
   std::vector<size_t> local_frontier_sample_counts(minor_comm_size);
