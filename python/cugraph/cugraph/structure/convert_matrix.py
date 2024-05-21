@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -277,6 +277,8 @@ def from_pandas_edgelist(
     renumber=True,
 ):
     """
+    See :func:`networkx.convert_matrix.from_pandas_edgelist`.
+
     Initialize a graph from the edge list. It is an error to call this
     method on an initialized Graph object. Source argument is source
     column name and destination argument is destination column name.

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,14 +18,18 @@ from cugraph_pyg.nn import GATv2Conv as CuGraphGATv2Conv
 ATOL = 1e-6
 
 
+@pytest.mark.parametrize("use_edge_index", [True, False])
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 @pytest.mark.parametrize("use_edge_attr", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
-def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr, graph, request):
+def test_gatv2_conv_equality(
+    use_edge_index, bipartite, concat, heads, use_edge_attr, graph, request
+):
     pytest.importorskip("torch_geometric", reason="PyG not available")
     import torch
+    from torch_geometric import EdgeIndex
     from torch_geometric.nn import GATv2Conv
 
     torch.manual_seed(12345)
@@ -46,13 +50,19 @@ def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr, graph, req
     if use_edge_attr:
         edge_dim = 3
         edge_attr = torch.rand(edge_index.size(1), edge_dim).cuda()
-        csc, edge_attr_perm = CuGraphGATv2Conv.to_csc(
-            edge_index, size, edge_attr=edge_attr
-        )
     else:
-        edge_dim = None
-        edge_attr = edge_attr_perm = None
-        csc = CuGraphGATv2Conv.to_csc(edge_index, size)
+        edge_dim = edge_attr = None
+
+    if use_edge_index:
+        csc = EdgeIndex(edge_index, sparse_size=size)
+    else:
+        if use_edge_attr:
+            csc, edge_attr_perm = CuGraphGATv2Conv.to_csc(
+                edge_index, size, edge_attr=edge_attr
+            )
+        else:
+            csc = CuGraphGATv2Conv.to_csc(edge_index, size)
+            edge_attr_perm = None
 
     kwargs = dict(bias=False, concat=concat, edge_dim=edge_dim)
 
@@ -62,14 +72,17 @@ def test_gatv2_conv_equality(bipartite, concat, heads, use_edge_attr, graph, req
     conv2 = CuGraphGATv2Conv(in_channels, out_channels, heads, **kwargs).cuda()
 
     with torch.no_grad():
-        conv2.lin_src.weight.data = conv1.lin_l.weight.data.detach().clone()
-        conv2.lin_dst.weight.data = conv1.lin_r.weight.data.detach().clone()
-        conv2.att.data = conv1.att.data.flatten().detach().clone()
+        conv2.lin_src.weight.copy_(conv1.lin_l.weight)
+        conv2.lin_dst.weight.copy_(conv1.lin_r.weight)
+        conv2.att.copy_(conv1.att.flatten())
         if use_edge_attr:
-            conv2.lin_edge.weight.data = conv1.lin_edge.weight.data.detach().clone()
+            conv2.lin_edge.weight.copy_(conv1.lin_edge.weight)
 
     out1 = conv1(x, edge_index, edge_attr=edge_attr)
-    out2 = conv2(x, csc, edge_attr=edge_attr_perm)
+    if use_edge_index:
+        out2 = conv2(x, csc, edge_attr=edge_attr)
+    else:
+        out2 = conv2(x, csc, edge_attr=edge_attr_perm)
     assert torch.allclose(out1, out2, atol=ATOL)
 
     grad_output = torch.rand_like(out1)

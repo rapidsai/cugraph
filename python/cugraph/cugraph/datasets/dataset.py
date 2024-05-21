@@ -174,7 +174,7 @@ class Dataset:
         reader : 'cudf' or 'pandas' (default='cudf')
             The library used to read a CSV and return an edgelist DataFrame.
         """
-        if self._edgelist is None:
+        if self._edgelist is None or not isinstance(self._edgelist, cudf.DataFrame):
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -223,7 +223,9 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
         """
-        if self._edgelist is None:
+        if self._edgelist is None or not isinstance(
+            self._edgelist, dask_cudf.DataFrame
+        ):
             full_path = self.get_path()
             if not full_path.is_file():
                 if download:
@@ -286,7 +288,7 @@ class Dataset:
             for certain algorithms, such as pagerank.
         """
         if self._edgelist is None:
-            self.get_edgelist(download)
+            self.get_edgelist(download=download)
 
         if create_using is None:
             G = Graph()
@@ -351,7 +353,7 @@ class Dataset:
             for certain algorithms.
         """
         if self._edgelist is None:
-            self.get_dask_edgelist(download)
+            self.get_dask_edgelist(download=download)
 
         if create_using is None:
             G = Graph()
@@ -367,7 +369,7 @@ class Dataset:
                 f"{type(create_using)}"
             )
 
-        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+        if len(self.metadata["col_names"]) > 2 and not ignore_weights:
             G.from_dask_cudf_edgelist(
                 self._edgelist,
                 source=self.metadata["col_names"][0],

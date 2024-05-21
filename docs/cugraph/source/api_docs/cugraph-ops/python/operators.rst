@@ -47,10 +47,26 @@ Graph Attention (GATConv/GATv2Conv)
 .. autosummary::
    :toctree: ../../api/ops
 
-   operators.mha_gat_n2n_fwd
-   operators.mha_gat_n2n_bwd
-   operators.mha_gat_n2n_efeat_fwd
-   operators.mha_gat_n2n_efeat_bwd
+   operators.mha_gat_n2n_fwd_bf16_fp32
+   operators.mha_gat_n2n_fwd_fp16_fp32
+   operators.mha_gat_n2n_fwd_fp32_fp32
+   operators.mha_gat_n2n_bwd_bf16_bf16_bf16_fp32
+   operators.mha_gat_n2n_bwd_bf16_bf16_fp32_fp32
+   operators.mha_gat_n2n_bwd_bf16_fp32_fp32_fp32
+   operators.mha_gat_n2n_bwd_fp16_fp16_fp16_fp32
+   operators.mha_gat_n2n_bwd_fp16_fp16_fp32_fp32
+   operators.mha_gat_n2n_bwd_fp16_fp32_fp32_fp32
+   operators.mha_gat_n2n_bwd_fp32_fp32_fp32_fp32
+   operators.mha_gat_n2n_efeat_fwd_bf16_fp32
+   operators.mha_gat_n2n_efeat_fwd_fp16_fp32
+   operators.mha_gat_n2n_efeat_fwd_fp32_fp32
+   operators.mha_gat_n2n_efeat_bwd_bf16_bf16_bf16_fp32
+   operators.mha_gat_n2n_efeat_bwd_bf16_bf16_fp32_fp32
+   operators.mha_gat_n2n_efeat_bwd_bf16_fp32_fp32_fp32
+   operators.mha_gat_n2n_efeat_bwd_fp16_fp16_fp16_fp32
+   operators.mha_gat_n2n_efeat_bwd_fp16_fp16_fp32_fp32
+   operators.mha_gat_n2n_efeat_bwd_fp16_fp32_fp32_fp32
+   operators.mha_gat_n2n_efeat_bwd_fp32_fp32_fp32_fp32
 
    operators.mha_gat_v2_n2n_fwd
    operators.mha_gat_v2_n2n_bwd

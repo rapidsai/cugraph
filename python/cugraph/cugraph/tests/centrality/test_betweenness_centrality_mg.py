@@ -49,14 +49,12 @@ VERTEX_LIST_TYPES = [list, cudf]
 
 
 def get_sg_graph(dataset, directed):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
 
     return G
 
 
 def get_mg_graph(dataset, directed):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
@@ -96,7 +94,6 @@ def test_dask_mg_betweenness_centrality(
     benchmark,
 ):
     g = get_sg_graph(dataset, directed)
-    dataset.unload()
     dg = get_mg_graph(dataset, directed)
     random_state = subset_seed
 
@@ -143,6 +140,3 @@ def test_dask_mg_betweenness_centrality(
     diff = cupy.isclose(mg_bc_results, sg_bc_results)
 
     assert diff.all()
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

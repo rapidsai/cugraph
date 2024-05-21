@@ -330,8 +330,12 @@ class BackendInterface:
 
     @classmethod
     def can_run(cls, name, args, kwargs):
-        """Can this backend run the specified algorithms with the given arguments?
-
-        This is a proposed API to add to networkx dispatching machinery and may change.
-        """
+        """Can this backend run the specified algorithms with the given arguments?"""
+        # TODO: drop hasattr when networkx 3.0 support is dropped
         return hasattr(cls, name) and getattr(cls, name).can_run(*args, **kwargs)
+
+    @classmethod
+    def should_run(cls, name, args, kwargs):
+        """Should this backend run the specified algorithms with the given arguments?"""
+        # TODO: drop hasattr when networkx 3.0 support is dropped
+        return hasattr(cls, name) and getattr(cls, name).should_run(*args, **kwargs)

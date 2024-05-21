@@ -38,9 +38,12 @@ namespace cugraph {
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
- * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
+ * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs. If
+ * @p seed_vertices.has_value() is true, we assume (hop=0, flag=major) for every vertex in @p
+ * *seed_vertices in renumbering (this is relevant when there are seed vertices with no neighbors).
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
- * appear only in edge minors.
+ * appear only in edge minors. If @p seed_vertices.has_value() is true, vertices in @p
+ * *seed_vertices precede vertex IDs that appear only in edge minors as well.
  * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
  * renumbered separately.
  *
@@ -54,9 +57,10 @@ namespace cugraph {
  * (if @p src_is_major is true) or DCSC (if @p src_is_major is false). If @p doubly_compress is
  * false, the CSR/CSC offset array size is the number of vertices (which is the maximum vertex ID +
  * 1) + 1. Here, the maximum vertex ID is the maximum major vertex ID in the edges to compress if @p
- * compress_per_hop is false or for hop 0. If @p compress_per_hop is true and hop number is 1 or
- * larger, the maximum vertex ID is the larger of the maximum major vertex ID for this hop and the
- * maximum vertex ID for the edges in the previous hops.
+ * compress_per_hop is false or for hop 0 (@p seed_vertices should be included if valid). If @p
+ * compress_per_hop is true and hop number is 1 or larger, the maximum vertex ID is the larger of
+ * the maximum major vertex ID for this hop and the maximum vertex ID for the edges in the previous
+ * hops.
  *
  * If both @p compress_per_hop is false and @p edgelist_hops.has_value() is true, majors should be
  * non-decreasing within each label after renumbering and sorting by (hop, major, minor). Also,
@@ -82,11 +86,19 @@ namespace cugraph {
  * edgelist_srcs.size() if valid).
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
- * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops.
- * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
- * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
- * labels.
+ * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
+ * edgelist_srcs.size() if valid). @p edgelist_hops should be valid if @p num_hops >= 2.
+ * @param seed_vertices An optional pointer to the array storing seed vertices in hop 0.
+ * @param seed_vertex_label_offsets An optional pointer to the array storing label offsets to the
+ * seed vertices (size = @p num_labels + 1). @p seed_vertex_label_offsets should be valid if @p
+ * num_labels >= 2 and @p seed_vertices is valid and invalid otherwise.
+ * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
+ * edges (size = @p num_labels + 1). @p edgelist_label_offsets should be valid if @p num_labels
+ * >= 2.
+ * @param num_labels Number of labels. Labels are considered if @p num_labels >=2 and ignored if @p
+ * num_labels = 1.
+ * @param num_hops Number of hops. Hop numbers are considered if @p num_hops >=2 and ignored if @p
+ * num_hops = 1.
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and compression.
  * @param compress_per_hop A flag to determine whether to compress edges with different hop numbers
@@ -100,13 +112,10 @@ namespace cugraph {
  * edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
  * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
  * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the
- * (D)CSR|(D)CSC offset array (size = # labels * # hops + 1, where # labels =
- * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
- * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
- * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
- * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
- * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
- * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
+ * (D)CSR|(D)CSC offset array (size = @p num_labels * @p num_hops + 1, valid only when @p
+ * edgelist_hops.has_value() or @p edgelist_label_offsets.has_value() is true), renumber_map to
+ * query original vertices (size = # unique or aggregate # unique_vertices for each label), and
+ * label offsets to the renumber_map (size = num_labels + 1, valid only if @p
  * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
@@ -130,8 +139,12 @@ renumber_and_compress_sampled_edgelist(
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
+  std::optional<raft::device_span<vertex_t const>> seed_vertices,
+  std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
+  std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
+  size_t num_labels,
+  size_t num_hops,
   bool src_is_major       = true,
   bool compress_per_hop   = false,
   bool doubly_compress    = false,
@@ -150,9 +163,12 @@ renumber_and_compress_sampled_edgelist(
  * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
- * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs.
+ * in renumbering. Ordering can be arbitrary among the vertices with the same (hop, flag) pairs. If
+ * @p seed_vertices.has-value() is true, we assume (hop=0, flag=major) for every vertex in @p
+ * *seed_vertices in renumbering (this is relevant when there are seed vertices with no neighbors).
  * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
- * appear only in edge minors.
+ * appear only in edge minors. If @p seed_vertices.has_value() is true, vertices in @p
+ * *seed_vertices precede vertex IDs that appear only in edge minors as well.
  * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
  * renumbered separately.
  *
@@ -180,12 +196,19 @@ renumber_and_compress_sampled_edgelist(
  * edgelist_srcs.size() if valid).
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
- * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
- * non-decreasing within each label.
- * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
- * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
- * labels.
+ * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
+ * edgelist_srcs.size() if valid). @p edgelist_hops should be valid if @p num_hops >= 2.
+ * @param seed_vertices An optional pointer to the array storing seed vertices in hop 0.
+ * @param seed_vertex_label_offsets An optional pointer to the array storing label offsets to the
+ * seed vertices (size = @p num_labels + 1). @p seed_vertex_label_offsets should be valid if @p
+ * num_labels >= 2 and @p seed_vertices is valid and invalid otherwise.
+ * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
+ * edges (size = @p num_labels + 1). @p edgelist_label_offsets should be valid if @p num_labels
+ * >= 2.
+ * @param num_labels Number of labels. Labels are considered if @p num_labels >=2 and ignored if @p
+ * num_labels = 1.
+ * @param num_hops Number of hops. Hop numbers are considered if @p num_hops >=2 and ignored if @p
+ * num_hops = 1.
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -193,13 +216,10 @@ renumber_and_compress_sampled_edgelist(
  * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
  * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
  * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the renumbered
- * and sorted edges (size = # labels * # hops + 1, where # labels =
- * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
- * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
- * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
- * edgelist_hops.has_value() is true), renumber_map to query original vertices (size = # unique
- * vertices or aggregate # unique vertices for every label), and label offsets to the renumber_map
- * (size = std::get<1>(*edgelist_label_offsets) + 1, valid only if @p
+ * and sorted edges (size = @p num_labels * @p num_hops + 1, valid only when @p
+ * edgelist_hops.has_value() or @p edgelist_label_offsetes.has_value() is true), renumber_map to
+ * query original vertices (size = # unique or aggregate # unique vertices for each label), and
+ * label offsets to the renumber map (size = @p num_labels + 1, valid only if @p
  * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
@@ -221,8 +241,12 @@ renumber_and_sort_sampled_edgelist(
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
+  std::optional<raft::device_span<vertex_t const>> seed_vertices,
+  std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
+  std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
+  size_t num_labels,
+  size_t num_hops,
   bool src_is_major       = true,
   bool do_expensive_check = false);
 
@@ -253,24 +277,23 @@ renumber_and_sort_sampled_edgelist(
  * edgelist_srcs.size() if valid).
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
- * @param edgelist_hops An optional tuple having a vector storing edge list hop numbers (size = @p
- * edgelist_srcs.size() if valid) and the number of hops. The hop vector values should be
- * non-decreasing within each label.
- * @param edgelist_label_offsets An optional tuple storing a pointer to the array storing label
- * offsets to the input edges (size = std::get<1>(*edgelist_label_offsets) + 1) and the number of
- * labels.
+ * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
+ * edgelist_srcs.size() if valid). @p edgelist_hops must be valid if @p num_hops >= 2.
+ * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
+ * edges (size = @p num_labels + 1). @p edgelist_label_offsets must be valid if @p num_labels >= 2.
+ * @param num_labels Number of labels. Labels are considered if @p num_labels >=2 and ignored if @p
+ * num_labels = 1.
+ * @param num_hops Number of hops. Hop numbers are considered if @p num_hops >=2 and ignored if @p
+ * num_hops = 1.
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
  * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
  * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
- * edgelist_edge_types.has_value() is true), and optional (label, hop) offset values to the
- * renumbered and sorted edges (size = # labels * # hops + 1, where # labels =
- * std::get<1>(*edgelist_label_offsets) if @p edgelist_label_offsets.has_value() is true and 1
- * otherwise and # hops = std::get<1>(*edgelist_hops) if edgelist_hops.has_value() is true and 1
- * otherwise, valid only if at least one of @p edgelist_label_offsets.has_value() or @p
- * edgelist_hops.has_value() is true)
+ * edgelist_edge_types.has_value() is true), and optional (label, hop) offset values to the sorted
+ * edges (size = @p num_labels * @p num_hops + 1, valid only when @p edgelist_hops.has_value() or @p
+ * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
           typename weight_t,
@@ -282,16 +305,17 @@ std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
            std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
            std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
            std::optional<rmm::device_uvector<size_t>>>       // (label, hop) offsets to the edges
-sort_sampled_edgelist(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>, size_t>>&& edgelist_hops,
-  std::optional<std::tuple<raft::device_span<size_t const>, size_t>> edgelist_label_offsets,
-  bool src_is_major       = true,
-  bool do_expensive_check = false);
+sort_sampled_edgelist(raft::handle_t const& handle,
+                      rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                      rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                      std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                      std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+                      std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                      std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
+                      std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
+                      size_t num_labels,
+                      size_t num_hops,
+                      bool src_is_major       = true,
+                      bool do_expensive_check = false);
 
 }  // namespace cugraph
