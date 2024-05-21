@@ -50,7 +50,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | Layout            |                                    |                     |                                                                 |
 |                   | [Force Atlas 2](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/layout/Force-Atlas2.ipynb)              | Single-GPU          |        |
 | Linear Assignment |                                    |                     |                                                                 |
-|                   | [Hungarian]()                      | Single-GPU          | [README](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph/linear_assignment/#hungarian)         |
+|                   | [Hungarian](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph/linear_assignment/#hungarian)                      | Single-GPU          | [README](./algorithms/cpp_algorithms/linear_cpp.html)         |
 | Link Analysis     |                                    |                     |                                                                 |
 |                   | [Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                | __Multi-GPU__ | [C++ README](./algorithms/cpp_algorithms/centrality_cpp.html#Pagerank)                |
 |                   | [Personal Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                  | __Multi-GPU__ | [C++ README](./algorithms/cpp_algorithms/centrality_cpp.html#Personalized-Pagerank)   |
