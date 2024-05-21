@@ -77,6 +77,16 @@ rapids_find_package(CUDAToolkit REQUIRED
     INSTALL_EXPORT_SET  cugraph-exports
     )
 
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    if(NOT TARGET ucx::ucp)
+        find_package(ucx REQUIRED)
+    endif()
+
+    if(NOT TARGET ucxx::ucxx)
+        find_package(ucxx REQUIRED)
+    endif()
+endif()
+
 set(CUGRAPH_C_FLAGS "")
 set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
@@ -143,11 +153,6 @@ include(cmake/thirdparty/get_raft.cmake)
 
 if(USE_CUGRAPH_OPS)
   include(cmake/thirdparty/get_libcugraphops.cmake)
-endif()
-
-
-if (BUILD_CUGRAPH_MTMG_TESTS)
-  include(cmake/thirdparty/get_ucp.cmake)
 endif()
 
 if(BUILD_TESTS)
@@ -283,9 +288,12 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/community/approx_weighted_matching_sg.cu
+    src/community/approx_weighted_matching_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu
+    src/mtmg/vertex_pairs_result.cu
 )
 
 if(USE_CUGRAPH_OPS)

@@ -184,6 +184,17 @@ cdef extern from "cugraph_c/graph_functions.h":
         )
 
     ###########################################################################
+    # count multi-edges
+    cdef cugraph_error_code_t \
+        cugraph_count_multi_edges(
+            const cugraph_resource_handle_t *handle,
+            cugraph_graph_t* graph,
+            bool_t do_expenive_check,
+            size_t *result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
     # degrees
     ctypedef struct cugraph_degrees_result_t:
         pass

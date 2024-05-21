@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,7 @@ from cugraph.utilities.utils import import_optional
 from pylibcugraphops.pytorch.operators import mha_gat_n2n
 
 from .base import BaseConv
+from cugraph_pyg.utils.imports import package_available
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -74,10 +75,10 @@ class HeteroGATConv(BaseConv):
         bias: bool = True,
         aggr: str = "sum",
     ):
-        major, minor, patch = torch_geometric.__version__.split(".")[:3]
-        pyg_version = tuple(map(int, [major, minor, patch]))
-        if pyg_version < (2, 4, 0):
-            raise RuntimeError(f"{self.__class__.__name__} requires pyg >= 2.4.0.")
+        if not package_available("torch_geometric>=2.4.0"):
+            raise RuntimeError(
+                f"{self.__class__.__name__} requires torch_geometric>=2.4.0."
+            )
 
         super().__init__()
 
@@ -225,7 +226,7 @@ class HeteroGATConv(BaseConv):
             )
 
             if src_type == dst_type:
-                graph = self.get_cugraph(
+                graph, _ = self.get_cugraph(
                     csc,
                     bipartite=False,
                 )
@@ -240,7 +241,7 @@ class HeteroGATConv(BaseConv):
                 )
 
             else:
-                graph = self.get_cugraph(
+                graph, _ = self.get_cugraph(
                     csc,
                     bipartite=True,
                 )

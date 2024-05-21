@@ -24,33 +24,61 @@ import cudf
 import dask_cudf
 import cugraph.dask as dcg
 import cugraph
+from cugraph.datasets import karate, karate_disjoint
 from cugraph.testing import utils
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 from cudf.testing import assert_frame_equal, assert_series_equal
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+
+
+DATASETS = [karate]
+DATASETS_UNRENUMBERED = [karate_disjoint]
 IS_DIRECTED = [True, False]
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def get_sg_graph(dataset, directed):
+    dataset.unload()
+    g = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+
+    return g
+
+
+def get_mg_graph(dataset, directed):
+    dataset.unload()
+    dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=directed))
+
+    return dg
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file",
-    utils.DATASETS_UNRENUMBERED,
-    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
-)
-def test_mg_renumber(graph_file, dask_client):
-
-    M = utils.read_csv_for_nx(graph_file)
+@pytest.mark.parametrize("dataset", DATASETS_UNRENUMBERED)
+def test_mg_renumber(dataset, dask_client):
+    M = utils.read_csv_for_nx(dataset.get_path())
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 
@@ -96,13 +124,9 @@ def test_mg_renumber(graph_file, dask_client):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file",
-    utils.DATASETS_UNRENUMBERED,
-    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
-)
-def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
-    M = utils.read_csv_for_nx(graph_file)
+@pytest.mark.parametrize("dataset", DATASETS_UNRENUMBERED)
+def test_mg_renumber_add_internal_vertex_id(dataset, dask_client):
+    M = utils.read_csv_for_nx(dataset.get_path())
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 
@@ -131,33 +155,13 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_mg_pagerank(dask_client, directed):
+def test_dask_mg_pagerank(dask_client, dataset, directed):
     pandas.set_option("display.max_rows", 10000)
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        blocksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g = cugraph.Graph(directed=directed)
-    g.from_cudf_edgelist(df, "src", "dst")
-
-    dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    g = get_sg_graph(dataset, directed)
+    dg = get_mg_graph(dataset, directed)
 
     expected_pr = cugraph.pagerank(g)
     result_pr = dcg.pagerank(dg).compute()
@@ -178,20 +182,18 @@ def test_dask_mg_pagerank(dask_client, directed):
     print("Mismatches:", err)
     assert err == 0
 
+    dataset.unload()
+
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize(
-    "graph_file",
-    utils.DATASETS_UNRENUMBERED,
-    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
-)
-def test_mg_renumber_common_col_names(graph_file, dask_client):
+@pytest.mark.parametrize("dataset", DATASETS_UNRENUMBERED)
+def test_mg_renumber_common_col_names(dataset, dask_client):
     """
     Ensure that commonly-used column names in the input do not conflict with
     names used internally by NumberMap.
     """
-    M = utils.read_csv_for_nx(graph_file)
+    M = utils.read_csv_for_nx(dataset.get_path())
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 
