@@ -18,7 +18,6 @@
 
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/detail/per_device_edgelist.hpp>
-#include <cugraph/mtmg/handle.hpp>
 
 namespace cugraph {
 namespace mtmg {
@@ -70,21 +69,21 @@ class per_thread_edgelist_t {
   /**
    * @brief Append an edge to the edge list
    *
-   * @param handle     The resource handle
-   * @param src        Source vertex id
-   * @param dst        Destination vertex id
-   * @param wgt        Edge weight
-   * @param edge_id    Edge id
-   * @param edge_type  Edge type
+   * @param stream_view The cuda stream
+   * @param src         Source vertex id
+   * @param dst         Destination vertex id
+   * @param wgt         Edge weight
+   * @param edge_id     Edge id
+   * @param edge_type   Edge type
    */
-  void append(handle_t const& handle,
+  void append(rmm::cuda_stream_view stream_view,
               vertex_t src,
               vertex_t dst,
               std::optional<weight_t> wgt,
               std::optional<edge_t> edge_id,
               std::optional<edge_type_t> edge_type)
   {
-    if (current_pos_ == src_.size()) { flush(handle); }
+    if (current_pos_ == src_.size()) { flush(stream_view); }
 
     src_[current_pos_] = src;
     dst_[current_pos_] = dst;
@@ -98,14 +97,14 @@ class per_thread_edgelist_t {
   /**
    * @brief Append a list of edges to the edge list
    *
-   * @param handle     The resource handle
+   * @param stream_view The cuda stream
    * @param src        Source vertex id
    * @param dst        Destination vertex id
    * @param wgt        Edge weight
    * @param edge_id    Edge id
    * @param edge_type  Edge type
    */
-  void append(handle_t const& handle,
+  void append(rmm::cuda_stream_view stream_view,
               raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               std::optional<raft::host_span<weight_t const>> wgt,
@@ -131,7 +130,7 @@ class per_thread_edgelist_t {
                   edge_type.begin() + pos + copy_count,
                   edge_type_->begin() + current_pos_);
 
-      if (current_pos_ == src_.size()) { flush(handle); }
+      if (current_pos_ == src_.size()) { flush(stream_view); }
 
       count -= copy_count;
       pos += copy_count;
@@ -141,14 +140,14 @@ class per_thread_edgelist_t {
   /**
    * @brief Flush thread data from host to GPU memory
    *
-   * @param handle     The resource handle
+   * @param stream_view The cuda stream
    * @param sync       If true, synchronize the asynchronous copy of data;
    *                   defaults to false.
    */
-  void flush(handle_t const& handle, bool sync = false)
+  void flush(rmm::cuda_stream_view stream_view, bool sync = false)
   {
     edgelist_.append(
-      handle.get_stream(),
+      stream_view,
       raft::host_span<vertex_t const>{src_.data(), current_pos_},
       raft::host_span<vertex_t const>{dst_.data(), current_pos_},
       wgt_ ? std::make_optional(raft::host_span<weight_t const>{wgt_->data(), current_pos_})
@@ -161,7 +160,7 @@ class per_thread_edgelist_t {
 
     current_pos_ = 0;
 
-    if (sync) handle.sync_stream();
+    if (sync) stream_view.synchronize();
   }
 
  private:

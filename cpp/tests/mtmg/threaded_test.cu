@@ -191,7 +191,7 @@ class Tests_Multithreaded
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
           per_thread_edgelist.append(
-            thread_handle,
+            thread_handle.get_stream(),
             h_src_v[j],
             h_dst_v[j],
             h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
@@ -199,7 +199,7 @@ class Tests_Multithreaded
             std::nullopt);
         }
 
-        per_thread_edgelist.flush(thread_handle);
+        per_thread_edgelist.flush(thread_handle.get_stream());
       });
     }
 
