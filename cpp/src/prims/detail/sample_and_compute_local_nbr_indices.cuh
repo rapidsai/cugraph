@@ -1833,28 +1833,28 @@ biased_sample_and_compute_local_nbr_indices(
         for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
           thrust::for_each(
             handle.get_thrust_policy(),
-            aggregate_low_local_frontier_indices.begin() + local_frontier_displacements[i],
-            aggregate_low_local_frontier_indices.begin() + local_frontier_displacements[i] +
-              local_frontier_sizes[i],
-            [aggregate_local_frontier_biases = raft::device_span<bias_t>(
+            aggregate_low_local_frontier_indices.begin() + low_local_frontier_displacements[i],
+            aggregate_low_local_frontier_indices.begin() +
+              (low_local_frontier_displacements[i] + low_local_frontier_sizes[i]),
+            [aggregate_local_frontier_biases = raft::device_span<bias_t const>(
                aggregate_local_frontier_biases.data(), aggregate_local_frontier_biases.size()),
-             aggregate_local_frontier_local_degree_offsets =
-               raft::device_span<size_t>(aggregate_local_frontier_local_degree_offsets.data(),
-                                         aggregate_local_frontier_local_degree_offsets.size()),
-             frontier_indices  = raft::device_span<size_t>(zero_bias_frontier_indices.data(),
-                                                          zero_bias_frontier_indices.size()),
-             local_nbr_indices = raft::device_span<edge_t>(zero_bias_local_nbr_indices.data(),
-                                                           zero_bias_local_nbr_indices.size()),
-             input_offset      = local_frontier_displacements[i],
-             counter           = counter.data()] __device__(size_t i) {
+             aggregate_local_frontier_local_degree_offsets = raft::device_span<size_t const>(
+               aggregate_local_frontier_local_degree_offsets.data(),
+               aggregate_local_frontier_local_degree_offsets.size()),
+             zero_bias_frontier_indices = raft::device_span<size_t>(
+               zero_bias_frontier_indices.data(), zero_bias_frontier_indices.size()),
+             zero_bias_local_nbr_indices = raft::device_span<edge_t>(
+               zero_bias_local_nbr_indices.data(), zero_bias_local_nbr_indices.size()),
+             input_offset = local_frontier_displacements[i],
+             counter      = counter.data()] __device__(size_t i) {
               auto start_offset = aggregate_local_frontier_local_degree_offsets[input_offset + i];
               auto end_offset = aggregate_local_frontier_local_degree_offsets[input_offset + i + 1];
               cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
               for (auto j = start_offset; j < end_offset; ++j) {
                 if (aggregate_local_frontier_biases[j] == 0.0) {
                   auto idx = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-                  frontier_indices[idx]  = i;
-                  local_nbr_indices[idx] = j - start_offset;
+                  zero_bias_frontier_indices[idx]  = i;
+                  zero_bias_local_nbr_indices[idx] = j - start_offset;
                 }
               }
             });
@@ -2365,7 +2365,7 @@ biased_sample_and_compute_local_nbr_indices(
          K,
          invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
           auto start_offset = aggregate_local_frontier_local_degree_offsets[i];
-          auto degree       = aggregate_local_frontier_local_degree_offsets[i] - start_offset;
+          auto degree       = aggregate_local_frontier_local_degree_offsets[i + 1] - start_offset;
           edge_t num_valid  = 0;
           for (size_t j = 0; j < degree; ++j) {
             auto bias = aggregate_local_frontier_biases[start_offset + j];
