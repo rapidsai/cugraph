@@ -310,6 +310,10 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
+# - WEIGHTED MATCHING tests ----------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
+
+###################################################################################################
 # - Legacy ECG tests -------------------------------------------------------------------------------------
 ConfigureTest(LEGACY_ECG_TEST community/legacy_ecg_test.cpp)
 
@@ -576,6 +580,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
+    # - MG WEIGHTED MATCHING tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
+
+    ###############################################################################################
     # - MG ECG tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
@@ -742,6 +750,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
     ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c)
     ConfigureCTestMG(MG_CAPI_DEGREES c_api/mg_degrees_test.c)
+    ConfigureCTestMG(MG_CAPI_COUNT_MULTI_EDGES c_api/mg_count_multi_edges_test.c)
     ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 
@@ -786,6 +795,7 @@ ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_DEGREES c_api/degrees_test.c)
+ConfigureCTest(CAPI_COUNT_MULTI_EDGES c_api/count_multi_edges_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
 ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
