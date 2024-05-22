@@ -319,7 +319,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/pylibcugraph
     fi
 fi
 
@@ -329,7 +329,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph
     fi
 fi
 
