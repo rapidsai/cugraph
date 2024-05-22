@@ -39,7 +39,7 @@ class edgelist_t : public detail::device_shared_wrapper_t<
            bool use_edge_type)
   {
     detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> tmp(
-      handle.get_stream(), device_buffer_size, use_weight, use_edge_id, use_edge_type);
+      device_buffer_size, use_weight, use_edge_id, use_edge_type, handle.get_stream());
 
     detail::device_shared_wrapper_t<
       detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>>::set(handle,

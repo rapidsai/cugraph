@@ -69,19 +69,19 @@ class per_thread_edgelist_t {
   /**
    * @brief Append an edge to the edge list
    *
-   * @param stream_view The cuda stream
    * @param src         Source vertex id
    * @param dst         Destination vertex id
    * @param wgt         Edge weight
    * @param edge_id     Edge id
    * @param edge_type   Edge type
+   * @param stream_view The cuda stream
    */
-  void append(rmm::cuda_stream_view stream_view,
-              vertex_t src,
+  void append(vertex_t src,
               vertex_t dst,
               std::optional<weight_t> wgt,
               std::optional<edge_t> edge_id,
-              std::optional<edge_type_t> edge_type)
+              std::optional<edge_type_t> edge_type,
+              rmm::cuda_stream_view stream_view)
   {
     if (current_pos_ == src_.size()) { flush(stream_view); }
 
@@ -97,19 +97,19 @@ class per_thread_edgelist_t {
   /**
    * @brief Append a list of edges to the edge list
    *
-   * @param stream_view The cuda stream
    * @param src        Source vertex id
    * @param dst        Destination vertex id
    * @param wgt        Edge weight
    * @param edge_id    Edge id
    * @param edge_type  Edge type
+   * @param stream_view The cuda stream
    */
-  void append(rmm::cuda_stream_view stream_view,
-              raft::host_span<vertex_t const> src,
+  void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               std::optional<raft::host_span<weight_t const>> wgt,
               std::optional<raft::host_span<edge_t const>> edge_id,
-              std::optional<raft::host_span<edge_type_t const>> edge_type)
+              std::optional<raft::host_span<edge_type_t const>> edge_type,
+              rmm::cuda_stream_view stream_view)
   {
     size_t count = src.size();
     size_t pos   = 0;
@@ -147,7 +147,6 @@ class per_thread_edgelist_t {
   void flush(rmm::cuda_stream_view stream_view, bool sync = false)
   {
     edgelist_.append(
-      stream_view,
       raft::host_span<vertex_t const>{src_.data(), current_pos_},
       raft::host_span<vertex_t const>{dst_.data(), current_pos_},
       wgt_ ? std::make_optional(raft::host_span<weight_t const>{wgt_->data(), current_pos_})
@@ -156,7 +155,8 @@ class per_thread_edgelist_t {
                : std::nullopt,
       edge_type_
         ? std::make_optional(raft::host_span<edge_type_t const>{edge_type_->data(), current_pos_})
-        : std::nullopt);
+        : std::nullopt,
+      stream_view);
 
     current_pos_ = 0;
 

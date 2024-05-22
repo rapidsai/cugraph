@@ -62,17 +62,17 @@ class per_device_edgelist_t {
   /**
    * @brief Construct a new per device edgelist t object
    *
-   * @param stream_view        CUDA stream view
    * @param device_buffer_size Number of edges to store in each device buffer
    * @param use_weight         Whether or not the edgelist will have weights
    * @param use_edge_id        Whether or not the edgelist will have edge ids
    * @param use_edge_type      Whether or not the edgelist will have edge types
+   * @param stream_view        CUDA stream view
    */
-  per_device_edgelist_t(rmm::cuda_stream_view stream_view,
-                        size_t device_buffer_size,
+  per_device_edgelist_t(size_t device_buffer_size,
                         bool use_weight,
                         bool use_edge_id,
-                        bool use_edge_type)
+                        bool use_edge_type,
+                        rmm::cuda_stream_view stream_view)
     : device_buffer_size_{device_buffer_size},
       current_pos_{0},
       src_{},
@@ -111,19 +111,19 @@ class per_device_edgelist_t {
   /**
    * @brief Append a list of edges to the edge list
    *
-   * @param stream_view CUDA stream view
    * @param src         Source vertex id
    * @param dst         Destination vertex id
    * @param wgt         Edge weight
    * @param edge_id     Edge id
    * @param edge_type   Edge type
+   * @param stream_view CUDA stream view
    */
-  void append(rmm::cuda_stream_view stream_view,
-              raft::host_span<vertex_t const> src,
+  void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               std::optional<raft::host_span<weight_t const>> wgt,
               std::optional<raft::host_span<edge_t const>> edge_id,
-              std::optional<raft::host_span<edge_type_t const>> edge_type)
+              std::optional<raft::host_span<edge_type_t const>> edge_type,
+              rmm::cuda_stream_view stream_view)
   {
     std::vector<std::tuple<size_t, size_t, size_t, size_t>> copy_positions;
 
@@ -235,11 +235,11 @@ class per_device_edgelist_t {
           return d_vector.size();
         });
 
-      resize_and_copy_buffers(stream, src_, total_size);
-      resize_and_copy_buffers(stream, dst_, total_size);
-      if (wgt_) resize_and_copy_buffers(stream, *wgt_, total_size);
-      if (edge_id_) resize_and_copy_buffers(stream, *edge_id_, total_size);
-      if (edge_type_) resize_and_copy_buffers(stream, *edge_type_, total_size);
+      resize_and_copy_buffers(src_, total_size, stream);
+      resize_and_copy_buffers(dst_, total_size, stream);
+      if (wgt_) resize_and_copy_buffers(*wgt_, total_size, stream);
+      if (edge_id_) resize_and_copy_buffers(*edge_id_, total_size, stream);
+      if (edge_type_) resize_and_copy_buffers(*edge_type_, total_size, stream);
     }
 
     auto tmp_wgt     = wgt_ ? std::make_optional(std::move((*wgt_)[0])) : std::nullopt;
@@ -267,9 +267,9 @@ class per_device_edgelist_t {
 
  private:
   template <typename T>
-  void resize_and_copy_buffers(rmm::cuda_stream_view stream,
-                               std::vector<rmm::device_uvector<T>>& buffer,
-                               size_t total_size)
+  void resize_and_copy_buffers(std::vector<rmm::device_uvector<T>>& buffer,
+                               size_t total_size,
+                               rmm::cuda_stream_view stream)
   {
     size_t pos = buffer[0].size();
     buffer[0].resize(total_size, stream);
