@@ -17,7 +17,7 @@ mamba install cugraph-dgl -c rapidsai-nightly -c rapidsai -c pytorch -c conda-fo
 
 ### Create the conda development environment
 ```
-mamba env create -n cugraph_dgl_dev --file conda/cugraph_dgl_dev_11.6.yml
+conda env create -n cugraph_dgl_dev --file conda/environments/all_cuda-122_arch-x86_64.yaml
 ```
 
 ### Install  in editable mode
