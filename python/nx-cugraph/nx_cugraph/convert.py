@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -562,7 +562,12 @@ def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
         dst_iter = map(id_to_key.__getitem__, dst_indices)
     if G.is_multigraph() and (G.edge_keys is not None or G.edge_indices is not None):
         if G.edge_keys is not None:
-            edge_keys = G.edge_keys
+            if not G.is_directed():
+                edge_keys = [k for k, m in zip(G.edge_keys, mask.tolist()) if m]
+            else:
+                edge_keys = G.edge_keys
+        elif not G.is_directed():
+            edge_keys = G.edge_indices[mask].tolist()
         else:
             edge_keys = G.edge_indices.tolist()
         if edge_values:
