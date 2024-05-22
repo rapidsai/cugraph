@@ -219,8 +219,8 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_sg.cu
     src/sampling/detail/sample_edges_mg.cu
     src/sampling/detail/shuffle_and_organize_output_mg.cu
-    src/sampling/uniform_neighbor_sampling_mg.cpp
-    src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/neighbor_sampling_mg.cpp
+    src/sampling/neighbor_sampling_sg.cpp
     src/sampling/renumber_sampled_edgelist_sg.cu
     src/sampling/sampling_post_processing_sg.cu
     src/cores/core_number_sg.cu
