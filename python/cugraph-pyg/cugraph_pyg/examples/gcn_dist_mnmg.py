@@ -88,7 +88,7 @@ def partition_data(dataset, split_idx, edge_path, feature_path, label_path, meta
     for (r, e) in enumerate(torch.tensor_split(data.edge_index, world_size, dim=1)):
         rank_path = os.path.join(edge_path, f"rank={r}.pt")
         torch.save(
-            e,
+            e.clone(),
             rank_path,
         )
 
@@ -125,19 +125,21 @@ def partition_data(dataset, split_idx, edge_path, feature_path, label_path, meta
 
     # Save metadata
     meta = {
-        "num_classes": dataset.num_classes,
-        "num_features": dataset.num_features,
-        "num_nodes": data.num_nodes,
+        "num_classes": int(dataset.num_classes),
+        "num_features": int(dataset.num_features),
+        "num_nodes": int(data.num_nodes),
     }
     with open(meta_path, "w") as f:
         json.dump(meta, f)
 
 
-def load_partitioned_data(rank, edge_path, feature_path, label_path, meta_path):
+def load_partitioned_data(
+    rank, edge_path, feature_path, label_path, meta_path, wg_mem_type
+):
     from cugraph_pyg.data import GraphStore, WholeFeatureStore
 
     graph_store = GraphStore(is_multi_gpu=True)
-    feature_store = WholeFeatureStore(memory_type="chunked")
+    feature_store = WholeFeatureStore(memory_type=wg_mem_type)
 
     # Load metadata
     with open(meta_path, "r") as f:
@@ -264,7 +266,6 @@ def run_train(
                     + ", Loss: "
                     + str(loss)
                 )
-        print(global_rank, os.listdir(train_path))
         nb = i + 1.0
 
         if global_rank == 0:
@@ -332,7 +333,6 @@ def run_train(
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--hidden_channels", type=int, default=256)
     parser.add_argument("--num_layers", type=int, default=2)
@@ -396,6 +396,7 @@ if __name__ == "__main__":
         feature_path=feature_path,
         label_path=label_path,
         meta_path=meta_path,
+        wg_mem_type=args.wg_mem_type,
     )
     dist.barrier()
 
