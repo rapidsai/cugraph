@@ -7,4 +7,4 @@ cugraph-ops aims to be a low-level, framework agnostic library providing commonl
 .. toctree::
    :maxdepth: 3
 
-   https://github.com/rapidsai/cugraph-ops/blob/branch-23.04/README.md
+   https://github.com/rapidsai/cugraph/blob/branch-24.06/readme_pages/cugraph_ops.md
