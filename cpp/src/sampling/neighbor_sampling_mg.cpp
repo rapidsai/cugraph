@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include "uniform_neighbor_sampling_impl.hpp"
+#include "neighbor_sampling_impl.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/sampling_functions.hpp>
 
 namespace cugraph {
 

@@ -15,8 +15,10 @@
  */
 
 #include "detail/nbr_sampling_utils.cuh"
+#include "utilities/base_fixture.hpp"
 
-#include <cugraph/graph_functions.hpp>
+#include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/sort.h>

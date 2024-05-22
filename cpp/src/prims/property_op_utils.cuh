@@ -20,7 +20,6 @@
 
 #include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
-#include <raft/util/device_atomics.cuh>
 
 #include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
