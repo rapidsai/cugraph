@@ -1896,7 +1896,6 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
  * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
  * (optional) will be described below and is dependent upon the input parameters.
  *
- *
  * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
  * label and offsets values in the return set will be std::nullopt.
  *
