@@ -67,7 +67,9 @@ namespace cugraph {
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param edge_bias_view View object holding edge biases (to be used in biased sampling) for @p
- * graph_view.
+ * graph_view. Bias values should be non-negative and the sum of edge bias values from any vertex
+ * should not exceed std::numeric_limits<bias_t>::max(). 0 bias value indicates that the
+ * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
