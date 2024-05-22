@@ -16,6 +16,7 @@
 
 import argparse
 import os
+import warnings
 import tempfile
 import time
 import json
@@ -348,6 +349,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     wall_clock_start = time.perf_counter()
+
+    if "LOCAL_RANK" not in os.environ:
+        warnings.warn("This script should be run with 'torchrun`.  Exiting.")
 
     dist.init_process_group("nccl")
     world_size = dist.get_world_size()
