@@ -10,12 +10,9 @@ underscore_package_name=$(echo "${package_name}" | tr "-" "_")
 source rapids-configure-sccache
 source rapids-date-string
 
-version=$(rapids-generate-version)
-git_commit=$(git rev-parse HEAD)
-
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-echo "${version}" > VERSION
+rapids-generate-version > VERSION
 
 cd "${package_dir}"
 
