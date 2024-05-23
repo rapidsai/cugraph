@@ -41,6 +41,7 @@ rapids-retry python -m pip install \
   torch_sparse \
   torch_cluster \
   torch_spline_conv \
+  tensordict \
   -f ${PYG_URL}
 
 rapids-logger "pytest cugraph-pyg (single GPU)"
