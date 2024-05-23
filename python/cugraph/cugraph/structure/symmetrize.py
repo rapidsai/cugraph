@@ -296,7 +296,7 @@ def symmetrize(
             return (
                 output_df[source_col_name],
                 output_df[dest_col_name],
-                output_df[list(value_col.columns)],
+                output_df[value_col.columns],
             )
 
     return output_df[source_col_name], output_df[dest_col_name]
