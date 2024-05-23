@@ -216,6 +216,8 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_edgelist_sg.cu
     src/sampling/detail/gather_one_hop_edgelist_mg.cu
     src/sampling/detail/remove_visited_vertices_from_frontier.cu
+    src/sampling/detail/check_edge_bias_values_sg.cu
+    src/sampling/detail/check_edge_bias_values_mg.cu
     src/sampling/detail/sample_edges_sg.cu
     src/sampling/detail/sample_edges_mg.cu
     src/sampling/detail/shuffle_and_organize_output_mg.cu

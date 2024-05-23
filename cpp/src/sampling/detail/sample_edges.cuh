@@ -17,7 +17,6 @@
 #pragma once
 
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"  // ??
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
 
@@ -88,39 +87,6 @@ struct segmented_fill_t {
                  fill_values[i]);
   }
 };
-
-template <typename vertex_t, typename edge_t, typename bias_t, bool multi_gpu>
-std::tuple<size_t, size_t> check_edge_bias_values(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, bias_t const*> edge_bias_view)
-{
-  auto num_negative_edge_weights =
-    count_if_e(handle,
-               graph_view,
-               edge_src_dummy_property_t{}.view(),
-               edge_dst_dummy_property_t{}.view(),
-               edge_bias_view,
-               [] __device__(vertex_t, vertex_t, auto, auto, bias_t b) { return b < 0.0; });
-
-  size_t num_overflows{0};
-  {
-    auto bias_sums = compute_out_weight_sums(handle, graph_view, edge_bias_view);
-    num_overflows  = thrust::count_if(
-      handle.get_thrust_policy(), bias_sums.begin(), bias_sums.end(), [] __device__(auto sum) {
-        return sum > std::numeric_limits<bias_t>::max();
-      });
-  }
-
-  if constexpr (multi_gpu) {
-    num_negative_edge_weights = host_scalar_allreduce(
-      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
-    num_overflows = host_scalar_allreduce(
-      handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream());
-  }
-
-  return std::make_tuple(num_negative_edge_weights, num_overflows);
-}
 
 template <typename vertex_t,
           typename edge_t,
