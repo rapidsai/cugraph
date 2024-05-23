@@ -21,6 +21,7 @@ from .community.louvain import louvain
 from .community.triangle_count import triangle_count
 from .community.egonet import ego_graph
 from .community.induced_subgraph import induced_subgraph
+from .community.ktruss_subgraph import ktruss_subgraph
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
