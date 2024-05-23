@@ -42,6 +42,6 @@ set(CUGRAPH_ETL_BRANCH_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_
 # To use a different RAFT locally, set the CMake variable
 # RPM_cudf_SOURCE=/path/to/local/cudf
 find_and_configure_cudf(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cudf}
-                        FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cudf}
+                        FORK       trxcllnt
+                        PINNED_TAG fix/cccl-2.5
                         )
