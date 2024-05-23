@@ -61,7 +61,7 @@ def run_onnx(ex_name, inputs):
     return torch.as_tensor(ret["out"], device="cuda")        
 
 
-def test_onnx_export(
+def test_onnx(
         create_tp_conv_and_data, 
 ):
     (tp_conv, inputs, _, param) = create_tp_conv_and_data
@@ -93,8 +93,10 @@ def test_onnx_export(
 def test_trt(
         create_tp_conv_and_data,
 ):
-    (tp_conv, inputs, _, _) = create_tp_conv_and_data
+    (tp_conv, inputs, _, param) = create_tp_conv_and_data
     (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
+    (dtype, batch_norm, e3nn_compat_mode, _) = param
+
     cg_onnx.register_trt_plugins()
 
     with torch.no_grad():
@@ -108,8 +110,6 @@ def test_trt(
                           onnx_path,
                           input_names=my_input_names,
                           output_names=output_names,
-                          # operator_export_type=_C_onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
-                          # verbose=True
                           )
 
         model_onnx = onnx_from_path(onnx_path)
@@ -118,7 +118,7 @@ def test_trt(
         
         # build engine
         build_engine = EngineFromNetwork(
-            NetworkFromOnnxPath("a.onnx"), CreateConfig()
+            NetworkFromOnnxPath("a.onnx"), CreateConfig(tf32=True, bf16=dtype==torch.bfloat16)
         )
 
         # Run
@@ -130,12 +130,14 @@ def test_trt(
                     trt_inputs[name]=inp
             # TODO: dynamic axes
             trt_inputs.pop("num_dst_nodes")
-            
-            outputs = runner.infer(trt_inputs)
+
+            for i in range (10):
+                outputs = runner.infer(trt_inputs)
             
             t_res = torch.as_tensor(outputs["out"], device="cuda")
             
             compare_results(t_res, expected)
+            print(f"TRT test passed for {dtype}, inference time: {runner.last_inference_time()}")
 
         
 def test_torch_compile(
@@ -152,6 +154,39 @@ def test_torch_compile(
         compare_results(compiled, expected, atol=6e-1, rtol=6e-1)
 
 
+def test_export(
+        create_tp_conv_and_data, 
+):
+    (tp_conv, inputs, _, param) = create_tp_conv_and_data
+    (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
+    (dtype, batch_norm, e3nn_compat_mode, _) = param
+    
+    batch = torch.export.Dim("batch")
+    x1 = torch.export.Dim("x1")
+    x2 = torch.export.Dim("x2")
+    # this one succeeds
+    dynamic_shapes={'x': {0: batch, 1: x1, 2: x2}}
+    
+    # this one fails
+    dynamic_shapes={'x': {0: batch}}
+
+    model = torch.export.export(tp_conv, inputs, strict=False).run_decompositions()
+    ex_name="a.onnx"
+    options = torch.onnx.ExportOptions(dynamic_shapes=False,
+                                       onnx_registry=cg_onnx.register_custom_ops())
+    with torch.no_grad():
+        expected = tp_conv(*inputs)
+
+        tp_ex = torch.onnx.dynamo_export(model,
+                                         *inputs,
+                                         export_options=options
+                                         )
+        tp_ex.save(ex_name)
+        if dtype != torch.bfloat16:
+            res = run_onnx(ex_name, inputs)
+            compare_results(res, expected)
+
+
 def test_dynamo_export(
         create_tp_conv_and_data, 
 ):
@@ -159,8 +194,8 @@ def test_dynamo_export(
     (src_features, edge_sh, edge_emb, edge_index, num_dst_nodes, src_scalars, dst_scalars) = inputs
     (dtype, batch_norm, e3nn_compat_mode, _) = param
     
-    if batch_norm:
-        return;
+    # if batch_norm:
+    #    return;
     options = torch.onnx.ExportOptions(dynamic_shapes=True,
                                        onnx_registry=cg_onnx.register_custom_ops())
 
@@ -173,10 +208,9 @@ def test_dynamo_export(
                                          export_options=options
                                          )
         tp_ex.save(ex_name)
-        # @pytest.mark.skip(reason="Unsupported model IR version: 10, max supported IR version: 9")
-        return
-        res = run_onnx(ex_name, inputs)
-        compare_results(res, expected)
+        if dtype != torch.bfloat16:
+            res = run_onnx(ex_name, inputs)
+            compare_results(res, expected)
         
 def test_jit(
         create_tp_conv_and_data, 
