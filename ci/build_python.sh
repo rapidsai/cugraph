@@ -16,7 +16,6 @@ rapids-print-env
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 
 version=$(rapids-generate-version)
-git_commit=$(git rev-parse HEAD)
 export RAPIDS_PACKAGE_VERSION=${version}
 echo "${version}" > VERSION
 
