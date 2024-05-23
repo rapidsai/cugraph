@@ -63,10 +63,10 @@ def k_truss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
-        cuGraph graph descriptor with connectivity information. k-Trusses are
-        defined for only undirected graphs as they are defined for
-        undirected triangle in a graph.
+    input_graph : cugraph.Graph
+        Graph or matrix object, which should contain the connectivity
+        information. Edge weights, if present, should be single or double
+        precision floating point values
 
     k : int
         The desired k to be used for extracting the k-truss subgraph.
