@@ -58,8 +58,6 @@ def k_truss(
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
-    NOTE: this function is currently not available on CUDA 11.4 systems.
-
     The k-truss of a graph is a subgraph where each edge is part of at least
     (k−2) triangles. K-trusses are used for finding tighlty knit groups of
     vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
