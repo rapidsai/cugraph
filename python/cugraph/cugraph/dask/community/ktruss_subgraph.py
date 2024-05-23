@@ -19,16 +19,17 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import cupy as cp
+from typing import Tuple
 
 from pylibcugraph import ResourceHandle, k_truss_subgraph as pylibcugraph_k_truss_subgraph
 
 
 def _call_k_truss_subgraph(
-    sID,
+    sID: bytes,
     mg_graph_x,
-    k,
-    do_expensive_check,
-):
+    k: int,
+    do_expensive_check: bool,
+) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray]:
 
     return pylibcugraph_k_truss_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
