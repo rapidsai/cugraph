@@ -43,8 +43,9 @@ def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     cp_src, cp_dst, cp_weight = cp_arrays
 
     df = cudf.DataFrame()
-    df["src"] = cp_src
-    df["dst"] = cp_dst
+    if cp_src is not None:
+        df["src"] = cp_src
+        df["dst"] = cp_dst
     if cp_weight is not None:
         df["weight"] = cp_weight
 
