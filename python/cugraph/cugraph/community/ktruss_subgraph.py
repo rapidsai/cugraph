@@ -34,24 +34,6 @@ from cugraph.utilities.utils import import_optional
 networkx = import_optional("networkx")
 
 
-# FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
-# crash in that environment. Allow ktruss to import on non-11.4 systems, but
-# raise an exception if ktruss is directly imported on 11.4.
-def _ensure_compatible_cuda_version():
-    try:
-        cuda_version = cuda.runtime.get_version()
-    except cuda.cudadrv.runtime.CudaRuntimeAPIError:
-        cuda_version = "n/a"
-
-    unsupported_cuda_version = (11, 4)
-
-    if cuda_version == unsupported_cuda_version:
-        ver_string = ".".join([str(n) for n in unsupported_cuda_version])
-        raise NotImplementedError(
-            "k_truss is not currently supported in CUDA" f" {ver_string} environments."
-        )
-
-
 def k_truss(
     G: Union[Graph, "networkx.Graph"], k: int
 ) -> Union[Graph, "networkx.Graph"]:
@@ -87,9 +69,6 @@ def k_truss(
     >>> k_subgraph = cugraph.k_truss(G, 3)
 
     """
-
-    _ensure_compatible_cuda_version()
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
@@ -174,8 +153,6 @@ def ktruss_subgraph(
     >>> G = karate.get_graph(download=True)
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3, use_weights=False)
     """
-
-    _ensure_compatible_cuda_version()
 
     KTrussSubgraph = Graph()
     if G.is_directed():
