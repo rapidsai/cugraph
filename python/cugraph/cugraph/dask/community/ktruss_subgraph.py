@@ -48,7 +48,6 @@ def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     if cp_weight is not None:
         df["weight"] = cp_weight
 
-
     return df
 
 
