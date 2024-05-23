@@ -66,6 +66,15 @@ struct sample_edges_op_t {
   }
 };
 
+template <typename vertex_t, typename bias_t>
+struct sample_edge_biases_op_t {
+  auto __host__ __device__
+  operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
+  {
+    return bias;
+  }
+};
+
 struct segmented_fill_t {
   raft::device_span<int32_t const> fill_values{};
   raft::device_span<size_t const> segment_offsets{};
@@ -80,10 +89,44 @@ struct segmented_fill_t {
   }
 };
 
+template <typename vertex_t, typename edge_t, typename bias_t, bool multi_gpu>
+std::tuple<size_t, size_t> check_edge_bias_values(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view)
+{
+  auto num_negative_edge_weights =
+    count_if_e(handle,
+               graph_view,
+               edge_src_dummy_property_t{}.view(),
+               edge_dst_dummy_property_t{}.view(),
+               edge_bias_view,
+               [] __device__(vertex_t, vertex_t, auto, auto, bias_t b) { return b < 0.0; });
+
+  size_t num_overflows{0};
+  {
+    auto bias_sums = compute_out_weight_sums(handle, graph_view, edge_bias_view);
+    num_overflows  = thrust::count_if(
+      handle.get_thrust_policy(), bias_sums.begin(), bias_sums.end(), [] __device__(auto sum) {
+        return sum > std::numeric_limits<bias_t>::max();
+      });
+  }
+
+  if constexpr (multi_gpu) {
+    num_negative_edge_weights = host_scalar_allreduce(
+      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
+    num_overflows = host_scalar_allreduce(
+      handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream());
+  }
+
+  return std::make_tuple(num_negative_edge_weights, num_overflows);
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename bias_t,
           typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -97,6 +140,7 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
              std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+             std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
              std::optional<raft::device_span<label_t const>> active_major_labels,
@@ -120,135 +164,305 @@ sample_edges(raft::handle_t const& handle,
   if (edge_weight_view) {
     if (edge_id_view) {
       if (edge_type_view) {
-        std::forward_as_tuple(sample_offsets,
-                              std::tie(majors, minors, weights, edge_ids, edge_types)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
-              std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets,
+                                std::tie(majors, minors, weights, edge_ids, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
+                std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets,
+                                std::tie(majors, minors, weights, edge_ids, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
+                std::nullopt},
+              false);
+        }
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_ids)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            view_concat(*edge_weight_view, *edge_id_view),
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_ids)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_ids)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
+              false);
+        }
       }
     } else {
       if (edge_type_view) {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_types)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            view_concat(*edge_weight_view, *edge_type_view),
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
+              false);
+        }
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            *edge_weight_view,
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_weight_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_weight_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
+              false);
+        }
       }
     }
   } else {
     if (edge_id_view) {
       if (edge_type_view) {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids, edge_types)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            view_concat(*edge_id_view, *edge_type_view),
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_id_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_id_view, *edge_type_view),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
+              false);
+        }
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            *edge_id_view,
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_id_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_id_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
+              false);
+        }
       }
     } else {
       if (edge_type_view) {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_types)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            *edge_type_view,
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_type_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_types)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_type_view,
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
+              false);
+        }
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
-          cugraph::per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_src_dummy_property_t{}.view(),
-            edge_dst_dummy_property_t{}.view(),
-            edge_dummy_property_t{}.view(),
-            sample_edges_op_t<vertex_t>{},
-            rng_state,
-            fanout,
-            with_replacement,
-            std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
-            true);
+        if (edge_bias_view) {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              *edge_bias_view,
+              sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_dummy_property_t{}.view(),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false);
+        } else {
+          std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+            cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_dummy_property_t{}.view(),
+              sample_edges_op_t<vertex_t>{},
+              rng_state,
+              fanout,
+              with_replacement,
+              std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false);
+        }
       }
     }
   }

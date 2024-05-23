@@ -49,11 +49,12 @@
 
 #include <random>
 
-template <typename vertex_t, typename weight_t, typename property_t>
+template <typename vertex_t, typename bias_t>
 struct e_bias_op_t {
-  __device__ weight_t operator()(vertex_t, vertex_t, property_t, property_t, weight_t w) const
+  __device__ bias_t
+  operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
   {
-    return w;
+    return bias;
   }
 };
 
@@ -216,10 +217,13 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                            *handle_,
                                            mg_graph_view,
                                            mg_vertex_frontier.bucket(bucket_idx_cur),
+                                           cugraph::edge_src_dummy_property_t{}.view(),
+                                           cugraph::edge_dst_dummy_property_t{}.view(),
+                                           *mg_edge_weight_view,
+                                           e_bias_op_t<vertex_t, weight_t>{},
                                            mg_src_prop.view(),
                                            mg_dst_prop.view(),
                                            *mg_edge_weight_view,
-                                           e_bias_op_t<vertex_t, weight_t, property_t>{},
                                            e_op_t<vertex_t, weight_t, property_t>{},
                                            rng_state,
                                            prims_usecase.K,
