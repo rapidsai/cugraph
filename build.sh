@@ -319,7 +319,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/pylibcugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/pylibcugraph
     fi
 fi
 
@@ -329,7 +329,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph
     fi
 fi
 
@@ -338,8 +338,8 @@ if hasArg cugraph-service || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph-service/client
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph-service/server
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-service/client
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-service/server
     fi
 fi
 
@@ -348,7 +348,7 @@ if hasArg cugraph-pyg || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph-pyg
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-pyg
     fi
 fi
 
@@ -357,7 +357,7 @@ if hasArg cugraph-dgl || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph-dgl
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-dgl
     fi
 fi
 
@@ -366,7 +366,7 @@ if hasArg cugraph-equivariant || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-equivariant
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/cugraph-equivariant
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-equivariant
     fi
 fi
 
@@ -375,7 +375,7 @@ if hasArg nx-cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting disable-cuda=true ${REPODIR}/python/nx-cugraph
+        python ${PYTHON_ARGS_FOR_INSTALL} --config-setting rapidsai.disable-cuda=true ${REPODIR}/python/nx-cugraph
     fi
 fi
 
