@@ -34,9 +34,8 @@ DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
 
 rapids-logger "Installing PyTorch and DGL"
 rapids-retry python -m pip install --no-cache-dir torch --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install dgl==2.0.0 --find-links ${DGL_URL}
+rapids-retry python -m pip install --no-cache-dir dgl==2.0.0 --find-links ${DGL_URL}
 
-python -m pip uninstall -y torch torchvision torchaudio
-python -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu118
+python -m pip install -U --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu${PYTORCH_CUDA_VER}
 
 python -m pytest python/cugraph-dgl/tests
