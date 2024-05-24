@@ -372,7 +372,8 @@ uniform_neighbor_sample(
   bool dedupe_sources,
   bool do_expensive_check)
 {
-  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, float /* dummy */>(
+  using bias_t = weight_t;  // dummy
+  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
     handle,
     graph_view,
     edge_weight_view,
