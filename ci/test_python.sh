@@ -227,8 +227,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
         pyg_lib \
         torch_scatter \
         torch_sparse \
-        torch_cluster \
-        torch_spline_conv \
       -f ${PYG_URL}
 
     rapids-print-env
