@@ -39,8 +39,6 @@ rapids-retry python -m pip install \
   pyg_lib \
   torch_scatter \
   torch_sparse \
-  torch_cluster \
-  torch_spline_conv \
   tensordict \
   -f ${PYG_URL}
 
