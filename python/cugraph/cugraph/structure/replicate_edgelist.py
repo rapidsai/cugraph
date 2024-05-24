@@ -269,7 +269,6 @@ def replicate_cudf_dataframe(cudf_dataframe):
         )
 
     _client = default_client()
-
     if not isinstance(cudf_dataframe, dask_cudf.DataFrame):
         if isinstance(cudf_dataframe, cudf.DataFrame):
             df = dask_cudf.from_cudf(
@@ -291,6 +290,7 @@ def replicate_cudf_dataframe(cudf_dataframe):
         Comms.get_session_id(),
         df,
         "dataframe",
+        cudf_dataframe.columns
     )
 
     return ddf
