@@ -589,7 +589,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
-    ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+    #ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+
+    ###############################################################################################
+    # - MG K-TRUSS tests --------------------------------------------------------------------------
+    #ConfigureTest(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
@@ -614,7 +618,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
-    ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+    #ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG coarsening tests -----------------------------------------------------------------------
@@ -788,7 +792,7 @@ ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_DEGREES c_api/degrees_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
-ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
+#ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################

@@ -205,6 +205,7 @@ set(CUGRAPH_SOURCES
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
     src/community/k_truss_sg.cu
+    #src/community/k_truss_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/prepare_next_frontier_sg.cu

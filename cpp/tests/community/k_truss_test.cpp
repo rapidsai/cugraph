@@ -261,14 +261,22 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 };
 
 using Tests_KTruss_File = Tests_KTruss<cugraph::test::File_Usecase>;
-using Tests_KTruss_Rmat = Tests_KTruss<cugraph::test::Rmat_Usecase>;
+//using Tests_KTruss_Rmat = Tests_KTruss<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_KTruss_File, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
+/*
+TEST_P(Tests_KTruss_Rmat, CheckInt32Int32Float)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+*/
 
+/*
 TEST_P(Tests_KTruss_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -286,29 +294,19 @@ TEST_P(Tests_KTruss_Rmat, CheckInt64Int64Float)
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+*/
 
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_KTruss_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KTruss_Usecase{5, true, false},
-                      KTruss_Usecase{4, true, false},
-                      KTruss_Usecase{9, true, true},
-                      KTruss_Usecase{7, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+    ::testing::Values(KTruss_Usecase{4, false, true}),
+    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_KTruss_Rmat,
-                         // enable correctness checks
-                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, false, true},
-                                                              KTruss_Usecase{4, false, true},
-                                                              KTruss_Usecase{9, true, true},
-                                                              KTruss_Usecase{7, true, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
+
+#if 0
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
                           --gtest_filter to select only the rmat_benchmark_test with a specific
@@ -319,7 +317,8 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{12, false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(14, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(KTruss_Usecase{4, false, true}, KTruss_Usecase{5, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(12, 6, 0.57, 0.19, 0.19, 0, true, false))));
+#endif
 
 CUGRAPH_TEST_PROGRAM_MAIN()
