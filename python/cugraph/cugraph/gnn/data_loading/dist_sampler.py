@@ -762,7 +762,9 @@ class UniformNeighborSampler(DistSampler):
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
                 retain_seeds=self._retain_original_seeds,
-                label_offsets=cupy.asarray(label_offsets),
+                label_offsets=None
+                if label_offsets is None
+                else cupy.asarray(label_offsets),
                 return_dict=True,
             )
             sampling_results_dict["rank"] = rank
