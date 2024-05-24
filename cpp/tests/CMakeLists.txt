@@ -701,15 +701,19 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
-    # - MG NBR SAMPLING tests ---------------------------------------------------------------------
+    # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+
+    ###############################################################################################
+    # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
+    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cu)
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###############################################################################################
-    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    # - MG WEIGHTED_SIMILARITY tests --------------------------------------------------------------
     ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
