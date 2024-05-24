@@ -9,9 +9,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PARALLEL_LEVEL: "31"
-
 jobs:
   pr-builder:
     needs:

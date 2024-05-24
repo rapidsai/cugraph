@@ -56,6 +56,7 @@ fi
 
 cd "${package_dir}"
 
+PARALLEL_LEVEL="${PARALLEL_LEVEL:-$(nproc --all --ignore=1)}" \
 CMAKE_BUILD_PARALLEL_LEVEL="${PARALLEL_LEVEL:-$(nproc --all --ignore=1)}" \
 python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
