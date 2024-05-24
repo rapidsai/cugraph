@@ -681,16 +681,12 @@ class simpleGraphImpl:
 
     def _replicate_edgelist(self):
         client = mg_utils.get_client()
-        comms = Comms.get_comms()
 
         # FIXME: There  might be a better way to control it
         if client is None:
             return
-        res = replicate_cudf_dataframe(
-            self.edgelist.edgelist_df
-        )
 
-        self.batch_edgelists = res
+        self.batch_edgelists = replicate_cudf_dataframe(self.edgelist.edgelist_df)
 
     def _replicate_adjlist(self):
         client = mg_utils.get_client()
