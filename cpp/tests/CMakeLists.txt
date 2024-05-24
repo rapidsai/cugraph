@@ -454,7 +454,7 @@ target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/s
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
 
 ###################################################################################################
-# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+# - WEIGHTED_SIMILARITY tests ---------------------------------------------------------------------
 ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
 
 ###################################################################################################
@@ -463,8 +463,12 @@ ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
-# - NBR SAMPLING tests ----------------------------------------------------------------------------
+# - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cu)
+
+###################################################################################################
+# - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cu)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------

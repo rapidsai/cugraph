@@ -226,7 +226,7 @@ biased_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<label_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
