@@ -34,8 +34,7 @@ struct Biased_Neighbor_Sampling_Usecase {
 
 template <typename input_usecase_t>
 class Tests_MGBiased_Neighbor_Sampling
-  : public ::testing::TestWithParam<
-      std::tuple<Biased_Neighbor_Sampling_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<std::tuple<Biased_Neighbor_Sampling_Usecase, input_usecase_t>> {
  public:
   Tests_MGBiased_Neighbor_Sampling() {}
 
@@ -329,12 +328,11 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGBiased_Neighbor_Sampling_Rmat,
-  ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
-    ::testing::Values(
-      // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
-      cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                                       Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+                     ::testing::Values(
+                       // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+                       cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

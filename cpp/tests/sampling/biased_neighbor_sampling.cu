@@ -35,8 +35,7 @@ struct Biased_Neighbor_Sampling_Usecase {
 
 template <typename input_usecase_t>
 class Tests_Biased_Neighbor_Sampling
-  : public ::testing::TestWithParam<
-      std::tuple<Biased_Neighbor_Sampling_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<std::tuple<Biased_Neighbor_Sampling_Usecase, input_usecase_t>> {
  public:
   Tests_Biased_Neighbor_Sampling() {}
 
