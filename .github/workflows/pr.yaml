@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PARALLEL_LEVEL: "31"
+
 jobs:
   pr-builder:
     needs:
@@ -44,8 +47,6 @@ jobs:
     needs: checks
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@branch-24.06
-    env:
-      PARALLEL_LEVEL: "31"
     with:
       build_type: pull-request
       node_type: cpu32
