@@ -464,7 +464,7 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
 # - NBR SAMPLING tests ----------------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cu)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
