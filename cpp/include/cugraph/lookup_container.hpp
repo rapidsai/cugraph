@@ -65,6 +65,7 @@ class search_container_t {
                                        raft::device_span<edge_id_t const> edge_ids_to_lookup,
                                        raft::device_span<edge_type_t const> edge_types_to_lookup,
                                        bool multi_gpu) const;
+  void print() const;
 };
 
 }  // namespace cugraph

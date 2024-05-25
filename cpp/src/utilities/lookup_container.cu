@@ -80,11 +80,39 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
     }
   }
 
-  void print()
+  void print() const
   {
     for (const auto& [key, map] : edge_type_to_kv_store) {
       std::cout << "key: " << key << " size: " << map.size() << std::endl;
     }
+
+    // int type            = 5;
+    // auto itr            = edge_type_to_kv_store.find(type);
+    // auto [keys, values] = itr->second.retrieve_all(rmm::cuda_stream_view{});
+
+    // if (type == 5) {
+    //   auto const comm_rank = 7;
+    //   auto insert_title    = std::string("*rk_")
+    //                         .append(std::to_string(comm_rank))
+    //                         .append("_")
+    //                         .append(std::to_string(type));
+
+    //   raft::print_device_vector(insert_title.c_str(), keys.begin(), keys.size(), std::cout);
+
+    //   auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
+    //     std::get<0>(values).data(), std::get<0>(values).size());
+
+    //   auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
+    //     std::get<1>(values).data(), std::get<1>(values).size());
+
+    //   auto srcs_title = std::string("rsrcs_").append(std::to_string(comm_rank));
+    //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    //   raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
+
+    //   auto dsts_title = std::string("rdsts_").append(std::to_string(comm_rank));
+    //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    //   raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
+    // }
   }
 
   void insert(raft::handle_t const& handle,
@@ -98,26 +126,45 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
     if (itr != edge_type_to_kv_store.end()) {
       assert(itr->first == type);
 
-      // auto const comm_rank = handle.get_comms().get_rank();
-      // std::cout << "** rank:  " << comm_rank << " inserting  type: " << type << "\n";
-      // auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
-      //   std::get<0>(values_to_insert).data(), std::get<0>(values_to_insert).size());
+      auto const comm_rank = handle.get_comms().get_rank();
 
-      // auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
-      //   std::get<1>(values_to_insert).data(), std::get<1>(values_to_insert).size());
+      /*
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      // auto srcs_title = std::string("isrcs_").append(std::to_string(comm_rank));
-      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      // raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
+        std::cout << "** rank:  " << comm_rank << " inserting  type: " << type << "\n";
+        auto insert_title = std::string("ids_")
+                              .append(std::to_string(comm_rank))
+                              .append("_")
+                              .append(std::to_string(type));
+        raft::print_device_vector(
+          insert_title.c_str(), edge_ids_to_insert.begin(), edge_ids_to_insert.size(), std::cout);
 
-      // auto dsts_title = std::string("idsts_").append(std::to_string(comm_rank));
-      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      // raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
+        auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
+          std::get<0>(values_to_insert).data(), std::get<0>(values_to_insert).size());
+
+        auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
+          std::get<1>(values_to_insert).data(), std::get<1>(values_to_insert).size());
+
+        auto srcs_title = std::string("isrcs_").append(std::to_string(comm_rank));
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
+
+        auto dsts_title = std::string("idsts_").append(std::to_string(comm_rank));
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
+      */
+
+      // std::cout << "\n => Right before inserting type " << type << ", kv_store size "
+      //           << itr->second.size() << std::endl;
+      // std::cout << "inserting " << edge_ids_to_insert.size() << " elements\n";
 
       itr->second.insert(edge_ids_to_insert.begin(),
                          edge_ids_to_insert.end(),
                          cugraph::get_dataframe_buffer_begin(values_to_insert),
                          handle.get_stream());
+      // if (type == 5)
+      //   std::cout << "\n => Right after inserting type " << type << ", kv_store size "
+      //             << itr->second.size() << std::endl;
     } else {
       assert(false);
     }
@@ -135,11 +182,37 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
     auto value_buffer = cugraph::allocate_dataframe_buffer<value_t>(0, handle.get_stream());
 
     auto itr = edge_type_to_kv_store.find(edge_type_to_lookup);
+
+    auto const comm_rank = multi_gpu ? handle.get_comms().get_rank() : 0;
+
+    // std::cout << "IIIIIIII inside() Rank " << comm_rank << " type: " << edge_type_to_lookup <<
+    // "\n";
+
     if (itr != edge_type_to_kv_store.end()) {
       assert(edge_type_to_lookup == itr->first);
       kv_store_object = &(itr->second);
+
+      /*
+      std::cout << "***IIIIIIII inside() Rank " << comm_rank << " type exists "
+                << edge_type_to_lookup << "\n";
+      */
     } else {
-      return std::optional<decltype(value_buffer)>{std::nullopt};
+      /*
+          std::cout << "XXXXXX>>>>>>>>> r Rank " << comm_rank << " type: " << edge_type_to_lookup
+                    << "\n";
+      */
+      cugraph::resize_dataframe_buffer(
+        value_buffer, edge_ids_to_lookup.size(), handle.get_stream());
+
+      auto invalid_value = invalid_of_thrust_tuple_of_integral<value_t>();
+      // Mark with invalid here
+      thrust::copy(handle.get_thrust_policy(),
+                   thrust::make_constant_iterator(invalid_value),
+                   thrust::make_constant_iterator(invalid_value) + edge_ids_to_lookup.size(),
+                   cugraph::get_dataframe_buffer_begin(value_buffer));
+
+      return std::make_optional(std::move(value_buffer));
+      // return std::optional<decltype(value_buffer)>{std::nullopt};
     }
 
     // auto invalid_key = cugraph::invalid_vertex_id<edge_id_t>::value;
@@ -177,21 +250,25 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
                                    handle.get_stream());
     }
 
-    // auto const comm_rank = multi_gpu ? handle.get_comms().get_rank() : 0;
+    /*
+    std::cout << "====================>>>>> f Rank " << comm_rank
+              << " type: " << edge_type_to_lookup << "\n";
 
-    // auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
-    //   std::get<0>(value_buffer).data(), std::get<0>(value_buffer).size());
+    auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
+      std::get<0>(value_buffer).data(), std::get<0>(value_buffer).size());
 
-    // auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
-    //   std::get<1>(value_buffer).data(), std::get<1>(value_buffer).size());
+    auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
+      std::get<1>(value_buffer).data(), std::get<1>(value_buffer).size());
 
-    // auto srcs_title = std::string("*srcs_").append(std::to_string(comm_rank));
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    // raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
+    auto srcs_title = std::string("fsrcs_").append(std::to_string(comm_rank));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
 
-    // auto dsts_title = std::string("*dsts_").append(std::to_string(comm_rank));
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    // raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
+    auto dsts_title = std::string("fdsts_").append(std::to_string(comm_rank));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
+    */
+
     return std::make_optional(std::move(value_buffer));
   }
 
@@ -233,32 +310,31 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
                         thrust::make_zip_iterator(thrust::make_tuple(tmp_edge_ids_to_lookup.begin(),
                                                                      original_idxs.begin())));
 
-    // auto const comm_rank = handle.get_comms().get_rank();
+    auto const comm_rank = handle.get_comms().get_rank();
 
-    // auto ts_ttile = std::string("ltys_").append(std::to_string(comm_rank));
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    /*
+    auto ts_ttile = std::string("ltys_").append(std::to_string(comm_rank));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      ts_ttile.c_str(), edge_types_to_lookup.begin(), edge_types_to_lookup.size(), std::cout);
 
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-    // raft::print_device_vector(ts_ttile.c_str(),
-    //                           tmp_edge_types_to_lookup.begin(),
-    //                           tmp_edge_types_to_lookup.size(),
-    //                           std::cout);
+    raft::print_device_vector(ts_ttile.c_str(),
+                              tmp_edge_types_to_lookup.begin(),
+                              tmp_edge_types_to_lookup.size(),
+                              std::cout);
 
-    // raft::print_device_vector(
-    //   ts_ttile.c_str(), edge_types_to_lookup.begin(), edge_types_to_lookup.size(), std::cout);
+    auto lids_title = std::string("lids_").append(std::to_string(comm_rank));
 
-    // auto lids_title = std::string("lids_").append(std::to_string(comm_rank));
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      lids_title.c_str(), edge_ids_to_lookup.begin(), edge_ids_to_lookup.size(), std::cout);
 
-    // raft::print_device_vector(
-    //   lids_title.c_str(), tmp_edge_ids_to_lookup.begin(), tmp_edge_ids_to_lookup.size(),
-    //   std::cout);
-
-    // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-    // raft::print_device_vector(
-    //   lids_title.c_str(), edge_ids_to_lookup.begin(), edge_ids_to_lookup.size(), std::cout);
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      lids_title.c_str(), tmp_edge_ids_to_lookup.begin(), tmp_edge_ids_to_lookup.size(), std::cout);
+  */
 
     auto nr_uniqe_edge_types_to_lookup = thrust::count_if(
       handle.get_thrust_policy(),
@@ -296,11 +372,94 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
     raft::update_host(
       h_type_offsets.data(), type_offsets.data(), type_offsets.size(), handle.get_stream());
 
+    std::unordered_map<edge_type_t, int> typ_to_local_idx_map{};
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+    for (int idx = 0; idx < h_unique_types.size(); idx++) {
+      typ_to_local_idx_map[h_unique_types[idx]] = idx;
+    }
+
+    /*
+    std::cout << "Rank: " << comm_rank << " => *h_unique_types: ";
+    std::for_each(
+      h_unique_types.cbegin(), h_unique_types.cend(), [](const auto& f) { std::cout << f << " "; });
+    std::cout << "\n";
+
+    std::cout << "Rank: " << comm_rank << " => *h_type_offsets: ";
+    std::for_each(
+      h_type_offsets.cbegin(), h_type_offsets.cend(), [](const auto& f) { std::cout << f << " "; });
+    std::cout << "\n";
+    */
+
     auto output_value_buffer =
       cugraph::allocate_dataframe_buffer<value_t>(edge_ids_to_lookup.size(), handle.get_stream());
 
+    // auto invalid_key = cugraph::invalid_vertex_id<edge_id_t>::value;
+    auto invalid_value = invalid_of_thrust_tuple_of_integral<value_t>();
+    // Mark with invalid here
+    // thrust::copy(handle.get_thrust_policy(),
+    //              thrust::make_constant_iterator(invalid_value),
+    //              thrust::make_constant_iterator(invalid_value) + edge_ids_to_lookup.size(),
+    //              cugraph::get_dataframe_buffer_begin(value_buffer));
+
+    thrust::fill(handle.get_thrust_policy(),
+                 cugraph::get_dataframe_buffer_begin(output_value_buffer),
+                 cugraph::get_dataframe_buffer_begin(output_value_buffer),
+                 invalid_value);
+
+    // FIXME: deadlock ??
+
+    if (multi_gpu) {
+      auto& comm     = handle.get_comms();
+      auto rx_counts = host_scalar_allgather(comm, unique_types.size(), handle.get_stream());
+      std::vector<size_t> rx_displacements(rx_counts.size());
+      std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
+      rmm::device_uvector<edge_type_t> rx_unique_types(rx_displacements.back() + rx_counts.back(),
+                                                       handle.get_stream());
+
+      device_allgatherv(comm,
+                        unique_types.begin(),
+                        rx_unique_types.begin(),
+                        rx_counts,
+                        rx_displacements,
+                        handle.get_stream());
+      unique_types = std::move(rx_unique_types);
+
+      thrust::sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
+
+      unique_types.resize(
+        thrust::distance(
+          unique_types.begin(),
+          thrust::unique(handle.get_thrust_policy(), unique_types.begin(), unique_types.end())),
+        handle.get_stream());
+    }
+
+    h_unique_types.resize(unique_types.size());
+    raft::update_host(
+      h_unique_types.data(), unique_types.data(), unique_types.size(), handle.get_stream());
+
+    /*
+    std::cout << "Rank: " << comm_rank << " => **h_unique_types: ";
+    std::for_each(
+      h_unique_types.cbegin(), h_unique_types.cend(), [](const auto& f) { std::cout << f << " "; });
+    std::cout << "\n";
+    */
+
     for (size_t idx = 0; idx < h_unique_types.size(); idx++) {
       auto typ = h_unique_types[idx];
+
+      auto start_ptr = tmp_edge_ids_to_lookup.begin();
+      auto span_size = 0;
+
+      if (typ_to_local_idx_map.find(typ) != typ_to_local_idx_map.end()) {
+        auto xx = typ_to_local_idx_map[typ];
+
+        start_ptr = tmp_edge_ids_to_lookup.begin() + h_type_offsets[xx];
+        span_size = h_type_offsets[xx + 1] - h_type_offsets[xx];
+      }
+
+      std::cout << "Rank: " << comm_rank << " => span_size: " << span_size << "\n";
 
       // std::cout << " rank:  " << comm_rank << " searching type: " << typ << "\n";
 
@@ -315,12 +474,7 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
       //   lp_title.c_str(), ptr, (h_type_offsets[idx + 1] - h_type_offsets[idx]), std::cout);
 
       auto optional_value_buffer = lookup_src_dst_from_edge_id_and_type(
-        handle,
-        raft::device_span<edge_id_t const>{
-          tmp_edge_ids_to_lookup.begin() + h_type_offsets[idx],
-          tmp_edge_ids_to_lookup.begin() + h_type_offsets[idx + 1]},
-        typ,
-        multi_gpu);
+        handle, raft::device_span<edge_id_t const>{start_ptr, span_size}, typ, multi_gpu);
 
       // if (optional_value_buffer.has_value()) {
       //   auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
@@ -343,11 +497,13 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
       // }
 
       if (optional_value_buffer.has_value()) {
-        thrust::copy(
-          handle.get_thrust_policy(),
-          cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
-          cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
-          cugraph::get_dataframe_buffer_begin(output_value_buffer) + h_type_offsets[idx]);
+        if (typ_to_local_idx_map.find(typ) != typ_to_local_idx_map.end()) {
+          thrust::copy(handle.get_thrust_policy(),
+                       cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
+                       cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
+                       cugraph::get_dataframe_buffer_begin(output_value_buffer) +
+                         h_type_offsets[typ_to_local_idx_map[typ]]);
+        }
       }
     }
 
@@ -392,7 +548,6 @@ void search_container_t<edge_type_t, edge_id_t, value_t>::insert(
   decltype(cugraph::allocate_dataframe_buffer<value_t>(0,
                                                        rmm::cuda_stream_view{}))&& values_to_insert)
 {
-  pimpl->print();
   pimpl->insert(handle, type, edge_ids_to_insert, std::move(values_to_insert));
 }
 
@@ -418,6 +573,12 @@ search_container_t<edge_type_t, edge_id_t, value_t>::lookup_src_dst_from_edge_id
 {
   return pimpl->lookup_src_dst_from_edge_id_and_type(
     handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
+}
+
+template <typename edge_type_t, typename edge_id_t, typename value_t>
+void search_container_t<edge_type_t, edge_id_t, value_t>::print() const
+{
+  pimpl->print();
 }
 
 template class search_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>>;

@@ -99,9 +99,12 @@ cugraph_lookup_src_dst_from_edge_id_and_type(
   thrust::fill(
     handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_vertex_id);
 
+  auto const comm_rank = handle.get_comms().get_rank();
+  std::cout << "Rank: " << comm_rank << " calling lookup_src_dst_from_edge_id_and_type\n";
   auto optional_value_buffer = search_container.lookup_src_dst_from_edge_id_and_type(
     handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
 
+  std::cout << "Rank: " << comm_rank << " returning from lookup_src_dst_from_edge_id_and_type\n";
   if (optional_value_buffer.has_value()) {
     thrust::copy(
       handle.get_thrust_policy(),
@@ -151,7 +154,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
   std::vector<edge_t> h_freq_of_types_to_this_gpu{};
   std::unordered_map<edge_type_t, edge_t> edge_type_to_count_map{};
 
-  bool debug = false;
+  // bool debug = true;
   for (size_t local_ep_idx = 0; local_ep_idx < graph_view.number_of_local_edge_partitions();
        ++local_ep_idx) {
     //
@@ -216,22 +219,24 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
 
     if constexpr (multi_gpu) {
       auto const comm_rank = handle.get_comms().get_rank();
-      if (debug) {
-        // RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        // auto ids_title = std::string("ids_")
-        //                    .append(std::to_string(comm_rank))
-        //                    .append("_")
-        //                    .append(std::to_string(local_ep_idx));
-        // raft::print_device_vector(
-        //   ids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
 
-        // auto types_title = std::string("types_")
-        //                      .append(std::to_string(comm_rank))
-        //                      .append("_")
-        //                      .append(std::to_string(local_ep_idx));
-        // raft::print_device_vector(
-        //   types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
-      }
+      // if (debug) {
+      //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      //   auto ids_title = std::string("ids_")
+      //                      .append(std::to_string(comm_rank))
+      //                      .append("_")
+      //                      .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     ids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+
+      //   auto types_title = std::string("types_")
+      //                        .append(std::to_string(comm_rank))
+      //                        .append("_")
+      //                        .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+      // }
+
       //
       // Count number of edge ids mapped to each GPU
       //
@@ -254,15 +259,15 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                           return key_func(eid);
                         });
 
-      if (debug) {
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto gids_title = std::string("gids_")
-                            .append(std::to_string(comm_rank))
-                            .append("_")
-                            .append(std::to_string(local_ep_idx));
-        raft::print_device_vector(
-          gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
-      }
+      // if (debug) {
+      //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      //   auto gids_title = std::string("gids_")
+      //                       .append(std::to_string(comm_rank))
+      //                       .append("_")
+      //                       .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+      // }
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(
@@ -294,37 +299,37 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                              gpu_offsets.begin(),
                              size_t{0});
 
-      if (debug) {
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // if (debug) {
+      //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-        auto gids_title = std::string("s_gids_")
-                            .append(std::to_string(comm_rank))
-                            .append("_")
-                            .append(std::to_string(local_ep_idx));
-        raft::print_device_vector(
-          gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
+      //   auto gids_title = std::string("s_gids_")
+      //                       .append(std::to_string(comm_rank))
+      //                       .append("_")
+      //                       .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     gids_title.c_str(), (*edgelist_ids).begin(), (*edgelist_ids).size(), std::cout);
 
-        auto types_title = std::string("s_types_")
-                             .append(std::to_string(comm_rank))
-                             .append("_")
-                             .append(std::to_string(local_ep_idx));
-        raft::print_device_vector(
-          types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
+      //   auto types_title = std::string("s_types_")
+      //                        .append(std::to_string(comm_rank))
+      //                        .append("_")
+      //                        .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     types_title.c_str(), (*edgelist_types).begin(), (*edgelist_types).size(), std::cout);
 
-        auto ugids = std::string("u_gids_")
-                       .append(std::to_string(comm_rank))
-                       .append("_")
-                       .append(std::to_string(local_ep_idx));
-        raft::print_device_vector(
-          ugids.c_str(), unique_gpu_ids.begin(), unique_gpu_ids.size(), std::cout);
+      //   auto ugids = std::string("u_gids_")
+      //                  .append(std::to_string(comm_rank))
+      //                  .append("_")
+      //                  .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     ugids.c_str(), unique_gpu_ids.begin(), unique_gpu_ids.size(), std::cout);
 
-        auto goffsets = std::string("goff_")
-                          .append(std::to_string(comm_rank))
-                          .append("_")
-                          .append(std::to_string(local_ep_idx));
-        raft::print_device_vector(
-          goffsets.c_str(), gpu_offsets.begin(), gpu_offsets.size(), std::cout);
-      }
+      //   auto goffsets = std::string("goff_")
+      //                     .append(std::to_string(comm_rank))
+      //                     .append("_")
+      //                     .append(std::to_string(local_ep_idx));
+      //   raft::print_device_vector(
+      //     goffsets.c_str(), gpu_offsets.begin(), gpu_offsets.size(), std::cout);
+      // }
 
       h_unique_gpu_ids.resize(unique_gpu_ids.size());
       h_gpu_offsets.resize(gpu_offsets.size());
@@ -333,20 +338,20 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
       raft::update_host(
         h_gpu_offsets.data(), gpu_offsets.data(), gpu_offsets.size(), handle.get_stream());
 
-      if (debug) {
-        std::cout << "h_unique_gpu_ids: \n";
-        for (auto n : h_unique_gpu_ids)
-          printf("%d (%d_%d)  ",
-                 static_cast<int>(n),
-                 static_cast<int>(comm_rank),
-                 static_cast<int>(local_ep_idx));
-        std::cout << "h_gpu_offsets: \n";
-        for (auto n : h_gpu_offsets)
-          printf("%d (%d_%d)  ",
-                 static_cast<int>(n),
-                 static_cast<int>(comm_rank),
-                 static_cast<int>(local_ep_idx));
-      }
+      // if (debug) {
+      //   std::cout << "h_unique_gpu_ids: \n";
+      //   for (auto n : h_unique_gpu_ids)
+      //     printf("%d (%d_%d)  ",
+      //            static_cast<int>(n),
+      //            static_cast<int>(comm_rank),
+      //            static_cast<int>(local_ep_idx));
+      //   std::cout << "h_gpu_offsets: \n";
+      //   for (auto n : h_gpu_offsets)
+      //     printf("%d (%d_%d)  ",
+      //            static_cast<int>(n),
+      //            static_cast<int>(comm_rank),
+      //            static_cast<int>(local_ep_idx));
+      // }
 
     } else {
       thrust::sort(handle.get_thrust_policy(), (*edgelist_types).begin(), (*edgelist_types).end());
@@ -606,18 +611,22 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
     local_freqs[idx]      = store_capacity;
   }
 
-  if (debug) {
-    std::cout << "keys: \n";
-    for (auto n : h_unique_types_global)
-      std::cout << n << ' ';
-    std::cout << "\nsizes: \n";
-    for (auto n : local_freqs)
-      std::cout << n << ' ';
-    std::cout << "\n-------- \n";
-  }
+  // if (debug) {
+  std::cout << "keys: \n";
+  for (auto n : h_unique_types_global)
+    std::cout << n << ' ';
+  std::cout << "\nsizes: \n";
+  for (auto n : local_freqs)
+    std::cout << n << ' ';
+  std::cout << "\n-------- \n";
+  // }
 
   auto search_container =
     EdgeTypeAndIdToSrcDstLookupContainerType(handle, h_unique_types_global, local_freqs);
+
+  std::cout << " --------------After map creation-----\n";
+  search_container.print();
+  std::cout << " --------------xxxxxx---------------\n";
 
   //
   // Populate the search container
@@ -768,6 +777,22 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
         values_to_insert))>::value_type;
       static_assert(std::is_same_v<tt, value_t>);
 
+      // if (debug) {
+      //   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      //   auto const comm_rank = handle.get_comms().get_rank();
+      //   auto insert_title    = std::string("i_")
+      //                         .append(std::to_string(comm_rank))
+      //                         .append("_")
+      //                         .append(std::to_string(local_ep_idx))
+      //                         .append("_")
+      //                         .append(std::to_string(typ));
+
+      //   raft::print_device_vector(insert_title.c_str(),
+      //                             (*edgelist_ids).begin() + h_type_offsets[idx],
+      //                             nr_elements_to_insert,
+      //                             std::cout);
+      // }
+
       search_container.insert(
         handle,
         typ,
@@ -776,6 +801,10 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
         std::move(values_to_insert));
     }
   }
+
+  std::cout << " --------------After inseration-----\n";
+  search_container.print();
+  std::cout << " --------------vvvvvvvvvvvv---------------\n";
 
   return search_container;
 }
