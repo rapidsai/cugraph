@@ -106,7 +106,7 @@ class Tests_MGLookupEdgeSrcDst
       // mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    int32_t nr_hash_bins = 6 + static_cast<int>(mg_graph_view.number_of_vertices() / 100);
+    int32_t nr_hash_bins = 6 + static_cast<int>(mg_graph_view.number_of_vertices() / (1 << 10));
 
     std::cout << "nrbins: " << nr_hash_bins << "\n";
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), int32_t>> edge_types{
@@ -154,12 +154,12 @@ class Tests_MGLookupEdgeSrcDst
         type_freqs[et]++;
       });
 
-    /*
-      std::cout << "Rank: " << comm_rank << " type_freqs: ";
-      std::for_each(
-        type_freqs.cbegin(), type_freqs.cend(), [](const edge_t& f) { std::cout << f << " "; });
-      std::cout << "\n";
-    */
+      /*
+        std::cout << "Rank: " << comm_rank << " type_freqs: ";
+        std::for_each(
+          type_freqs.cbegin(), type_freqs.cend(), [](const edge_t& f) { std::cout << f << " "; });
+        std::cout << "\n";
+      */
       auto ep_ids =
         cugraph::test::to_host(*handle_,
                                raft::device_span<edge_t const>(
@@ -230,7 +230,6 @@ class Tests_MGLookupEdgeSrcDst
                                raft::device_span<int32_t const>(
                                  (*edge_types).view().value_firsts()[ep_idx], edge_counts[ep_idx]));
 
-      
       /*
       std::cout << "Rank: " << comm_rank << " *ep_types: ";
       std::for_each(ep_types.cbegin(), ep_types.cend(), [nr_hash_bins](const int32_t& cnt) {
@@ -276,25 +275,6 @@ class Tests_MGLookupEdgeSrcDst
       */
     }
 
-    /*
-        std::vector<edge_t> edge_ids_to_lookup = {55, 55, 77, 77};
-
-        rmm::device_uvector<edge_t> d_edge_ids_to_lookup(edge_ids_to_lookup.size(),
-                                                         handle_->get_stream());
-        raft::update_device(d_edge_ids_to_lookup.data(),
-                            edge_ids_to_lookup.data(),
-                            edge_ids_to_lookup.size(),
-                            handle_->get_stream());
-
-        std::vector<edge_t> edge_types_to_lookup = {1, 1, 0, 0};
-        rmm::device_uvector<edge_t> d_edge_types_to_lookup(edge_types_to_lookup.size(),
-                                                           handle_->get_stream());
-        raft::update_device(d_edge_types_to_lookup.data(),
-                            edge_types_to_lookup.data(),
-                            edge_types_to_lookup.size(),
-                            handle_->get_stream());
-    */
-
     auto search_container =
       cugraph::build_edge_id_and_type_to_src_dst_lookup_map<vertex_t, edge_t, int32_t, multi_gpu>(
         *handle_, mg_graph_view, (*edge_ids).view(), (*edge_types).view());
@@ -302,22 +282,7 @@ class Tests_MGLookupEdgeSrcDst
     std::cout << "Rank: " << comm_rank << ">>>>>>>  Back to test code \n";
     // search_container.print();
 
-    /*
-        auto [srcs, dsts] = cugraph::
-          cugraph_lookup_src_dst_from_edge_id_and_type_pub<vertex_t, edge_t, edge_t, multi_gpu>(
-            *handle_,
-            search_container,
-            raft::device_span<edge_t>(d_edge_ids_to_lookup.begin(), d_edge_ids_to_lookup.size()),
-            raft::device_span<edge_t>(d_edge_types_to_lookup.begin(),
-       d_edge_types_to_lookup.size()));
-    */
     if (lookup_usecase.check_correctness) {
-      // std::vector<bool> flag_ids_exist   = {true, false};
-      // std::vector<bool> flag_types_exist = {true, false};
-
-      // for (int i = 0; i < flag_ids_exist.size(); i++) {
-      //   for (int j = 0; j < flag_types_exist.size(); j++) {
-
       rmm::device_uvector<vertex_t> d_mg_srcs(0, handle_->get_stream());
       rmm::device_uvector<vertex_t> d_mg_dsts(0, handle_->get_stream());
 
@@ -359,24 +324,26 @@ class Tests_MGLookupEdgeSrcDst
       */
       auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
 
-      int nr_wrong_ids_or_types = (std::rand() % number_of_local_edges);
-
       auto h_mg_edge_ids   = cugraph::test::to_host(*handle_, d_mg_edge_ids);
       auto h_mg_edge_types = cugraph::test::to_host(*handle_, d_mg_edge_types);
 
       auto h_srcs_expected = cugraph::test::to_host(*handle_, d_mg_srcs);
       auto h_dsts_expected = cugraph::test::to_host(*handle_, d_mg_dsts);
 
-      for (int k = 0; k < nr_wrong_ids_or_types; k++) {
-        auto id_or_type = std::rand() % 2;
-        auto random_idx = std::rand() % number_of_local_edges;
-        if (id_or_type)
-          (*h_mg_edge_ids)[random_idx] = number_of_edges;
-        else
-          (*h_mg_edge_types)[random_idx] = nr_hash_bins;
+      if (number_of_local_edges > 0) {
+        int nr_wrong_ids_or_types = (std::rand() % number_of_local_edges);
 
-        h_srcs_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
-        h_dsts_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
+        for (int k = 0; k < nr_wrong_ids_or_types; k++) {
+          auto id_or_type = std::rand() % 2;
+          auto random_idx = std::rand() % number_of_local_edges;
+          if (id_or_type)
+            (*h_mg_edge_ids)[random_idx] = number_of_edges;
+          else
+            (*h_mg_edge_types)[random_idx] = nr_hash_bins;
+
+          h_srcs_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
+          h_dsts_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
+        }
       }
 
       d_mg_edge_ids   = cugraph::test::to_device(*handle_, h_mg_edge_ids);
@@ -440,98 +407,7 @@ class Tests_MGLookupEdgeSrcDst
       EXPECT_EQ(h_dsts_expected.size(), h_dsts_results.size());
       ASSERT_TRUE(
         std::equal(h_dsts_expected.begin(), h_dsts_expected.end(), h_dsts_results.begin()));
-
-      //   }
-      // }
     }
-
-    // std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    // std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-    // d_renumber_map_labels
-    //   ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-    //                                                           (*d_renumber_map_labels).size())
-    //   : std::nullopt
-
-    //   for (size_t ep_idx = 0; ep_idx < edge_counts.size(); ep_idx++) {
-    //     auto [srcs, dsts] =
-    //       cugraph::cugraph_lookup_src_dst_from_edge_id_and_type_pub<vertex_t, edge_t, edge_t,
-    //       multi_gpu>(
-    //         handle,
-    //         m,
-    //         raft::device_span<edge_t>(d_edge_ids_to_lookup.begin(),
-    //         d_edge_ids_to_lookup.size()),
-    //         raft::device_span<edge_t>(d_edge_types_to_lookup.begin(),
-    //         d_edge_types_to_lookup.size()));
-
-    //   auto ep_types =
-    //     cugraph::test::to_host(*handle_,
-    //                            raft::device_span<int32_t const>(
-    //                              (*edge_types).view().value_firsts()[ep_idx],
-    //                              edge_counts[ep_idx]));
-
-    //   auto ep_ids =
-    //     cugraph::test::to_host(*handle_,
-    //                            raft::device_span<edge_t const>(
-    //                              (*edge_ids).view().value_firsts()[ep_idx],
-    //                              edge_counts[ep_idx]));
-    //   raft::update_device((*edge_ids).mutable_view().value_firsts()[ep_idx],
-    //                       ep_ids.data(),
-    //                       ep_ids.size(),
-    //                       handle_->get_stream());
-
-    //   std::cout << "Rank: " << comm_rank << " *ep_ids: ";
-    //   std::for_each(
-    //     ep_ids.cbegin(), ep_ids.cend(), [](const edge_t& cnt) { std::cout << cnt << " "; });
-    //   std::cout << "\n";
-    // }
-
-    /*
-    if (lookup_usecase.check_correctness) {
-      weight_t mg_matching_weights;
-      rmm::device_uvector<vertex_t> mg_partners(0, handle_->get_stream());
-      auto h_mg_partners = cugraph::test::to_host(*handle_, mg_partners);
-
-      auto constexpr invalid_partner = cugraph::invalid_vertex_id<vertex_t>::value;
-
-      rmm::device_uvector<vertex_t> mg_aggregate_partners(0, handle_->get_stream());
-      std::tie(std::ignore, mg_aggregate_partners) =
-        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-          *handle_,
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<vertex_t const>(mg_partners.data(), mg_partners.size()));
-
-      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt),
-        false);
-
-      if (handle_->get_comms().get_rank() == 0) {
-        auto sg_graph_view = sg_graph.view();
-
-        rmm::device_uvector<vertex_t> sg_partners(0, handle_->get_stream());
-        weight_t sg_matching_weights;
-
-        std::forward_as_tuple(sg_partners, sg_matching_weights) =
-          cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, false>(
-            *handle_, sg_graph_view, (*sg_edge_weights).view());
-        auto h_sg_partners           = cugraph::test::to_host(*handle_, sg_partners);
-        auto h_mg_aggregate_partners = cugraph::test::to_host(*handle_, mg_aggregate_partners);
-
-        ASSERT_FLOAT_EQ(mg_matching_weights, sg_matching_weights)
-          << "SG and MG matching weights are different";
-        ASSERT_TRUE(
-          std::equal(h_sg_partners.begin(), h_sg_partners.end(), h_mg_aggregate_partners.begin()));
-      }
-    }*/
   }
 
  private:

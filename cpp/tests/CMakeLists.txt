@@ -494,6 +494,9 @@ ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
+###############################################################################################
+# - EDGE SOURCE DESTINATION LOOKUP tests ------------------------------------------------------------------------------
+ConfigureTestMG(LOOKUP_TEST community/lookup_test.cpp)
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------

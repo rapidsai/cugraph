@@ -123,36 +123,34 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
   {
     auto itr = edge_type_to_kv_store.find(type);
 
+    // std::cout << " Impl::insert() \n";
     if (itr != edge_type_to_kv_store.end()) {
       assert(itr->first == type);
 
-      auto const comm_rank = handle.get_comms().get_rank();
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // auto const comm_rank = 9;  // handle.get_comms().get_rank();
 
-      /*
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // std::cout << "** rank:  " << comm_rank << " inserting  type: " << type << "\n";
+      // auto insert_title = std::string("ids_")
+      //                       .append(std::to_string(comm_rank))
+      //                       .append("_")
+      //                       .append(std::to_string(type));
+      // raft::print_device_vector(
+      //   insert_title.c_str(), edge_ids_to_insert.begin(), edge_ids_to_insert.size(), std::cout);
 
-        std::cout << "** rank:  " << comm_rank << " inserting  type: " << type << "\n";
-        auto insert_title = std::string("ids_")
-                              .append(std::to_string(comm_rank))
-                              .append("_")
-                              .append(std::to_string(type));
-        raft::print_device_vector(
-          insert_title.c_str(), edge_ids_to_insert.begin(), edge_ids_to_insert.size(), std::cout);
+      // auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
+      //   std::get<0>(values_to_insert).data(), std::get<0>(values_to_insert).size());
 
-        auto srcs = raft::device_span<typename thrust::tuple_element<0, value_t>::type const>(
-          std::get<0>(values_to_insert).data(), std::get<0>(values_to_insert).size());
+      // auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
+      //   std::get<1>(values_to_insert).data(), std::get<1>(values_to_insert).size());
 
-        auto dsts = raft::device_span<typename thrust::tuple_element<1, value_t>::type const>(
-          std::get<1>(values_to_insert).data(), std::get<1>(values_to_insert).size());
+      // auto srcs_title = std::string("isrcs_").append(std::to_string(comm_rank));
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
 
-        auto srcs_title = std::string("isrcs_").append(std::to_string(comm_rank));
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(srcs_title.c_str(), srcs.begin(), srcs.size(), std::cout);
-
-        auto dsts_title = std::string("idsts_").append(std::to_string(comm_rank));
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
-      */
+      // auto dsts_title = std::string("idsts_").append(std::to_string(comm_rank));
+      // RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      // raft::print_device_vector(dsts_title.c_str(), dsts.begin(), dsts.size(), std::cout);
 
       // std::cout << "\n => Right before inserting type " << type << ", kv_store size "
       //           << itr->second.size() << std::endl;
@@ -162,10 +160,9 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
                          edge_ids_to_insert.end(),
                          cugraph::get_dataframe_buffer_begin(values_to_insert),
                          handle.get_stream());
-      // if (type == 5)
-      //   std::cout << "\n => Right after inserting type " << type << ", kv_store size "
-      //             << itr->second.size() << std::endl;
+
     } else {
+      // std::cout << " Impl::insert() assert false \n";
       assert(false);
     }
   }
@@ -310,7 +307,7 @@ struct search_container_t<edge_type_t, edge_id_t, value_t>::impl {
                         thrust::make_zip_iterator(thrust::make_tuple(tmp_edge_ids_to_lookup.begin(),
                                                                      original_idxs.begin())));
 
-    auto const comm_rank = handle.get_comms().get_rank();
+    auto const comm_rank = multi_gpu ? handle.get_comms().get_rank() : 0;
 
     /*
     auto ts_ttile = std::string("ltys_").append(std::to_string(comm_rank));
