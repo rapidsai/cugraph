@@ -32,7 +32,7 @@ fi
 PYTORCH_URL="https://download.pytorch.org/whl/cu${PYTORCH_CUDA_VER}"
 DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
 
-# Starting from 2.2, PyTorch wheels depends on nvidia-nccl-cuxx>=2.19 wheel and
+# Starting from 2.2, PyTorch wheels depend on nvidia-nccl-cuxx>=2.19 wheel and
 # dynamically link to NCCL. RAPIDS CUDA 11 CI images have an older NCCL version that
 # might shadow the newer NCCL required by PyTorch during import (when importing
 # `cupy` before `torch`).
