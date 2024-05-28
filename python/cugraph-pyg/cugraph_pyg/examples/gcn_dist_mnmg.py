@@ -351,78 +351,81 @@ if __name__ == "__main__":
     args = parser.parse_args()
     wall_clock_start = time.perf_counter()
 
-    if "LOCAL_RANK" not in os.environ:
-        warnings.warn("This script should be run with 'torchrun`.  Exiting.")
+    if "LOCAL_RANK" in os.environ:
+        dist.init_process_group("nccl")
+        world_size = dist.get_world_size()
+        global_rank = dist.get_rank()
+        local_rank = int(os.environ["LOCAL_RANK"])
+        device = torch.device(local_rank)
 
-    dist.init_process_group("nccl")
-    world_size = dist.get_world_size()
-    global_rank = dist.get_rank()
-    local_rank = int(os.environ["LOCAL_RANK"])
-    device = torch.device(local_rank)
+        # Create the uid needed for cuGraph comms
+        if global_rank == 0:
+            cugraph_id = [cugraph_comms_create_unique_id()]
+        else:
+            cugraph_id = [None]
+        dist.broadcast_object_list(cugraph_id, src=0, device=device)
+        cugraph_id = cugraph_id[0]
 
-    # Create the uid needed for cuGraph comms
-    if global_rank == 0:
-        cugraph_id = [cugraph_comms_create_unique_id()]
-    else:
-        cugraph_id = [None]
-    dist.broadcast_object_list(cugraph_id, src=0, device=device)
-    cugraph_id = cugraph_id[0]
+        init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id)
 
-    init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id)
+        # Split the data
+        edge_path = os.path.join(args.dataset_root, args.dataset + "_eix_part")
+        feature_path = os.path.join(args.dataset_root, args.dataset + "_fea_part")
+        label_path = os.path.join(args.dataset_root, args.dataset + "_label_part")
+        meta_path = os.path.join(args.dataset_root, args.dataset + "_meta.json")
 
-    # Split the data
-    edge_path = os.path.join(args.dataset_root, args.dataset + "_eix_part")
-    feature_path = os.path.join(args.dataset_root, args.dataset + "_fea_part")
-    label_path = os.path.join(args.dataset_root, args.dataset + "_label_part")
-    meta_path = os.path.join(args.dataset_root, args.dataset + "_meta.json")
+        # We partition the data to avoid loading it in every worker, which will
+        # waste memory and can lead to an out of memory exception.
+        # cugraph_pyg.GraphStore and cugraph_pyg.WholeFeatureStore are always
+        # constructed from partitions of the edge index and features, respectively,
+        # so this works well.
+        if not args.skip_partition and global_rank == 0:
+            dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
+            split_idx = dataset.get_idx_split()
 
-    # We partition the data to avoid loading it in every worker, which will
-    # waste memory and can lead to an out of memory exception.
-    # cugraph_pyg.GraphStore and cugraph_pyg.WholeFeatureStore are always
-    # constructed from partitions of the edge index and features, respectively,
-    # so this works well.
-    if not args.skip_partition and global_rank == 0:
-        dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
-        split_idx = dataset.get_idx_split()
+            partition_data(
+                dataset,
+                split_idx,
+                meta_path=meta_path,
+                label_path=label_path,
+                feature_path=feature_path,
+                edge_path=edge_path,
+            )
 
-        partition_data(
-            dataset,
-            split_idx,
-            meta_path=meta_path,
-            label_path=label_path,
-            feature_path=feature_path,
+        dist.barrier()
+        data, split_idx, meta = load_partitioned_data(
+            rank=global_rank,
             edge_path=edge_path,
+            feature_path=feature_path,
+            label_path=label_path,
+            meta_path=meta_path,
+            wg_mem_type=args.wg_mem_type,
         )
+        dist.barrier()
 
-    dist.barrier()
-    data, split_idx, meta = load_partitioned_data(
-        rank=global_rank,
-        edge_path=edge_path,
-        feature_path=feature_path,
-        label_path=label_path,
-        meta_path=meta_path,
-        wg_mem_type=args.wg_mem_type,
-    )
-    dist.barrier()
-
-    model = torch_geometric.nn.models.GCN(
-        meta["num_features"], args.hidden_channels, args.num_layers, meta["num_classes"]
-    ).to(device)
-    model = DistributedDataParallel(model, device_ids=[local_rank])
-
-    with tempfile.TemporaryDirectory(dir=args.tempdir_root) as tempdir:
-        run_train(
-            global_rank,
-            data,
-            split_idx,
-            world_size,
-            device,
-            model,
-            args.epochs,
-            args.batch_size,
-            args.fan_out,
-            meta["num_classes"],
-            wall_clock_start,
-            tempdir,
+        model = torch_geometric.nn.models.GCN(
+            meta["num_features"],
+            args.hidden_channels,
             args.num_layers,
-        )
+            meta["num_classes"],
+        ).to(device)
+        model = DistributedDataParallel(model, device_ids=[local_rank])
+
+        with tempfile.TemporaryDirectory(dir=args.tempdir_root) as tempdir:
+            run_train(
+                global_rank,
+                data,
+                split_idx,
+                world_size,
+                device,
+                model,
+                args.epochs,
+                args.batch_size,
+                args.fan_out,
+                meta["num_classes"],
+                wall_clock_start,
+                tempdir,
+                args.num_layers,
+            )
+    else:
+        warnings.warn("This script should be run with 'torchrun`.  Exiting.")
