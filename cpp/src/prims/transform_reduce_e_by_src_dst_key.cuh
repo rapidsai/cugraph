@@ -56,7 +56,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename ValueIterator>
-__device__ void update_buffer_element(
+__device__ void transform_reduce_e_by_src_dst_key_update_buffer_element(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu>& edge_partition,
@@ -140,7 +140,8 @@ __global__ static void transform_reduce_by_src_dst_key_hypersparse(
       edge_t counter{0};
       for (edge_t i = 0; i < local_degree; ++i) {
         if ((*edge_partition_e_mask).get(edge_offset + i)) {
-          update_buffer_element<edge_partition_src_key, GraphViewType>(
+          transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                  GraphViewType>(
             edge_partition,
             major,
             indices[i],
@@ -157,7 +158,8 @@ __global__ static void transform_reduce_by_src_dst_key_hypersparse(
       }
     } else {
       for (edge_t i = 0; i < local_degree; ++i) {
-        update_buffer_element<edge_partition_src_key, GraphViewType>(
+        transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                GraphViewType>(
           edge_partition,
           major,
           indices[i],
@@ -224,7 +226,8 @@ __global__ static void transform_reduce_by_src_dst_key_low_degree(
       edge_t counter{0};
       for (edge_t i = 0; i < local_degree; ++i) {
         if ((*edge_partition_e_mask).get(edge_offset + i)) {
-          update_buffer_element<edge_partition_src_key, GraphViewType>(
+          transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                  GraphViewType>(
             edge_partition,
             major,
             indices[i],
@@ -241,7 +244,8 @@ __global__ static void transform_reduce_by_src_dst_key_low_degree(
       }
     } else {
       for (edge_t i = 0; i < local_degree; ++i) {
-        update_buffer_element<edge_partition_src_key, GraphViewType>(
+        transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                GraphViewType>(
           edge_partition,
           major,
           indices[i],
@@ -321,7 +325,8 @@ __global__ static void transform_reduce_by_src_dst_key_mid_degree(
       counter = 0;
       for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
         if ((*edge_partition_e_mask).get(edge_offset + i)) {
-          update_buffer_element<edge_partition_src_key, GraphViewType>(
+          transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                  GraphViewType>(
             edge_partition,
             major,
             indices[i],
@@ -338,7 +343,8 @@ __global__ static void transform_reduce_by_src_dst_key_mid_degree(
       }
     } else {
       for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-        update_buffer_element<edge_partition_src_key, GraphViewType>(
+        transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                GraphViewType>(
           edge_partition,
           major,
           indices[i],
@@ -415,7 +421,8 @@ __global__ static void transform_reduce_by_src_dst_key_high_degree(
       counter = 0;
       for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
         if ((*edge_partition_e_mask).get(edge_offset + i)) {
-          update_buffer_element<edge_partition_src_key, GraphViewType>(
+          transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                  GraphViewType>(
             edge_partition,
             major,
             indices[i],
@@ -432,7 +439,8 @@ __global__ static void transform_reduce_by_src_dst_key_high_degree(
       }
     } else {
       for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-        update_buffer_element<edge_partition_src_key, GraphViewType>(
+        transform_reduce_e_by_src_dst_key_update_buffer_element<edge_partition_src_key,
+                                                                GraphViewType>(
           edge_partition,
           major,
           indices[i],

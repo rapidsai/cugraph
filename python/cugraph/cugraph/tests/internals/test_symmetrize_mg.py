@@ -232,14 +232,17 @@ def test_mg_symmetrize(dask_client, read_datasets):
 
     # create a dask DataFrame from the dask Series
     if isinstance(sym_src, dask_cudf.Series):
-        ddf2 = sym_src.to_frame()
-        ddf2 = ddf2.rename(columns={sym_src.name: "src"})
-        ddf2["dst"] = sym_dst
+        frames = [
+            sym_src.to_frame(name="src"),
+            sym_dst.to_frame(name="dst"),
+        ]
     else:
-        ddf2 = dask_cudf.concat([sym_src, sym_dst], axis=1)
+        frames = [sym_src, sym_dst]
 
     if val_col_name is not None:
-        ddf2["weight"] = sym_val
+        frames.append(sym_val.to_frame(name="weight"))
+
+    ddf2 = dask_cudf.concat(frames, axis=1)
 
     compare(ddf, ddf2, src_col_name, dst_col_name, val_col_name)
 

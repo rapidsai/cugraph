@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -286,11 +286,7 @@ def replicate_cudf_dataframe(cudf_dataframe):
     df = get_persisted_df_worker_map(df, _client)
 
     ddf = _mg_call_plc_replicate(
-        _client,
-        Comms.get_session_id(),
-        df,
-        "dataframe",
-        cudf_dataframe.columns
+        _client, Comms.get_session_id(), df, "dataframe", cudf_dataframe.columns
     )
 
     return ddf
