@@ -5,8 +5,8 @@ cuGraph traversal algorithms are contained in this directory
 
 The unit test code is the best place to search for examples on calling SSSP.
 
- * [SG Implementation](https://github.com/rapidsai/cugraph/blob/branch-24.06/cpp/tests/traversal/sssp_test.cpp)
- * [MG Implementation](https://github.com/rapidsai/cugraph/blob/branch-24.06/cpp/tests/traversal/mg_sssp_test.cpp)
+ * [SG Implementation](https://github.com/rapidsai/cugraph/blob/main/cpp/tests/traversal/sssp_test.cpp)
+ * [MG Implementation](https://github.com/rapidsai/cugraph/blob/main/cpp/tests/traversal/mg_sssp_test.cpp)
 
 ## Simple SSSP
 
@@ -33,7 +33,7 @@ cugraph::sssp(handle, graph_view, distances_v.begin(), predecessors_v.begin(), s
 The unit test code is the best place to search for examples on calling BFS.
 
  * [SG Implementation](https://github.com/rapidsai/cugraph/blob/main/cpp/tests/traversal/bfs_test.cpp)
- * [MG Implementation](https://github.com/rapidsai/cugraph/blob/branch-24.06/cpp/tests/traversal/mg_bfs_test.cpp)
+ * [MG Implementation](https://github.com/rapidsai/cugraph/blob/main/cpp/tests/traversal/mg_bfs_test.cpp)
 
 ## Simple BFS
 
