@@ -48,7 +48,7 @@ Run the command again, this time specifiying cugraph as the NetworkX backend of 
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
-This run will be much faster, typically around 20 seconds depending on you GPU the time.
+This run will be much faster, typically around 20 seconds depending on your GPU.
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
@@ -57,7 +57,7 @@ There is also an option to add caching. This will dramatically help performance 
 NETWORKX_BACKEND_PRIORITY=cugraph CACHE_CONVERTED_GRAPH=True ipython bc_demo.ipy
 ```
 
-When running Python interactively, cugraph can be specified as an argument in the algorithm call.
+When running Python interactively, cugraph backend can be specified as an argument in the algorithm call.
 
 For example:
 ```
