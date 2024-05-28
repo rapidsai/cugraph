@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/utilities/dataframe_buffer.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
@@ -26,25 +28,50 @@
 namespace cugraph {
 namespace test {
 
-template <typename value_buffer_type>
-value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values);
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> sort(
+  raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t> const& values);
 
-template <typename value_buffer_type>
-std::tuple<value_buffer_type, value_buffer_type> sort(raft::handle_t const& handle,
-                                                      value_buffer_type const& first,
-                                                      value_buffer_type const& second);
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> sort(raft::handle_t const& handle,
+                                               cugraph::dataframe_buffer_type_t<value_t>&& values);
 
-template <typename key_buffer_type, typename value_buffer_type>
-std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
-                                                           key_buffer_type const& keys,
-                                                           value_buffer_type const& values);
+template <typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<value_t>, cugraph::dataframe_buffer_type_t<value_t>>
+sort(raft::handle_t const& handle,
+     cugraph::dataframe_buffer_type_t<value_t> const& first,
+     cugraph::dataframe_buffer_type_t<value_t> const& second);
 
-template <typename key_buffer_type, typename value_buffer_type>
-std::tuple<key_buffer_type, key_buffer_type, value_buffer_type> sort_by_key(
-  raft::handle_t const& handle,
-  key_buffer_type const& first,
-  key_buffer_type const& second,
-  value_buffer_type const& values);
+template <typename key_t, typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>>
+sort_by_key(raft::handle_t const& handle,
+            cugraph::dataframe_buffer_type_t<key_t> const& keys,
+            cugraph::dataframe_buffer_type_t<value_t> const& values);
+
+template <typename key_t, typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>>
+sort_by_key(raft::handle_t const& handle,
+            cugraph::dataframe_buffer_type_t<key_t>&& keys,
+            cugraph::dataframe_buffer_type_t<value_t>&& values);
+
+template <typename key_t, typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<key_t>,
+           cugraph::dataframe_buffer_type_t<key_t>,
+           cugraph::dataframe_buffer_type_t<value_t>>
+sort_by_key(raft::handle_t const& handle,
+            cugraph::dataframe_buffer_type_t<key_t> const& first,
+            cugraph::dataframe_buffer_type_t<key_t> const& second,
+            cugraph::dataframe_buffer_type_t<value_t> const& values);
+
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> unique(
+  raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t>&& values);
+
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
+                                                   size_t length,
+                                                   size_t repeat_count,
+                                                   value_t init);
 
 template <typename vertex_t>
 vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices);
