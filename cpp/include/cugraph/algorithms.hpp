@@ -22,6 +22,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
+#include <cugraph/src_dst_lookup_container.hpp>
 
 #include <rmm/resource_ref.hpp>
 
@@ -2412,6 +2413,86 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/*
+ * @brief Build map to lookup source and destination using edge id and type
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_id_view View object holding edge ids of the edges of the graph pointed @p graph_view
+ * @param edge_type_view View object holding edge types of the edges of the graph pointed @p
+ * graph_view
+ * @return An object of type cugraph::search_container_t that encapsulates edge id and type to
+ * source and destination lookup map.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>>
+build_edge_id_and_type_to_src_dst_lookup_map(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, edge_t const*> edge_id_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view);
+
+/*
+ * @brief Lookup edge sources and destinations using edge ids and an edge type
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param search_container Object of type cugraph::search_container_t that encapsulates edge id and
+ * type to source and destination lookup map.
+ * @param edge_ids_to_lookup Device span of edge ids to lookup
+ * @param edge_type_to_lookup Type of the edges corresponding to edge ids in @p edge_ids_to_lookup
+ * @return A tuple of device vector containing edge sources and destinations for edge ids
+ * in @p edge_ids_to_lookup and edge type @. If an edge id in @p edge_ids_to_lookup or
+ * edge type @edge_type_to_lookup is not found, the corresponding entry in the device vectors of
+ * the returned tuple will contain cugraph::invalid_vertex_id<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type(
+  raft::handle_t const& handle,
+  search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>> const&
+    search_container,
+  raft::device_span<edge_t const> edge_ids_to_lookup,
+  edge_type_t edge_type_to_lookup);
+
+/*
+ * @brief Lookup edge sources and destinations using edge ids and edge types
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param search_container Object of type cugraph::search_container_t that encapsulates edge id and
+ * type to source and destination lookup map.
+ * @param edge_ids_to_lookup Device span of edge ids to lookup
+ * @param edge_types_to_lookup Device span of edge types corresponding to the edge ids
+ * in @p edge_ids_to_lookup
+ * @return A tuple of device vector containing edge sources and destinations for the edge ids
+ * in @p edge_ids_to_lookup and the edge types in @p edge_types_to_lookup. If an edge id in
+ * @p edge_ids_to_lookup or edge type in @p edge_types_to_lookup is not found, the
+ * corresponding entry in the device vectors of the returned tuple will contain
+ * cugraph::invalid_vertex_id<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+cugraph_lookup_src_dst_from_edge_id_and_type(
+  raft::handle_t const& handle,
+  search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>> const&
+    search_container,
+  raft::device_span<edge_t const> edge_ids_to_lookup,
+  raft::device_span<edge_type_t const> edge_types_to_lookup);
 }  // namespace cugraph
 
 /**
