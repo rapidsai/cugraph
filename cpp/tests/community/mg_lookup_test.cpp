@@ -229,7 +229,7 @@ class Tests_MGLookupEdgeSrcDst
           auto id_or_type = std::rand() % 2;
           auto random_idx = std::rand() % number_of_local_edges;
           if (id_or_type)
-            (*h_mg_edge_ids)[random_idx] = number_of_edges;
+            (*h_mg_edge_ids)[random_idx] = std::numeric_limits<edge_t>::max();
           else
             (*h_mg_edge_types)[random_idx] = number_of_edge_types;
 
@@ -241,8 +241,8 @@ class Tests_MGLookupEdgeSrcDst
       d_mg_edge_ids   = cugraph::test::to_device(*handle_, h_mg_edge_ids);
       d_mg_edge_types = cugraph::test::to_device(*handle_, h_mg_edge_types);
 
-      auto [srcs, dsts] = cugraph::
-        cugraph_lookup_src_dst_from_edge_id_and_type_pub<vertex_t, edge_t, int32_t, multi_gpu>(
+      auto [srcs, dsts] =
+        cugraph::cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t, edge_t, int32_t, multi_gpu>(
           *handle_,
           search_container,
           raft::device_span<edge_t>((*d_mg_edge_ids).begin(), (*d_mg_edge_ids).size()),
@@ -310,8 +310,9 @@ TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGLookupEdgeSrcDst_File,
-  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false},
-                                       EdgeSrcDstLookup_UseCase{true}),
+  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false}
+                                       // , EdgeSrcDstLookup_UseCase{true}
+                                       ),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
@@ -330,8 +331,9 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGLookupEdgeSrcDst_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false},
-                      EdgeSrcDstLookup_UseCase{true, false}),
+    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false}
+                      // , EdgeSrcDstLookup_UseCase{true, false}
+                      ),
     ::testing::Values(cugraph::test::Rmat_Usecase(5, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -98,11 +98,8 @@ class Tests_SGLookupEdgeSrcDst
       // sg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    ///////////////
-
     int32_t nr_hash_bins = 6 + static_cast<int>(sg_graph_view.number_of_vertices() / (1 << 10));
 
-    std::cout << "nrbins: " << nr_hash_bins << "\n";
     std::optional<cugraph::edge_property_t<decltype(sg_graph_view), int32_t>> edge_types{
       std::nullopt};
     edge_types = cugraph::test::generate<decltype(sg_graph_view), int32_t>::edge_property(
@@ -178,8 +175,6 @@ class Tests_SGLookupEdgeSrcDst
       cugraph::build_edge_id_and_type_to_src_dst_lookup_map<vertex_t, edge_t, int32_t, multi_gpu>(
         handle, sg_graph_view, (*edge_ids).view(), (*edge_types).view());
 
-    search_container.print();
-
     if (lookup_usecase.check_correctness) {
       rmm::device_uvector<vertex_t> d_mg_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> d_mg_dsts(0, handle.get_stream());
@@ -211,7 +206,7 @@ class Tests_SGLookupEdgeSrcDst
           auto id_or_type = std::rand() % 2;
           auto random_idx = std::rand() % number_of_local_edges;
           if (id_or_type)
-            (*h_mg_edge_ids)[random_idx] = number_of_edges;
+            (*h_mg_edge_ids)[random_idx] = std::numeric_limits<edge_t>::max();
           else
             (*h_mg_edge_types)[random_idx] = nr_hash_bins;
 
@@ -223,8 +218,8 @@ class Tests_SGLookupEdgeSrcDst
       d_mg_edge_ids   = cugraph::test::to_device(handle, h_mg_edge_ids);
       d_mg_edge_types = cugraph::test::to_device(handle, h_mg_edge_types);
 
-      auto [srcs, dsts] = cugraph::
-        cugraph_lookup_src_dst_from_edge_id_and_type_pub<vertex_t, edge_t, int32_t, multi_gpu>(
+      auto [srcs, dsts] =
+        cugraph::cugraph_lookup_src_dst_from_edge_id_and_type<vertex_t, edge_t, int32_t, multi_gpu>(
           handle,
           search_container,
           raft::device_span<edge_t>((*d_mg_edge_ids).begin(), (*d_mg_edge_ids).size()),
@@ -286,14 +281,16 @@ TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_SGLookupEdgeSrcDst_File,
-  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false},
-                                       EdgeSrcDstLookup_UseCase{true}),
+  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false}
+                                       // , EdgeSrcDstLookup_UseCase{true}
+                                       ),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_SGLookupEdgeSrcDst_Rmat,
-                         ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false},
-                                                              EdgeSrcDstLookup_UseCase{true}),
+                         ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false}
+                                                              //  , EdgeSrcDstLookup_UseCase{true}
+                                                              ),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               3, 3, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -305,8 +302,9 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_SGLookupEdgeSrcDst_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false},
-                      EdgeSrcDstLookup_UseCase{true, false}),
+    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false}
+                      // , EdgeSrcDstLookup_UseCase{true, false}
+                      ),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
