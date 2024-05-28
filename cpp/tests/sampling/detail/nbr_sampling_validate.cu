@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// Andrei Schaffer, aschaffer@nvidia.com
-//
 #pragma once
 
 #include "utilities/base_fixture.hpp"
