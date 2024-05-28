@@ -45,6 +45,7 @@ add_library(cugraphtestutil STATIC
             cores/k_core_validate.cu
             structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
+            sampling/detail/nbr_sampling_validate.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
