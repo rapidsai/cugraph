@@ -258,15 +258,17 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                  weight_t>>
         sg_edge_weight{std::nullopt};
 
-      std::tie(sg_graph, sg_edge_weight, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight
-          ? std::make_optional(mg_edge_weight_view)
-          : std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, sg_edge_weight, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight
+            ? std::make_optional(mg_edge_weight_view)
+            : std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();

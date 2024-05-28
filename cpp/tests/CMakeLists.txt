@@ -491,6 +491,11 @@ ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
+# - Edge Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
+
+
+###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
@@ -589,6 +594,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
+
+    ###############################################################################################
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
