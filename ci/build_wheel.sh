@@ -56,8 +56,6 @@ fi
 
 cd "${package_dir}"
 
-PARALLEL_LEVEL="16" \
-CMAKE_BUILD_PARALLEL_LEVEL="16" \
 python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.

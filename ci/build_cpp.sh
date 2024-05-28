@@ -17,7 +17,6 @@ version=$(rapids-generate-version)
 
 rapids-logger "Begin cpp build"
 
-PARALLEL_LEVEL="16" \
 RAPIDS_PACKAGE_VERSION=${version} rapids-conda-retry mambabuild conda/recipes/libcugraph
 
 rapids-upload-conda-to-s3 cpp
