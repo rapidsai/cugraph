@@ -15,17 +15,13 @@
  */
 
 #include "detail/nbr_sampling_validate.hpp"
-#include "utilities/mg_utilities.hpp"
 #include "utilities/base_fixture.hpp"
-#include "utilities/test_graphs.hpp"
 #include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-
-#include <thrust/distance.h>
-#include <thrust/sort.h>
-#include <thrust/unique.h>
 
 #include <gtest/gtest.h>
 
@@ -117,15 +113,11 @@ class Tests_MGUniform_Neighbor_Sampling
                                          float{1},
                                          rng_state);
 
-    thrust::sort_by_key(handle_->get_thrust_policy(),
-                        random_numbers.begin(),
-                        random_numbers.end(),
-                        random_sources.begin());
+    std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
+      *handle_, std::move(random_numbers), std::move(random_sources));
 
     random_numbers.resize(0, handle_->get_stream());
     random_numbers.shrink_to_fit(handle_->get_stream());
-
-    rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle_->get_stream());
 
     auto seed_sizes = cugraph::host_scalar_allgather(
       handle_->get_comms(), random_sources.size(), handle_->get_stream());
@@ -136,24 +128,15 @@ class Tests_MGUniform_Neighbor_Sampling
     std::vector<size_t> seed_offsets(seed_sizes.size());
     std::exclusive_scan(seed_sizes.begin(), seed_sizes.end(), seed_offsets.begin(), size_t{0});
 
-    thrust::tabulate(
-      handle_->get_thrust_policy(),
-      batch_number.begin(),
-      batch_number.end(),
-      [seed_offset = seed_offsets[handle_->get_comms().get_rank()],
-       num_batches] __device__(int32_t index) { return (seed_offset + index) % num_batches; });
+    auto batch_number = cugraph::test::modulo_sequence<int32_t>(
+      *handle_, random_sources.size(), num_batches, seed_offsets[handle_->get_comms().get_rank()]);
 
     rmm::device_uvector<int32_t> unique_batches(num_batches, handle_->get_stream());
-    rmm::device_uvector<int32_t> comm_ranks(num_batches, handle_->get_stream());
-
     cugraph::detail::sequence_fill(
       handle_->get_stream(), unique_batches.data(), unique_batches.size(), int32_t{0});
-    thrust::tabulate(handle_->get_thrust_policy(),
-                     comm_ranks.begin(),
-                     comm_ranks.end(),
-                     [num_gpus = handle_->get_comms().get_size()] __device__(auto index) {
-                       return index % num_gpus;
-                     });
+
+    auto comm_ranks = cugraph::test::modulo_sequence<int32_t>(
+      *handle_, num_batches, handle_->get_comms().get_size(), int32_t{0});
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
 
@@ -237,15 +220,14 @@ class Tests_MGUniform_Neighbor_Sampling
                  mg_aggregate_dst.data(),
                  mg_aggregate_dst.size(),
                  handle_->get_stream());
-      thrust::sort(handle_->get_thrust_policy(), vertices.begin(), vertices.end());
-      auto vertices_end =
-        thrust::unique(handle_->get_thrust_policy(), vertices.begin(), vertices.end());
-      vertices.resize(thrust::distance(vertices.begin(), vertices_end), handle_->get_stream());
+      vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
+      vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
       vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
 
-      thrust::sort(handle_->get_thrust_policy(), vertices.begin(), vertices.end());
+      vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
+      vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
       rmm::device_uvector<size_t> d_subgraph_offsets(2, handle_->get_stream());
       std::vector<size_t> h_subgraph_offsets({0, vertices.size()});

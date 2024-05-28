@@ -399,6 +399,31 @@ template rmm::device_uvector<int64_t> sequence(raft::handle_t const& handle,
                                                size_t repeat_count,
                                                int64_t init);
 
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
+                                                          size_t length,
+                                                          value_t modulo,
+                                                          value_t init)
+{
+  auto values = cugraph::allocate_dataframe_buffer<value_t>(length, handle.get_stream());
+  thrust::tabulate(
+    handle.get_thrust_policy(), values.begin(), values.end(), [modulo, init] __device__(size_t i) {
+      return static_cast<value_t>((init + i) % modulo);
+    });
+
+  return values;
+}
+
+template rmm::device_uvector<int32_t> modulo_sequence(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      int32_t modulo,
+                                                      int32_t init);
+
+template rmm::device_uvector<int64_t> modulo_sequence(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      int64_t modulo,
+                                                      int64_t init);
+
 template <typename vertex_t>
 vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices)
 {

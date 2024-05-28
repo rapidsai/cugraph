@@ -111,8 +111,7 @@ class Tests_Biased_Neighbor_Sampling
     random_numbers.resize(0, handle.get_stream());
     random_numbers.shrink_to_fit(handle.get_stream());
 
-    auto batch_number =
-      std::make_optional<rmm::device_uvector<int32_t>>(random_sources.size(), handle.get_stream());
+    auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle.get_stream());
 
     batch_number = cugraph::test::sequence<int32_t>(
       handle, random_sources.size(), biased_neighbor_sampling_usecase.batch_size, int32_t{0});
@@ -176,17 +175,18 @@ class Tests_Biased_Neighbor_Sampling
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
-      cugraph::test::validate_extracted_graph_is_subgraph(
-        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out);
+      ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
+        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices
-        cugraph::test::validate_sampling_depth(handle,
-                                               std::move(src_out),
-                                               std::move(dst_out),
-                                               std::move(wgt_out),
-                                               std::move(random_sources),
-                                               biased_neighbor_sampling_usecase.fanout.size());
+        ASSERT_TRUE(
+          cugraph::test::validate_sampling_depth(handle,
+                                                 std::move(src_out),
+                                                 std::move(dst_out),
+                                                 std::move(wgt_out),
+                                                 std::move(random_sources),
+                                                 biased_neighbor_sampling_usecase.fanout.size()));
       }
     }
   }

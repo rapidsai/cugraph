@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#pragma once
-
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -103,7 +101,7 @@ struct ArithmeticZipEqual {
 };
 
 template <typename vertex_t, typename weight_t>
-void validate_extracted_graph_is_subgraph(
+bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> const& src,
   rmm::device_uvector<vertex_t> const& dst,
@@ -112,7 +110,7 @@ void validate_extracted_graph_is_subgraph(
   rmm::device_uvector<vertex_t> const& subgraph_dst,
   std::optional<rmm::device_uvector<weight_t>> const& subgraph_wgt)
 {
-  ASSERT_EQ(wgt.has_value(), subgraph_wgt.has_value());
+  if (wgt.has_value() != subgraph_wgt.has_value()) { return false; }
 
   rmm::device_uvector<vertex_t> src_v(src.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(dst.size(), handle.get_stream());
@@ -224,11 +222,10 @@ void validate_extracted_graph_is_subgraph(
     dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
   }
 
-  ASSERT_EQ(0, dist);
+  return (dist == 0);
 }
 
-template <typename int32_t, typename float>
-void validate_extracted_graph_is_subgraph(
+template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t> const& src,
   rmm::device_uvector<int32_t> const& dst,
@@ -237,8 +234,7 @@ void validate_extracted_graph_is_subgraph(
   rmm::device_uvector<int32_t> const& subgraph_dst,
   std::optional<rmm::device_uvector<float>> const& subgraph_wgt);
 
-template <typename int32_t, typename double>
-void validate_extracted_graph_is_subgraph(
+template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t> const& src,
   rmm::device_uvector<int32_t> const& dst,
@@ -247,8 +243,7 @@ void validate_extracted_graph_is_subgraph(
   rmm::device_uvector<int32_t> const& subgraph_dst,
   std::optional<rmm::device_uvector<double>> const& subgraph_wgt);
 
-template <typename int64_t, typename float>
-void validate_extracted_graph_is_subgraph(
+template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& src,
   rmm::device_uvector<int64_t> const& dst,
@@ -257,8 +252,7 @@ void validate_extracted_graph_is_subgraph(
   rmm::device_uvector<int64_t> const& subgraph_dst,
   std::optional<rmm::device_uvector<float>> const& subgraph_wgt);
 
-template <typename int64_t, typename double>
-void validate_extracted_graph_is_subgraph(
+template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& src,
   rmm::device_uvector<int64_t> const& dst,
@@ -268,7 +262,7 @@ void validate_extracted_graph_is_subgraph(
   std::optional<rmm::device_uvector<double>> const& subgraph_wgt);
 
 template <typename vertex_t, typename weight_t>
-void validate_sampling_depth(raft::handle_t const& handle,
+bool validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_src,
                              rmm::device_uvector<vertex_t>&& d_dst,
                              std::optional<rmm::device_uvector<weight_t>>&& d_wgt,
@@ -337,44 +331,39 @@ void validate_sampling_depth(raft::handle_t const& handle,
     }
   }
 
-  ASSERT_EQ(0,
-            thrust::count_if(handle.get_thrust_policy(),
-                             d_distances.begin(),
-                             d_distances.end(),
-                             [max_depth] __device__(auto d) { return d > max_depth; }));
+  return (thrust::count_if(handle.get_thrust_policy(),
+                           d_distances.begin(),
+                           d_distances.end(),
+                           [max_depth] __device__(auto d) { return d > max_depth; }) == 0);
 }
 
-template <typename int32_t, typename float>
-void validate_sampling_depth(raft::handle_t const& handle,
-                             rmm::device_uvector<int32_t>&& d_src,
-                             rmm::device_uvector<int32_t>&& d_dst,
-                             std::optional<rmm::device_uvector<float>>&& d_wgt,
-                             rmm::device_uvector<int32_t>&& d_source_vertices,
-                             int max_depth);
+template bool validate_sampling_depth(raft::handle_t const& handle,
+                                      rmm::device_uvector<int32_t>&& d_src,
+                                      rmm::device_uvector<int32_t>&& d_dst,
+                                      std::optional<rmm::device_uvector<float>>&& d_wgt,
+                                      rmm::device_uvector<int32_t>&& d_source_vertices,
+                                      int max_depth);
 
-template <typename int32_t, typename double>
-void validate_sampling_depth(raft::handle_t const& handle,
-                             rmm::device_uvector<int32_t>&& d_src,
-                             rmm::device_uvector<int32_t>&& d_dst,
-                             std::optional<rmm::device_uvector<double>>&& d_wgt,
-                             rmm::device_uvector<int32_t>&& d_source_vertices,
-                             int max_depth);
+template bool validate_sampling_depth(raft::handle_t const& handle,
+                                      rmm::device_uvector<int32_t>&& d_src,
+                                      rmm::device_uvector<int32_t>&& d_dst,
+                                      std::optional<rmm::device_uvector<double>>&& d_wgt,
+                                      rmm::device_uvector<int32_t>&& d_source_vertices,
+                                      int max_depth);
 
-template <typename int64_t, typename float>
-void validate_sampling_depth(raft::handle_t const& handle,
-                             rmm::device_uvector<int64_t>&& d_src,
-                             rmm::device_uvector<int64_t>&& d_dst,
-                             std::optional<rmm::device_uvector<float>>&& d_wgt,
-                             rmm::device_uvector<int64_t>&& d_source_vertices,
-                             int max_depth);
+template bool validate_sampling_depth(raft::handle_t const& handle,
+                                      rmm::device_uvector<int64_t>&& d_src,
+                                      rmm::device_uvector<int64_t>&& d_dst,
+                                      std::optional<rmm::device_uvector<float>>&& d_wgt,
+                                      rmm::device_uvector<int64_t>&& d_source_vertices,
+                                      int max_depth);
 
-template <typename int64_t, typename double>
-void validate_sampling_depth(raft::handle_t const& handle,
-                             rmm::device_uvector<int64_t>&& d_src,
-                             rmm::device_uvector<int64_t>&& d_dst,
-                             std::optional<rmm::device_uvector<double>>&& d_wgt,
-                             rmm::device_uvector<int64_t>&& d_source_vertices,
-                             int max_depth);
+template bool validate_sampling_depth(raft::handle_t const& handle,
+                                      rmm::device_uvector<int64_t>&& d_src,
+                                      rmm::device_uvector<int64_t>&& d_dst,
+                                      std::optional<rmm::device_uvector<double>>&& d_wgt,
+                                      rmm::device_uvector<int64_t>&& d_source_vertices,
+                                      int max_depth);
 
 }  // namespace test
 }  // namespace cugraph

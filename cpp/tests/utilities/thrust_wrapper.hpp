@@ -73,6 +73,13 @@ cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
                                                    size_t repeat_count,
                                                    value_t init);
 
+// return (init + i) % modulo, where i = [0, length)
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
+                                                          size_t length,
+                                                          value_t modulo,
+                                                          value_t init);
+
 template <typename vertex_t>
 vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices);
 

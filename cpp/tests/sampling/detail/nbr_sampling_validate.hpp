@@ -28,7 +28,7 @@ namespace cugraph {
 namespace test {
 
 template <typename vertex_t, typename weight_t>
-void validate_extracted_graph_is_subgraph(
+bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> const& src,
   rmm::device_uvector<vertex_t> const& dst,
@@ -38,7 +38,7 @@ void validate_extracted_graph_is_subgraph(
   std::optional<rmm::device_uvector<weight_t>> const& subgraph_wgt);
 
 template <typename vertex_t, typename weight_t>
-void validate_sampling_depth(raft::handle_t const& handle,
+bool validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_src,
                              rmm::device_uvector<vertex_t>&& d_dst,
                              std::optional<rmm::device_uvector<weight_t>>&& d_wgt,
