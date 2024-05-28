@@ -2423,7 +2423,7 @@ std::
  * source and destination lookup map.
  */
 template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
-search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>>
+search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>>
 build_edge_id_and_type_to_src_dst_lookup_map(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -2452,7 +2452,7 @@ template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_g
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 cugraph_lookup_src_dst_from_edge_id_and_type_pub(
   raft::handle_t const& handle,
-  search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>> const&
+  search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>> const&
     search_container,
   raft::device_span<edge_t const> edge_ids_to_lookup,
   edge_type_t edge_type_to_lookup);
@@ -2481,7 +2481,7 @@ template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_g
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 cugraph_lookup_src_dst_from_edge_id_and_type_pub(
   raft::handle_t const& handle,
-  search_container_t<edge_type_t, edge_t, thrust::tuple<vertex_t, vertex_t>> const&
+  search_container_t<edge_t, edge_type_t, thrust::tuple<vertex_t, vertex_t>> const&
     search_container,
   raft::device_span<edge_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup);

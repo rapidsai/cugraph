@@ -74,11 +74,9 @@ class Tests_SGLookupEdgeSrcDst
     bool drop_self_loops  = false;
     bool drop_multi_edges = false;
 
-    auto comm_rank = 0;
-
-      auto [sg_graph, sg_edge_weights, sg_renumber_map] =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
-          handle, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
+    auto [sg_graph, sg_edge_weights, sg_renumber_map] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
+        handle, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     std::tie(sg_graph, sg_edge_weights, sg_renumber_map) = cugraph::symmetrize_graph(
       handle, std::move(sg_graph), std::move(sg_edge_weights), std::move(sg_renumber_map), false);
@@ -117,14 +115,6 @@ class Tests_SGLookupEdgeSrcDst
 
     auto edge_counts = (*edge_ids).view().edge_counts();
 
-    bool debug = (sg_graph_view.number_of_vertices() < 16);
-    if (debug) {
-      std::for_each(edge_counts.cbegin(), edge_counts.cend(), [](const edge_t& cnt) {
-        std::cout << cnt << " ";
-      });
-      std::cout << "\n";
-    }
-
     std::vector<size_t> type_freqs(nr_hash_bins, 0);
     std::mutex mtx[nr_hash_bins];
 
@@ -134,35 +124,15 @@ class Tests_SGLookupEdgeSrcDst
                                raft::device_span<int32_t const>(
                                  (*edge_types).view().value_firsts()[ep_idx], edge_counts[ep_idx]));
 
-      if (debug) {
-        std::for_each(ep_types.cbegin(), ep_types.cend(), [nr_hash_bins](const int32_t& cnt) {
-          if ((cnt < 0) || cnt > nr_hash_bins) std::cout << "Error: " << cnt << "\n";
-          std::cout << cnt << " ";
-        });
-        std::cout << "\n";
-      }
-
       std::for_each(std::execution::par, ep_types.begin(), ep_types.end(), [&](int32_t et) {
         std::lock_guard<std::mutex> guard(mtx[et]);
         type_freqs[et]++;
       });
 
-      if (debug) {
-        std::for_each(
-          type_freqs.cbegin(), type_freqs.cend(), [](const edge_t& f) { std::cout << f << " "; });
-        std::cout << "\n";
-      }
-
       auto ep_ids =
         cugraph::test::to_host(handle,
                                raft::device_span<edge_t const>(
                                  (*edge_ids).view().value_firsts()[ep_idx], edge_counts[ep_idx]));
-
-      if (debug) {
-        std::for_each(
-          ep_ids.cbegin(), ep_ids.cend(), [](const edge_t& cnt) { std::cout << cnt << " "; });
-        std::cout << "\n";
-      }
     }
 
     assert(std::reduce(type_freqs.cbegin(), type_freqs.cend()) ==
@@ -170,31 +140,14 @@ class Tests_SGLookupEdgeSrcDst
 
     auto d_type_freqs = cugraph::test::to_device(handle, type_freqs);
 
-    if (debug) {
-      std::for_each(
-        type_freqs.cbegin(), type_freqs.cend(), [](const edge_t& cnt) { std::cout << cnt << " "; });
-      std::cout << "\n";
-    }
-
     std::vector<size_t> distributed_type_offsets(nr_hash_bins);
 
     for (size_t i = 0; i < nr_hash_bins; i++) {
       distributed_type_offsets[i] = type_freqs[i];
     }
-    std::cout << "\n";
-
-    if (debug) {
-      std::for_each(distributed_type_offsets.cbegin(),
-                    distributed_type_offsets.cend(),
-                    [](const edge_t& cnt) { std::cout << cnt << " "; });
-      std::cout << "\n";
-    }
 
     assert(std::reduce(distributed_type_offsets.cbegin(), distributed_type_offsets.cend()) ==
            sg_graph_view.compute_number_of_edges(handle));
-
-    std::cout << " sg_graph_view: #V " << sg_graph_view.number_of_vertices() << " C#E "
-              << sg_graph_view.compute_number_of_edges(handle) << "\n";
 
     auto number_of_local_edges = std::reduce(edge_counts.cbegin(), edge_counts.cend());
 
@@ -203,15 +156,6 @@ class Tests_SGLookupEdgeSrcDst
         cugraph::test::to_host(handle,
                                raft::device_span<int32_t const>(
                                  (*edge_types).view().value_firsts()[ep_idx], edge_counts[ep_idx]));
-
-      if (debug) {
-        std::cout << " *ep_types: ";
-        std::for_each(ep_types.cbegin(), ep_types.cend(), [nr_hash_bins](const int32_t& cnt) {
-          if ((cnt < 0) || cnt > nr_hash_bins) std::cout << "Error: " << cnt << "\n";
-          std::cout << cnt << " ";
-        });
-        std::cout << "\n";
-      }
 
       auto ep_ids =
         cugraph::test::to_host(handle,
@@ -228,13 +172,6 @@ class Tests_SGLookupEdgeSrcDst
                           ep_ids.data(),
                           ep_ids.size(),
                           handle.get_stream());
-
-      if (debug) {
-        std::cout << "Rank: " << comm_rank << " *ep_ids: ";
-        std::for_each(
-          ep_ids.cbegin(), ep_ids.cend(), [](const edge_t& cnt) { std::cout << cnt << " "; });
-        std::cout << "\n";
-      }
     }
 
     auto search_container =
@@ -258,36 +195,6 @@ class Tests_SGLookupEdgeSrcDst
           std::make_optional((*edge_ids).view()),
           std::make_optional((*edge_types).view()),
           std::optional<raft::device_span<vertex_t const>>{std::nullopt});
-
-      /* */
-
-      if (debug) {
-        auto srcs_title = std::string("srcs_").append(std::to_string(comm_rank));
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(
-          srcs_title.c_str(), d_mg_srcs.begin(), d_mg_srcs.size(), std::cout);
-
-        auto dsts_title = std::string("dsts_").append(std::to_string(comm_rank));
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(
-          dsts_title.c_str(), d_mg_dsts.begin(), d_mg_dsts.size(), std::cout);
-
-        auto edge_types_title = std::string("edge_types_").append(std::to_string(comm_rank));
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(edge_types_title.c_str(),
-                                  (*d_mg_edge_types).begin(),
-                                  (*d_mg_edge_types).size(),
-                                  std::cout);
-
-        auto edge_ids_title = std::string("edge_ids_").append(std::to_string(comm_rank));
-
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        raft::print_device_vector(
-          edge_ids_title.c_str(), (*d_mg_edge_ids).begin(), (*d_mg_edge_ids).size(), std::cout);
-      }
 
       auto number_of_edges = sg_graph_view.compute_number_of_edges(handle);
 
@@ -316,20 +223,6 @@ class Tests_SGLookupEdgeSrcDst
       d_mg_edge_ids   = cugraph::test::to_device(handle, h_mg_edge_ids);
       d_mg_edge_types = cugraph::test::to_device(handle, h_mg_edge_types);
 
-      if (debug) {
-        std::cout << "Rank: " << comm_rank << " h_mg_edge_ids: ";
-        std::for_each((*h_mg_edge_ids).cbegin(), (*h_mg_edge_ids).cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-
-        std::cout << "Rank: " << comm_rank << " (*h_mg_edge_types): ";
-        std::for_each((*h_mg_edge_types).cbegin(), (*h_mg_edge_types).cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-      }
-
       auto [srcs, dsts] = cugraph::
         cugraph_lookup_src_dst_from_edge_id_and_type_pub<vertex_t, edge_t, int32_t, multi_gpu>(
           handle,
@@ -340,34 +233,6 @@ class Tests_SGLookupEdgeSrcDst
       auto h_srcs_results = cugraph::test::to_host(handle, srcs);
       auto h_dsts_results = cugraph::test::to_host(handle, dsts);
 
-      if (debug) {
-        std::cout << "Rank: " << comm_rank << " check correctness .........\n";
-
-        std::cout << "Rank: " << comm_rank << " h_srcs_expected: ";
-        std::for_each(h_srcs_expected.cbegin(), h_srcs_expected.cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-
-        std::cout << "Rank: " << comm_rank << " h_srcs_results: ";
-        std::for_each(h_srcs_results.cbegin(), h_srcs_results.cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-
-        std::cout << "Rank: " << comm_rank << " h_dsts_expected: ";
-        std::for_each(h_dsts_expected.cbegin(), h_dsts_expected.cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-
-        std::cout << "Rank: " << comm_rank << " h_dsts_results: ";
-        std::for_each(h_dsts_results.cbegin(), h_dsts_results.cend(), [](const auto& f) {
-          std::cout << f << " ";
-        });
-        std::cout << "\n";
-      }
-
       EXPECT_EQ(h_srcs_expected.size(), h_srcs_results.size());
       ASSERT_TRUE(
         std::equal(h_srcs_expected.begin(), h_srcs_expected.end(), h_srcs_results.begin()));
@@ -376,31 +241,29 @@ class Tests_SGLookupEdgeSrcDst
       ASSERT_TRUE(
         std::equal(h_dsts_expected.begin(), h_dsts_expected.end(), h_dsts_results.begin()));
     }
-
-    ///////////////
   }
 };
 
 using Tests_SGLookupEdgeSrcDst_File = Tests_SGLookupEdgeSrcDst<cugraph::test::File_Usecase>;
 using Tests_SGLookupEdgeSrcDst_Rmat = Tests_SGLookupEdgeSrcDst<cugraph::test::Rmat_Usecase>;
 
-// TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
-// {
-//   run_current_test<int32_t, int32_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_SGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
 TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
 {
@@ -408,17 +271,17 @@ TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-// TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_SGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -434,16 +297,16 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               3, 3, 0.57, 0.19, 0.19, 0, true, false))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-//                           --gtest_filter to select only the rmat_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one Rmat_Usecase that differ only in scale or edge
-//                           factor (to avoid running same benchmarks more than once) */
-//   Tests_SGLookupEdgeSrcDst_Rmat,
-//   ::testing::Combine(
-//     ::testing::Values(EdgeSrcDstLookup_UseCase{false, false},
-//                       EdgeSrcDstLookup_UseCase{true, false}),
-//     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_SGLookupEdgeSrcDst_Rmat,
+  ::testing::Combine(
+    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false},
+                      EdgeSrcDstLookup_UseCase{true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

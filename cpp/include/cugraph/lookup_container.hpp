@@ -4,11 +4,6 @@
 
 namespace cugraph {
 
-// ------- Don't remove----
-// template <typename edge_type_t, typename edge_id_t, typename value_t>
-// struct impl;
-//---------------------
-
 namespace detail {
 
 template <typename TupleType, std::size_t... Is>
@@ -26,19 +21,19 @@ constexpr TupleType invalid_of_thrust_tuple_of_integral()
     std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
 }
 
-template <typename edge_type_t, typename edge_id_t, typename value_t>
+template <typename edge_id_t, typename edge_type_t, typename value_t>
 class search_container_t {
-  template <typename _edge_type_t, typename _edge_id_t, typename _value_t>
+  template <typename _edge_id_t, typename _edge_type_t, typename _value_t>
   struct impl;
-  std::unique_ptr<impl<edge_type_t, edge_id_t, value_t>> pimpl;
+  std::unique_ptr<impl<edge_id_t, edge_type_t, value_t>> pimpl;
 
  public:
-  using edge_type_type = edge_type_t;
   using edge_id_type   = edge_id_t;
+  using edge_type_type = edge_type_t;
   using value_type     = value_t;
 
-  static_assert(std::is_arithmetic_v<edge_type_t>);
-  static_assert(std::is_arithmetic_v<edge_id_t>);
+  static_assert(std::is_integral_v<edge_id_t>);
+  static_assert(std::is_integral_v<edge_type_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
   ~search_container_t();
@@ -49,7 +44,7 @@ class search_container_t {
   search_container_t(const search_container_t&);
 
   void insert(raft::handle_t const& handle,
-              edge_type_t type,
+              edge_type_t typ,
               raft::device_span<edge_id_t const> edge_ids_to_insert,
               decltype(cugraph::allocate_dataframe_buffer<value_t>(
                 0, rmm::cuda_stream_view{}))&& values_to_insert);
