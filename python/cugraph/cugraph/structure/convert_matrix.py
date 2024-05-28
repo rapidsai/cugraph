@@ -40,7 +40,7 @@ def from_edgelist(
 
     Parameters
     ----------
-    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.core.DataFrame
+    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.DataFrame
         This DataFrame contains columns storing edge source vertices,
         destination (or target following NetworkX's terminology) vertices, and
         (optional) weights.
@@ -95,7 +95,7 @@ def from_edgelist(
             renumber=renumber,
         )
 
-    elif df_type is dask_cudf.core.DataFrame:
+    elif df_type is dask_cudf.DataFrame:
         if create_using is None:
             G = Graph()
         elif isinstance(create_using, Graph):

@@ -2008,6 +2008,24 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 /*
+ * @brief Compute edge triangle counts.
+ *
+ * Compute edge triangle counts for the entire set of edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ *
+ * @return edge_property_t containing the edge triangle count
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+
+/*
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
