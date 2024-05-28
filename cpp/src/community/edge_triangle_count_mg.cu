@@ -18,16 +18,16 @@
 namespace cugraph {
 
 // SG instantiation
-template edge_property_t<graph_view_t<int32_t, int32_t, false, false>, int32_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int32_t, int32_t, false, true>, int32_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view);
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view);
 
-template edge_property_t<graph_view_t<int32_t, int64_t, false, false>, int64_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int32_t, int64_t, false, true>, int64_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view);
+  cugraph::graph_view_t<int32_t, int64_t, false, true> const& graph_view);
 
-template edge_property_t<graph_view_t<int64_t, int64_t, false, false>, int64_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int64_t, int64_t, false, true>, int64_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view);
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view);
 
 }  // namespace cugraph

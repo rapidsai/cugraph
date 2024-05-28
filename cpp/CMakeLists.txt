@@ -180,6 +180,7 @@ set(CUGRAPH_SOURCES
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
     src/community/edge_triangle_count_sg.cu
+    src/community/edge_triangle_count_mg.cu
     src/community/detail/maximal_independent_moves_sg.cu
     src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
