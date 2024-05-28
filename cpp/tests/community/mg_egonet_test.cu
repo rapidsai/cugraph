@@ -199,13 +199,15 @@ class Tests_MGEgonet
                      triplet_first + d_mg_aggregate_edgelist_src.size());
       }
 
-      auto [sg_graph, sg_edge_weights, sg_number_map] =
-        cugraph::test::mg_graph_to_sg_graph(*handle_,
-                                            mg_graph_view,
-                                            mg_edge_weight_view,
-                                            std::make_optional<raft::device_span<vertex_t const>>(
-                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
-                                            false);
+      auto [sg_graph, sg_edge_weights, sg_edge_ids, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == 0) {
         auto d_mg_aggregate_edgelist_offsets =
