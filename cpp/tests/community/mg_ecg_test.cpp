@@ -127,12 +127,14 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
     std::optional<
       cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
       sg_edge_weights{std::nullopt};
-    std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-      *handle_,
-      mg_graph_view,
-      mg_edge_weight_view,
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      false);  // crate a SG graph with MG graph vertex IDs
+    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+      cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        false);  // crate a SG graph with MG graph vertex IDs
 
     auto const comm_rank = handle_->get_comms().get_rank();
     if (comm_rank == 0) {
