@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "detail/nbr_sampling_utils.cuh"
+#include "detail/nbr_sampling_validate.hpp"
 #include "utilities/base_fixture.hpp"
 
 #include <cugraph/sampling_functions.hpp>
@@ -105,10 +105,8 @@ class Tests_Biased_Neighbor_Sampling
                                          float{1},
                                          rng_state);
 
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        random_numbers.begin(),
-                        random_numbers.end(),
-                        random_sources.begin());
+    std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
+      handle, std::move(random_numbers), std::move(random_sources));
 
     random_numbers.resize(0, handle.get_stream());
     random_numbers.shrink_to_fit(handle.get_stream());
@@ -116,11 +114,8 @@ class Tests_Biased_Neighbor_Sampling
     auto batch_number =
       std::make_optional<rmm::device_uvector<int32_t>>(random_sources.size(), handle.get_stream());
 
-    thrust::tabulate(handle.get_thrust_policy(),
-                     batch_number->begin(),
-                     batch_number->end(),
-                     [batch_size = biased_neighbor_sampling_usecase.batch_size] __device__(
-                       int32_t index) { return index / batch_size; });
+    batch_number = cugraph::test::sequence<int32_t>(
+      handle, random_sources.size(), biased_neighbor_sampling_usecase.batch_size, int32_t{0});
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
 
@@ -158,10 +153,8 @@ class Tests_Biased_Neighbor_Sampling
       raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());
       raft::copy(
         vertices.data() + src_out.size(), dst_out.data(), dst_out.size(), handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-      auto vertices_end =
-        thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-      vertices.resize(thrust::distance(vertices.begin(), vertices_end), handle.get_stream());
+      vertices = cugraph::test::sort<vertex_t>(handle, std::move(vertices));
+      vertices = cugraph::test::unique<vertex_t>(handle, std::move(vertices));
 
       rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
       std::vector<size_t> h_subgraph_offsets({0, vertices.size()});

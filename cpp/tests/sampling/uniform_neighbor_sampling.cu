@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "detail/nbr_sampling_utils.cuh"
+#include "detail/nbr_sampling_validate.hpp"
 #include "utilities/base_fixture.hpp"
 
 #include <cugraph/sampling_functions.hpp>
