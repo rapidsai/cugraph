@@ -16,7 +16,7 @@ import argparse
 import tempfile
 import os
 
-from typing import Optional
+from typing import Optional, Tuple, Dict
 
 import torch
 import cupy
@@ -104,6 +104,37 @@ def create_loader(
     )
 
 
+def load_data(
+    dataset, dataset_root
+) -> Tuple[
+    Tuple[torch_geometric.data.FeatureStore, torch_geometric.data.GraphStore],
+    Dict[str, torch.Tensor],
+    int,
+    int,
+]:
+    from ogb.nodeproppred import PygNodePropPredDataset
+
+    dataset = PygNodePropPredDataset(dataset, root=dataset_root)
+    split_idx = dataset.get_idx_split()
+    data = dataset[0]
+
+    graph_store = cugraph_pyg.data.GraphStore()
+    graph_store[
+        ("node", "rel", "node"), "coo", False, (data.num_nodes, data.num_nodes)
+    ] = data.edge_index
+
+    feature_store = cugraph_pyg.data.TensorDictFeatureStore()
+    feature_store["node", "x"] = data.x
+    feature_store["node", "y"] = data.y
+
+    return (
+        (feature_store, graph_store),
+        split_idx,
+        dataset.num_features,
+        dataset.num_classes,
+    )
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hidden_channels", type=int, default=256)
@@ -124,23 +155,13 @@ if __name__ == "__main__":
     wall_clock_start = time.perf_counter()
     device = torch.device("cuda")
 
-    from ogb.nodeproppred import PygNodePropPredDataset
-
-    dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
-    split_idx = dataset.get_idx_split()
-    data = dataset[0]
-
-    graph_store = cugraph_pyg.data.GraphStore()
-    graph_store[
-        ("node", "rel", "node"), "coo", False, (data.num_nodes, data.num_nodes)
-    ] = data.edge_index
-
-    feature_store = cugraph_pyg.data.TensorDictFeatureStore()
-    feature_store["node", "x"] = data.x
-    feature_store["node", "y"] = data.y
+    data, split_idx, num_features, num_classes = load_data(
+        args.dataset, args.dataset_root
+    )
 
     with tempfile.TemporaryDirectory(dir=args.tempdir_root) as samples_dir:
         loader_kwargs = {
+            "data": data,
             "num_neighbors": [args.fan_out] * args.num_layers,
             "replace": False,
             "batch_size": args.batch_size,
@@ -148,31 +169,28 @@ if __name__ == "__main__":
         }
 
         train_loader = create_loader(
-            data=(feature_store, graph_store),
             input_nodes=split_idx["train"],
             stage_name="train",
             **loader_kwargs,
         )
 
         val_loader = create_loader(
-            data=(feature_store, graph_store),
             input_nodes=split_idx["valid"],
             stage_name="val",
             **loader_kwargs,
         )
 
         test_loader = create_loader(
-            data=(feature_store, graph_store),
             input_nodes=split_idx["test"],
             stage_name="test",
             **loader_kwargs,
         )
 
         model = torch_geometric.nn.models.GCN(
-            dataset.num_features,
+            num_features,
             args.hidden_channels,
             args.num_layers,
-            dataset.num_classes,
+            num_classes,
         ).to(device)
 
         optimizer = torch.optim.Adam(
