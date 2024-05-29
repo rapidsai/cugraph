@@ -146,10 +146,10 @@ class Tests_SGLookupEdgeSrcDst
 
     std::vector<size_t> type_offsets(number_of_edge_types);
 
-    std::copy(type_freqs.begin(), type_freqs.end(), type_offsets.begin())
+    std::copy(type_freqs.begin(), type_freqs.end(), type_offsets.begin());
 
-      assert(std::reduce(type_offsets.cbegin(), type_offsets.cend()) ==
-             sg_graph_view.compute_number_of_edges(handle));
+    assert(std::reduce(type_offsets.cbegin(), type_offsets.cend()) ==
+           sg_graph_view.compute_number_of_edges(handle));
 
     auto number_of_local_edges = std::reduce(edge_counts.cbegin(), edge_counts.cend());
 
