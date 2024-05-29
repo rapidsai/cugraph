@@ -323,7 +323,6 @@ def run_train(
             print(
                 f"Test Accuracy: {acc_test * 100.0:.4f}%",
             )
-    # dist.barrier()
 
     if global_rank == 0:
         total_time = round(time.perf_counter() - wall_clock_start, 2)
@@ -334,7 +333,7 @@ def run_train(
     cugraph_comms_shutdown()
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hidden_channels", type=int, default=256)
     parser.add_argument("--num_layers", type=int, default=2)
@@ -348,7 +347,11 @@ if __name__ == "__main__":
     parser.add_argument("--skip_partition", action="store_true")
     parser.add_argument("--wg_mem_type", type=str, default="chunked")
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
     wall_clock_start = time.perf_counter()
 
     if "LOCAL_RANK" in os.environ:
