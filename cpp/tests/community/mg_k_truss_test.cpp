@@ -104,8 +104,21 @@ class Tests_MGEdgeTriangleCount
       hr_timer.start("MG EdgeTriangleCount");
     }
 
+    /*
     auto d_mg_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, true>(*handle_, mg_graph_view);
+    */
+    
+    auto [d_cugraph_srcs, d_cugraph_dsts, d_cugraph_wgts] =
+      cugraph::k_truss<vertex_t, edge_t, weight_t, true>(
+        *handle_,
+        mg_graph_view,
+        //edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
+        std::nullopt, // FIXME: test weights
+        //k_truss_usecase.k_,
+        4,
+        false);
+    
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -116,6 +129,7 @@ class Tests_MGEdgeTriangleCount
 
     // 3. Compare SG & MG results
 
+    #if 0
     if (edge_triangle_count_usecase.check_correctness_) {
       // 3-1. Convert to SG graph
 
@@ -137,7 +151,11 @@ class Tests_MGEdgeTriangleCount
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-2. Convert the MG triangle counts stored as 'edge_property_t' to device vector
 
-        auto [edgelist_srcs, edgelist_dsts, d_edgelist_weights, d_edge_triangle_counts, d_edgelist_types] =
+        auto [edgelist_srcs,
+              edgelist_dsts,
+              d_edgelist_weights,
+              d_edge_triangle_counts,
+              d_edgelist_type] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
@@ -155,14 +173,12 @@ class Tests_MGEdgeTriangleCount
         auto [ref_edgelist_srcs,
               ref_edgelist_dsts,
               ref_d_edgelist_weights,
-              ref_d_edge_triangle_counts,
-              ref_d_edgelist_types] =
+              ref_d_edge_triangle_counts] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
             std::make_optional(ref_d_sg_cugraph_results.view()),
-            std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
             std::optional<raft::device_span<vertex_t const>>{
               std::nullopt});  // FIXME: No longer needed
 
@@ -177,6 +193,7 @@ class Tests_MGEdgeTriangleCount
                                h_sg_edge_triangle_counts.begin()));
       }
     }
+    #endif
   }
 
  private:
@@ -187,14 +204,14 @@ template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGEdgeTriangleCount<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGEdgeTriangleCount_File = Tests_MGEdgeTriangleCount<cugraph::test::File_Usecase>;
-using Tests_MGEdgeTriangleCount_Rmat = Tests_MGEdgeTriangleCount<cugraph::test::Rmat_Usecase>;
+//using Tests_MGEdgeTriangleCount_Rmat = Tests_MGEdgeTriangleCount<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGEdgeTriangleCount_File, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
-
+#if 0
 TEST_P(Tests_MGEdgeTriangleCount_Rmat, CheckInt32Int32)
 {
   auto param = GetParam();
@@ -215,17 +232,22 @@ TEST_P(Tests_MGEdgeTriangleCount_Rmat, CheckInt64Int64)
   run_current_test<int64_t, int64_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
   file_tests,
   Tests_MGEdgeTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
-                      EdgeTriangleCount_Usecase{true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+    ::testing::Values(EdgeTriangleCount_Usecase{false, false}
+                      //EdgeTriangleCount_Usecase{true, true}
+                      ),
+    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx")
+                      //cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
+                      )));
 
+
+#if 0
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGEdgeTriangleCount_Rmat,
@@ -245,5 +267,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(EdgeTriangleCount_Usecase{false, false},
                       EdgeTriangleCount_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+#endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

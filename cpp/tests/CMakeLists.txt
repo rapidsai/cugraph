@@ -589,11 +589,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
-    #ConfigureTest(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+    ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG K-TRUSS tests --------------------------------------------------------------------------
-    #ConfigureTest(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
+    ConfigureTestMG(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
