@@ -98,12 +98,19 @@ class Tests_SGLookupEdgeSrcDst
       // sg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    int32_t nr_hash_bins = 6 + static_cast<int>(sg_graph_view.number_of_vertices() / (1 << 10));
+    //
+    // FIXME: As the graph generator doesn't generate edge ids and types at the moment, generate
+    // edge ids and types for now and remove the code for generating edge ids and types from this
+    // file once the graph generator is updated to generate edge ids and types.
+    //
+
+    int32_t number_of_edge_types =
+      6 + static_cast<int>(sg_graph_view.number_of_vertices() / (1 << 10));
 
     std::optional<cugraph::edge_property_t<decltype(sg_graph_view), int32_t>> edge_types{
       std::nullopt};
     edge_types = cugraph::test::generate<decltype(sg_graph_view), int32_t>::edge_property(
-      handle, sg_graph_view, nr_hash_bins);
+      handle, sg_graph_view, number_of_edge_types);
 
     std::optional<cugraph::edge_property_t<decltype(sg_graph_view), edge_t>> edge_ids{std::nullopt};
 
@@ -112,8 +119,8 @@ class Tests_SGLookupEdgeSrcDst
 
     auto edge_counts = (*edge_ids).view().edge_counts();
 
-    std::vector<size_t> type_freqs(nr_hash_bins, 0);
-    std::mutex mtx[nr_hash_bins];
+    std::vector<size_t> type_freqs(number_of_edge_types, 0);
+    std::mutex mtx[number_of_edge_types];
 
     for (size_t ep_idx = 0; ep_idx < edge_counts.size(); ep_idx++) {
       auto ep_types =
@@ -137,14 +144,12 @@ class Tests_SGLookupEdgeSrcDst
 
     auto d_type_freqs = cugraph::test::to_device(handle, type_freqs);
 
-    std::vector<size_t> distributed_type_offsets(nr_hash_bins);
+    std::vector<size_t> type_offsets(number_of_edge_types);
 
-    for (size_t i = 0; i < nr_hash_bins; i++) {
-      distributed_type_offsets[i] = type_freqs[i];
-    }
+    std::copy(type_freqs.begin(), type_freqs.end(), type_offsets.begin())
 
-    assert(std::reduce(distributed_type_offsets.cbegin(), distributed_type_offsets.cend()) ==
-           sg_graph_view.compute_number_of_edges(handle));
+      assert(std::reduce(type_offsets.cbegin(), type_offsets.cend()) ==
+             sg_graph_view.compute_number_of_edges(handle));
 
     auto number_of_local_edges = std::reduce(edge_counts.cbegin(), edge_counts.cend());
 
@@ -160,8 +165,8 @@ class Tests_SGLookupEdgeSrcDst
                                  (*edge_ids).view().value_firsts()[ep_idx], edge_counts[ep_idx]));
 
       std::transform(ep_types.cbegin(), ep_types.cend(), ep_ids.begin(), [&](int32_t et) {
-        edge_t val = distributed_type_offsets[et];
-        distributed_type_offsets[et]++;
+        edge_t val = type_offsets[et];
+        type_offsets[et]++;
         return val;
       });
 
@@ -208,7 +213,7 @@ class Tests_SGLookupEdgeSrcDst
           if (id_or_type)
             (*h_mg_edge_ids)[random_idx] = std::numeric_limits<edge_t>::max();
           else
-            (*h_mg_edge_types)[random_idx] = nr_hash_bins;
+            (*h_mg_edge_types)[random_idx] = number_of_edge_types;
 
           h_srcs_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
           h_dsts_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;

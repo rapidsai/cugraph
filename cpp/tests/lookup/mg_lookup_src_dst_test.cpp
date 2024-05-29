@@ -106,6 +106,12 @@ class Tests_MGLookupEdgeSrcDst
       // mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
+    //
+    // FIXME: As the graph generator doesn't generate edge ids and types at the moment, generate
+    // edge ids and types for now and remove the code for generating edge ids and types from this
+    // file once the graph generator is updated to generate edge ids and types.
+    //
+
     int32_t number_of_edge_types =
       6 + static_cast<int>(mg_graph_view.number_of_vertices() / (1 << 10));
 
