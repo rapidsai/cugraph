@@ -31,6 +31,8 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <raft/util/integer_utils.hpp>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -844,7 +846,7 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        true);
+        false);
 
     modified_graph_view = (*modified_graph).view();
 
@@ -941,13 +943,6 @@ k_truss(raft::handle_t const& handle,
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
     auto e_property_triangle_count = edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
-
-    auto [or_srcs, or_dsts, or_count] = extract_transform_e(handle,
-                                                    cur_graph_view,
-                                                    cugraph::edge_src_dummy_property_t{}.view(),
-                                                    cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    e_property_triangle_count.view(),
-                                                    extract_edges<vertex_t, edge_t>{});
 
     cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> tmp_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, true, tmp_edge_mask);

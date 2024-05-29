@@ -159,12 +159,14 @@ class Tests_MGEdgeTriangleCount
         auto [ref_edgelist_srcs,
               ref_edgelist_dsts,
               ref_d_edgelist_weights,
-              ref_d_edge_triangle_counts] =
+              ref_d_edge_triangle_counts,
+              ref_d_edgelist_type] =
           cugraph::decompress_to_edgelist(
             *handle_,
             sg_graph.view(),
             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
             std::make_optional(ref_d_sg_cugraph_results.view()),
+            std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
             std::optional<raft::device_span<vertex_t const>>{
               std::nullopt});  // FIXME: No longer needed
 

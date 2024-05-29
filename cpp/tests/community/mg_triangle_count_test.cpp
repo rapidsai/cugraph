@@ -133,11 +133,37 @@ class Tests_MGEdgeTriangleCount
       // 3-1. Convert to SG graph
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+<<<<<<< HEAD
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, edge_t>>
         d_sg_cugraph_results{std::nullopt};
       std::tie(sg_graph, std::ignore, d_sg_cugraph_results, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
+=======
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
+
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 4-2. run SG TriangleCount
+
+        auto sg_graph_view = sg_graph.view();
+
+        ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+
+        rmm::device_uvector<edge_t> d_sg_triangle_counts(d_mg_aggregate_vertices
+                                                           ? (*d_mg_aggregate_vertices).size()
+                                                           : sg_graph_view.number_of_vertices(),
+                                                         handle_->get_stream());
+
+        cugraph::triangle_count<vertex_t, edge_t, false>(
+>>>>>>> upstream/branch-24.06
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},

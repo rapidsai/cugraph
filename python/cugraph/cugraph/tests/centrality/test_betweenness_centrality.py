@@ -111,18 +111,13 @@ def calc_betweenness_centrality(
     else:
         edge_attr = None
 
-    G = None
+    G = graph_file.get_graph(
+        download=True,
+        create_using=cugraph.Graph(directed=directed),
+        ignore_weights=not edgevals,
+    )
     if multi_gpu_batch:
-        G = graph_file.get_dask_graph(
-            create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
-        )
         G.enable_batch()
-    else:
-        G = graph_file.get_graph(
-            download=True,
-            create_using=cugraph.Graph(directed=directed),
-            ignore_weights=not edgevals,
-        )
 
     M = G.to_pandas_edgelist().rename(
         columns={"src": "0", "dst": "1", "wgt": edge_attr}

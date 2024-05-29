@@ -190,9 +190,17 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
-
+# Connect docs in other projects
+intersphinx_mapping = {
+    "networkx": (
+        "https://networkx.org/documentation/stable/",
+        "https://networkx.org/documentation/stable/objects.inv",
+    ),
+    "python": (
+        "https://docs.python.org/3",
+        "https://docs.python.org/3/objects.inv",
+    ),
+}
 
 # Config numpydoc
 numpydoc_show_inherited_class_members = False

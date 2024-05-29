@@ -121,7 +121,7 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
- * @param [in/out] rng_state State of the random number generator, updated with each call
+ * @param [in,out] rng_state State of the random number generator, updated with each call
  * @param [in]  max_level    Maximum level in hierarchy
  * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
  *                           This changes the size of the communities.  Higher resolutions
@@ -181,7 +181,7 @@ void cugraph_hierarchical_clustering_result_free(cugraph_hierarchical_clustering
  * @brief     Compute ECG clustering
  *
  * @param [in]  handle        Handle for accessing resources
- * @param [in/out] rng_state  State of the random number generator, updated with each call
+ * @param [in,out] rng_state  State of the random number generator, updated with each call
  * @param [in]  graph         Pointer to graph.  NOTE: Graph might be modified if the storage
  *                            needs to be transposed
  * @param [in]  min_weight    Minimum edge weight in final graph
