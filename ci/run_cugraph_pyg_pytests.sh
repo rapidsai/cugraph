@@ -8,6 +8,9 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../python/cugraph-pyg/cugraph_
 
 pytest --cache-clear --benchmark-disable "$@" .
 
+# Used to skip certain examples in CI due to memory limitations
+export CI_RUN=1
+
 # Test examples
 for e in "$(pwd)"/examples/*.py; do
   rapids-logger "running example $e"

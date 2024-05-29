@@ -17,6 +17,7 @@ import argparse
 import os
 import tempfile
 import time
+import warnings
 
 import torch
 import torch.distributed as dist
@@ -106,7 +107,7 @@ def run_train(
     from cugraph_pyg.loader import NeighborLoader
 
     graph_store = GraphStore(is_multi_gpu=True)
-    ixr = torch.tensor_split(data.edge_index, world_size, axis=1)[rank]
+    ixr = torch.tensor_split(data.edge_index, world_size, dim=1)[rank]
     graph_store[
         ("node", "rel", "node"), "coo", False, (data.num_nodes, data.num_nodes)
     ] = ixr
@@ -244,7 +245,6 @@ def run_train(
             print(
                 f"Test Accuracy: {acc_test * 100.0:.4f}%",
             )
-    # dist.barrier()
 
     if rank == 0:
         total_time = round(time.perf_counter() - wall_clock_start, 2)
@@ -252,71 +252,77 @@ def run_train(
         print("total_time - prep_time =", total_time - prep_time, "seconds")
 
     cugraph_comms_shutdown()
+    dist.destroy_process_group()
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--hidden_channels", type=int, default=256)
-    parser.add_argument("--num_layers", type=int, default=2)
-    parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=1024)
-    parser.add_argument("--fan_out", type=int, default=30)
-    parser.add_argument("--tempdir_root", type=str, default=None)
-    parser.add_argument("--dataset_root", type=str, default="dataset")
-    parser.add_argument("--dataset", type=str, default="ogbn-products")
-
-    parser.add_argument(
-        "--n_devices",
-        type=int,
-        default=-1,
-        help="1-8 to use that many GPUs. Defaults to all available GPUs",
-    )
-
-    args = parser.parse_args()
-    wall_clock_start = time.perf_counter()
-
-    from rmm.allocators.torch import rmm_torch_allocator
-
-    torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
-
-    dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
-    split_idx = dataset.get_idx_split()
-    data = dataset[0]
-    data.y = data.y.reshape(-1)
-
-    model = torch_geometric.nn.models.GCN(
-        dataset.num_features, args.hidden_channels, args.num_layers, dataset.num_classes
-    )
-
-    print("Data =", data)
-    if args.n_devices == -1:
-        world_size = torch.cuda.device_count()
+    if "CI_RUN" in os.environ and os.environ["CI_RUN"] == "1":
+        warnings.warn("Skipping SMNG example in CI due to memory limit")
     else:
-        world_size = args.n_devices
-    print("Using", world_size, "GPUs...")
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--hidden_channels", type=int, default=256)
+        parser.add_argument("--num_layers", type=int, default=2)
+        parser.add_argument("--lr", type=float, default=0.001)
+        parser.add_argument("--epochs", type=int, default=4)
+        parser.add_argument("--batch_size", type=int, default=1024)
+        parser.add_argument("--fan_out", type=int, default=30)
+        parser.add_argument("--tempdir_root", type=str, default=None)
+        parser.add_argument("--dataset_root", type=str, default="dataset")
+        parser.add_argument("--dataset", type=str, default="ogbn-products")
 
-    # Create the uid needed for cuGraph comms
-    cugraph_id = cugraph_comms_create_unique_id()
-
-    with tempfile.TemporaryDirectory(dir=args.tempdir_root) as tempdir:
-        mp.spawn(
-            run_train,
-            args=(
-                data,
-                world_size,
-                cugraph_id,
-                model,
-                args.epochs,
-                args.batch_size,
-                args.fan_out,
-                split_idx,
-                dataset.num_classes,
-                wall_clock_start,
-                tempdir,
-                args.num_layers,
-            ),
-            nprocs=world_size,
-            join=True,
+        parser.add_argument(
+            "--n_devices",
+            type=int,
+            default=-1,
+            help="1-8 to use that many GPUs. Defaults to all available GPUs",
         )
+
+        args = parser.parse_args()
+        wall_clock_start = time.perf_counter()
+
+        from rmm.allocators.torch import rmm_torch_allocator
+
+        torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+
+        dataset = PygNodePropPredDataset(name=args.dataset, root=args.dataset_root)
+        split_idx = dataset.get_idx_split()
+        data = dataset[0]
+        data.y = data.y.reshape(-1)
+
+        model = torch_geometric.nn.models.GCN(
+            dataset.num_features,
+            args.hidden_channels,
+            args.num_layers,
+            dataset.num_classes,
+        )
+
+        print("Data =", data)
+        if args.n_devices == -1:
+            world_size = torch.cuda.device_count()
+        else:
+            world_size = args.n_devices
+        print("Using", world_size, "GPUs...")
+
+        # Create the uid needed for cuGraph comms
+        cugraph_id = cugraph_comms_create_unique_id()
+
+        with tempfile.TemporaryDirectory(dir=args.tempdir_root) as tempdir:
+            mp.spawn(
+                run_train,
+                args=(
+                    data,
+                    world_size,
+                    cugraph_id,
+                    model,
+                    args.epochs,
+                    args.batch_size,
+                    args.fan_out,
+                    split_idx,
+                    dataset.num_classes,
+                    wall_clock_start,
+                    tempdir,
+                    args.num_layers,
+                ),
+                nprocs=world_size,
+                join=True,
+            )

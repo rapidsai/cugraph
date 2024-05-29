@@ -24,6 +24,9 @@ python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 
+# Used to skip certain examples in CI due to memory limitations
+export CI_RUN=1
+
 if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
   PYTORCH_URL="https://download.pytorch.org/whl/cu118"
   PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
