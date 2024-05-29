@@ -950,13 +950,9 @@ k_truss(raft::handle_t const& handle,
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
 
-    auto iteration = -1;
     while (true) {
       // FIXME: Keep it at 1 iteration for debugging
-      iteration += 1;
-      if (iteration == 1) {
-        break;
-      }
+      
       // extract the edges that have counts less than k - 2. Those edges will be unrolled
       // FIXME: extracting 'triangle_count' is not required here. 
       auto [weak_edgelist_srcs, weak_edgelist_dsts, triangle_count] = extract_transform_e(handle,
@@ -966,10 +962,25 @@ k_truss(raft::handle_t const& handle,
                                                                                 e_property_triangle_count.view(),
                                                                                 extract_weak_edges<vertex_t, edge_t>{k});
       
+      if constexpr (multi_gpu) {
+        if (num_invalid_edges == 0) {
+          done = 0;
+        }
+        done = host_scalar_allreduce(
+          handle.get_comms(), done, raft::comms::op_t::MAX, handle.get_stream());
 
+        if (done == 0) {
+          break;
+        }
+      
+      } else if (weak_edgelist_srcs.size() == 0) {
+        break;
+      }
+
+      if (num_invalid_edges == 0 && done == 0) { 
+        break; }
       // FIXME: Add a flag  checking wether the other ranks have completed their task or
       // not before exiting.
-      if (weak_edgelist_srcs.size() == 0) { break; }
       auto invalid_edge_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
 
       thrust::sort(handle.get_thrust_policy(),
@@ -1121,14 +1132,7 @@ k_truss(raft::handle_t const& handle,
         do_expensive_check
       );
 
-      #if 0
-      auto [srcs__, dsts__] = extract_transform_e(handle,
-                                                (*graph_q_r).view(),
-                                                cugraph::edge_src_dummy_property_t{}.view(),
-                                                cugraph::edge_dst_dummy_property_t{}.view(),
-                                                //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
-                                                cugraph::edge_dummy_property_t{}.view(),
-                                                extract_edges_to_q_r<vertex_t>{raft::device_span<vertex_t const>(vertex_q_r.data(), vertex_q_r.size())});
+
 
       // Unrolling p, r edges
       // create pair invalid_src, invalid_edge_idx
@@ -1231,81 +1235,222 @@ k_truss(raft::handle_t const& handle,
                                           idx_closing.size())
           });
       
+      // FIXME: Avoid duplicated code in SG and MG when updating the counts
+      if constexpr (multi_gpu) {
+          auto& comm           = handle.get_comms();
+          // Get global weak_edgelist
+          auto global_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
+            handle,
+            comm,
+            raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
+          
+          auto global_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
+            handle,
+            comm,
+            raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+          
+          // Sort the weak edges if they are not already
+          auto invalid_edgelist = thrust::make_zip_iterator(global_weak_edgelist_srcs.begin(), global_weak_edgelist_dsts.begin());
+          thrust::sort(handle.get_thrust_policy(),
+                      invalid_edge_first,
+                      invalid_edge_first + weak_edgelist_srcs.size());
+          
 
-      auto num_edges_not_overcomp_p_q =
-        remove_overcompensating_edges<vertex_t,
-                                      edge_t,
-                                      decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
-                                      false,
-                                      false>(
+          auto num_edges_not_overcomp_p_q =
+            remove_overcompensating_edges<vertex_t,
+                                          edge_t,
+                                          decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
+                                          false,
+                                          false>(
+              handle,
+              q_closing.size(),
+              get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+              get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
+              raft::device_span<vertex_t const>(global_weak_edgelist_srcs.data(), global_weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_dsts.data(), global_weak_edgelist_dsts.size()));
+
+          resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
+          resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
+
+          auto num_edges_not_overcomp_q_r =
+            remove_overcompensating_edges<vertex_t,
+                                          edge_t,
+                                          decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
+                                          false,
+                                          false>(
+              handle,
+              num_edges_not_overcomp_p_q,
+              get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
+              get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+              raft::device_span<vertex_t const>(global_weak_edgelist_srcs.data(), global_weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_dsts.data(), global_weak_edgelist_dsts.size()));
+          
+          resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
+          resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
+
+          rmm::device_uvector<vertex_t> pair_p_q_srcs(0, handle.get_stream());
+          rmm::device_uvector<vertex_t> pair_p_q_dsts(0, handle.get_stream());
+          rmm::device_uvector<vertex_t> pair_p_r_srcs(0, handle.get_stream());
+          rmm::device_uvector<vertex_t> pair_p_r_dsts(0, handle.get_stream());
+          rmm::device_uvector<vertex_t> pair_q_r_srcs(0, handle.get_stream());
+          rmm::device_uvector<vertex_t> pair_q_r_dsts(0, handle.get_stream());
+
+          std::tie(pair_p_q_srcs, pair_p_q_dsts, std::ignore, std::ignore, std::ignore) =
+                detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                    edge_t,
+                                                                                    weight_t,
+                                                                                    int32_t>(
+                  handle,
+                  std::move(std::get<0>(vertex_pair_buffer_p_q_for_p_r)),
+                  std::move(std::get<1>(vertex_pair_buffer_p_q_for_p_r)),
+                  std::nullopt,
+                  std::nullopt,
+                  std::nullopt,
+                  cur_graph_view.vertex_partition_range_lasts());
+          
+          std::tie(pair_q_r_srcs, pair_q_r_dsts, std::ignore, std::ignore, std::ignore) =
+                detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                    edge_t,
+                                                                                    weight_t,
+                                                                                    int32_t>(
+                  handle,
+                  std::move(std::get<0>(vertex_pair_buffer_q_r_for_p_r)),
+                  std::move(std::get<1>(vertex_pair_buffer_q_r_for_p_r)),
+                  std::nullopt,
+                  std::nullopt,
+                  std::nullopt,
+                  cur_graph_view.vertex_partition_range_lasts());
+          
+
+          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
-          q_closing.size(),
-          get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
-          get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
-          raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
-          raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+          cur_graph_view,
+          e_property_triangle_count,
+          tmp_edge_mask,
+          raft::device_span<vertex_t>(pair_p_q_srcs.data(), pair_p_q_srcs.size()),
+          raft::device_span<vertex_t>(pair_p_q_dsts.data(), pair_p_q_dsts.size())
+          );
+          
+          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+            handle,
+            cur_graph_view,
+            e_property_triangle_count,
+            tmp_edge_mask,
+            raft::device_span<vertex_t>(pair_q_r_srcs.data(), pair_q_r_srcs.size()),
+            raft::device_span<vertex_t>(pair_q_r_dsts.data(), pair_q_r_dsts.size())
+          );
 
-      resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
-      resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
+          auto vertex_pair_buffer_p_r =
+            allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(pair_q_r_srcs.size(),
+                                                                        handle.get_stream());
 
-      auto num_edges_not_overcomp_q_r =
-        remove_overcompensating_edges<vertex_t,
-                                      edge_t,
-                                      decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
-                                      false,
-                                      false>(
+          std::tie(pair_p_r_srcs, pair_p_r_dsts, std::ignore, std::ignore, std::ignore) =
+                detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                    edge_t,
+                                                                                    weight_t,
+                                                                                    int32_t>(
+                  handle,
+                  std::move(std::get<0>(vertex_pair_buffer_p_r)),
+                  std::move(std::get<1>(vertex_pair_buffer_p_r)),
+                  std::nullopt,
+                  std::nullopt,
+                  std::nullopt,
+                  cur_graph_view.vertex_partition_range_lasts());
+          
+          // Reconstruct (p, r) edges that didn't already have their count updated
+            thrust::tabulate(
+              handle.get_thrust_policy(),
+              get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
+              get_dataframe_buffer_end(vertex_pair_buffer_p_r),
+              [
+                vertex_pair_buffer_p_q_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+                vertex_pair_buffer_q_r_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r)
+              ] __device__(auto i) {
+                return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_for_p_r[i]), thrust::get<1>(vertex_pair_buffer_q_r_for_p_r[i]));
+              });
+
+          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+            handle,
+            cur_graph_view,
+            e_property_triangle_count,
+            tmp_edge_mask,
+            raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size()),
+            raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size())
+          );
+
+      } else {
+
+        auto num_edges_not_overcomp_p_q =
+          remove_overcompensating_edges<vertex_t,
+                                        edge_t,
+                                        decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
+                                        false,
+                                        false>(
+            handle,
+            q_closing.size(),
+            get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+            get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
+            raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
+            raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+
+        resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
+        resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
+
+        auto num_edges_not_overcomp_q_r =
+          remove_overcompensating_edges<vertex_t,
+                                        edge_t,
+                                        decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r)),
+                                        false,
+                                        false>(
+            handle,
+            num_edges_not_overcomp_p_q,
+            get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
+            get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+            raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
+            raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+        
+        resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
+        resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
+
+        resize_dataframe_buffer(vertex_pair_buffer_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
+          thrust::tabulate(
+            handle.get_thrust_policy(),
+            get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
+            get_dataframe_buffer_end(vertex_pair_buffer_p_r),
+            [
+              vertex_pair_buffer_p_q_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
+              vertex_pair_buffer_q_r_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r)
+            ] __device__(auto i) {
+              return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_for_p_r[i]), thrust::get<1>(vertex_pair_buffer_q_r_for_p_r[i]));
+            });
+
+        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
-          num_edges_not_overcomp_p_q,
-          get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r),
-          get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
-          raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
-          raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
-      
-      resize_dataframe_buffer(vertex_pair_buffer_p_q_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
-      resize_dataframe_buffer(vertex_pair_buffer_q_r_for_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
-
-      // Reconstruct (p, r) edges that didn't already have their count updated
-
-      resize_dataframe_buffer(vertex_pair_buffer_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
-        thrust::tabulate(
-          handle.get_thrust_policy(),
-          get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
-          get_dataframe_buffer_end(vertex_pair_buffer_p_r),
-          [
-            vertex_pair_buffer_p_q_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_p_q_for_p_r),
-            vertex_pair_buffer_q_r_for_p_r = get_dataframe_buffer_begin(vertex_pair_buffer_q_r_for_p_r)
-          ] __device__(auto i) {
-            return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_for_p_r[i]), thrust::get<1>(vertex_pair_buffer_q_r_for_p_r[i]));
-          });
-
-      update_count<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle,
-        cur_graph_view,
-        e_property_triangle_count,
-        tmp_edge_mask,
-        raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size()),
-        raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size())
-      );
-      
-      
-      
-      update_count<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle,
-        cur_graph_view,
-        e_property_triangle_count,
-        tmp_edge_mask,
-        raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_q_for_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_for_p_r).size()),
-        raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_q_for_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_for_p_r).size())
-      );
-      
-      update_count<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle,
-        cur_graph_view,
-        e_property_triangle_count,
-        tmp_edge_mask,
-        raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r_for_p_r).data(), std::get<0>(vertex_pair_buffer_q_r_for_p_r).size()),
-        raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_q_r_for_p_r).data(), std::get<1>(vertex_pair_buffer_q_r_for_p_r).size())
-      );
+          cur_graph_view,
+          e_property_triangle_count,
+          tmp_edge_mask,
+          raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size()),
+          raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size())
+        );
+        
+        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle,
+          cur_graph_view,
+          e_property_triangle_count,
+          tmp_edge_mask,
+          raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_q_for_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_for_p_r).size()),
+          raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_q_for_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_for_p_r).size())
+        );
+        
+        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle,
+          cur_graph_view,
+          e_property_triangle_count,
+          tmp_edge_mask,
+          raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r_for_p_r).data(), std::get<0>(vertex_pair_buffer_q_r_for_p_r).size()),
+          raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_q_r_for_p_r).data(), std::get<1>(vertex_pair_buffer_q_r_for_p_r).size())
+        );
+      }
 
       // Mask all the edges that have 0 count
       cugraph::transform_e(
@@ -1324,7 +1469,7 @@ k_truss(raft::handle_t const& handle,
           false);
 
       cur_graph_view.attach_edge_mask(edge_mask.view());
-      /*
+  
       if (edge_weight_view) {
         auto [edgelist_srcs, edgelist_dsts, edgelist_count] = extract_transform_e(handle,
                                     cur_graph_view,
@@ -1356,14 +1501,7 @@ k_truss(raft::handle_t const& handle,
 
           cur_graph_view.attach_edge_mask(edge_mask.view());
       }
-      */
-    
-
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          check_edgelist,
-                          check_edgelist + srcs_f.size(),
-                          count_f.begin());  
-      #endif    
+  
     }
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
