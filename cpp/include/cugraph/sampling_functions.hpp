@@ -344,7 +344,8 @@ build_edge_id_and_type_to_src_dst_lookup_map(
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view);
 
 /*
- * @brief Lookup edge sources and destinations using edge ids and a single edge type
+ * @brief Lookup edge sources and destinations using edge ids and a single edge type.
+ * Use this function to lookup endpoints of edges belonging to the same edge type.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -371,7 +372,8 @@ lookup_endpoints_for_edge_ids_of_single_type(
   edge_type_t edge_type_to_lookup);
 
 /*
- * @brief Lookup edge sources and destinations using edge ids and edge types
+ * @brief Lookup edge sources and destinations using edge ids and edge types.
+ * Use this function to lookup endpoints of edges belonging to different edge types.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
