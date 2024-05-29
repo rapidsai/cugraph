@@ -28,10 +28,10 @@ To build from source, check each RAPIDS GitHub README for set up and build instr
 
 ## CuGraph Using NetworkX Code
 While the steps above are required to use the full suite of cuGraph graph analytics, cuGraph is now supported as a NetworkX backend using [nx-cugraph](https://docs.rapids.ai/api/cugraph/nightly/nx_cugraph/nx_cugraph/).
-Nx-cugraph offers those with existing nwtworkX code a zero code change option with a growing list of supported algorithms.
+Nx-cugraph offers those with existing NetworkX code, a **zero code change** option with a growing list of supported algorithms.
 
 
-## Cugraph API demo
+## Cugraph API Example
 Coming soon !
 
 
