@@ -68,13 +68,6 @@ struct search_container_t<edge_id_t, edge_type_t, value_t>::search_container_imp
     }
   }
 
-  void print() const
-  {
-    for (const auto& [key, map] : edge_type_to_kv_store) {
-      std::cout << "key: " << key << " size: " << map.size() << std::endl;
-    }
-  }
-
   void insert(raft::handle_t const& handle,
               edge_type_t type,
               raft::device_span<edge_id_t const> edge_ids_to_insert,
@@ -369,12 +362,6 @@ search_container_t<edge_id_t, edge_type_t, value_t>::src_dst_from_edge_id_and_ty
 {
   return pimpl->src_dst_from_edge_id_and_type(
     handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
-}
-
-template <typename edge_id_t, typename edge_type_t, typename value_t>
-void search_container_t<edge_id_t, edge_type_t, value_t>::print() const
-{
-  pimpl->print();
 }
 
 namespace detail {
