@@ -26,6 +26,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/random/rng_state.hpp>
@@ -224,7 +225,7 @@ class Tests_SGLookupEdgeSrcDst
       d_mg_edge_types = cugraph::test::to_device(handle, h_mg_edge_types);
 
       auto [srcs, dsts] =
-        cugraph::lookup_src_dst_from_edge_id_and_type<vertex_t, edge_t, int32_t, multi_gpu>(
+        cugraph::lookup_endpoints_for_edge_ids_and_types<vertex_t, edge_t, int32_t, multi_gpu>(
           handle,
           search_container,
           raft::device_span<edge_t>((*d_mg_edge_ids).begin(), (*d_mg_edge_ids).size()),

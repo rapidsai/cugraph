@@ -49,10 +49,10 @@ constexpr TupleType invalid_of_thrust_tuple_of_integral()
 }
 
 template <typename edge_id_t, typename edge_type_t, typename value_t>
-class search_container_t {
+class lookup_container_t {
   template <typename _edge_id_t, typename _edge_type_t, typename _value_t>
-  struct search_container_impl;
-  std::unique_ptr<search_container_impl<edge_id_t, edge_type_t, value_t>> pimpl;
+  struct lookup_container_impl;
+  std::unique_ptr<lookup_container_impl<edge_id_t, edge_type_t, value_t>> pimpl;
 
  public:
   using edge_id_type   = edge_id_t;
@@ -63,12 +63,12 @@ class search_container_t {
   static_assert(std::is_integral_v<edge_type_t>);
   static_assert(is_thrust_tuple_of_integral<value_t>::value);
 
-  ~search_container_t();
-  search_container_t();
-  search_container_t(raft::handle_t const& handle,
+  ~lookup_container_t();
+  lookup_container_t();
+  lookup_container_t(raft::handle_t const& handle,
                      std::vector<edge_type_t> types,
                      std::vector<edge_id_t> type_counts);
-  search_container_t(const search_container_t&);
+  lookup_container_t(const lookup_container_t&);
 
   void insert(raft::handle_t const& handle,
               edge_type_t typ,
@@ -76,13 +76,13 @@ class search_container_t {
               decltype(cugraph::allocate_dataframe_buffer<value_t>(
                 0, rmm::cuda_stream_view{}))&& values_to_insert);
 
-  std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
+  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
   src_dst_from_edge_id_and_type(raft::handle_t const& handle,
                                 raft::device_span<edge_id_t const> edge_ids_to_lookup,
                                 edge_type_t edge_type_to_lookup,
                                 bool multi_gpu) const;
 
-  std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
+  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
   src_dst_from_edge_id_and_type(raft::handle_t const& handle,
                                 raft::device_span<edge_id_t const> edge_ids_to_lookup,
                                 raft::device_span<edge_type_t const> edge_types_to_lookup,
