@@ -256,7 +256,7 @@ def run_train(
 
 
 if __name__ == "__main__":
-    if "CI_RUN" in os.environ and os.environ["CI_RUN"] == 1:
+    if "CI_RUN" in os.environ and os.environ["CI_RUN"] == "1":
         warnings.warn("Skipping SMNG example in CI due to memory limit")
     else:
         parser = argparse.ArgumentParser()
