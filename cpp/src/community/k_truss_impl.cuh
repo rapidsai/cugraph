@@ -963,15 +963,16 @@ k_truss(raft::handle_t const& handle,
                             edge_dst_dummy_property_t{}.view(),
                             e_property_triangle_count.view(),
                             extract_weak_edges<vertex_t, edge_t>{k});
-      auto done = 1
-      if constexpr (multi_gpu) {
+      auto done = 1 if constexpr (multi_gpu)
+      {
         if (weak_edgelist_srcs.size() == 0) { done = 0; }
         done = host_scalar_allreduce(
           handle.get_comms(), done, raft::comms::op_t::MAX, handle.get_stream());
 
         if (done == 0) { break; }
-
-      } else if (weak_edgelist_srcs.size() == 0) {
+      }
+      else if (weak_edgelist_srcs.size() == 0)
+      {
         break;
       }
 
