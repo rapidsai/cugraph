@@ -32,14 +32,6 @@ namespace cugraph {
 template <typename edge_id_t, typename edge_type_t, typename value_t>
 template <typename _edge_id_t, typename _edge_type_t, typename _value_t>
 struct search_container_t<edge_id_t, edge_type_t, value_t>::search_container_impl {
- private:
-  using container_t =
-    std::unordered_map<edge_type_t,
-                       cugraph::kv_store_t<edge_id_t, value_t, false /*use_binary_search*/>>;
-  using store_t = typename container_t::mapped_type;
-  container_t edge_type_to_kv_store;
-
- public:
   static_assert(std::is_integral_v<edge_id_t>);
   static_assert(std::is_integral_v<edge_type_t>);
 
@@ -110,7 +102,6 @@ struct search_container_t<edge_id_t, edge_type_t, value_t>::search_container_imp
         value_buffer, edge_ids_to_lookup.size(), handle.get_stream());
 
       auto invalid_value = invalid_of_thrust_tuple_of_integral<value_t>();
-      // Mark with invalid here
       thrust::copy(handle.get_thrust_policy(),
                    thrust::make_constant_iterator(invalid_value),
                    thrust::make_constant_iterator(invalid_value) + edge_ids_to_lookup.size(),
@@ -271,18 +262,17 @@ struct search_container_t<edge_id_t, edge_type_t, value_t>::search_container_imp
     for (size_t idx = 0; idx < h_unique_types.size(); idx++) {
       auto typ = h_unique_types[idx];
 
-      auto start_ptr   = tmp_edge_ids_to_lookup.begin();
-      size_t span_size = 0;
+      auto tmp_edge_ids_begin = tmp_edge_ids_to_lookup.begin();
+      size_t span_size        = 0;
 
       if (typ_to_local_idx_map.find(typ) != typ_to_local_idx_map.end()) {
-        auto xx = typ_to_local_idx_map[typ];
-
-        start_ptr = tmp_edge_ids_to_lookup.begin() + h_type_offsets[xx];
-        span_size = h_type_offsets[xx + 1] - h_type_offsets[xx];
+        auto local_idx     = typ_to_local_idx_map[typ];
+        tmp_edge_ids_begin = tmp_edge_ids_to_lookup.begin() + h_type_offsets[local_idx];
+        span_size          = h_type_offsets[local_idx + 1] - h_type_offsets[local_idx];
       }
 
       auto optional_value_buffer = src_dst_from_edge_id_and_type(
-        handle, raft::device_span<edge_id_t const>{start_ptr, span_size}, typ, multi_gpu);
+        handle, raft::device_span<edge_id_t const>{tmp_edge_ids_begin, span_size}, typ, multi_gpu);
 
       if (optional_value_buffer.has_value()) {
         if (typ_to_local_idx_map.find(typ) != typ_to_local_idx_map.end()) {
@@ -302,6 +292,13 @@ struct search_container_t<edge_id_t, edge_type_t, value_t>::search_container_imp
 
     return std::make_optional(std::move(output_value_buffer));
   }
+
+ private:
+  using container_t =
+    std::unordered_map<edge_type_t,
+                       cugraph::kv_store_t<edge_id_t, value_t, false /*use_binary_search*/>>;
+  using store_t = typename container_t::mapped_type;
+  container_t edge_type_to_kv_store;
 };
 
 template <typename edge_id_t, typename edge_type_t, typename value_t>
@@ -365,105 +362,6 @@ search_container_t<edge_id_t, edge_type_t, value_t>::src_dst_from_edge_id_and_ty
 }
 
 namespace detail {
-template <typename vertex_t,
-          typename edge_id_t,
-          typename edge_type_t,
-          typename EdgeTypeAndIdToSrcDstLookupContainerType,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-lookup_src_dst_from_edge_id_and_type(
-  raft::handle_t const& handle,
-  EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
-  raft::device_span<edge_id_t const> edge_ids_to_lookup,
-  edge_type_t edge_type_to_lookup)
-{
-  using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
-
-  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
-
-  static_assert(std::is_integral_v<edge_id_t>);
-  static_assert(std::is_integral_v<edge_type_t>);
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
-
-  static_assert(
-    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
-    "edge_id_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
-  static_assert(
-    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
-    "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
-
-  rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
-
-  auto constexpr invalid_vertex_id = cugraph::invalid_vertex_id<vertex_t>::value;
-  thrust::fill(
-    handle.get_thrust_policy(), output_srcs.begin(), output_srcs.end(), invalid_vertex_id);
-  thrust::fill(
-    handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_vertex_id);
-
-  auto optional_value_buffer = search_container.src_dst_from_edge_id_and_type(
-    handle, edge_ids_to_lookup, edge_type_to_lookup, multi_gpu);
-
-  if (optional_value_buffer.has_value()) {
-    thrust::copy(
-      handle.get_thrust_policy(),
-      cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
-      cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
-      thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())));
-  }
-  return std::make_tuple(std::move(output_srcs), std::move(output_dsts));
-}
-
-template <typename vertex_t,
-          typename edge_id_t,
-          typename edge_type_t,
-          typename EdgeTypeAndIdToSrcDstLookupContainerType,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-lookup_src_dst_from_edge_id_and_type(
-  raft::handle_t const& handle,
-  EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
-  raft::device_span<edge_id_t const> edge_ids_to_lookup,
-  raft::device_span<edge_type_t const> edge_types_to_lookup)
-{
-  using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
-
-  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
-
-  static_assert(std::is_integral_v<edge_id_t>);
-  static_assert(std::is_integral_v<edge_type_t>);
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
-
-  assert(edge_ids_to_lookup.size() == edge_types_to_lookup.size());
-
-  static_assert(
-    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
-    "edge_id_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
-  static_assert(
-    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
-    "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
-
-  rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
-
-  auto constexpr invalid_vertex_id = cugraph::invalid_vertex_id<vertex_t>::value;
-  thrust::fill(
-    handle.get_thrust_policy(), output_srcs.begin(), output_srcs.end(), invalid_vertex_id);
-  thrust::fill(
-    handle.get_thrust_policy(), output_dsts.begin(), output_dsts.end(), invalid_vertex_id);
-
-  auto optional_value_buffer = search_container.src_dst_from_edge_id_and_type(
-    handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
-
-  if (optional_value_buffer.has_value()) {
-    thrust::copy(
-      handle.get_thrust_policy(),
-      cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
-      cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
-      thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())));
-  }
-  return std::make_tuple(std::move(output_srcs), std::move(output_dsts));
-}
 
 template <typename GraphViewType,
           typename EdgeIdInputWrapper,
@@ -485,11 +383,8 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
   using value_t     = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
-
   static_assert(std::is_integral_v<edge_type_t>);
   static_assert(std::is_integral_v<edge_id_t>);
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
-
   static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
 
   static_assert(
@@ -1049,6 +944,85 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
   }
 
   return search_container;
+}
+
+template <typename vertex_t,
+          typename edge_id_t,
+          typename edge_type_t,
+          typename EdgeTypeAndIdToSrcDstLookupContainerType,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+lookup_src_dst_from_edge_id_and_type(
+  raft::handle_t const& handle,
+  EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
+  raft::device_span<edge_id_t const> edge_ids_to_lookup,
+  edge_type_t edge_type_to_lookup)
+{
+  using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
+  static_assert(std::is_integral_v<edge_id_t>);
+  static_assert(std::is_integral_v<edge_type_t>);
+  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
+
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
+    "edge_id_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
+    "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
+
+  rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
+
+  auto optional_value_buffer = search_container.src_dst_from_edge_id_and_type(
+    handle, edge_ids_to_lookup, edge_type_to_lookup, multi_gpu);
+
+  thrust::copy(
+    handle.get_thrust_policy(),
+    cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
+    cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
+    thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())));
+
+  return std::make_tuple(std::move(output_srcs), std::move(output_dsts));
+}
+
+template <typename vertex_t,
+          typename edge_id_t,
+          typename edge_type_t,
+          typename EdgeTypeAndIdToSrcDstLookupContainerType,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+lookup_src_dst_from_edge_id_and_type(
+  raft::handle_t const& handle,
+  EdgeTypeAndIdToSrcDstLookupContainerType const& search_container,
+  raft::device_span<edge_id_t const> edge_ids_to_lookup,
+  raft::device_span<edge_type_t const> edge_types_to_lookup)
+{
+  using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
+  static_assert(std::is_integral_v<edge_id_t>);
+  static_assert(std::is_integral_v<edge_type_t>);
+  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
+
+  assert(edge_ids_to_lookup.size() == edge_types_to_lookup.size());
+
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
+    "edge_id_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type");
+  static_assert(
+    std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
+    "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
+
+  rmm::device_uvector<vertex_t> output_srcs(edge_ids_to_lookup.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> output_dsts(edge_ids_to_lookup.size(), handle.get_stream());
+
+  auto optional_value_buffer = search_container.src_dst_from_edge_id_and_type(
+    handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
+
+  thrust::copy(
+    handle.get_thrust_policy(),
+    cugraph::get_dataframe_buffer_begin((*optional_value_buffer)),
+    cugraph::get_dataframe_buffer_end((*optional_value_buffer)),
+    thrust::make_zip_iterator(thrust::make_tuple(output_srcs.begin(), output_dsts.begin())));
+  return std::make_tuple(std::move(output_srcs), std::move(output_dsts));
 }
 }  // namespace detail
 
