@@ -496,7 +496,7 @@ ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
 
 ###################################################################################################
 # - EDGE SOURCE DESTINATION LOOKUP tests ----------------------------------------------------------
-ConfigureTestMG(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
+ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 
 ###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
