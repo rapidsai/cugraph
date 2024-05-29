@@ -846,7 +846,7 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        false);
+        true);
 
     modified_graph_view = (*modified_graph).view();
 
@@ -1031,6 +1031,13 @@ k_truss(raft::handle_t const& handle,
                                                 cugraph::edge_dummy_property_t{}.view(),
                                                 extract_edges_to_q_r<vertex_t>{raft::device_span<vertex_t const>(vertex_q_r.data(), vertex_q_r.size())});
 
+
+      rmm::device_uvector<vertex_t> cp_weak_edgelist_srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> cp_weak_edgelist_dsts(0, handle.get_stream());
+
+      
+
+
       if constexpr (multi_gpu) {
         std::tie(dsts_to_q_r, srcs_to_q_r, std::ignore, std::ignore, std::ignore) =
           detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
@@ -1056,27 +1063,40 @@ k_truss(raft::handle_t const& handle,
               true);
 
       if constexpr (multi_gpu) {
+        
+        cp_weak_edgelist_srcs.resize(weak_edgelist_srcs.size(), handle.get_stream());
+        cp_weak_edgelist_dsts.resize(weak_edgelist_dsts.size(), handle.get_stream());
+
+        thrust::copy(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(
+                      weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
+                   thrust::make_zip_iterator(
+                      weak_edgelist_srcs.end(), weak_edgelist_dsts.end()),
+                   thrust::make_zip_iterator(
+                    cp_weak_edgelist_srcs.begin(), cp_weak_edgelist_dsts.begin()
+                   ));
+        
         rmm::device_uvector<vertex_t> shuffled_weak_edgelist_srcs{0, handle.get_stream()};
         rmm::device_uvector<vertex_t> shuffled_weak_edgelist_dsts{0, handle.get_stream()};
 
-        std::tie(weak_edgelist_srcs, weak_edgelist_dsts, std::ignore, std::ignore, std::ignore) =
+        std::tie(cp_weak_edgelist_srcs, cp_weak_edgelist_dsts, std::ignore, std::ignore, std::ignore) =
           detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                         edge_t,
                                                                                         weight_t,
                                                                                         int32_t>(
-            handle, std::move(weak_edgelist_srcs), std::move(weak_edgelist_dsts), std::nullopt, std::nullopt, std::nullopt);
+            handle, std::move(cp_weak_edgelist_srcs), std::move(cp_weak_edgelist_dsts), std::nullopt, std::nullopt, std::nullopt);
         
         renumber_ext_vertices<vertex_t, multi_gpu>(handle,
-                                         weak_edgelist_srcs.data(),
-                                         weak_edgelist_srcs.size(),
+                                         cp_weak_edgelist_srcs.data(),
+                                         cp_weak_edgelist_srcs.size(),
                                          (*renumber_map_q_r).data(),
                                          (*graph_q_r).view().local_vertex_partition_range_first(),
                                          (*graph_q_r).view().local_vertex_partition_range_last(),
                                          true);
 
         renumber_ext_vertices<vertex_t, multi_gpu>(handle,
-                                         weak_edgelist_dsts.data(),
-                                         weak_edgelist_dsts.size(),
+                                         cp_weak_edgelist_dsts.data(),
+                                         cp_weak_edgelist_dsts.size(),
                                          (*renumber_map_q_r).data(),
                                          (*graph_q_r).view().local_vertex_partition_range_first(),
                                          (*graph_q_r).view().local_vertex_partition_range_last(),
@@ -1084,10 +1104,10 @@ k_truss(raft::handle_t const& handle,
 
       }
 
-      invalid_edge_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
+      invalid_edge_first = thrust::make_zip_iterator(cp_weak_edgelist_srcs.begin(), cp_weak_edgelist_dsts.begin());
       thrust::sort(handle.get_thrust_policy(),
                       invalid_edge_first,
-                      invalid_edge_first + weak_edgelist_srcs.size());
+                      invalid_edge_first + cp_weak_edgelist_srcs.size());
 
       find_unroll_p_q_q_r_edges<vertex_t, edge_t, weight_t, decltype(graph_q_r), multi_gpu, true, false>(
         handle,
@@ -1095,14 +1115,12 @@ k_truss(raft::handle_t const& handle,
         graph_q_r,
         e_property_triangle_count,
         tmp_edge_mask,
-        raft::device_span<vertex_t>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
-        raft::device_span<vertex_t>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
+        raft::device_span<vertex_t>(cp_weak_edgelist_srcs.data(), cp_weak_edgelist_srcs.size()),
+        raft::device_span<vertex_t>(cp_weak_edgelist_dsts.data(), cp_weak_edgelist_dsts.size()),
         std::move(renumber_map_q_r),
         do_expensive_check
       );
-      
 
-      // FIXME: unrenumber weak edgelist before proceeding
       #if 0
       auto [srcs__, dsts__] = extract_transform_e(handle,
                                                 (*graph_q_r).view(),
