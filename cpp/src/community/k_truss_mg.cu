@@ -28,7 +28,7 @@ k_truss(raft::handle_t const& handle,
         std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
         int32_t k,
         bool do_expensive_check);
-/*
+
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
@@ -73,6 +73,6 @@ k_truss(raft::handle_t const& handle,
         std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
         int64_t k,
         bool do_expensive_check);
-*/
+
 
 }  // namespace cugraph

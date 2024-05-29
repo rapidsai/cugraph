@@ -642,7 +642,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
-    #ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+    ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG coarsening tests -----------------------------------------------------------------------
