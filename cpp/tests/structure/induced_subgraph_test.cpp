@@ -16,6 +16,7 @@
 #include "structure/induced_subgraph_validate.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/graph.hpp>
@@ -89,6 +90,8 @@ extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
 struct InducedSubgraph_Usecase {
   std::vector<size_t> subgraph_sizes{};
   bool test_weighted{false};
+
+  bool edge_masking{false};
   bool check_correctness{false};
 };
 
@@ -133,6 +136,13 @@ class Tests_InducedSubgraph
     auto graph_view = graph.view();
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (induced_subgraph_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // Construct random subgraph vertex lists
 
@@ -267,12 +277,19 @@ INSTANTIATE_TEST_SUITE_P(
   karate_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
-    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{0}, false, true},
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{0}, false, false},
+                      InducedSubgraph_Usecase{std::vector<size_t>{0}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{1}, false, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{1}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{10}, false, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{10}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{34}, false, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{34}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{10, 0, 5}, false, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{10, 0, 5}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{9, 3, 10}, false, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{9, 3, 10}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{5, 12, 13}, true, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{5, 12, 13}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
@@ -280,7 +297,9 @@ INSTANTIATE_TEST_SUITE_P(
   web_google_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
-    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, false, true},
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, false, false},
+                      InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, true, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{125, 300, 70}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
 
@@ -288,7 +307,9 @@ INSTANTIATE_TEST_SUITE_P(
   ljournal_2008_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
-    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{300, 20, 400}, false, true},
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, false, false},
+                      InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, true, false},
                       InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"))));
 
@@ -296,8 +317,10 @@ INSTANTIATE_TEST_SUITE_P(
   webbase_1M_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
-    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{700}, false, true},
-                      InducedSubgraph_Usecase{std::vector<size_t>{500}, true, true}),
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{700}, false, false},
+                      InducedSubgraph_Usecase{std::vector<size_t>{700}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{700}, true, false},
+                      InducedSubgraph_Usecase{std::vector<size_t>{700}, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
