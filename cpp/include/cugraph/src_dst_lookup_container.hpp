@@ -61,7 +61,7 @@ class search_container_t {
 
   static_assert(std::is_integral_v<edge_id_t>);
   static_assert(std::is_integral_v<edge_type_t>);
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
+  static_assert(is_thrust_tuple_of_integral<value_t>::value);
 
   ~search_container_t();
   search_container_t();
