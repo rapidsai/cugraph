@@ -42,18 +42,18 @@ struct lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_imp
   ~lookup_container_impl() {}
   lookup_container_impl() {}
   lookup_container_impl(raft::handle_t const& handle,
-                        std::vector<edge_type_t> typs,
-                        std::vector<edge_id_t> typ_freqs)
+                        std::vector<edge_type_t> types,
+                        std::vector<edge_id_t> type_counts)
   {
     auto invalid_key   = cugraph::invalid_vertex_id<edge_id_t>::value;
     auto invalid_value = invalid_of_thrust_tuple_of_integral<value_t>();
 
     edge_type_to_kv_store = container_t{};
-    edge_type_to_kv_store.reserve(typs.size());
+    edge_type_to_kv_store.reserve(types.size());
 
-    for (size_t idx = 0; idx < typs.size(); idx++) {
-      auto typ              = typs[idx];
-      size_t store_capacity = typ_freqs[idx];
+    for (size_t idx = 0; idx < types.size(); idx++) {
+      auto typ              = types[idx];
+      size_t store_capacity = type_counts[idx];
 
       edge_type_to_kv_store.insert(
         {typ, std::move(store_t(store_capacity, invalid_key, invalid_value, handle.get_stream()))});
@@ -81,11 +81,11 @@ struct lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_imp
     }
   }
 
-  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
-  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                edge_type_t edge_type_to_lookup,
-                                bool multi_gpu) const
+  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+    raft::handle_t const& handle,
+    raft::device_span<edge_id_t const> edge_ids_to_lookup,
+    edge_type_t edge_type_to_lookup,
+    bool multi_gpu) const
   {
     using store_t = typename container_t::mapped_type;
     const store_t* kv_store_object{nullptr};
@@ -102,10 +102,11 @@ struct lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_imp
         value_buffer, edge_ids_to_lookup.size(), handle.get_stream());
 
       auto invalid_value = invalid_of_thrust_tuple_of_integral<value_t>();
-      thrust::copy(handle.get_thrust_policy(),
-                   thrust::make_constant_iterator(invalid_value),
-                   thrust::make_constant_iterator(invalid_value) + edge_ids_to_lookup.size(),
-                   cugraph::get_dataframe_buffer_begin(value_buffer));
+
+      thrust::fill(handle.get_thrust_policy(),
+                   cugraph::get_dataframe_buffer_begin(value_buffer),
+                   cugraph::get_dataframe_buffer_end(value_buffer),
+                   invalid_value);
 
       // FIXME: we are assuming value_t is tuple of size 2
       return std::make_tuple(std::move(std::get<0>(value_buffer)),
@@ -144,11 +145,11 @@ struct lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_imp
                            std::move(std::get<1>(value_buffer)));
   }
 
-  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
-  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                raft::device_span<edge_type_t const> edge_types_to_lookup,
-                                bool multi_gpu) const
+  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+    raft::handle_t const& handle,
+    raft::device_span<edge_id_t const> edge_ids_to_lookup,
+    raft::device_span<edge_type_t const> edge_types_to_lookup,
+    bool multi_gpu) const
   {
     static_assert(std::is_integral_v<edge_id_t>);
     static_assert(std::is_integral_v<edge_type_t>);
@@ -319,9 +320,9 @@ lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_t()
 
 template <typename edge_id_t, typename edge_type_t, typename value_t>
 lookup_container_t<edge_id_t, edge_type_t, value_t>::lookup_container_t(
-  raft::handle_t const& handle, std::vector<edge_type_t> typs, std::vector<edge_id_t> typ_freqs)
+  raft::handle_t const& handle, std::vector<edge_type_t> types, std::vector<edge_id_t> type_counts)
   : pimpl{std::make_unique<lookup_container_impl<edge_id_t, edge_type_t, value_t>>(
-      handle, typs, typ_freqs)}
+      handle, types, type_counts)}
 {
 }
 
@@ -342,7 +343,7 @@ void lookup_container_t<edge_id_t, edge_type_t, value_t>::insert(
 }
 
 template <typename edge_id_t, typename edge_type_t, typename value_t>
-decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
+dataframe_buffer_type_t<value_t>
 lookup_container_t<edge_id_t, edge_type_t, value_t>::src_dst_from_edge_id_and_type(
   raft::handle_t const& handle,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,
@@ -354,7 +355,7 @@ lookup_container_t<edge_id_t, edge_type_t, value_t>::src_dst_from_edge_id_and_ty
 }
 
 template <typename edge_id_t, typename edge_type_t, typename value_t>
-decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
+dataframe_buffer_type_t<value_t>
 lookup_container_t<edge_id_t, edge_type_t, value_t>::src_dst_from_edge_id_and_type(
   raft::handle_t const& handle,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,

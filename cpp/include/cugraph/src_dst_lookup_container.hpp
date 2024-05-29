@@ -76,17 +76,17 @@ class lookup_container_t {
               decltype(cugraph::allocate_dataframe_buffer<value_t>(
                 0, rmm::cuda_stream_view{}))&& values_to_insert);
 
-  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
-  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                edge_type_t edge_type_to_lookup,
-                                bool multi_gpu) const;
+  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+    raft::handle_t const& handle,
+    raft::device_span<edge_id_t const> edge_ids_to_lookup,
+    edge_type_t edge_type_to_lookup,
+    bool multi_gpu) const;
 
-  decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))
-  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                raft::device_span<edge_type_t const> edge_types_to_lookup,
-                                bool multi_gpu) const;
+  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+    raft::handle_t const& handle,
+    raft::device_span<edge_id_t const> edge_ids_to_lookup,
+    raft::device_span<edge_type_t const> edge_types_to_lookup,
+    bool multi_gpu) const;
 };
 
 }  // namespace cugraph
