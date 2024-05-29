@@ -627,9 +627,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType create_edge_id_and_type_to_src_dst_look
                                                        (*edgelist_types).end())),
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_vertex_t<edge_t>{
-              comm_size,
-              major_comm_size,
-              minor_comm_size}] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+               comm_size,
+               major_comm_size,
+               minor_comm_size}] __device__(auto val) { return key_func(thrust::get<2>(val)); },
           handle.get_stream());
     }
 
