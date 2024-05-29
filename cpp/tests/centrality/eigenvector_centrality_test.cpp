@@ -181,11 +181,12 @@ class Tests_EigenvectorCentrality
       rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
 
-      std::tie(dst_v, src_v, opt_wgt_v, std::ignore) = cugraph::decompress_to_edgelist(
+      std::tie(dst_v, src_v, opt_wgt_v, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
         handle,
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
       auto h_src     = cugraph::test::to_host(handle, src_v);

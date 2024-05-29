@@ -60,12 +60,8 @@ struct update_v_frontier_call_v_op_t {
   {
     auto key     = thrust::get<0>(pair);
     auto payload = thrust::get<1>(pair);
-    vertex_t v_offset{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      v_offset = key - local_vertex_partition_range_first;
-    } else {
-      v_offset = thrust::get<0>(key) - local_vertex_partition_range_first;
-    }
+    auto v_offset =
+      thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val, payload);
     if (thrust::get<1>(v_op_result)) {
@@ -98,12 +94,8 @@ struct update_v_frontier_call_v_op_t<vertex_t,
 
   __device__ uint8_t operator()(key_t key) const
   {
-    vertex_t v_offset{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      v_offset = key - local_vertex_partition_range_first;
-    } else {
-      v_offset = thrust::get<0>(key) - local_vertex_partition_range_first;
-    }
+    auto v_offset =
+      thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val);
     if (thrust::get<1>(v_op_result)) {

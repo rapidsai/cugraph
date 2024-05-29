@@ -27,6 +27,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/util/integer_utils.hpp>
+
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -38,14 +40,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-
-// FIXME : This will be deleted once edge_triangle_count becomes public
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<edge_t> edge_triangle_count(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> edgelist_srcs,
-  raft::device_span<vertex_t> edgelist_dsts);
 
 template <typename vertex_t, typename edge_t, typename EdgeIterator>
 struct unroll_edge {
@@ -442,6 +436,7 @@ struct extract_low_to_high_degree_edges_t {
 
 template <typename vertex_t, typename edge_t, bool generate_p_r>
 struct generate_p_r_or_q_r_from_p_q {
+  size_t chunk_start{};
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t const> invalid_srcs{};
@@ -454,10 +449,10 @@ struct generate_p_r_or_q_r_from_p_q {
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
 
     if constexpr (generate_p_r) {
-      return thrust::make_tuple(invalid_srcs[idx], intersection_indices[i]);
+      return thrust::make_tuple(invalid_srcs[chunk_start + idx], intersection_indices[i]);
 
     } else {
-      return thrust::make_tuple(invalid_dsts[idx], intersection_indices[i]);
+      return thrust::make_tuple(invalid_dsts[chunk_start + idx], intersection_indices[i]);
     }
   }
 };
@@ -491,6 +486,7 @@ k_truss(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>
     edge_weight{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> wgts{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
     auto [srcs, dsts] = extract_transform_e(handle,
@@ -524,31 +520,30 @@ k_truss(raft::handle_t const& handle,
     modified_graph_view = (*modified_graph).view();
   }
 
-  // FIXME: Investigate k-1 core failure to yield correct results.
   // 3. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
-  /*
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+
     auto vertex_partition_range_lasts =
       renumber_map
         ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
         : std::nullopt;
 
-    rmm::device_uvector<edge_t> d_core_numbers(cur_graph_view.local_vertex_partition_range_size(),
-                                               handle.get_stream());
-    raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
+    rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
+                                             handle.get_stream());
+    core_number(
+      handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
+
+    raft::device_span<edge_t const> core_number_span{core_numbers.data(), core_numbers.size()};
 
     rmm::device_uvector<vertex_t> srcs{0, handle.get_stream()};
     rmm::device_uvector<vertex_t> dsts{0, handle.get_stream()};
-    std::tie(srcs, dsts, std::ignore) =
-      k_core(handle,
-             cur_graph_view,
-             std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-             size_t{k - 1},
-             std::make_optional(k_core_degree_type_t::OUT),
-             // Seems like the below argument is required. passing a std::nullopt
-             // create a compiler error
-             std::make_optional(core_number_span));
+    std::tie(srcs, dsts, wgts) = k_core(handle,
+                                        cur_graph_view,
+                                        edge_weight_view,
+                                        k - 1,
+                                        std::make_optional(k_core_degree_type_t::OUT),
+                                        std::make_optional(core_number_span));
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
@@ -561,17 +556,17 @@ k_truss(raft::handle_t const& handle,
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
 
-    std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
+    std::tie(*modified_graph, edge_weight, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
-        std::nullopt,
+        std::move(wgts),
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        true);
+        false);
 
     modified_graph_view = (*modified_graph).view();
 
@@ -584,7 +579,6 @@ k_truss(raft::handle_t const& handle,
     }
     renumber_map = std::move(tmp_renumber_map);
   }
-  */
 
   // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
@@ -606,7 +600,10 @@ k_truss(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> wgts{std::nullopt};
+
+    edge_weight_view =
+      edge_weight ? std::make_optional((*edge_weight).view())
+                  : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
     if (edge_weight_view) {
       std::tie(srcs, dsts, wgts) = extract_transform_e(
         handle,
@@ -666,36 +663,36 @@ k_truss(raft::handle_t const& handle,
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
+    std::optional<rmm::device_uvector<edge_t>> num_triangles{std::nullopt};
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
     edge_weight_view =
       edge_weight ? std::make_optional((*edge_weight).view())
                   : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      edge_weight_view,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-    auto num_triangles = edge_triangle_count<vertex_t, edge_t, false, false>(
-      handle,
-      cur_graph_view,
-      raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
-      raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()));
+    auto prop_num_triangles = edge_triangle_count<vertex_t, edge_t, false>(handle, cur_graph_view);
 
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, num_triangles, std::ignore) =
+      decompress_to_edgelist(
+        handle,
+        cur_graph_view,
+        edge_weight_view,
+        // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
+        std::make_optional(prop_num_triangles.view()),
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
     auto transposed_edge_first =
       thrust::make_zip_iterator(edgelist_dsts.begin(), edgelist_srcs.begin());
 
     auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
     auto transposed_edge_triangle_count_pair_first =
-      thrust::make_zip_iterator(transposed_edge_first, num_triangles.begin());
+      thrust::make_zip_iterator(transposed_edge_first, (*num_triangles).begin());
 
     thrust::sort_by_key(handle.get_thrust_policy(),
                         transposed_edge_first,
                         transposed_edge_first + edgelist_srcs.size(),
-                        num_triangles.begin());
+                        (*num_triangles).begin());
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
@@ -726,92 +723,115 @@ k_truss(raft::handle_t const& handle,
 
       // nbr_intersection requires the edges to be sort by 'src'
       // sort the invalid edges by src for nbr intersection
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          edge_first + num_valid_edges,
-                          edge_first + edgelist_srcs.size(),
-                          num_triangles.begin() + num_valid_edges);
+      size_t edges_to_intersect_per_iteration =
+        static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
 
-      auto [intersection_offsets, intersection_indices] =
-        detail::nbr_intersection(handle,
-                                 cur_graph_view,
-                                 cugraph::edge_dummy_property_t{}.view(),
-                                 edge_first + num_valid_edges,
-                                 edge_first + edgelist_srcs.size(),
-                                 std::array<bool, 2>{true, true},
-                                 do_expensive_check);
+      size_t prev_chunk_size         = 0;
+      size_t chunk_num_invalid_edges = num_invalid_edges;
 
-      // Update the number of triangles of each (p, q) edges by looking at their intersection
-      // size.
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator<edge_t>(0),
-        thrust::make_counting_iterator<edge_t>(num_invalid_edges),
-        [num_triangles =
-           raft::device_span<edge_t>(num_triangles.data() + num_valid_edges, num_invalid_edges),
-         intersection_offsets = raft::device_span<size_t const>(
-           intersection_offsets.data(), intersection_offsets.size())] __device__(auto i) {
-          num_triangles[i] -= intersection_offsets[i + 1] - intersection_offsets[i];
-        });
+      auto num_chunks =
+        raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
 
-      // FIXME: Find a way to not have to maintain a dataframe_buffer
-      auto vertex_pair_buffer_p_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
-                                                                     handle.get_stream());
+      for (size_t i = 0; i < num_chunks; ++i) {
+        auto chunk_size = std::min(edges_to_intersect_per_iteration, chunk_num_invalid_edges);
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            edge_first + num_valid_edges,
+                            edge_first + edgelist_srcs.size(),
+                            (*num_triangles).begin() + num_valid_edges);
 
-      thrust::tabulate(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
-        get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
-        generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, true>{
-          raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-          raft::device_span<vertex_t const>(intersection_indices.data(),
-                                            intersection_indices.size()),
-          raft::device_span<vertex_t>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
-          raft::device_span<vertex_t>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges)});
+        auto [intersection_offsets, intersection_indices] =
+          detail::nbr_intersection(handle,
+                                   cur_graph_view,
+                                   cugraph::edge_dummy_property_t{}.view(),
+                                   edge_first + num_valid_edges + prev_chunk_size,
+                                   edge_first + num_valid_edges + prev_chunk_size + chunk_size,
+                                   std::array<bool, 2>{true, true},
+                                   do_expensive_check);
 
-      auto vertex_pair_buffer_q_r_edge_p_q =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
-                                                                     handle.get_stream());
-      thrust::tabulate(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
-        get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_q),
-        generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, false>{
-          raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
-          raft::device_span<vertex_t const>(intersection_indices.data(),
-                                            intersection_indices.size()),
-          raft::device_span<vertex_t>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
-          raft::device_span<vertex_t>(edgelist_dsts.data() + num_valid_edges, num_invalid_edges)});
+        // Update the number of triangles of each (p, q) edges by looking at their intersection
+        // size.
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator<edge_t>(0),
+          thrust::make_counting_iterator<edge_t>(chunk_size),
+          [chunk_start   = prev_chunk_size,
+           num_triangles = raft::device_span<edge_t>((*num_triangles).data() + num_valid_edges,
+                                                     num_invalid_edges),
+           intersection_offsets = raft::device_span<size_t const>(
+             intersection_offsets.data(), intersection_offsets.size())] __device__(auto i) {
+            num_triangles[chunk_start + i] -=
+              (intersection_offsets[i + 1] - intersection_offsets[i]);
+          });
 
-      // Unrolling the edges require the edges to be sorted by destination
-      // re-sort the invalid edges by 'dst'
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          transposed_edge_first + num_valid_edges,
-                          transposed_edge_first + edgelist_srcs.size(),
-                          num_triangles.begin() + num_valid_edges);
+        // FIXME: Find a way to not have to maintain a dataframe_buffer
+        auto vertex_pair_buffer_p_r_edge_p_q =
+          allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
+                                                                       handle.get_stream());
+        thrust::tabulate(
+          handle.get_thrust_policy(),
+          get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
+          get_dataframe_buffer_end(vertex_pair_buffer_p_r_edge_p_q),
+          generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, true>{
+            prev_chunk_size,
+            raft::device_span<size_t const>(intersection_offsets.data(),
+                                            intersection_offsets.size()),
+            raft::device_span<vertex_t const>(intersection_indices.data(),
+                                              intersection_indices.size()),
+            raft::device_span<vertex_t>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
+            raft::device_span<vertex_t>(edgelist_dsts.data() + num_valid_edges,
+                                        num_invalid_edges)});
 
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<edge_t>(0),
-                       thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                       unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
-                         num_valid_edges,
-                         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
-                         get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
-                         transposed_edge_first,
-                         transposed_edge_first + num_valid_edges,
-                         transposed_edge_first + edgelist_srcs.size()});
+        auto vertex_pair_buffer_q_r_edge_p_q =
+          allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
+                                                                       handle.get_stream());
+        thrust::tabulate(
+          handle.get_thrust_policy(),
+          get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
+          get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_q),
+          generate_p_r_or_q_r_from_p_q<vertex_t, edge_t, false>{
+            prev_chunk_size,
+            raft::device_span<size_t const>(intersection_offsets.data(),
+                                            intersection_offsets.size()),
+            raft::device_span<vertex_t const>(intersection_indices.data(),
+                                              intersection_indices.size()),
+            raft::device_span<vertex_t>(edgelist_srcs.data() + num_valid_edges, num_invalid_edges),
+            raft::device_span<vertex_t>(edgelist_dsts.data() + num_valid_edges,
+                                        num_invalid_edges)});
 
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<edge_t>(0),
-                       thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
-                       unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
-                         num_valid_edges,
-                         raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()),
-                         get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
-                         transposed_edge_first,
-                         transposed_edge_first + num_valid_edges,
-                         transposed_edge_first + edgelist_srcs.size()});
+        // Unrolling the edges require the edges to be sorted by destination
+        // re-sort the invalid edges by 'dst'
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            transposed_edge_first + num_valid_edges,
+                            transposed_edge_first + edgelist_srcs.size(),
+                            (*num_triangles).begin() + num_valid_edges);
 
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator<edge_t>(0),
+          thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
+          unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
+            num_valid_edges,
+            raft::device_span<edge_t>((*num_triangles).data(), (*num_triangles).size()),
+            get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_p_q),
+            transposed_edge_first,
+            transposed_edge_first + num_valid_edges,
+            transposed_edge_first + edgelist_srcs.size()});
+
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator<edge_t>(0),
+          thrust::make_counting_iterator<edge_t>(intersection_indices.size()),
+          unroll_edge<vertex_t, edge_t, decltype(transposed_edge_first)>{
+            num_valid_edges,
+            raft::device_span<edge_t>((*num_triangles).data(), (*num_triangles).size()),
+            get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_q),
+            transposed_edge_first,
+            transposed_edge_first + num_valid_edges,
+            transposed_edge_first + edgelist_srcs.size()});
+
+        prev_chunk_size += chunk_size;
+        chunk_num_invalid_edges -= chunk_size;
+      }
       // case 2: unroll (q, r)
       // For each (q, r) edges to unroll, find the incoming edges to 'r' let's say from 'p' and
       // create the pair (p, q)
@@ -822,7 +842,7 @@ k_truss(raft::handle_t const& handle,
         num_valid_edges,
         raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
         raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
-        raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()));
+        raft::device_span<edge_t>((*num_triangles).data(), (*num_triangles).size()));
 
       // case 3: unroll (p, r)
       cugraph::unroll_p_r_or_q_r_edges<vertex_t, edge_t, false, false>(
@@ -832,18 +852,18 @@ k_truss(raft::handle_t const& handle,
         num_valid_edges,
         raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
         raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
-        raft::device_span<edge_t>(num_triangles.data(), num_triangles.size()));
+        raft::device_span<edge_t>((*num_triangles).data(), (*num_triangles).size()));
 
       // Remove edges that have a triangle count of zero. Those should not be accounted
       // for during the unroling phase.
-      auto edges_with_triangle_last =
-        thrust::stable_partition(handle.get_thrust_policy(),
-                                 transposed_edge_triangle_count_pair_first,
-                                 transposed_edge_triangle_count_pair_first + num_triangles.size(),
-                                 [] __device__(auto e) {
-                                   auto num_triangles = thrust::get<1>(e);
-                                   return num_triangles > 0;
-                                 });
+      auto edges_with_triangle_last = thrust::stable_partition(
+        handle.get_thrust_policy(),
+        transposed_edge_triangle_count_pair_first,
+        transposed_edge_triangle_count_pair_first + (*num_triangles).size(),
+        [] __device__(auto e) {
+          auto num_triangles = thrust::get<1>(e);
+          return num_triangles > 0;
+        });
 
       auto num_edges_with_triangles = static_cast<size_t>(
         thrust::distance(transposed_edge_triangle_count_pair_first, edges_with_triangle_last));
@@ -891,15 +911,17 @@ k_truss(raft::handle_t const& handle,
 
       edgelist_srcs.resize(num_edges_with_triangles, handle.get_stream());
       edgelist_dsts.resize(num_edges_with_triangles, handle.get_stream());
-      num_triangles.resize(num_edges_with_triangles, handle.get_stream());
+      (*num_triangles).resize(num_edges_with_triangles, handle.get_stream());
     }
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore) = decompress_to_edgelist(
-      handle,
-      cur_graph_view,
-      edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
+      decompress_to_edgelist(
+        handle,
+        cur_graph_view,
+        edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
+        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,

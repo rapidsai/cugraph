@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,115 +16,81 @@ import gc
 import random
 import pytest
 
-import cudf
-import dask_cudf
 import cugraph
 import cugraph.dask as dcg
-from cugraph.testing import utils
-from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.datasets import karate, dolphins
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
 
 # =============================================================================
-# Pytest fixtures
+# Parameters
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED
-fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    ([True, False], "start_list"),
-)
 
 
-@pytest.fixture(scope="module", params=fixture_params)
-def input_combo(request):
-    """
-    Simply return the current combination of params as a dictionary for use in
-    tests or other parameterized fixtures.
-    """
-    parameters = dict(zip(("graph_file", "start_list", "edgevals"), request.param))
-
-    return parameters
+DATASETS = [karate, dolphins]
+START_LIST = [True, False]
 
 
-@pytest.fixture(scope="module")
-def input_expected_output(dask_client, input_combo):
-    """
-    This fixture returns the inputs and expected results from the triangle
-    count algo.
-    """
-    start_list = input_combo["start_list"]
-    input_data_path = input_combo["graph_file"]
-    G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=False, edgevals=True
-    )
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
-    input_combo["SGGraph"] = G
 
-    if start_list:
+def get_sg_graph(dataset, directed, start):
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+    if start:
         # sample k nodes from the cuGraph graph
-        k = random.randint(1, 10)
-        srcs = G.view_edge_list()[G.source_columns]
-        dsts = G.view_edge_list()[G.destination_columns]
-        nodes = cudf.concat([srcs, dsts]).drop_duplicates()
-        start_list = nodes.sample(k)
+        start = G.select_random_vertices(num_vertices=random.randint(1, 10))
     else:
-        start_list = None
+        start = None
 
-    sg_triangle_results = cugraph.triangle_count(G, start_list)
-    sg_triangle_results = sg_triangle_results.sort_values("vertex").reset_index(
-        drop=True
-    )
+    return G, start
 
-    input_combo["sg_triangle_results"] = sg_triangle_results
-    input_combo["start_list"] = start_list
 
-    # Creating an edgelist from a dask cudf dataframe
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=False)
+def get_mg_graph(dataset, directed):
+    ddf = dataset.get_dask_edgelist()
+    dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value", renumber=True
+        ddf, source="src", destination="dst", edge_attr="wgt", renumber=True
     )
 
-    input_combo["MGGraph"] = dg
-
-    return input_combo
+    return dg
 
 
 # =============================================================================
 # Tests
 # =============================================================================
+
+
 @pytest.mark.mg
-def test_sg_triangles(dask_client, benchmark, input_expected_output):
+@pytest.mark.parametrize("dataset", DATASETS)
+@pytest.mark.parametrize("start", START_LIST)
+def test_sg_triangles(dask_client, dataset, start, benchmark):
     # This test is only for benchmark purposes.
     sg_triangle_results = None
-    G = input_expected_output["SGGraph"]
-    start_list = input_expected_output["start_list"]
-    sg_triangle_results = benchmark(cugraph.triangle_count, G, start_list)
+    G, start = get_sg_graph(dataset, False, start)
+
+    sg_triangle_results = benchmark(cugraph.triangle_count, G, start)
+    sg_triangle_results.sort_values("vertex").reset_index(drop=True)
     assert sg_triangle_results is not None
 
 
 @pytest.mark.mg
-def test_triangles(dask_client, benchmark, input_expected_output):
+@pytest.mark.parametrize("dataset", DATASETS)
+@pytest.mark.parametrize("start", START_LIST)
+def test_triangles(dask_client, dataset, start, benchmark):
+    G, start = get_sg_graph(dataset, False, start)
+    dg = get_mg_graph(dataset, False)
 
-    dg = input_expected_output["MGGraph"]
-    start_list = input_expected_output["start_list"]
-
-    result_counts = benchmark(dcg.triangle_count, dg, start_list)
-
+    result_counts = benchmark(dcg.triangle_count, dg, start)
     result_counts = (
         result_counts.drop_duplicates()
         .compute()
@@ -132,8 +98,9 @@ def test_triangles(dask_client, benchmark, input_expected_output):
         .reset_index(drop=True)
         .rename(columns={"counts": "mg_counts"})
     )
-
-    expected_output = input_expected_output["sg_triangle_results"]
+    expected_output = (
+        cugraph.triangle_count(G, start).sort_values("vertex").reset_index(drop=True)
+    )
 
     # Update the mg triangle count with sg triangle count results
     # for easy comparison using cuDF DataFrame methods.

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -159,8 +159,8 @@ def df_type_id(dataframe_type):
         return s + "cudf.DataFrame"
     if dataframe_type == pd.DataFrame:
         return s + "pandas.DataFrame"
-    if dataframe_type == dask_cudf.core.DataFrame:
-        return s + "dask_cudf.core.DataFrame"
+    if dataframe_type == dask_cudf.DataFrame:
+        return s + "dask_cudf.DataFrame"
     return s + "?"
 
 
@@ -372,7 +372,7 @@ def net_MGPropertyGraph(dask_client):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],

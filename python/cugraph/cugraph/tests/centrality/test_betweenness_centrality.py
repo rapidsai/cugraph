@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -116,6 +116,8 @@ def calc_betweenness_centrality(
         create_using=cugraph.Graph(directed=directed),
         ignore_weights=not edgevals,
     )
+    if multi_gpu_batch:
+        G.enable_batch()
 
     M = G.to_pandas_edgelist().rename(
         columns={"src": "0", "dst": "1", "wgt": edge_attr}
@@ -130,8 +132,6 @@ def calc_betweenness_centrality(
     )
 
     assert G is not None and Gnx is not None
-    if multi_gpu_batch:
-        G.enable_batch()
 
     calc_func = None
     if k is not None and seed is not None:
