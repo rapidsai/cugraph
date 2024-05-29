@@ -16,6 +16,7 @@
 
 #include "detail/nbr_sampling_validate.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/property_generator_utilities.hpp"
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -25,8 +26,10 @@
 struct Uniform_Neighbor_Sampling_Usecase {
   std::vector<int32_t> fanout{{-1}};
   int32_t batch_size{10};
-  bool check_correctness{true};
   bool flag_replacement{true};
+
+  bool edge_masking{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -67,6 +70,13 @@ class Tests_Uniform_Neighbor_Sampling
     auto graph_view = graph.view();
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (uniform_neighbor_sampling_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     //
     // Test is designed like GNN sampling.  We'll select 90% of vertices
@@ -255,8 +265,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Uniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true},
-                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -266,7 +278,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 10, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 10, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -277,7 +292,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 500, true, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 500, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
