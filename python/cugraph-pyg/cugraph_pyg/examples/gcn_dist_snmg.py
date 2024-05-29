@@ -106,7 +106,7 @@ def run_train(
     from cugraph_pyg.loader import NeighborLoader
 
     graph_store = GraphStore(is_multi_gpu=True)
-    ixr = torch.tensor_split(data.edge_index, world_size, axis=1)[rank]
+    ixr = torch.tensor_split(data.edge_index, world_size, dim=1)[rank]
     graph_store[
         ("node", "rel", "node"), "coo", False, (data.num_nodes, data.num_nodes)
     ] = ixr
@@ -244,7 +244,6 @@ def run_train(
             print(
                 f"Test Accuracy: {acc_test * 100.0:.4f}%",
             )
-    # dist.barrier()
 
     if rank == 0:
         total_time = round(time.perf_counter() - wall_clock_start, 2)
@@ -252,6 +251,7 @@ def run_train(
         print("total_time - prep_time =", total_time - prep_time, "seconds")
 
     cugraph_comms_shutdown()
+    dist.destroy_process_group()
 
 
 if __name__ == "__main__":
