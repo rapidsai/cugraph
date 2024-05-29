@@ -108,17 +108,16 @@ class Tests_MGEdgeTriangleCount
     auto d_mg_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, true>(*handle_, mg_graph_view);
     */
-    
+
     auto [d_cugraph_srcs, d_cugraph_dsts, d_cugraph_wgts] =
       cugraph::k_truss<vertex_t, edge_t, weight_t, true>(
         *handle_,
         mg_graph_view,
-        //edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        std::nullopt, // FIXME: test weights
-        //k_truss_usecase.k_,
+        // edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
+        std::nullopt,  // FIXME: test weights
+        // k_truss_usecase.k_,
         4,
         false);
-    
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -129,7 +128,7 @@ class Tests_MGEdgeTriangleCount
 
     // 3. Compare SG & MG results
 
-    #if 0
+#if 0
     if (edge_triangle_count_usecase.check_correctness_) {
       // 3-1. Convert to SG graph
 
@@ -193,7 +192,7 @@ class Tests_MGEdgeTriangleCount
                                h_sg_edge_triangle_counts.begin()));
       }
     }
-    #endif
+#endif
   }
 
  private:
@@ -204,7 +203,7 @@ template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGEdgeTriangleCount<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGEdgeTriangleCount_File = Tests_MGEdgeTriangleCount<cugraph::test::File_Usecase>;
-//using Tests_MGEdgeTriangleCount_Rmat = Tests_MGEdgeTriangleCount<cugraph::test::Rmat_Usecase>;
+// using Tests_MGEdgeTriangleCount_Rmat = Tests_MGEdgeTriangleCount<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGEdgeTriangleCount_File, CheckInt32Int32)
 {
@@ -240,12 +239,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(EdgeTriangleCount_Usecase{false, false}
-                      //EdgeTriangleCount_Usecase{true, true}
+                      // EdgeTriangleCount_Usecase{true, true}
                       ),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx")
-                      //cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
-
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx")
+      // cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
+      )));
 
 #if 0
 INSTANTIATE_TEST_SUITE_P(

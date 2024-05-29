@@ -74,5 +74,4 @@ k_truss(raft::handle_t const& handle,
         int64_t k,
         bool do_expensive_check);
 
-
 }  // namespace cugraph
