@@ -171,8 +171,8 @@ set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
     src/utilities/shuffle_vertex_pairs.cu
-    src/lookup/lookup_src_dst.cu
-    src/lookup/src_dst_lookup_container.cu
+    src/lookup/lookup_src_dst_sg.cu
+    src/lookup/lookup_src_dst_mg.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu

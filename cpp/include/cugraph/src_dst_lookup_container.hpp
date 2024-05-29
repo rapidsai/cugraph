@@ -51,8 +51,8 @@ constexpr TupleType invalid_of_thrust_tuple_of_integral()
 template <typename edge_id_t, typename edge_type_t, typename value_t>
 class search_container_t {
   template <typename _edge_id_t, typename _edge_type_t, typename _value_t>
-  struct impl;
-  std::unique_ptr<impl<edge_id_t, edge_type_t, value_t>> pimpl;
+  struct search_container_impl;
+  std::unique_ptr<search_container_impl<edge_id_t, edge_type_t, value_t>> pimpl;
 
  public:
   using edge_id_type   = edge_id_t;
@@ -77,16 +77,16 @@ class search_container_t {
                 0, rmm::cuda_stream_view{}))&& values_to_insert);
 
   std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
-  lookup_src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                       raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                       edge_type_t edge_type_to_lookup,
-                                       bool multi_gpu) const;
+  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
+                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
+                                edge_type_t edge_type_to_lookup,
+                                bool multi_gpu) const;
 
   std::optional<decltype(cugraph::allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))>
-  lookup_src_dst_from_edge_id_and_type(raft::handle_t const& handle,
-                                       raft::device_span<edge_id_t const> edge_ids_to_lookup,
-                                       raft::device_span<edge_type_t const> edge_types_to_lookup,
-                                       bool multi_gpu) const;
+  src_dst_from_edge_id_and_type(raft::handle_t const& handle,
+                                raft::device_span<edge_id_t const> edge_ids_to_lookup,
+                                raft::device_span<edge_type_t const> edge_types_to_lookup,
+                                bool multi_gpu) const;
   void print() const;
 };
 
