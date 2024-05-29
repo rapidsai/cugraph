@@ -39,16 +39,18 @@
 
 #include <random>
 
-struct EdgeTriangleCount_Usecase {
-  bool edge_masking_{false};
-  bool check_correctness_{true};
+struct TriangleCount_Usecase {
+  double vertex_subset_ratio{0.0};
+
+  bool edge_masking{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_MGEdgeTriangleCount
-  : public ::testing::TestWithParam<std::tuple<EdgeTriangleCount_Usecase, input_usecase_t>> {
+class Tests_MGTriangleCount
+  : public ::testing::TestWithParam<std::tuple<TriangleCount_Usecase, input_usecase_t>> {
  public:
-  Tests_MGEdgeTriangleCount() {}
+  Tests_MGTriangleCount() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -57,9 +59,9 @@ class Tests_MGEdgeTriangleCount
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of running EdgeTriangleCount on multiple GPUs to that of a single-GPU run
+  // Compare the results of running TriangleCount on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t>
-  void run_current_test(EdgeTriangleCount_Usecase const& edge_triangle_count_usecase,
+  void run_current_test(TriangleCount_Usecase const& triangle_count_usecase,
                         input_usecase_t const& input_usecase)
   {
     using weight_t = float;
@@ -90,34 +92,63 @@ class Tests_MGEdgeTriangleCount
     auto mg_graph_view = mg_graph.view();
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
-    if (edge_triangle_count_usecase.edge_masking_) {
+    if (triangle_count_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    // 2. run MG EdgeTriangleCount
+    // 2. generate a vertex subset to compute triangle counts
+
+    std::optional<std::vector<vertex_t>> h_mg_vertices{std::nullopt};
+    if (triangle_count_usecase.vertex_subset_ratio < 1.0) {
+      std::default_random_engine generator{
+        static_cast<long unsigned int>(handle_->get_comms().get_rank()) /* seed */};
+      std::uniform_real_distribution<double> distribution{0.0, 1.0};
+      h_mg_vertices = std::vector<vertex_t>(mg_graph_view.local_vertex_partition_range_size());
+      std::iota((*h_mg_vertices).begin(),
+                (*h_mg_vertices).end(),
+                mg_graph_view.local_vertex_partition_range_first());
+      (*h_mg_vertices)
+        .erase(std::remove_if((*h_mg_vertices).begin(),
+                              (*h_mg_vertices).end(),
+                              [&generator, &distribution, triangle_count_usecase](auto v) {
+                                return distribution(generator) >=
+                                       triangle_count_usecase.vertex_subset_ratio;
+                              }),
+               (*h_mg_vertices).end());
+    }
+
+    auto d_mg_vertices = h_mg_vertices ? std::make_optional<rmm::device_uvector<vertex_t>>(
+                                           (*h_mg_vertices).size(), handle_->get_stream())
+                                       : std::nullopt;
+    if (d_mg_vertices) {
+      raft::update_device((*d_mg_vertices).data(),
+                          (*h_mg_vertices).data(),
+                          (*h_mg_vertices).size(),
+                          handle_->get_stream());
+    }
+
+    // 3. run MG TriangleCount
+
+    rmm::device_uvector<edge_t> d_mg_triangle_counts(
+      d_mg_vertices ? (*d_mg_vertices).size() : mg_graph_view.local_vertex_partition_range_size(),
+      handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG EdgeTriangleCount");
+      hr_timer.start("MG TriangleCount");
     }
 
-    /*
-    auto d_mg_cugraph_results =
-      cugraph::edge_triangle_count<vertex_t, edge_t, true>(*handle_, mg_graph_view);
-    */
-    
-    auto [d_cugraph_srcs, d_cugraph_dsts, d_cugraph_wgts] =
-      cugraph::k_truss<vertex_t, edge_t, weight_t, true>(
-        *handle_,
-        mg_graph_view,
-        //edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        std::nullopt, // FIXME: test weights
-        //k_truss_usecase.k_,
-        4,
-        false);
+    cugraph::triangle_count<vertex_t, edge_t, true>(
+      *handle_,
+      mg_graph_view,
+      d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
+                        (*d_mg_vertices).begin(), (*d_mg_vertices).end())
+                    : std::nullopt,
+      raft::device_span<edge_t>(d_mg_triangle_counts.begin(), d_mg_triangle_counts.end()),
+      false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -126,20 +157,27 @@ class Tests_MGEdgeTriangleCount
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 3. Compare SG & MG results
+    // 4. copmare SG & MG results
 
-    #if 0
-    if (edge_triangle_count_usecase.check_correctness_) {
-      // 3-1. Convert to SG graph
+    if (triangle_count_usecase.check_correctness) {
+      // 4-1. aggregate MG results
+
+      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_vertices{std::nullopt};
+      rmm::device_uvector<edge_t> d_mg_aggregate_triangle_counts(0, handle_->get_stream());
+      std::tie(d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
+                            (*d_mg_vertices).data(), (*d_mg_vertices).size())
+                        : std::nullopt,
+          raft::device_span<edge_t const>(d_mg_triangle_counts.data(),
+                                          d_mg_triangle_counts.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-<<<<<<< HEAD
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, edge_t>>
-        d_sg_cugraph_results{std::nullopt};
-      std::tie(sg_graph, std::ignore, d_sg_cugraph_results, std::ignore) =
-        cugraph::test::mg_graph_to_sg_graph(
-=======
       std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
@@ -163,62 +201,26 @@ class Tests_MGEdgeTriangleCount
                                                          handle_->get_stream());
 
         cugraph::triangle_count<vertex_t, edge_t, false>(
->>>>>>> upstream/branch-24.06
           *handle_,
-          mg_graph_view,
-          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-          // FIXME: Update 'create_graph_from_edgelist' to support int32_t and int64_t values
-          std::make_optional(d_mg_cugraph_results.view()),
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          sg_graph_view,
+          d_mg_aggregate_vertices
+            ? std::make_optional<raft::device_span<vertex_t const>>(
+                (*d_mg_aggregate_vertices).begin(), (*d_mg_aggregate_vertices).end())
+            : std::nullopt,
+          raft::device_span<edge_t>(d_sg_triangle_counts.begin(), d_sg_triangle_counts.end()),
           false);
 
-      if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. Convert the MG triangle counts stored as 'edge_property_t' to device vector
+        // 4-3. compare
 
-        auto [edgelist_srcs,
-              edgelist_dsts,
-              d_edgelist_weights,
-              d_edge_triangle_counts,
-              d_edgelist_type] =
-          cugraph::decompress_to_edgelist(
-            *handle_,
-            sg_graph.view(),
-            std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-            // FIXME: Update 'decompress_edgelist' to support int32_t and int64_t values
-            std::make_optional((*d_sg_cugraph_results).view()),
-            std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{
-              std::nullopt});  // FIXME: No longer needed
+        auto h_mg_aggregate_triangle_counts =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_triangle_counts);
+        auto h_sg_triangle_counts = cugraph::test::to_host(*handle_, d_sg_triangle_counts);
 
-        // 3-3. Run SG EdgeTriangleCount
-
-        auto ref_d_sg_cugraph_results =
-          cugraph::edge_triangle_count<vertex_t, edge_t, false>(*handle_, sg_graph.view());
-        auto [ref_edgelist_srcs,
-              ref_edgelist_dsts,
-              ref_d_edgelist_weights,
-              ref_d_edge_triangle_counts] =
-          cugraph::decompress_to_edgelist(
-            *handle_,
-            sg_graph.view(),
-            std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-            std::make_optional(ref_d_sg_cugraph_results.view()),
-            std::optional<raft::device_span<vertex_t const>>{
-              std::nullopt});  // FIXME: No longer needed
-
-        // 3-4. Compare
-
-        auto h_mg_edge_triangle_counts = cugraph::test::to_host(*handle_, *d_edge_triangle_counts);
-        auto h_sg_edge_triangle_counts =
-          cugraph::test::to_host(*handle_, *ref_d_edge_triangle_counts);
-
-        ASSERT_TRUE(std::equal(h_mg_edge_triangle_counts.begin(),
-                               h_mg_edge_triangle_counts.end(),
-                               h_sg_edge_triangle_counts.begin()));
+        ASSERT_TRUE(std::equal(h_mg_aggregate_triangle_counts.begin(),
+                               h_mg_aggregate_triangle_counts.end(),
+                               h_sg_triangle_counts.begin()));
       }
     }
-    #endif
   }
 
  private:
@@ -226,59 +228,58 @@ class Tests_MGEdgeTriangleCount
 };
 
 template <typename input_usecase_t>
-std::unique_ptr<raft::handle_t> Tests_MGEdgeTriangleCount<input_usecase_t>::handle_ = nullptr;
+std::unique_ptr<raft::handle_t> Tests_MGTriangleCount<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGEdgeTriangleCount_File = Tests_MGEdgeTriangleCount<cugraph::test::File_Usecase>;
-//using Tests_MGEdgeTriangleCount_Rmat = Tests_MGEdgeTriangleCount<cugraph::test::Rmat_Usecase>;
+using Tests_MGTriangleCount_File = Tests_MGTriangleCount<cugraph::test::File_Usecase>;
+using Tests_MGTriangleCount_Rmat = Tests_MGTriangleCount<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGEdgeTriangleCount_File, CheckInt32Int32)
+TEST_P(Tests_MGTriangleCount_File, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
-#if 0
-TEST_P(Tests_MGEdgeTriangleCount_Rmat, CheckInt32Int32)
+
+TEST_P(Tests_MGTriangleCount_Rmat, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGEdgeTriangleCount_Rmat, CheckInt32Int64)
+TEST_P(Tests_MGTriangleCount_Rmat, CheckInt32Int64)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGEdgeTriangleCount_Rmat, CheckInt64Int64)
+TEST_P(Tests_MGTriangleCount_Rmat, CheckInt64Int64)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
   file_tests,
-  Tests_MGEdgeTriangleCount_File,
+  Tests_MGTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false}
-                      //EdgeTriangleCount_Usecase{true, true}
-                      ),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx")
-                      //cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
+    ::testing::Values(TriangleCount_Usecase{0.1, false},
+                      TriangleCount_Usecase{0.1, true},
+                      TriangleCount_Usecase{1.0, false},
+                      TriangleCount_Usecase{1.0, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-#if 0
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_tests,
-  Tests_MGEdgeTriangleCount_Rmat,
-  ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, true},
-                      EdgeTriangleCount_Usecase{true, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
+                         Tests_MGTriangleCount_Rmat,
+                         ::testing::Combine(::testing::Values(TriangleCount_Usecase{0.1, false},
+                                                              TriangleCount_Usecase{0.1, true},
+                                                              TriangleCount_Usecase{1.0, false},
+                                                              TriangleCount_Usecase{1.0, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -286,11 +287,12 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGEdgeTriangleCount_Rmat,
+  Tests_MGTriangleCount_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeTriangleCount_Usecase{false, false},
-                      EdgeTriangleCount_Usecase{true, false}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false, false},
+                      TriangleCount_Usecase{0.1, true, false},
+                      TriangleCount_Usecase{1.0, false, false},
+                      TriangleCount_Usecase{1.0, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
-#endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
