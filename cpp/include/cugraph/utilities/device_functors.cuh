@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,13 +78,14 @@ struct indirection_t {
 
 template <typename index_t, typename Iterator>
 struct indirection_if_idx_valid_t {
+  using value_type = typename thrust::iterator_traits<Iterator>::value_type;
   Iterator first{};
   index_t invalid_idx{};
-  typename thrust::iterator_traits<Iterator>::value_type invalid_value{};
+  value_type invalid_value{};
 
-  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(index_t i) const
+  __device__ value_type operator()(index_t i) const
   {
-    return (i != invalid_idx) ? *(first + i) : invalid_value;
+    return (i != invalid_idx) ? static_cast<value_type>(*(first + i)) : invalid_value;
   }
 };
 

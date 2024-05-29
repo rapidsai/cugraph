@@ -214,12 +214,14 @@ class Tests_MGInducedSubgraph
                                                         true,
                                                         handle_->get_stream());
 
-      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        false);
+      auto [sg_graph, sg_edge_weights, sg_edge_ids, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          false);
 
       if (my_rank == 0) {
         auto d_sg_subgraph_offsets = cugraph::test::to_device(*handle_, h_sg_subgraph_offsets);
