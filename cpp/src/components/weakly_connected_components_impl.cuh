@@ -34,6 +34,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
@@ -400,9 +401,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         new_root_candidates.begin(),
         new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
-        [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
-        },
+        cuda::proclaim_return_type<edge_t>(
+          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
+            return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+          }),
         edge_t{0},
         thrust::plus<edge_t>{});
 
@@ -642,9 +644,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
         thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
-        [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
-        },
+        cuda::proclaim_return_type<edge_t>(
+          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
+            return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+          }),
         edge_t{0},
         thrust::plus<edge_t>());
 
