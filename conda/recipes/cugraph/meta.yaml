@@ -69,7 +69,6 @@ requirements:
     - raft-dask ={{ minor_version }}
     - rmm ={{ minor_version }}
     - scikit-build-core >=0.7.0
-    - setuptools
     - rapids-build-backend>=0.3.0,<0.4.0.dev0
   run:
     - aiohttp

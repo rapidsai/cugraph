@@ -12,6 +12,7 @@ files:
       - cuda
       - cuda_version
       - docs
+      - python_build_rapids
       - python_build_wheel
       - python_build_cythonize
       - depends_on_rmm
@@ -70,7 +71,7 @@ files:
     extras:
       table: build-system
     includes:
-      - python_build_wheel
+      - python_build_rapids
       - python_build_cythonize
   py_rapids_build_cugraph:
     output: pyproject
@@ -111,7 +112,7 @@ files:
     extras:
       table: build-system
     includes:
-      - python_build_wheel
+      - python_build_rapids
       - python_build_cythonize
   py_rapids_build_pylibcugraph:
     output: pyproject
@@ -147,6 +148,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_nx_cugraph:
     output: pyproject
@@ -172,6 +174,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_cugraph_dgl:
     output: pyproject
@@ -195,6 +198,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_cugraph_pyg:
     output: pyproject
@@ -218,6 +222,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_cugraph_equivariant:
     output: pyproject
@@ -240,6 +245,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_cugraph_service_client:
     output: pyproject
@@ -254,6 +260,7 @@ files:
     extras:
       table: build-system
     includes:
+      - python_build_rapids
       - python_build_wheel
   py_run_cugraph_service_server:
     output: pyproject
@@ -436,11 +443,15 @@ dependencies:
           - matrix:
             packages:
               - python>=3.9,<3.12
-  python_build_wheel:
+  python_build_rapids:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
           - rapids-build-backend>=0.3.0,<0.4.0.dev0
+  python_build_wheel:
+    common:
+      - output_types: [conda, pyproject, requirements]
+        packages:
           - setuptools>=61.0.0
           - wheel
   python_build_cythonize:
