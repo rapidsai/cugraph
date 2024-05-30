@@ -77,7 +77,6 @@ files:
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
-      - depends_on_pylibwholegraph
       - python_build_cythonize
   py_run_cugraph:
     output: pyproject
