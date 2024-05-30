@@ -215,13 +215,14 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
 
     # Install pyg dependencies (which requires pip)
 
-    pip install ogb
+    pip install \
+      ogb \
+      tensordict
+
     pip install \
         pyg_lib \
         torch_scatter \
         torch_sparse \
-        torch_cluster \
-        torch_spline_conv \
       -f ${PYG_URL}
 
     rapids-print-env

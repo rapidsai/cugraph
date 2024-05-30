@@ -74,8 +74,8 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
     init_pytorch_worker(device)
 
     import cugraph
-    from cugraph_pyg.data import CuGraphStore
-    from cugraph_pyg.loader import CuGraphNeighborLoader
+    from cugraph_pyg.data import DaskGraphStore
+    from cugraph_pyg.loader import DaskNeighborLoader
 
     from ogb.nodeproppred import NodePropPredDataset
 
@@ -106,7 +106,7 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
 
     fs.add_data(train_mask, "paper", "train")
 
-    cugraph_store = CuGraphStore(fs, G, N)
+    cugraph_store = DaskGraphStore(fs, G, N)
 
     model = (
         CuGraphSAGE(in_channels=128, hidden_channels=64, out_channels=349, num_layers=3)
@@ -120,7 +120,7 @@ def train(device: int, features_device: Union[str, int] = "cpu", num_epochs=2) -
         start_time_train = time.perf_counter_ns()
         model.train()
 
-        cugraph_bulk_loader = CuGraphNeighborLoader(
+        cugraph_bulk_loader = DaskNeighborLoader(
             cugraph_store, train_nodes, batch_size=500, num_neighbors=[10, 25]
         )
 

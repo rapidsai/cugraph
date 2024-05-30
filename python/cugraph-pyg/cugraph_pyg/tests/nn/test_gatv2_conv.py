@@ -24,6 +24,7 @@ ATOL = 1e-6
 @pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 @pytest.mark.parametrize("use_edge_attr", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+@pytest.mark.sg
 def test_gatv2_conv_equality(
     use_edge_index, bipartite, concat, heads, use_edge_attr, graph, request
 ):

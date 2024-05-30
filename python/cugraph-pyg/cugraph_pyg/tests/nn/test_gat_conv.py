@@ -30,6 +30,7 @@ ATOL = 1e-6
 @pytest.mark.parametrize("max_num_neighbors", [8, None])
 @pytest.mark.parametrize("use_edge_attr", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+@pytest.mark.sg
 def test_gat_conv_equality(
     use_edge_index,
     bias,
