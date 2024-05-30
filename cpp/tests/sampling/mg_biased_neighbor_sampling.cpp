@@ -343,10 +343,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGBiased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true, false}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

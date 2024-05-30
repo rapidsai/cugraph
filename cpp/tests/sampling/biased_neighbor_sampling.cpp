@@ -49,9 +49,10 @@ class Tests_Biased_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Biased_Neighbor_Sampling_Usecase const& biased_neighbor_sampling_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    std::tuple<Biased_Neighbor_Sampling_Usecase const&, input_usecase_t const&> const& param)
   {
+    auto [biased_neighbor_sampling_usecase, input_usecase] = param;
     raft::handle_t handle{};
     HighResTimer hr_timer{};
 
@@ -136,6 +137,11 @@ class Tests_Biased_Neighbor_Sampling
     std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
       label_to_output_comm_rank_mapping{std::nullopt};
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.start("Biased neighbor sampling");
+    }
+
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::biased_neighbor_sample(
         handle,
@@ -154,6 +160,12 @@ class Tests_Biased_Neighbor_Sampling
         rng_state,
         true,
         biased_neighbor_sampling_usecase.flag_replacement);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
 
     if (biased_neighbor_sampling_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
@@ -211,47 +223,50 @@ using Tests_Biased_Neighbor_Sampling_Rmat =
 TEST_P(Tests_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Biased_Neighbor_Sampling_File, CheckInt32Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Biased_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Biased_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Biased_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Biased_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Biased_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{2}, 100, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, false, true},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, true, true}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -261,10 +276,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Biased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{2}, 100, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, false, true},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 100, true, true}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -275,10 +290,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Biased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{2}, 500, false, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 500, false, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 500, true, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{2}, 500, true, true, false}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

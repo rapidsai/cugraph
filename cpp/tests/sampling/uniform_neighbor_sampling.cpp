@@ -46,9 +46,11 @@ class Tests_Uniform_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Uniform_Neighbor_Sampling_Usecase const& uniform_neighbor_sampling_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    std::tuple<Uniform_Neighbor_Sampling_Usecase const&, input_usecase_t const&> const& param)
   {
+    auto [uniform_neighbor_sampling_usecase, input_usecase] = param;
+
     raft::handle_t handle{};
     HighResTimer hr_timer{};
 
@@ -153,6 +155,11 @@ class Tests_Uniform_Neighbor_Sampling
         uniform_neighbor_sampling_usecase.flag_replacement),
       std::exception);
 #else
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.start("Uniform neighbor sampling");
+    }
+
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         handle,
@@ -170,6 +177,12 @@ class Tests_Uniform_Neighbor_Sampling
         rng_state,
         true,
         uniform_neighbor_sampling_usecase.flag_replacement);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
 
     if (uniform_neighbor_sampling_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
@@ -227,38 +240,38 @@ using Tests_Uniform_Neighbor_Sampling_Rmat =
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
