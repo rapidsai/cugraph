@@ -69,7 +69,6 @@ requirements:
     - raft-dask ={{ minor_version }}
     - rmm ={{ minor_version }}
     - scikit-build-core >=0.7.0
-    - setuptools
   run:
     - aiohttp
     - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}

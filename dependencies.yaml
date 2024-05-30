@@ -71,7 +71,6 @@ files:
       table: build-system
     includes:
       - common_build
-      - python_build_wheel
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
@@ -105,7 +104,6 @@ files:
       table: build-system
     includes:
       - common_build
-      - python_build_wheel
       - depends_on_rmm
       - depends_on_pylibraft
       - python_build_cythonize
