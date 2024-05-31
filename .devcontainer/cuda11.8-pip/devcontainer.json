@@ -8,6 +8,11 @@
       "BASE": "rapidsai/devcontainers:24.08-cpp-cuda11.8-ubuntu22.04"
     }
   },
+  "runArgs": [
+    "--rm",
+    "--name",
+    "${localEnv:USER:anon}-rapids-${localWorkspaceFolderBasename}-24.06-cuda11.8-pip"
+  ],
   "hostRequirements": {"gpu": "optional"},
   "features": {
     "ghcr.io/rapidsai/devcontainers/features/ucx:24.8": {
@@ -23,7 +28,6 @@
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils:24.8": {}
   },
   "overrideFeatureInstallOrder": [
-    "ghcr.io/rapidsai/devcontainers/features/ucx",
     "ghcr.io/rapidsai/devcontainers/features/cuda",
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils"
   ],

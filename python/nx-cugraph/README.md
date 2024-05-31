@@ -216,6 +216,8 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
  └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.generators.classic.wheel_graph.html#networkx.generators.classic.wheel_graph">wheel_graph</a>
 <a href="https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.community">community</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.generators.community.caveman_graph.html#networkx.generators.community.caveman_graph">caveman_graph</a>
+<a href="https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.ego">ego</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.generators.ego.ego_graph.html#networkx.generators.ego.ego_graph">ego_graph</a>
 <a href="https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.small">small</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.generators.small.bull_graph.html#networkx.generators.small.bull_graph">bull_graph</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.generators.small.chvatal_graph.html#networkx.generators.small.chvatal_graph">chvatal_graph</a>

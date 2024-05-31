@@ -754,7 +754,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             std::make_unique<kv_store_t<vertex_t, edge_src_value_t, true>>(
               std::move(majors),
               std::move(edge_major_values),
-              invalid_vertex_id<vertex_t>::value,
+              edge_src_value_t{},
               true,
               handle.get_stream());
         }
