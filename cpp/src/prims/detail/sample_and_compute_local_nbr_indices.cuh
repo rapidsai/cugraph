@@ -1258,11 +1258,9 @@ shuffle_and_compute_local_nbr_values(raft::handle_t const& handle,
                                      size_t K,
                                      value_t invalid_value)
 {
-  int minor_comm_rank{0};
   int minor_comm_size{1};
   if constexpr (multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    minor_comm_rank  = minor_comm.get_rank();
     minor_comm_size  = minor_comm.get_size();
   }
 
