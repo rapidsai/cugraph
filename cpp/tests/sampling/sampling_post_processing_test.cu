@@ -398,15 +398,16 @@ bool check_renumber_map_invariants(
       handle.get_thrust_policy(),
       unique_majors.begin(),
       unique_majors.end(),
-      [sorted_org_vertices =
-         raft::device_span<vertex_t const>(sorted_org_vertices.data(), sorted_org_vertices.size()),
-       matching_renumbered_vertices = raft::device_span<vertex_t const>(
-         matching_renumbered_vertices.data(),
-         matching_renumbered_vertices.size())] __device__(vertex_t major) {
-        auto it = thrust::lower_bound(
-          thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
-        return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-      },
+      cuda::proclaim_return_type<vertex_t>(
+        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                 sorted_org_vertices.size()),
+         matching_renumbered_vertices = raft::device_span<vertex_t const>(
+           matching_renumbered_vertices.data(),
+           matching_renumbered_vertices.size())] __device__(vertex_t major) -> vertex_t {
+          auto it = thrust::lower_bound(
+            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
+          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
+        }),
       std::numeric_limits<vertex_t>::lowest(),
       thrust::maximum<vertex_t>{});
 
@@ -414,15 +415,16 @@ bool check_renumber_map_invariants(
       handle.get_thrust_policy(),
       unique_minors.begin(),
       unique_minors.end(),
-      [sorted_org_vertices =
-         raft::device_span<vertex_t const>(sorted_org_vertices.data(), sorted_org_vertices.size()),
-       matching_renumbered_vertices = raft::device_span<vertex_t const>(
-         matching_renumbered_vertices.data(),
-         matching_renumbered_vertices.size())] __device__(vertex_t minor) {
-        auto it = thrust::lower_bound(
-          thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), minor);
-        return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-      },
+      cuda::proclaim_return_type<vertex_t>(
+        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                 sorted_org_vertices.size()),
+         matching_renumbered_vertices = raft::device_span<vertex_t const>(
+           matching_renumbered_vertices.data(),
+           matching_renumbered_vertices.size())] __device__(vertex_t minor) -> vertex_t {
+          auto it = thrust::lower_bound(
+            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), minor);
+          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
+        }),
       std::numeric_limits<vertex_t>::max(),
       thrust::minimum<vertex_t>{});
 
