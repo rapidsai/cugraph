@@ -159,8 +159,8 @@ def df_type_id(dataframe_type):
         return s + "cudf.DataFrame"
     if dataframe_type == pd.DataFrame:
         return s + "pandas.DataFrame"
-    if dataframe_type == dask_cudf.core.DataFrame:
-        return s + "dask_cudf.core.DataFrame"
+    if dataframe_type == dask_cudf.DataFrame:
+        return s + "dask_cudf.DataFrame"
     return s + "?"
 
 

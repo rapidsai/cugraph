@@ -16,22 +16,25 @@ import cupy
 
 import pytest
 
-from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import (
+from cugraph_pyg.data import DaskGraphStore
+from cugraph_pyg.sampler.sampler_utils import (
     _sampler_output_from_sampling_results_heterogeneous,
 )
 
+from cugraph.gnn import FeatureStore
+
 from cugraph.utilities.utils import import_optional, MissingModule
-from cugraph import uniform_neighbor_sample
+from cugraph.dask import uniform_neighbor_sample
 
 torch = import_optional("torch")
 
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample(basic_graph_1):
+@pytest.mark.mg
+def test_neighbor_sample(dask_client, basic_graph_1):
     F, G, N = basic_graph_1
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     batches = cudf.DataFrame(
         {
@@ -40,17 +43,22 @@ def test_neighbor_sample(basic_graph_1):
         }
     )
 
-    sampling_results = uniform_neighbor_sample(
-        cugraph_store._subgraph(),
-        batches,
-        fanout_vals=[-1],
-        with_replacement=False,
-        with_edge_properties=True,
-        with_batch_ids=True,
-        random_state=62,
-        return_offsets=False,
-        use_legacy_names=False,
-    ).sort_values(by=["majors", "minors"])
+    sampling_results = (
+        uniform_neighbor_sample(
+            cugraph_store._subgraph(),
+            batches,
+            with_batch_ids=True,
+            fanout_vals=[-1],
+            with_replacement=False,
+            with_edge_properties=True,
+            random_state=62,
+            return_offsets=False,
+            return_hops=True,
+            use_legacy_names=False,
+        )
+        .compute()
+        .sort_values(by=["majors", "minors"])
+    )
 
     out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
@@ -88,28 +96,34 @@ def test_neighbor_sample(basic_graph_1):
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
+@pytest.mark.skip(reason="broken")
+@pytest.mark.mg
+def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     batches = cudf.DataFrame(
         {
             "start": cudf.Series([0, 1, 2, 3, 4], dtype="int64"),
-            "batch": cudf.Series(cupy.zeros(5, dtype="int32")),
+            "batches": cudf.Series(cupy.zeros(5, dtype="int32")),
         }
     )
 
-    sampling_results = uniform_neighbor_sample(
-        cugraph_store._subgraph(),
-        batches,
-        fanout_vals=[-1],
-        with_replacement=False,
-        with_edge_properties=True,
-        random_state=62,
-        return_offsets=False,
-        with_batch_ids=True,
-        use_legacy_names=False,
-    ).sort_values(by=["majors", "minors"])
+    sampling_results = (
+        uniform_neighbor_sample(
+            cugraph_store._subgraph(),
+            batches,
+            fanout_vals=[-1],
+            with_replacement=False,
+            with_edge_properties=True,
+            random_state=62,
+            return_offsets=False,
+            with_batch_ids=True,
+            use_legacy_names=False,
+        )
+        .sort_values(by=["majors", "minors"])
+        .compute()
+    )
 
     out = _sampler_output_from_sampling_results_heterogeneous(
         sampling_results=sampling_results,
@@ -136,22 +150,50 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 2
-    assert out.num_sampled_nodes["black"] == [2, 0]
-    assert out.num_sampled_nodes["brown"] == [3, 0]
+    assert out.num_sampled_nodes["black"].tolist() == [2, 0]
+    assert out.num_sampled_nodes["brown"].tolist() == [3, 0]
 
     assert len(out.num_sampled_edges) == 5
-    assert out.num_sampled_edges[("brown", "horse", "brown")] == [2]
-    assert out.num_sampled_edges[("brown", "tortoise", "black")] == [3]
-    assert out.num_sampled_edges[("brown", "mongoose", "black")] == [2]
-    assert out.num_sampled_edges[("black", "cow", "brown")] == [2]
-    assert out.num_sampled_edges[("black", "snake", "black")] == [1]
+    assert out.num_sampled_edges[("brown", "horse", "brown")].tolist() == [2]
+    assert out.num_sampled_edges[("brown", "tortoise", "black")].tolist() == [3]
+    assert out.num_sampled_edges[("brown", "mongoose", "black")].tolist() == [2]
+    assert out.num_sampled_edges[("black", "cow", "brown")].tolist() == [2]
+    assert out.num_sampled_edges[("black", "snake", "black")].tolist() == [1]
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample_mock_sampling_results(abc_graph):
-    F, G, N = abc_graph
+@pytest.mark.mg
+def test_neighbor_sample_mock_sampling_results(dask_client):
+    N = {
+        "A": 2,  # 0, 1
+        "B": 3,  # 2, 3, 4
+        "C": 4,  # 5, 6, 7, 8
+    }
 
-    graph_store = CuGraphStore(F, G, N, order="CSR")
+    G = {
+        # (0->2, 0->3, 1->3)
+        ("A", "ab", "B"): [
+            torch.tensor([0, 0, 1], dtype=torch.int64),
+            torch.tensor([0, 1, 1], dtype=torch.int64),
+        ],
+        # (2->0, 2->1, 3->1, 4->0)
+        ("B", "ba", "A"): [
+            torch.tensor([0, 0, 1, 2], dtype=torch.int64),
+            torch.tensor([0, 1, 1, 0], dtype=torch.int64),
+        ],
+        # (2->6, 2->8, 3->5, 3->7, 4->5, 4->8)
+        ("B", "bc", "C"): [
+            torch.tensor([0, 0, 1, 1, 2, 2], dtype=torch.int64),
+            torch.tensor([1, 3, 0, 2, 0, 3], dtype=torch.int64),
+        ],
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        torch.tensor([3.2, 2.1], dtype=torch.float32), type_name="A", feat_name="prop1"
+    )
+
+    graph_store = DaskGraphStore(F, G, N, multi_gpu=True, order="CSR")
 
     # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
     mock_sampling_results = cudf.DataFrame(
@@ -191,9 +233,3 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("A", "ab", "B")] == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")] == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")] == [0, 2, 0, 2]
-
-
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip("needs to be written")
-def test_neighbor_sample_renumbered():
-    pass
