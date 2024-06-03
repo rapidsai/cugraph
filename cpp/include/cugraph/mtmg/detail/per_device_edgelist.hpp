@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,17 +62,17 @@ class per_device_edgelist_t {
   /**
    * @brief Construct a new per device edgelist t object
    *
-   * @param handle             MTMG resource handle - used to identify GPU resources
    * @param device_buffer_size Number of edges to store in each device buffer
    * @param use_weight         Whether or not the edgelist will have weights
    * @param use_edge_id        Whether or not the edgelist will have edge ids
    * @param use_edge_type      Whether or not the edgelist will have edge types
+   * @param stream_view        CUDA stream view
    */
-  per_device_edgelist_t(cugraph::mtmg::handle_t const& handle,
-                        size_t device_buffer_size,
+  per_device_edgelist_t(size_t device_buffer_size,
                         bool use_weight,
                         bool use_edge_id,
-                        bool use_edge_type)
+                        bool use_edge_type,
+                        rmm::cuda_stream_view stream_view)
     : device_buffer_size_{device_buffer_size},
       current_pos_{0},
       src_{},
@@ -89,7 +89,7 @@ class per_device_edgelist_t {
       edge_type_ = std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>());
     }
 
-    create_new_buffers(handle);
+    create_new_buffers(stream_view);
   }
 
   /**
@@ -111,19 +111,19 @@ class per_device_edgelist_t {
   /**
    * @brief Append a list of edges to the edge list
    *
-   * @param handle     The resource handle
-   * @param src        Source vertex id
-   * @param dst        Destination vertex id
-   * @param wgt        Edge weight
-   * @param edge_id    Edge id
-   * @param edge_type  Edge type
+   * @param src         Source vertex id
+   * @param dst         Destination vertex id
+   * @param wgt         Edge weight
+   * @param edge_id     Edge id
+   * @param edge_type   Edge type
+   * @param stream_view CUDA stream view
    */
-  void append(handle_t const& handle,
-              raft::host_span<vertex_t const> src,
+  void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               std::optional<raft::host_span<weight_t const>> wgt,
               std::optional<raft::host_span<edge_t const>> edge_id,
-              std::optional<raft::host_span<edge_type_t const>> edge_type)
+              std::optional<raft::host_span<edge_type_t const>> edge_type,
+              rmm::cuda_stream_view stream_view)
   {
     std::vector<std::tuple<size_t, size_t, size_t, size_t>> copy_positions;
 
@@ -142,13 +142,13 @@ class per_device_edgelist_t {
         pos += copy_count;
         current_pos_ += copy_count;
 
-        if (current_pos_ == src_.back().size()) { create_new_buffers(handle); }
+        if (current_pos_ == src_.back().size()) { create_new_buffers(stream_view); }
       }
     }
 
     std::for_each(copy_positions.begin(),
                   copy_positions.end(),
-                  [&handle,
+                  [&stream_view,
                    &this_src = src_,
                    &src,
                    &this_dst = dst_,
@@ -164,47 +164,45 @@ class per_device_edgelist_t {
                     raft::update_device(this_src[buffer_idx].begin() + buffer_pos,
                                         src.begin() + input_pos,
                                         copy_count,
-                                        handle.get_stream());
+                                        stream_view);
 
                     raft::update_device(this_dst[buffer_idx].begin() + buffer_pos,
                                         dst.begin() + input_pos,
                                         copy_count,
-                                        handle.get_stream());
+                                        stream_view);
 
                     if (this_wgt)
                       raft::update_device((*this_wgt)[buffer_idx].begin() + buffer_pos,
                                           wgt->begin() + input_pos,
                                           copy_count,
-                                          handle.get_stream());
+                                          stream_view);
 
                     if (this_edge_id)
                       raft::update_device((*this_edge_id)[buffer_idx].begin() + buffer_pos,
                                           edge_id->begin() + input_pos,
                                           copy_count,
-                                          handle.get_stream());
+                                          stream_view);
 
                     if (this_edge_type)
                       raft::update_device((*this_edge_type)[buffer_idx].begin() + buffer_pos,
                                           edge_type->begin() + input_pos,
                                           copy_count,
-                                          handle.get_stream());
+                                          stream_view);
                   });
-
-    handle.sync_stream();
   }
 
   /**
    * @brief  Mark the edgelist as ready for reading (all writes are complete)
    *
-   * @param handle     The resource handle
+   * @param stream_view  CUDA stream view
    */
-  void finalize_buffer(handle_t const& handle)
+  void finalize_buffer(rmm::cuda_stream_view stream_view)
   {
-    src_.back().resize(current_pos_, handle.get_stream());
-    dst_.back().resize(current_pos_, handle.get_stream());
-    if (wgt_) wgt_->back().resize(current_pos_, handle.get_stream());
-    if (edge_id_) edge_id_->back().resize(current_pos_, handle.get_stream());
-    if (edge_type_) edge_type_->back().resize(current_pos_, handle.get_stream());
+    src_.back().resize(current_pos_, stream_view);
+    dst_.back().resize(current_pos_, stream_view);
+    if (wgt_) wgt_->back().resize(current_pos_, stream_view);
+    if (edge_id_) edge_id_->back().resize(current_pos_, stream_view);
+    if (edge_type_) edge_type_->back().resize(current_pos_, stream_view);
   }
 
   bool use_weight() const { return wgt_.has_value(); }
@@ -230,16 +228,18 @@ class per_device_edgelist_t {
   void consolidate_and_shuffle(cugraph::mtmg::handle_t const& handle, bool store_transposed)
   {
     if (src_.size() > 1) {
+      auto stream = handle.raft_handle().get_stream();
+
       size_t total_size = std::transform_reduce(
         src_.begin(), src_.end(), size_t{0}, std::plus<size_t>(), [](auto& d_vector) {
           return d_vector.size();
         });
 
-      resize_and_copy_buffers(handle.get_stream(), src_, total_size);
-      resize_and_copy_buffers(handle.get_stream(), dst_, total_size);
-      if (wgt_) resize_and_copy_buffers(handle.get_stream(), *wgt_, total_size);
-      if (edge_id_) resize_and_copy_buffers(handle.get_stream(), *edge_id_, total_size);
-      if (edge_type_) resize_and_copy_buffers(handle.get_stream(), *edge_type_, total_size);
+      resize_and_copy_buffers(src_, total_size, stream);
+      resize_and_copy_buffers(dst_, total_size, stream);
+      if (wgt_) resize_and_copy_buffers(*wgt_, total_size, stream);
+      if (edge_id_) resize_and_copy_buffers(*edge_id_, total_size, stream);
+      if (edge_type_) resize_and_copy_buffers(*edge_type_, total_size, stream);
     }
 
     auto tmp_wgt     = wgt_ ? std::make_optional(std::move((*wgt_)[0])) : std::nullopt;
@@ -267,9 +267,9 @@ class per_device_edgelist_t {
 
  private:
   template <typename T>
-  void resize_and_copy_buffers(rmm::cuda_stream_view stream,
-                               std::vector<rmm::device_uvector<T>>& buffer,
-                               size_t total_size)
+  void resize_and_copy_buffers(std::vector<rmm::device_uvector<T>>& buffer,
+                               size_t total_size,
+                               rmm::cuda_stream_view stream)
   {
     size_t pos = buffer[0].size();
     buffer[0].resize(total_size, stream);
@@ -286,16 +286,16 @@ class per_device_edgelist_t {
     buffer = std::move(new_buffer);
   }
 
-  void create_new_buffers(cugraph::mtmg::handle_t const& handle)
+  void create_new_buffers(rmm::cuda_stream_view stream_view)
   {
-    src_.emplace_back(device_buffer_size_, handle.get_stream());
-    dst_.emplace_back(device_buffer_size_, handle.get_stream());
+    src_.emplace_back(device_buffer_size_, stream_view);
+    dst_.emplace_back(device_buffer_size_, stream_view);
 
-    if (wgt_) { wgt_->emplace_back(device_buffer_size_, handle.get_stream()); }
+    if (wgt_) { wgt_->emplace_back(device_buffer_size_, stream_view); }
 
-    if (edge_id_) { edge_id_->emplace_back(device_buffer_size_, handle.get_stream()); }
+    if (edge_id_) { edge_id_->emplace_back(device_buffer_size_, stream_view); }
 
-    if (edge_type_) { edge_type_->emplace_back(device_buffer_size_, handle.get_stream()); }
+    if (edge_type_) { edge_type_->emplace_back(device_buffer_size_, stream_view); }
 
     current_pos_ = 0;
   }
