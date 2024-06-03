@@ -25,6 +25,7 @@ ATOL = 1e-6
 )
 @pytest.mark.parametrize("heads", [1, 3, 10])
 @pytest.mark.parametrize("aggr", ["sum", "mean"])
+@pytest.mark.sg
 def test_hetero_gat_conv_equality(sample_pyg_hetero_data, aggr, heads):
     import torch
     from torch_geometric.data import HeteroData

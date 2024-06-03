@@ -23,8 +23,8 @@ import cudf
 from cugraph.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
-from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.sampler.cugraph_sampler import (
+from cugraph_pyg.data import DaskGraphStore
+from cugraph_pyg.sampler.sampler_utils import (
     _sampler_output_from_sampling_results_heterogeneous,
     _sampler_output_from_sampling_results_homogeneous_csr,
     _sampler_output_from_sampling_results_homogeneous_coo,
@@ -47,8 +47,8 @@ class BulkSampleLoader:
 
     def __init__(
         self,
-        feature_store: CuGraphStore,
-        graph_store: CuGraphStore,
+        feature_store: DaskGraphStore,
+        graph_store: DaskGraphStore,
         input_nodes: InputNodes = None,
         batch_size: int = 0,
         *,
@@ -72,10 +72,10 @@ class BulkSampleLoader:
 
         Parameters
         ----------
-        feature_store: CuGraphStore
+        feature_store: DaskGraphStore
             The feature store containing features for the graph.
 
-        graph_store: CuGraphStore
+        graph_store: DaskGraphStore
             The graph store containing the graph structure.
 
         input_nodes: InputNodes
@@ -487,10 +487,10 @@ class BulkSampleLoader:
         return self
 
 
-class CuGraphNeighborLoader:
+class DaskNeighborLoader:
     def __init__(
         self,
-        data: Union[CuGraphStore, Tuple[CuGraphStore, CuGraphStore]],
+        data: Union[DaskGraphStore, Tuple[DaskGraphStore, DaskGraphStore]],
         input_nodes: Union[InputNodes, int] = None,
         batch_size: int = None,
         **kwargs,
@@ -498,8 +498,8 @@ class CuGraphNeighborLoader:
         """
         Parameters
         ----------
-        data: CuGraphStore or (CuGraphStore, CuGraphStore)
-            The CuGraphStore or stores where the graph/feature data is held.
+        data: DaskGraphStore or (DaskGraphStore, DaskGraphStore)
+            The DaskGraphStore or stores where the graph/feature data is held.
 
         batch_size: int (required)
             The number of input nodes in each batch.

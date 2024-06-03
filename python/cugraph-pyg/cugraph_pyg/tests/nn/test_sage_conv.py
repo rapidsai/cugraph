@@ -26,6 +26,7 @@ ATOL = 1e-6
 @pytest.mark.parametrize("normalize", [True, False])
 @pytest.mark.parametrize("root_weight", [True, False])
 @pytest.mark.parametrize("graph", ["basic_pyg_graph_1", "basic_pyg_graph_2"])
+@pytest.mark.sg
 def test_sage_conv_equality(
     use_edge_index,
     aggr,
