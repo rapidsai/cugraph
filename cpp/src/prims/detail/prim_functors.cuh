@@ -89,12 +89,7 @@ struct call_e_op_with_key_t {
   __device__ auto operator()(
     key_t key, typename GraphViewType::edge_type i /* index in edge_partition's edge list */) const
   {
-    typename GraphViewType::vertex_type major{};
-    if constexpr (std::is_same_v<key_t, typename GraphViewType::vertex_type>) {
-      major = key;
-    } else {
-      major = thrust::get<0>(key);
-    }
+    auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto minor        = *(edge_partition.indices() + i);
     auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);

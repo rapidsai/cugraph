@@ -32,6 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pandas",
+    "pylibwholegraph==24.6.*",
     "pytest",
     "pytest-benchmark",
     "pytest-cov",
